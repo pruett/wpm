@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+
+# Keys (never commit)
+*.pem
+*.pub
+
+# Chain data
+chain.jsonl
+
+# Nginx certs
+nginx/certs/
+
+# OS
+.DS_Store

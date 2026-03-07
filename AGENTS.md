@@ -1,0 +1,2 @@
+- use bun over npm
+- prefer TypeScript types over interfaces

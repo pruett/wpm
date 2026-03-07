@@ -1,0 +1,85 @@
+services:
+  wpm-node:
+    build:
+      context: .
+      dockerfile: packages/node/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - chain-data:/data
+      - keys:/keys
+    environment:
+      - NODE_PORT=4000
+      - CHAIN_FILE=/data/chain.jsonl
+      - SIGNER_KEY_PATH=/keys/signer.pem
+      - ORACLE_PUBLIC_KEY_PATH=/keys/oracle.pub
+    networks:
+      - wpm-net
+
+  wpm-api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - wpm-node
+    environment:
+      - API_PORT=3000
+      - NODE_URL=http://wpm-node:4000
+      - JWT_SECRET=${JWT_SECRET}
+      - TREASURY_KEY_PATH=/keys/signer.pem
+    volumes:
+      - keys:/keys
+    networks:
+      - wpm-net
+
+  wpm-oracle:
+    build:
+      context: .
+      dockerfile: packages/oracle/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - wpm-api
+    environment:
+      - API_URL=http://wpm-api:3000
+      - ORACLE_KEY_PATH=/keys/oracle.pem
+      - ENABLED_SPORTS=NFL
+      - INGEST_CRON=0 6 * * *
+      - RESOLVE_CRON=*/30 12-24 * * *
+      - LOOKAHEAD_DAYS=14
+      - DEFAULT_SEED_AMOUNT=1000
+      - TZ=America/New_York
+    volumes:
+      - keys:/keys
+    networks:
+      - wpm-net
+
+  wpm-web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    restart: unless-stopped
+    networks:
+      - wpm-net
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/certs:/etc/nginx/certs
+    depends_on:
+      - wpm-api
+      - wpm-web
+    networks:
+      - wpm-net
+
+volumes:
+  chain-data:
+  keys:
+
+networks:
+  wpm-net:
+    driver: bridge
