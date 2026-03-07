@@ -35,6 +35,57 @@ type BuyResult = {
   pool: AMMPool;
 };
 
+type SellResult = {
+  netReturn: number;
+  pool: AMMPool;
+};
+
+export function calculateSell(
+  pool: AMMPool,
+  outcome: "A" | "B",
+  shareAmount: number,
+): SellResult {
+  // Step 1: Add shares to the pool on the sold side
+  let sharesA = pool.sharesA;
+  let sharesB = pool.sharesB;
+
+  let sharesToRemove: number;
+  if (outcome === "A") {
+    const newSharesA = sharesA + shareAmount;
+    sharesToRemove = round2(sharesB - (sharesA * sharesB) / newSharesA);
+    sharesA = newSharesA;
+    sharesB = round2(sharesB - sharesToRemove);
+  } else {
+    const newSharesB = sharesB + shareAmount;
+    sharesToRemove = round2(sharesA - (sharesA * sharesB) / newSharesB);
+    sharesB = newSharesB;
+    sharesA = round2(sharesA - sharesToRemove);
+  }
+
+  // Step 2: Calculate fee and net return
+  const wpmToReturn = sharesToRemove;
+  const fee = round2(wpmToReturn * FEE_RATE);
+  const netReturn = round2(wpmToReturn - fee);
+
+  // Step 3: Add fee back to the opposite side
+  if (outcome === "A") {
+    sharesB = round2(sharesB + fee);
+  } else {
+    sharesA = round2(sharesA + fee);
+  }
+
+  return {
+    netReturn,
+    pool: {
+      marketId: pool.marketId,
+      sharesA,
+      sharesB,
+      k: round2(sharesA * sharesB),
+      wpmLocked: round2(pool.wpmLocked - netReturn),
+    },
+  };
+}
+
 export function calculateBuy(
   pool: AMMPool,
   outcome: "A" | "B",

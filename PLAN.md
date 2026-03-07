@@ -62,9 +62,9 @@
 - [x] Test: place bet, verify shares received match AMM formula output
 
 ### SellShares Transaction (FR-9)
-- [ ] Add `SellShares` type and AMM sell math to `@wpm/shared/amm` — constant product sell, fee, cost basis reduction
-- [ ] Add SellShares validation to `validation.ts` — market open, before eventStartTime, minimum sell, sufficient shares
-- [ ] Test: sell shares, verify WPM returned matches worked example (FR-9, Example 3)
+- [x] Add `SellShares` type and AMM sell math to `@wpm/shared/amm` — constant product sell, fee, cost basis reduction
+- [x] Add SellShares validation to `validation.ts` — market open, before eventStartTime, minimum sell, sufficient shares
+- [x] Test: sell shares, verify WPM returned matches worked example (FR-9, Example 3)
 
 ---
 

@@ -259,3 +259,22 @@ Notes:
 - `GET /internal/shares/:address` returns `{ address, positions }` where positions is `{ [marketId]: { [outcome]: { shares, costBasis } } }`
 - Share positions accumulate correctly across multiple bets on the same outcome
 - tsc --noEmit, oxlint, and vitest all pass clean (30 tests total)
+
+## Task: SellShares Transaction (Phase 1, FR-9)
+
+Implemented SellShares transaction with AMM constant-product sell math, validation, state application, and full test coverage.
+
+Files changed:
+- packages/shared/src/amm/index.ts (updated — added `calculateSell()` with constant product sell, 1% fee, net return calculation)
+- packages/node/src/validation.ts (updated — added `validateSellShares()` with market, timing, amount, shares, and signature checks)
+- packages/node/src/state.ts (updated — implemented `applySellShares()` using `calculateSell()`, proportional cost basis reduction)
+- packages/node/tests/sell-shares.test.ts (new — 8 tests: happy path sell with AMM math verification, k invariant check, non-existent market, zero amount, below minimum, insufficient shares, wrong outcome, wpmLocked decrease)
+
+Notes:
+- `calculateSell(pool, outcome, shareAmount)` implements FR-9 spec: add shares to pool, compute sharesToRemove via constant product, 1% fee on wpmToReturn, netReturn = wpmToReturn - fee, fee goes back to opposite side
+- Cost basis reduced proportionally: `costBasisReduction = costBasis * (shareAmount / previousShareCount)`
+- Validation error codes match spec: MARKET_NOT_FOUND, MARKET_NOT_OPEN, BETTING_CLOSED, INVALID_AMOUNT, MINIMUM_SELL, INSUFFICIENT_SHARES, INVALID_SIGNATURE
+- Minimum sell is 0.01 shares per spec
+- Pool k only increases after sell (fee adds to liquidity)
+- wpmLocked decreases by netReturn after sell
+- tsc --noEmit, oxlint, and vitest all pass clean (38 tests total)

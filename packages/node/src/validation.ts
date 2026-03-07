@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -82,6 +82,8 @@ export function validateTransaction(
       return validateCreateMarket(tx, state, oraclePublicKey);
     case "PlaceBet":
       return validatePlaceBet(tx, state);
+    case "SellShares":
+      return validateSellShares(tx, state);
     default:
       return fail(
         "UNSUPPORTED_TX_TYPE",
@@ -266,6 +268,49 @@ function validatePlaceBet(
     return fail(
       "INSUFFICIENT_BALANCE",
       `Sender balance ${state.getBalance(tx.sender)} is less than amount ${tx.amount}`,
+    );
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, tx.sender)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- SellShares Validation (FR-9) ---
+
+function validateSellShares(
+  tx: SellSharesTx,
+  state: ChainState,
+): ValidationResult {
+  const market = state.markets.get(tx.marketId);
+  if (!market) {
+    return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
+  }
+
+  if (market.status !== "open") {
+    return fail("MARKET_NOT_OPEN", `Market ${tx.marketId} is not open`);
+  }
+
+  if (tx.timestamp >= market.eventStartTime) {
+    return fail("BETTING_CLOSED", "Selling is closed after event start time");
+  }
+
+  if (tx.shareAmount <= 0) {
+    return fail("INVALID_AMOUNT", "Share amount must be greater than 0");
+  }
+
+  if (tx.shareAmount < 0.01) {
+    return fail("MINIMUM_SELL", "Minimum sell is 0.01 shares");
+  }
+
+  const position = state.getSharePosition(tx.sender, tx.marketId, tx.outcome);
+  if (position.shares < tx.shareAmount) {
+    return fail(
+      "INSUFFICIENT_SHARES",
+      `Holds ${position.shares} shares but tried to sell ${tx.shareAmount}`,
     );
   }
 

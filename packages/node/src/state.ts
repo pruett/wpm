@@ -14,7 +14,7 @@ import type {
   SettlePayoutTx,
   ReferralTx,
 } from "@wpm/shared";
-import { calculateBuy } from "@wpm/shared";
+import { calculateBuy, calculateSell } from "@wpm/shared";
 
 export class ChainState {
   chain: Block[] = [];
@@ -184,10 +184,23 @@ export class ChainState {
     });
   }
 
-  private applySellShares(_tx: SellSharesTx): void {
-    // AMM sell math will be implemented in Phase 1
-    // when @wpm/shared/amm is created
-    throw new Error("SellShares state application not yet implemented");
+  private applySellShares(tx: SellSharesTx): void {
+    const pool = this.pools.get(tx.marketId)!;
+    const result = calculateSell(pool, tx.outcome, tx.shareAmount);
+
+    // Credit WPM to sender
+    this.credit(tx.sender, result.netReturn);
+
+    // Update pool
+    this.pools.set(tx.marketId, result.pool);
+
+    // Reduce shares and cost basis proportionally
+    const position = this.getSharePosition(tx.sender, tx.marketId, tx.outcome);
+    const costBasisReduction = Math.round(position.costBasis * (tx.shareAmount / position.shares) * 100) / 100;
+    this.setSharePosition(tx.sender, tx.marketId, tx.outcome, {
+      shares: Math.round((position.shares - tx.shareAmount) * 100) / 100,
+      costBasis: Math.round((position.costBasis - costBasisReduction) * 100) / 100,
+    });
   }
 
   private applyResolveMarket(tx: ResolveMarketTx): void {
