@@ -22,7 +22,7 @@
 - [x] Create `packages/node/src/genesis.ts` — produce genesis block with Distribute tx minting 10M WPM to treasury (FR-1)
 
 ### Persistence & Replay
-- [ ] Create `packages/node/src/persistence.ts` — `appendBlock` (sync JSONL write), `replayChain` (read + validate line by line) (FR-2)
+- [x] Create `packages/node/src/persistence.ts` — `appendBlock` (sync JSONL write), `replayChain` (read + validate line by line) (FR-2)
 
 ### Minimal Validation & Block Production
 - [ ] Create `packages/node/src/validation.ts` — block hash/signature verification (FR-4), Transfer validation only (FR-5)

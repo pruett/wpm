@@ -78,3 +78,19 @@ Notes:
 - PlaceBet and SellShares throw "not yet implemented" — requires AMM math from Phase 1 (@wpm/shared/amm)
 - CreateMarket initializes pool with seedAmount/2 per side, k = (seedAmount/2)^2, deducts from treasury
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create JSONL persistence and replay (Phase 0)
+
+Created `packages/node/src/persistence.ts` implementing FR-2 — append-only JSONL persistence and startup replay.
+
+Files changed:
+- packages/node/src/persistence.ts (new)
+
+Notes:
+- `appendBlock(block, filePath?)` appends a JSON-serialized block as a single line to chain.jsonl
+- `replayChain(poaPublicKey, filePath?)` reads chain.jsonl line by line, validates each block, and rebuilds ChainState
+- `getChainFilePath()` reads from `CHAIN_FILE` env var, defaults to `/data/chain.jsonl`
+- Validation checks: block index sequence, previousHash linkage, hash integrity (recomputed via sha256), PoA signature verification
+- Returns empty ChainState if file doesn't exist or is empty (first startup triggers genesis elsewhere)
+- Descriptive errors on validation failure include block index and reason per spec
+- tsc --noEmit and oxlint pass clean
