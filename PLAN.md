@@ -34,7 +34,7 @@
 - [x] Create `packages/node/src/index.ts` — startup: load keys, replay or genesis, start producer loop, start HTTP server
 
 ### Tracer Bullet Test
-- [ ] Create `packages/node/tests/tracer.test.ts` — integration test: boot node, submit Transfer, wait for block, verify balance change via API
+- [x] Create `packages/node/tests/tracer.test.ts` — integration test: boot node, submit Transfer, wait for block, verify balance change via API
 
 ---
 

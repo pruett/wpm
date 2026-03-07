@@ -52,6 +52,7 @@ export function startApi(
   state: ChainState,
   mempool: Mempool,
   port = 3001,
+  host = "0.0.0.0",
 ): { server: ReturnType<typeof createServer>; close: () => Promise<void> } {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -122,7 +123,7 @@ export function startApi(
     }
   });
 
-  server.listen(port);
+  server.listen(port, host);
 
   return {
     server,

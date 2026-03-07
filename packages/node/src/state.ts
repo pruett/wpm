@@ -128,7 +128,9 @@ export class ChainState {
   }
 
   private applyDistribute(tx: DistributeTx): void {
-    this.debit(tx.sender, tx.amount);
+    if (tx.sender !== tx.recipient) {
+      this.debit(tx.sender, tx.amount);
+    }
     this.credit(tx.recipient, tx.amount);
   }
 

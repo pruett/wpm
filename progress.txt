@@ -180,3 +180,20 @@ Notes:
 - Graceful shutdown on SIGINT/SIGTERM: stops producer interval, closes HTTP server
 - Logs key startup milestones to stdout (keys loaded, chain replayed/genesis created, server running)
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create tracer bullet integration test (Phase 0)
+
+Created `packages/node/tests/tracer.test.ts` — full-loop integration test proving HTTP API → mempool → block production → state query.
+
+Files changed:
+- packages/node/tests/tracer.test.ts (new)
+- packages/node/src/api.ts (updated — added `host` parameter to `startApi` for test binding to 127.0.0.1)
+- packages/node/src/state.ts (bugfix — `applyDistribute` now skips debit when sender === recipient, fixing genesis mint)
+
+Notes:
+- 6 tests covering: health check after genesis, treasury balance, Transfer submit + block produce + balance verify, block readable via API, duplicate tx rejection, insufficient balance rejection
+- Discovered and fixed a bug in `applyDistribute`: when sender === recipient (genesis case), debit + credit netted to 0. Fix: skip debit when sender === recipient so genesis mint correctly credits 10M to treasury
+- `startApi` now accepts optional `host` parameter (default "0.0.0.0") to allow tests to bind to 127.0.0.1
+- Uses PORT 0 to let OS pick a free port, resolves actual port after `listening` event
+- Test uses `produceBlock()` directly instead of relying on the 1s polling loop
+- tsc --noEmit, oxlint, and vitest all pass clean
