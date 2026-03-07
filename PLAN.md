@@ -13,8 +13,8 @@
 
 ### Shared Types & Crypto (`@wpm/shared`)
 - [x] Create `packages/shared/src/types/index.ts` — `Block`, `BaseTransaction`, `Transfer`, `Distribute`, `TransactionType` union, `ChainState` types
-- [ ] Create `packages/shared/src/crypto/index.ts` — RSA 2048 key generation, sign, verify, SHA-256 hash helpers using Node `crypto`
-- [ ] Create `packages/shared/src/index.ts` — re-export all subpaths
+- [x] Create `packages/shared/src/crypto/index.ts` — RSA 2048 key generation, sign, verify, SHA-256 hash helpers using Node `crypto`
+- [x] Create `packages/shared/src/index.ts` — re-export all subpaths
 
 ### Key Management & Genesis (`@wpm/node`)
 - [ ] Create `packages/node/src/keys.ts` — load or generate PoA key pair from disk, load oracle public key from env/file (FR-16)

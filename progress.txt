@@ -12,3 +12,22 @@ Notes:
 - ChainState uses Map/Set for balances, committedTxIds, markets, pools, etc.
 - sharePositions is Map<address, Map<marketId, Map<outcome, SharePosition>>>
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create shared crypto utilities (Phase 0)
+
+Created `packages/shared/src/crypto/index.ts` with RSA 2048-bit key generation, sign, verify, and SHA-256 hash helpers using Node `crypto` module. Updated `packages/shared/src/index.ts` to re-export the crypto subpath.
+
+Files changed:
+- packages/shared/src/crypto/index.ts (new)
+- packages/shared/src/index.ts (updated — added crypto re-export)
+- packages/shared/tsconfig.json (updated — added `"types": ["node"]`)
+- packages/shared/package.json (updated — added `@types/node` devDependency)
+- tsconfig.json (updated — added `"types": ["node"]`)
+- package.json (updated — added `@types/node` devDependency at root)
+
+Notes:
+- Exports: `generateKeyPair()`, `sign(data, privateKey)`, `verify(data, signature, publicKey)`, `sha256(data)`
+- sign returns base64-encoded RSA signature, verify accepts base64
+- sha256 returns hex-encoded hash
+- Had to add @types/node to both shared package and root for tsc to resolve `node:crypto`
+- tsc --noEmit and oxlint pass clean
