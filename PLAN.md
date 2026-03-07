@@ -96,9 +96,9 @@
 ## Phase 3 — Remaining API, SSE & Hardening
 
 ### Complete HTTP API (FR-15)
-- [ ] Add `GET /internal/state` — full chain state snapshot
-- [ ] Add `GET /internal/blocks?from=N&limit=M` — paginated block list (max 100)
-- [ ] Add 404 handler for unknown routes, 500 error wrapper
+- [x] Add `GET /internal/state` — full chain state snapshot
+- [x] Add `GET /internal/blocks?from=N&limit=M` — paginated block list (max 100)
+- [x] Add 404 handler for unknown routes, 500 error wrapper
 
 ### SSE Event Stream (FR-15)
 - [ ] Create `packages/node/src/events.ts` — SSE event emitter: `block:new`, `market:created`, `market:resolved`, `market:cancelled`, `trade:executed`

@@ -342,3 +342,17 @@ Notes:
 - `referredUsers` set and `applyReferral()` in ChainState were already implemented in Phase 0
 - `ReferralTx` type was already defined in shared types from Phase 0
 - tsc --noEmit, oxlint, and vitest all pass clean (59 tests total)
+
+## Task: Complete HTTP API (Phase 3, FR-15)
+
+Implemented remaining HTTP API endpoints: `GET /internal/state` (full chain state snapshot) and `GET /internal/blocks?from=N&limit=M` (paginated block list). The 404/500 error handlers were already in place from Phase 0.
+
+Files changed:
+- packages/node/src/api.ts (updated — added `GET /internal/state` and `GET /internal/blocks` endpoints, imported Market/AMMPool types)
+- packages/node/tests/api-endpoints.test.ts (new — 8 tests: state snapshot with balances/markets/pools, blocks default pagination, from parameter, limit parameter, out-of-range from, limit clamping to max 100, 404 for unknown routes, 404 for unknown block)
+
+Notes:
+- `GET /internal/state` returns `{ blockHeight, balances, markets, pools }` — Maps serialized to plain objects
+- `GET /internal/blocks?from=N&limit=M` defaults to from=0, limit=50, clamps limit to max 100, returns Block[]
+- 404 handler (`{ error: "NOT_FOUND" }`) and 500 error wrapper (`{ error: "INTERNAL_ERROR", message }`) already existed from Phase 0 implementation
+- tsc --noEmit, oxlint, and vitest all pass clean (67 tests total)
