@@ -300,3 +300,24 @@ Notes:
 - After resolution, `applyBlock()` deletes the pool and all share positions for the settled market
 - Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before resolution
 - tsc --noEmit, oxlint, and vitest all pass clean (46 tests total)
+
+## Task: CancelMarket (Phase 2, FR-11)
+
+Implemented CancelMarket transaction with cancel settlement (cost-basis refunds), validation, and full test coverage.
+
+Files changed:
+- packages/shared/src/types/index.ts (updated — added `"refund"` to SettlePayoutTx.payoutType union for cancellation refunds)
+- packages/node/src/validation.ts (updated — added `validateCancelMarket()` with oracle or PoA sender, market open, and signature checks)
+- packages/node/src/settlement.ts (updated — added `generateCancelPayouts()` that refunds each user their tracked costBasis, treasury gets remainder)
+- packages/node/src/producer.ts (updated — wired `generateCancelPayouts` inline after CancelMarket during block production)
+- packages/node/tests/cancel-market.test.ts (new — 8 tests: happy path cancel with refund conservation, partial sell net cost basis refund, zero-bet cancel with full seed return, PoA/admin cancel, unauthorized sender rejection, non-existent market, already cancelled market, multi-user multi-outcome conservation)
+
+Notes:
+- CancelMarketTx type and `applyCancelMarket()` in state.ts were already implemented in Phase 0
+- `generateCancelPayouts(tx, state, poaPublicKey, poaPrivateKey)` iterates all share positions for the cancelled market, summing costBasis across both outcomes per user
+- User refunds use `payoutType: "refund"` (new union member), sorted by recipient address ascending; treasury gets `wpmLocked - totalUserRefunds` as `liquidity_return`
+- CancelMarket validation allows both oracle AND PoA signer (admin) as sender per spec FR-11 (`UNAUTHORIZED_SENDER` error)
+- Signature verified against whichever key the sender matches (oracle or PoA)
+- Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before cancellation
+- Partial sell test confirms refund = net cost basis (original cost minus proportional reduction from sells)
+- tsc --noEmit, oxlint, and vitest all pass clean (54 tests total)

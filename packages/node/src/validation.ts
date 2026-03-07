@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx, CancelMarketTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -86,6 +86,8 @@ export function validateTransaction(
       return validateSellShares(tx, state);
     case "ResolveMarket":
       return validateResolveMarket(tx, state, oraclePublicKey);
+    case "CancelMarket":
+      return validateCancelMarket(tx, state, oraclePublicKey);
     case "SettlePayout":
       return fail("SYSTEM_TX_ONLY", "SettlePayout transactions are system-generated and cannot be submitted externally");
     default:
@@ -352,6 +354,37 @@ function validateResolveMarket(
 
   const signData = JSON.stringify({ ...tx, signature: undefined });
   if (!verify(signData, tx.signature, oraclePublicKey)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- CancelMarket Validation (FR-11) ---
+
+function validateCancelMarket(
+  tx: CancelMarketTx,
+  state: ChainState,
+  oraclePublicKey?: string,
+): ValidationResult {
+  const isOracle = oraclePublicKey && tx.sender === oraclePublicKey;
+  const isPoa = tx.sender === state.treasuryAddress;
+  if (!isOracle && !isPoa) {
+    return fail("UNAUTHORIZED_SENDER", "CancelMarket sender must be the oracle or PoA signer");
+  }
+
+  const market = state.markets.get(tx.marketId);
+  if (!market) {
+    return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
+  }
+
+  if (market.status !== "open") {
+    return fail("MARKET_NOT_OPEN", `Market ${tx.marketId} is not open`);
+  }
+
+  const signatureKey = isOracle ? oraclePublicKey : state.treasuryAddress;
+  const cancelSignData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(cancelSignData, tx.signature, signatureKey)) {
     return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
   }
 

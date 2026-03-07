@@ -79,10 +79,10 @@
 - [x] Test: create market -> place bets -> resolve -> verify payouts sum to wpmLocked (conservation)
 
 ### CancelMarket (FR-11)
-- [ ] Add `CancelMarket` type to shared
-- [ ] Implement cancel settlement in `settlement.ts` — refund cost basis, treasury gets remainder
-- [ ] Add CancelMarket validation — oracle or PoA sender, market open
-- [ ] Test: create market -> place bets -> cancel -> verify refunds match cost basis, conservation holds
+- [x] Add `CancelMarket` type to shared
+- [x] Implement cancel settlement in `settlement.ts` — refund cost basis, treasury gets remainder
+- [x] Add CancelMarket validation — oracle or PoA sender, market open
+- [x] Test: create market -> place bets -> cancel -> verify refunds match cost basis, conservation holds
 
 ### Referral Transaction (FR-13)
 - [ ] Add `Referral` type to shared, add `referredUsers` set to ChainState

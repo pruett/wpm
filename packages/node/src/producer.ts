@@ -1,7 +1,7 @@
 import { sha256, sign } from "@wpm/shared";
 import type { Block, Transaction } from "@wpm/shared";
 import { validateTransaction } from "./validation.js";
-import { generateResolvePayouts } from "./settlement.js";
+import { generateResolvePayouts, generateCancelPayouts } from "./settlement.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 import { appendBlock } from "./persistence.js";
@@ -43,9 +43,12 @@ export function produceBlock(
     const result = validateTransaction(tx, state, oraclePublicKey);
     if (result.valid) {
       validTxs.push(tx);
-      // Inject settlement payouts after ResolveMarket
+      // Inject settlement payouts after ResolveMarket or CancelMarket
       if (tx.type === "ResolveMarket") {
         const payouts = generateResolvePayouts(tx, state, poaPublicKey, poaPrivateKey);
+        validTxs.push(...payouts);
+      } else if (tx.type === "CancelMarket") {
+        const payouts = generateCancelPayouts(tx, state, poaPublicKey, poaPrivateKey);
         validTxs.push(...payouts);
       }
     }

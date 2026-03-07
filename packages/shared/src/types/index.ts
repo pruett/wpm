@@ -90,7 +90,7 @@ type SettlePayoutTx = {
   marketId: string;
   recipient: string;
   amount: number;
-  payoutType: "winnings" | "liquidity_return";
+  payoutType: "winnings" | "refund" | "liquidity_return";
 };
 
 type ReferralTx = {
