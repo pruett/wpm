@@ -46,3 +46,20 @@ Notes:
 - All paths configurable via optional `paths` parameter (defaults to `/data/*.pem`)
 - Private key written with mode 0o600
 - bunx tsc --noEmit and oxlint pass clean
+
+## Task: Create ChainState class (Phase 0)
+
+Created `packages/node/src/state.ts` — the `ChainState` class managing all on-chain state.
+
+Files changed:
+- packages/node/src/state.ts (new)
+
+Notes:
+- Constructor takes `poaPublicKey` which doubles as `treasuryAddress` (per FR-16/spec)
+- Public fields: chain, balances, committedTxIds, referredUsers, markets, pools, sharePositions, externalEventIds
+- Helper methods: getBalance, setBalance, credit, debit, getSharePosition, setSharePosition
+- `applyBlock()` iterates transactions and dispatches to type-specific apply methods
+- Fully implemented apply methods: Transfer, Distribute, CreateMarket, ResolveMarket, CancelMarket, SettlePayout, Referral
+- PlaceBet and SellShares throw "not yet implemented" — requires AMM math from Phase 1 (@wpm/shared/amm)
+- CreateMarket initializes pool with seedAmount/2 per side, k = (seedAmount/2)^2, deducts from treasury
+- tsc --noEmit and oxlint pass clean
