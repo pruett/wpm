@@ -31,3 +31,18 @@ Notes:
 - sha256 returns hex-encoded hash
 - Had to add @types/node to both shared package and root for tsc to resolve `node:crypto`
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create node key management (Phase 0)
+
+Created `packages/node/src/keys.ts` implementing FR-16 key management.
+
+Files changed:
+- packages/node/src/keys.ts (new)
+
+Notes:
+- `loadKeys()` returns `{ poaPublicKey, poaPrivateKey, oraclePublicKey }`
+- PoA keys: loads from disk if both files exist, generates and writes if neither exists, throws if only one exists
+- Oracle key: checks `ORACLE_PUBLIC_KEY` env var first, then falls back to file on disk, throws if neither found
+- All paths configurable via optional `paths` parameter (defaults to `/data/*.pem`)
+- Private key written with mode 0o600
+- bunx tsc --noEmit and oxlint pass clean

@@ -17,7 +17,7 @@
 - [x] Create `packages/shared/src/index.ts` — re-export all subpaths
 
 ### Key Management & Genesis (`@wpm/node`)
-- [ ] Create `packages/node/src/keys.ts` — load or generate PoA key pair from disk, load oracle public key from env/file (FR-16)
+- [x] Create `packages/node/src/keys.ts` — load or generate PoA key pair from disk, load oracle public key from env/file (FR-16)
 - [ ] Create `packages/node/src/state.ts` — `ChainState` class: balances map, committedTxIds set, chain array, treasury address getter
 - [ ] Create `packages/node/src/genesis.ts` — produce genesis block with Distribute tx minting 10M WPM to treasury (FR-1)
 
