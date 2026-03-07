@@ -117,6 +117,6 @@
 - [x] Log warnings on invariant violations, halt on critical violations (INV-1)
 
 ### Structured Logging & Observability
-- [ ] Create `packages/node/src/logger.ts` — structured JSON logger to stdout with levels (error, warn, info, debug)
-- [ ] Add key metric counters: block height, mempool size, tx validated, block produced, AMM trades
-- [ ] Instrument block production, transaction validation, and startup replay with timing logs
+- [x] Create `packages/node/src/logger.ts` — structured JSON logger to stdout with levels (error, warn, info, debug)
+- [x] Add key metric counters: block height, mempool size, tx validated, block produced, AMM trades
+- [x] Instrument block production, transaction validation, and startup replay with timing logs

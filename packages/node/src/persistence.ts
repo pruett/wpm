@@ -2,6 +2,7 @@ import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { sha256, verify } from "@wpm/shared";
 import type { Block } from "@wpm/shared";
 import { ChainState } from "./state.js";
+import { logger } from "./logger.js";
 
 const DEFAULT_CHAIN_FILE = "/data/chain.jsonl";
 
@@ -31,6 +32,7 @@ export function replayChain(
 
   const state = new ChainState(poaPublicKey);
   const lines = content.split("\n");
+  const startMs = Date.now();
 
   for (let i = 0; i < lines.length; i++) {
     let block: Block;
@@ -43,6 +45,10 @@ export function replayChain(
     validateBlockIntegrity(block, i, state);
     state.applyBlock(block);
   }
+
+  const durationMs = Date.now() - startMs;
+  logger.info("chain replayed", { blocks: lines.length, durationMs });
+  logger.metrics.blockHeight = lines.length;
 
   return state;
 }

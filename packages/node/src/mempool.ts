@@ -1,6 +1,7 @@
 import type { Transaction } from "@wpm/shared";
 import { validateTransaction } from "./validation.js";
 import type { ChainState } from "./state.js";
+import { logger } from "./logger.js";
 
 type MempoolError = {
   code: string;
@@ -57,11 +58,16 @@ export class Mempool {
 
     const validation = validateTransaction(tx, state, this.oraclePublicKey);
     if (!validation.valid) {
+      logger.metrics.txRejected++;
+      logger.debug("tx rejected", { txId: tx.id, type: tx.type, code: validation.error.code });
       return { accepted: false, error: validation.error };
     }
 
     this.queue.push(tx);
     this.pendingIds.add(tx.id);
+    logger.metrics.txValidated++;
+    logger.metrics.mempoolSize = this.queue.length;
+    logger.debug("tx accepted", { txId: tx.id, type: tx.type });
     return { accepted: true };
   }
 

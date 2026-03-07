@@ -5,26 +5,25 @@ import { Mempool } from "./mempool.js";
 import { startProducer } from "./producer.js";
 import { startApi } from "./api.js";
 import { EventBus } from "./events.js";
+import { logger } from "./logger.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const chainFilePath = getChainFilePath();
 
-console.log("Loading keys...");
+logger.info("loading keys");
 const keys = loadKeys();
 
-console.log("Replaying chain...");
+logger.info("replaying chain", { chainFile: chainFilePath });
 const state = replayChain(keys.poaPublicKey, chainFilePath);
 
 if (state.chain.length === 0) {
-  console.log("No existing chain found — creating genesis block...");
+  logger.info("no existing chain — creating genesis block");
   const genesis = createGenesisBlock(keys.poaPublicKey, keys.poaPrivateKey);
   appendBlock(genesis, chainFilePath);
   state.applyBlock(genesis);
-  console.log(
-    `Genesis block created. Treasury balance: ${state.getBalance(state.treasuryAddress)}`,
-  );
+  logger.info("genesis block created", { treasuryBalance: state.getBalance(state.treasuryAddress) });
 } else {
-  console.log(`Replayed ${state.chain.length} blocks.`);
+  logger.info("chain loaded", { blockHeight: state.chain.length });
 }
 
 const mempool = new Mempool(keys.oraclePublicKey);
@@ -42,14 +41,15 @@ const producer = startProducer(
 
 const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT, "0.0.0.0", eventBus);
 
-console.log(`Node running on port ${PORT} — block height: ${state.chain.length}`);
+logger.info("node started", { port: PORT, blockHeight: state.chain.length });
+logger.metrics.blockHeight = state.chain.length;
 
 function shutdown() {
-  console.log("Shutting down...");
+  logger.info("shutting down");
   producer.stop();
   eventBus.closeAll();
   api.close().then(() => {
-    console.log("Shutdown complete.");
+    logger.info("shutdown complete");
     process.exit(0);
   });
 }

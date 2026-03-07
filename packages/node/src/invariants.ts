@@ -1,5 +1,6 @@
 import { calculatePrices } from "@wpm/shared";
 import type { ChainState } from "./state.js";
+import { logger } from "./logger.js";
 
 const TOTAL_SUPPLY = 10_000_000;
 const PRICE_SUM_TOLERANCE = 0.0001;
@@ -98,9 +99,9 @@ export function handleViolations(violations: InvariantViolation[], blockIndex: n
   for (const v of violations) {
     const prefix = `[${v.id}] Block ${blockIndex}:`;
     if (v.critical) {
-      console.error(`CRITICAL ${prefix} ${v.message}`);
+      logger.error("critical invariant violation", { invariant: v.id, blockIndex, detail: v.message });
       throw new Error(`Critical invariant violation ${v.id}: ${v.message}`);
     }
-    console.warn(`WARNING ${prefix} ${v.message}`);
+    logger.warn("invariant violation", { invariant: v.id, blockIndex, detail: v.message });
   }
 }

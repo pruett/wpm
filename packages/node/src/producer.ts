@@ -12,6 +12,7 @@ import {
   checkPriceSumInvariant,
   handleViolations,
 } from "./invariants.js";
+import { logger } from "./logger.js";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_TXS_PER_BLOCK = 100;
@@ -67,6 +68,7 @@ export function produceBlock(
 
   if (validTxs.length === 0) return null;
 
+  const startMs = Date.now();
   const previousBlock = state.chain[state.chain.length - 1];
   const block: Block = {
     index: state.chain.length,
@@ -96,6 +98,23 @@ export function produceBlock(
     eventBus.emitBlockEvents(block, state);
   }
   state.applyBlock(block);
+
+  const durationMs = Date.now() - startMs;
+  logger.metrics.blocksProduced++;
+  logger.metrics.blockHeight = block.index + 1;
+  logger.metrics.mempoolSize = mempool.size;
+  for (const tx of validTxs) {
+    if (tx.type === "PlaceBet" || tx.type === "SellShares") {
+      logger.metrics.ammTrades++;
+    }
+  }
+  logger.info("block produced", {
+    blockIndex: block.index,
+    txCount: validTxs.length,
+    durationMs,
+    blockHeight: block.index + 1,
+    mempoolSize: mempool.size,
+  });
 
   // Post-block invariant checks
   const violations = checkPostBlockInvariants(state);

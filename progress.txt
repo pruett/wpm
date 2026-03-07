@@ -412,3 +412,26 @@ Notes:
 - INV-5 compares pool k before and after block application; only checks pools that still exist post-block (resolved/cancelled pools are deleted)
 - INV-2 and INV-5 run per-pool after block application rather than per-trade, since state.applyBlock is atomic
 - tsc --noEmit, oxlint, and vitest all pass clean (96 tests total)
+
+## Task: Structured Logging & Observability (Phase 3)
+
+Implemented structured JSON logger with log levels, metric counters, and timing instrumentation across block production, chain replay, mempool validation, and invariant checks.
+
+Files changed:
+- packages/node/src/logger.ts (new — `Logger` class with singleton `logger` export, `Metrics` type)
+- packages/node/src/producer.ts (updated — imports logger, logs block production with timing/metrics, increments blocksProduced/ammTrades counters)
+- packages/node/src/invariants.ts (updated — replaced console.error/console.warn with logger.error/logger.warn, structured violation data)
+- packages/node/src/persistence.ts (updated — imports logger, logs chain replay with block count and timing)
+- packages/node/src/mempool.ts (updated — imports logger, tracks txValidated/txRejected/mempoolSize metrics, debug-level tx accept/reject logs)
+- packages/node/src/index.ts (updated — replaced all console.log calls with structured logger.info calls)
+
+Notes:
+- Logger outputs one JSON object per line to stdout (stderr for error level) with `level`, `msg`, `ts`, and optional structured data fields
+- Log level configurable via `LOG_LEVEL` env var, defaults to "info"; levels: debug, info, warn, error
+- `logger.metrics` exposes counters: blockHeight, mempoolSize, txValidated, txRejected, blocksProduced, ammTrades
+- Metrics are updated in-place by producer (block production), mempool (tx validation), and persistence (replay)
+- Block production logs include `durationMs` timing, block index, tx count, mempool size
+- Chain replay logs include `durationMs` timing and block count
+- Invariant violations logged with structured `invariant` id, `blockIndex`, and `detail` fields
+- No new tests needed — existing 96 tests continue to pass, structured output visible in test runs
+- tsc --noEmit, oxlint, and vitest all pass clean (96 tests total)
