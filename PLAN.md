@@ -30,7 +30,7 @@
 - [x] Create `packages/node/src/producer.ts` — 1s polling loop, take up to 100 txs, re-validate, produce + sign block, append to disk, update state (FR-3)
 
 ### HTTP API (Minimal)
-- [ ] Create `packages/node/src/api.ts` — HTTP server on configurable port with: `POST /internal/transaction`, `GET /internal/health`, `GET /internal/balance/:address`, `GET /internal/block/:index`
+- [x] Create `packages/node/src/api.ts` — HTTP server on configurable port with: `POST /internal/transaction`, `GET /internal/health`, `GET /internal/balance/:address`, `GET /internal/block/:index`
 - [ ] Create `packages/node/src/index.ts` — startup: load keys, replay or genesis, start producer loop, start HTTP server
 
 ### Tracer Bullet Test

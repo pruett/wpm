@@ -144,3 +144,24 @@ Notes:
 - Returns the produced Block or null (useful for callers/tests)
 - SSE event emission deferred to Phase 3 per plan
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create HTTP API (Phase 0)
+
+Created `packages/node/src/api.ts` implementing FR-15 (minimal) — HTTP server on configurable port (default 3001).
+
+Files changed:
+- packages/node/src/api.ts (new)
+
+Notes:
+- `startApi(state, mempool, port?)` creates and starts an HTTP server, returns `{ server, close }` handle
+- Uses Node built-in `node:http` — no external dependencies
+- Endpoints implemented:
+  - `POST /internal/transaction` — parses JSON body as Transaction, submits to mempool, returns 202 `{ txId }` or 400 `{ code, message }`
+  - `GET /internal/health` — returns `{ status, blockHeight, mempoolSize, uptimeMs }`
+  - `GET /internal/balance/:address` — returns `{ address, balance }` (0 for unknown addresses)
+  - `GET /internal/block/:index` — returns Block JSON or 404
+- Unknown routes return 404 `{ error: "NOT_FOUND" }`
+- Internal errors return 500 `{ error: "INTERNAL_ERROR", message }`
+- All responses use `Content-Type: application/json`
+- Simple `matchRoute` helper for path parameter extraction (`:address`, `:index`)
+- tsc --noEmit and oxlint pass clean
