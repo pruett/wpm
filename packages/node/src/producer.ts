@@ -1,6 +1,7 @@
 import { sha256, sign } from "@wpm/shared";
 import type { Block, Transaction } from "@wpm/shared";
 import { validateTransaction } from "./validation.js";
+import { generateResolvePayouts } from "./settlement.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 import { appendBlock } from "./persistence.js";
@@ -11,12 +12,13 @@ const MAX_TXS_PER_BLOCK = 100;
 export function startProducer(
   state: ChainState,
   mempool: Mempool,
+  poaPublicKey: string,
   poaPrivateKey: string,
   chainFilePath?: string,
   oraclePublicKey?: string,
 ): { stop: () => void } {
   const timer = setInterval(() => {
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
   }, POLL_INTERVAL_MS);
 
   return {
@@ -27,6 +29,7 @@ export function startProducer(
 export function produceBlock(
   state: ChainState,
   mempool: Mempool,
+  poaPublicKey: string,
   poaPrivateKey: string,
   chainFilePath?: string,
   oraclePublicKey?: string,
@@ -40,6 +43,11 @@ export function produceBlock(
     const result = validateTransaction(tx, state, oraclePublicKey);
     if (result.valid) {
       validTxs.push(tx);
+      // Inject settlement payouts after ResolveMarket
+      if (tx.type === "ResolveMarket") {
+        const payouts = generateResolvePayouts(tx, state, poaPublicKey, poaPrivateKey);
+        validTxs.push(...payouts);
+      }
     }
   }
 

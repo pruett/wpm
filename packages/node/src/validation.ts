@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -84,6 +84,10 @@ export function validateTransaction(
       return validatePlaceBet(tx, state);
     case "SellShares":
       return validateSellShares(tx, state);
+    case "ResolveMarket":
+      return validateResolveMarket(tx, state, oraclePublicKey);
+    case "SettlePayout":
+      return fail("SYSTEM_TX_ONLY", "SettlePayout transactions are system-generated and cannot be submitted externally");
     default:
       return fail(
         "UNSUPPORTED_TX_TYPE",
@@ -316,6 +320,38 @@ function validateSellShares(
 
   const signData = JSON.stringify({ ...tx, signature: undefined });
   if (!verify(signData, tx.signature, tx.sender)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- ResolveMarket Validation (FR-10) ---
+
+function validateResolveMarket(
+  tx: ResolveMarketTx,
+  state: ChainState,
+  oraclePublicKey?: string,
+): ValidationResult {
+  if (!oraclePublicKey || tx.sender !== oraclePublicKey) {
+    return fail("UNAUTHORIZED_ORACLE", "ResolveMarket sender must be the oracle");
+  }
+
+  const market = state.markets.get(tx.marketId);
+  if (!market) {
+    return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
+  }
+
+  if (market.status !== "open") {
+    return fail("MARKET_NOT_OPEN", `Market ${tx.marketId} is not open`);
+  }
+
+  if (tx.timestamp < market.eventStartTime) {
+    return fail("EVENT_NOT_STARTED", "Cannot resolve market before event start time");
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, oraclePublicKey)) {
     return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
   }
 

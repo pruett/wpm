@@ -127,7 +127,7 @@ describe("Tracer bullet — full loop", () => {
     expect(mempool.size).toBe(1);
 
     // Produce a block (directly, no need to wait for the polling loop)
-    const block = produceBlock(state, mempool, poaPrivateKey, chainFilePath);
+    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath);
     expect(block).not.toBeNull();
     expect(block!.index).toBe(1);
     expect(block!.transactions).toHaveLength(1);
@@ -167,7 +167,7 @@ describe("Tracer bullet — full loop", () => {
     expect((j2 as { code: string }).code).toBe("DUPLICATE_TX");
 
     // Clean up: produce the pending block
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath);
   });
 
   it("rejects transfer with insufficient balance", async () => {

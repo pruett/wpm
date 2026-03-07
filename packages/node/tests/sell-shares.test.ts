@@ -152,7 +152,7 @@ describe("SellShares transaction (FR-9)", () => {
     });
     marketId = createMarketTx.marketId;
     await post(baseUrl, "/internal/transaction", createMarketTx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Distribute 10000 WPM to user for betting
     await post(baseUrl, "/internal/distribute", {
@@ -160,12 +160,12 @@ describe("SellShares transaction (FR-9)", () => {
       amount: 10000,
       reason: "signup_airdrop",
     });
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Place a bet of 100 WPM on outcome A so user has shares to sell
     const betTx = makePlaceBetTx(userPublicKey, userPrivateKey, marketId, "A", 100);
     await post(baseUrl, "/internal/transaction", betTx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
   });
 
   afterAll(async () => {
@@ -186,7 +186,7 @@ describe("SellShares transaction (FR-9)", () => {
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("SellShares");
 
@@ -219,7 +219,7 @@ describe("SellShares transaction (FR-9)", () => {
     const sellAmount = Math.min(10, position.shares);
     const tx = makeSellSharesTx(userPublicKey, userPrivateKey, marketId, "A", sellAmount);
     await post(baseUrl, "/internal/transaction", tx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     const poolAfter = state.pools.get(marketId)!;
     expect(poolAfter.k).toBeGreaterThanOrEqual(kBefore);
@@ -267,7 +267,7 @@ describe("SellShares transaction (FR-9)", () => {
 
     const tx = makeSellSharesTx(userPublicKey, userPrivateKey, marketId, "A", sellAmount);
     await post(baseUrl, "/internal/transaction", tx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     const poolAfter = state.pools.get(marketId)!;
     expect(poolAfter.wpmLocked).toBeLessThan(poolBefore.wpmLocked);

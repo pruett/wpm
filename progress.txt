@@ -278,3 +278,25 @@ Notes:
 - Pool k only increases after sell (fee adds to liquidity)
 - wpmLocked decreases by netReturn after sell
 - tsc --noEmit, oxlint, and vitest all pass clean (38 tests total)
+
+## Task: ResolveMarket & SettlePayout (Phase 2, FR-10, FR-12)
+
+Implemented market resolution with inline settlement payout generation, validation, and full test coverage.
+
+Files changed:
+- packages/node/src/settlement.ts (new — `generateResolvePayouts()` computes winner payouts and treasury remainder)
+- packages/node/src/validation.ts (updated — added `validateResolveMarket()` with oracle sender, market open, event started checks; SettlePayout returns SYSTEM_TX_ONLY)
+- packages/node/src/producer.ts (updated — imports `generateResolvePayouts`, injects SettlePayout txs inline after ResolveMarket during block production; added `poaPublicKey` param)
+- packages/node/src/state.ts (updated — `applyResolveMarket()` sets market status/winningOutcome/finalScore; `applySettlePayout()` decrements wpmLocked and credits recipient; `applyBlock()` cleans up pools and sharePositions for settled markets)
+- packages/node/src/index.ts (updated — pass `poaPublicKey` to producer)
+- packages/node/tests/resolve-market.test.ts (new — 8 tests: happy path resolution with payout conservation, SettlePayout rejection via API, non-oracle rejection, non-existent market, already resolved market, event not started, zero-bet market full seed return, payout ordering)
+
+Notes:
+- `generateResolvePayouts(tx, state, poaPublicKey, poaPrivateKey)` iterates all share positions for the resolved market, paying 1.00 WPM per winning share; treasury gets `wpmLocked - totalPaidOut` as liquidity_return
+- User payouts sorted by recipient address ascending, treasury payout always last
+- SettlePayout txs are signed with PoA key and injected into the same block as ResolveMarket — never submitted through mempool
+- `validateTransaction()` rejects SettlePayout with SYSTEM_TX_ONLY error code when received via API
+- ResolveMarket validation: UNAUTHORIZED_ORACLE, MARKET_NOT_FOUND, MARKET_NOT_OPEN, EVENT_NOT_STARTED, INVALID_SIGNATURE
+- After resolution, `applyBlock()` deletes the pool and all share positions for the settled market
+- Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before resolution
+- tsc --noEmit, oxlint, and vitest all pass clean (46 tests total)

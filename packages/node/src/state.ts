@@ -83,8 +83,19 @@ export class ChainState {
   }
 
   applyBlock(block: Block): void {
+    const settledMarkets: string[] = [];
     for (const tx of block.transactions) {
       this.applyTransaction(tx);
+      if (tx.type === "ResolveMarket" || tx.type === "CancelMarket") {
+        settledMarkets.push(tx.marketId);
+      }
+    }
+    // Clean up pools and share positions for settled markets
+    for (const marketId of settledMarkets) {
+      this.pools.delete(marketId);
+      for (const [, byMarket] of this.sharePositions) {
+        byMarket.delete(marketId);
+      }
     }
     this.chain.push(block);
   }

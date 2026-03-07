@@ -31,6 +31,7 @@ const mempool = new Mempool(keys.oraclePublicKey);
 const producer = startProducer(
   state,
   mempool,
+  keys.poaPublicKey,
   keys.poaPrivateKey,
   chainFilePath,
   keys.oraclePublicKey,

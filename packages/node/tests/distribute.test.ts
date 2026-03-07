@@ -82,7 +82,7 @@ describe("Distribute transaction (FR-6)", () => {
     expect((json as { txId: string }).txId).toBeDefined();
 
     // Produce the block
-    const block = produceBlock(state, mempool, poaPrivateKey, chainFilePath);
+    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath);
     expect(block).not.toBeNull();
     expect(block!.transactions).toHaveLength(1);
     expect(block!.transactions[0].type).toBe("Distribute");
@@ -153,6 +153,6 @@ describe("Distribute transaction (FR-6)", () => {
       expect(status).toBe(202);
     }
     // Drain mempool
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath);
   });
 });

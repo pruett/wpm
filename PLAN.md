@@ -71,12 +71,12 @@
 ## Phase 2 — Settlement & Resolution
 
 ### ResolveMarket & SettlePayout (FR-10, FR-12)
-- [ ] Add `ResolveMarket`, `SettlePayout` types to shared
-- [ ] Implement settlement engine in `packages/node/src/settlement.ts` — compute winner payouts (1.00 WPM per winning share), treasury remainder, generate SettlePayout txs
-- [ ] Add ResolveMarket validation — oracle sender, market open, event started
-- [ ] Wire settlement: ResolveMarket triggers inline SettlePayout generation in same block
-- [ ] Reject SettlePayout if received via `POST /internal/transaction` (`SYSTEM_TX_ONLY`)
-- [ ] Test: create market -> place bets -> resolve -> verify payouts sum to wpmLocked (conservation)
+- [x] Add `ResolveMarket`, `SettlePayout` types to shared
+- [x] Implement settlement engine in `packages/node/src/settlement.ts` — compute winner payouts (1.00 WPM per winning share), treasury remainder, generate SettlePayout txs
+- [x] Add ResolveMarket validation — oracle sender, market open, event started
+- [x] Wire settlement: ResolveMarket triggers inline SettlePayout generation in same block
+- [x] Reject SettlePayout if received via `POST /internal/transaction` (`SYSTEM_TX_ONLY`)
+- [x] Test: create market -> place bets -> resolve -> verify payouts sum to wpmLocked (conservation)
 
 ### CancelMarket (FR-11)
 - [ ] Add `CancelMarket` type to shared

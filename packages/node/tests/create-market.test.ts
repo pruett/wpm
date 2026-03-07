@@ -112,7 +112,7 @@ describe("CreateMarket transaction (FR-7)", () => {
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
     expect(block).not.toBeNull();
     expect(block!.transactions).toHaveLength(1);
     expect(block!.transactions[0].type).toBe("CreateMarket");
@@ -154,7 +154,7 @@ describe("CreateMarket transaction (FR-7)", () => {
   it("rejects duplicate marketId", async () => {
     const tx1 = makeCreateMarketTx(oraclePublicKey, oraclePrivateKey);
     await post(baseUrl, "/internal/transaction", tx1);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Same marketId
     const tx2 = makeCreateMarketTx(oraclePublicKey, oraclePrivateKey, {
@@ -171,7 +171,7 @@ describe("CreateMarket transaction (FR-7)", () => {
       externalEventId: eventId,
     });
     await post(baseUrl, "/internal/transaction", tx1);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     const tx2 = makeCreateMarketTx(oraclePublicKey, oraclePrivateKey, {
       externalEventId: eventId,

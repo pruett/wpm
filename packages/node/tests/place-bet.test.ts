@@ -135,7 +135,7 @@ describe("PlaceBet transaction (FR-8)", () => {
     });
     marketId = createMarketTx.marketId;
     await post(baseUrl, "/internal/transaction", createMarketTx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Distribute 10000 WPM to user for betting
     await post(baseUrl, "/internal/distribute", {
@@ -143,7 +143,7 @@ describe("PlaceBet transaction (FR-8)", () => {
       amount: 10000,
       reason: "signup_airdrop",
     });
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
   });
 
   afterAll(async () => {
@@ -159,7 +159,7 @@ describe("PlaceBet transaction (FR-8)", () => {
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("PlaceBet");
 
@@ -253,7 +253,7 @@ describe("PlaceBet transaction (FR-8)", () => {
 
     const tx = makePlaceBetTx(userPublicKey, userPrivateKey, marketId, "B", 50);
     await post(baseUrl, "/internal/transaction", tx);
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     const positionAfter = state.getSharePosition(userPublicKey, marketId, "B");
     expect(positionAfter.shares).toBeGreaterThan(positionBefore.shares);
