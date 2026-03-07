@@ -12,7 +12,7 @@
 > Submit a Transfer transaction via HTTP, produce a block, and read it back — proving the full loop: HTTP API -> mempool -> block production -> JSONL persistence -> state query.
 
 ### Shared Types & Crypto (`@wpm/shared`)
-- [ ] Create `packages/shared/src/types/index.ts` — `Block`, `BaseTransaction`, `Transfer`, `Distribute`, `TransactionType` union, `ChainState` types
+- [x] Create `packages/shared/src/types/index.ts` — `Block`, `BaseTransaction`, `Transfer`, `Distribute`, `TransactionType` union, `ChainState` types
 - [ ] Create `packages/shared/src/crypto/index.ts` — RSA 2048 key generation, sign, verify, SHA-256 hash helpers using Node `crypto`
 - [ ] Create `packages/shared/src/index.ts` — re-export all subpaths
 

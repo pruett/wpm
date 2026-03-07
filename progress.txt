@@ -1,0 +1,14 @@
+## Task: Create shared types (Phase 0)
+
+Created `packages/shared/src/types/index.ts` with all transaction types (Transfer, Distribute, CreateMarket, PlaceBet, SellShares, ResolveMarket, CancelMarket, SettlePayout, Referral), Block, Market, AMMPool, SharePosition, ChainState, and TransactionType union. Also created `packages/shared/src/index.ts` with re-export (partial — crypto subpath not yet built).
+
+Files changed:
+- packages/shared/src/types/index.ts (new)
+- packages/shared/src/index.ts (new)
+
+Notes:
+- Used `type` instead of `interface` per CLAUDE.md preference
+- Each transaction type is a standalone type with all BaseTransaction fields inlined (id, type, timestamp, sender, signature) plus type-specific fields, discriminated by `type` literal
+- ChainState uses Map/Set for balances, committedTxIds, markets, pools, etc.
+- sharePositions is Map<address, Map<marketId, Map<outcome, SharePosition>>>
+- tsc --noEmit and oxlint pass clean
