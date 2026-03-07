@@ -165,3 +165,18 @@ Notes:
 - All responses use `Content-Type: application/json`
 - Simple `matchRoute` helper for path parameter extraction (`:address`, `:index`)
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create node startup entrypoint (Phase 0)
+
+Created `packages/node/src/index.ts` — the main entrypoint that wires all modules together.
+
+Files changed:
+- packages/node/src/index.ts (new)
+
+Notes:
+- Startup sequence: load keys → replay chain (or create genesis if empty) → start mempool → start producer loop → start HTTP server
+- PORT configurable via `PORT` env var, defaults to 3001
+- Chain file path from `CHAIN_FILE` env var via `getChainFilePath()`
+- Graceful shutdown on SIGINT/SIGTERM: stops producer interval, closes HTTP server
+- Logs key startup milestones to stdout (keys loaded, chain replayed/genesis created, server running)
+- tsc --noEmit and oxlint pass clean

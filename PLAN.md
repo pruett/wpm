@@ -31,7 +31,7 @@
 
 ### HTTP API (Minimal)
 - [x] Create `packages/node/src/api.ts` — HTTP server on configurable port with: `POST /internal/transaction`, `GET /internal/health`, `GET /internal/balance/:address`, `GET /internal/block/:index`
-- [ ] Create `packages/node/src/index.ts` — startup: load keys, replay or genesis, start producer loop, start HTTP server
+- [x] Create `packages/node/src/index.ts` — startup: load keys, replay or genesis, start producer loop, start HTTP server
 
 ### Tracer Bullet Test
 - [ ] Create `packages/node/tests/tracer.test.ts` — integration test: boot node, submit Transfer, wait for block, verify balance change via API
