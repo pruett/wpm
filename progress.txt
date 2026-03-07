@@ -395,3 +395,20 @@ Notes:
 - Duplicate check already covered both paths: `pendingIds` (mempool-level, line 48) and `committedTxIds` (via `validateTransaction()` in validation.ts:72)
 - `addDirect()` (used for system txs like Referral) also respects capacity limit but does not check `committedTxIds` since system txs are freshly created with unique IDs
 - tsc --noEmit, oxlint, and vitest all pass clean (80 tests total)
+
+## Task: Invariant Checks (Phase 3)
+
+Implemented post-block invariant assertions (INV-1 through INV-5), per-trade price sum check (INV-2), pool k monotonicity check (INV-5), and critical violation halting (INV-1).
+
+Files changed:
+- packages/node/src/invariants.ts (new — `checkPostBlockInvariants()`, `checkPoolKInvariant()`, `checkPriceSumInvariant()`, `handleViolations()`)
+- packages/node/src/producer.ts (updated — imports invariants module, snapshots pool k values before block apply, runs all invariant checks after `state.applyBlock()`)
+- packages/node/tests/invariants.test.ts (new — 16 tests: INV-1 supply conservation pass/fail/with-pools, INV-3 negative balance detection, INV-4 negative shares detection, INV-5 k increase/same/decrease, INV-2 price sum balanced/imbalanced/broken, handleViolations critical throw/non-critical warn)
+
+Notes:
+- INV-1 (total supply conservation) is critical — throws Error to halt the node on violation
+- INV-3 (negative balances), INV-4 (negative shares), INV-5 (k decrease) are non-critical — log warnings via console.warn
+- INV-2 checks use tolerance of 0.0001 per spec; also handles NaN case (e.g. empty pool with 0/0 shares)
+- INV-5 compares pool k before and after block application; only checks pools that still exist post-block (resolved/cancelled pools are deleted)
+- INV-2 and INV-5 run per-pool after block application rather than per-trade, since state.applyBlock is atomic
+- tsc --noEmit, oxlint, and vitest all pass clean (96 tests total)

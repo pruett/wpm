@@ -112,9 +112,9 @@
 - [x] Ensure duplicate check covers both mempool and committedTxIds
 
 ### Invariant Checks
-- [ ] Add post-block invariant assertions: INV-1 (total supply conservation), INV-3 (no negative balances), INV-4 (no negative shares), INV-5 (k only increases)
-- [ ] Add INV-2 check (priceA + priceB = 1.00 within tolerance) after every trade
-- [ ] Log warnings on invariant violations, halt on critical violations (INV-1)
+- [x] Add post-block invariant assertions: INV-1 (total supply conservation), INV-3 (no negative balances), INV-4 (no negative shares), INV-5 (k only increases)
+- [x] Add INV-2 check (priceA + priceB = 1.00 within tolerance) after every trade
+- [x] Log warnings on invariant violations, halt on critical violations (INV-1)
 
 ### Structured Logging & Observability
 - [ ] Create `packages/node/src/logger.ts` — structured JSON logger to stdout with levels (error, warn, info, debug)

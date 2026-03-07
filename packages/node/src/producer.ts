@@ -6,6 +6,12 @@ import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 import { appendBlock } from "./persistence.js";
 import type { EventBus } from "./events.js";
+import {
+  checkPostBlockInvariants,
+  checkPoolKInvariant,
+  checkPriceSumInvariant,
+  handleViolations,
+} from "./invariants.js";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_TXS_PER_BLOCK = 100;
@@ -79,11 +85,39 @@ export function produceBlock(
   block.hash = sha256(hashData);
   block.signature = sign(block.hash, poaPrivateKey);
 
+  // Snapshot pool k values before applying block for INV-5
+  const previousKValues = new Map<string, number>();
+  for (const [marketId, pool] of state.pools) {
+    previousKValues.set(marketId, pool.k);
+  }
+
   appendBlock(block, chainFilePath);
   if (eventBus) {
     eventBus.emitBlockEvents(block, state);
   }
   state.applyBlock(block);
+
+  // Post-block invariant checks
+  const violations = checkPostBlockInvariants(state);
+
+  // INV-5: k only increases (check pools that still exist after block)
+  for (const [marketId, pool] of state.pools) {
+    const prevK = previousKValues.get(marketId);
+    if (prevK !== undefined) {
+      const kViolation = checkPoolKInvariant(prevK, pool.k, marketId);
+      if (kViolation) violations.push(kViolation);
+    }
+  }
+
+  // INV-2: priceA + priceB === 1.00 for every open pool
+  for (const [marketId, pool] of state.pools) {
+    const priceViolation = checkPriceSumInvariant(marketId, pool.sharesA, pool.sharesB);
+    if (priceViolation) violations.push(priceViolation);
+  }
+
+  if (violations.length > 0) {
+    handleViolations(violations, block.index);
+  }
 
   return block;
 }
