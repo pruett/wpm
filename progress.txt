@@ -111,3 +111,18 @@ Notes:
 - Unsupported tx types return UNSUPPORTED_TX_TYPE (will be extended in Phase 1)
 - `hasTwoDecimalPlaces()` uses `Math.round(amount * 100) === amount * 100` to avoid floating-point issues
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create mempool (Phase 0)
+
+Created `packages/node/src/mempool.ts` implementing FR-14 (minimal) — FIFO queue for pending transactions.
+
+Files changed:
+- packages/node/src/mempool.ts (new)
+
+Notes:
+- `Mempool` class with `add(tx, state)`, `drain(max)`, and `size` getter
+- `add()` checks: timestamp drift (±300,000ms → TIMESTAMP_OUT_OF_RANGE), duplicate against pendingIds (DUPLICATE_TX), then delegates to `validateTransaction()` for state-based validation
+- `drain(max)` splices up to N transactions from front of queue (FIFO), removes from pendingIds set
+- `MempoolResult` type: `{ accepted: true } | { accepted: false; error: { code, message } }`
+- Capacity limit (1,000 / MEMPOOL_FULL) deferred to Phase 3 per plan
+- tsc --noEmit and oxlint pass clean

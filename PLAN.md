@@ -26,7 +26,7 @@
 
 ### Minimal Validation & Block Production
 - [x] Create `packages/node/src/validation.ts` — block hash/signature verification (FR-4), Transfer validation only (FR-5)
-- [ ] Create `packages/node/src/mempool.ts` — FIFO queue with add/drain, duplicate and timestamp checks (FR-14, minimal)
+- [x] Create `packages/node/src/mempool.ts` — FIFO queue with add/drain, duplicate and timestamp checks (FR-14, minimal)
 - [ ] Create `packages/node/src/producer.ts` — 1s polling loop, take up to 100 txs, re-validate, produce + sign block, append to disk, update state (FR-3)
 
 ### HTTP API (Minimal)
