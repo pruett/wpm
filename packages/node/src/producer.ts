@@ -5,6 +5,7 @@ import { generateResolvePayouts, generateCancelPayouts } from "./settlement.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 import { appendBlock } from "./persistence.js";
+import type { EventBus } from "./events.js";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_TXS_PER_BLOCK = 100;
@@ -16,9 +17,10 @@ export function startProducer(
   poaPrivateKey: string,
   chainFilePath?: string,
   oraclePublicKey?: string,
+  eventBus?: EventBus,
 ): { stop: () => void } {
   const timer = setInterval(() => {
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
   }, POLL_INTERVAL_MS);
 
   return {
@@ -33,6 +35,7 @@ export function produceBlock(
   poaPrivateKey: string,
   chainFilePath?: string,
   oraclePublicKey?: string,
+  eventBus?: EventBus,
 ): Block | null {
   if (mempool.size === 0) return null;
 
@@ -77,6 +80,9 @@ export function produceBlock(
   block.signature = sign(block.hash, poaPrivateKey);
 
   appendBlock(block, chainFilePath);
+  if (eventBus) {
+    eventBus.emitBlockEvents(block, state);
+  }
   state.applyBlock(block);
 
   return block;

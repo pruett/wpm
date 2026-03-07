@@ -5,6 +5,7 @@ import type { Transaction, DistributeTx, ReferralTx, Market, AMMPool } from "@wp
 import { validateReferral } from "./validation.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
+import type { EventBus } from "./events.js";
 
 const startTime = Date.now();
 
@@ -57,6 +58,7 @@ export function startApi(
   keys: { poaPublicKey: string; poaPrivateKey: string },
   port = 3001,
   host = "0.0.0.0",
+  eventBus?: EventBus,
 ): { server: ReturnType<typeof createServer>; close: () => Promise<void> } {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -134,6 +136,16 @@ export function startApi(
           }
         } else {
           json(res, 400, result.error);
+        }
+        return;
+      }
+
+      // GET /internal/events (SSE)
+      if (method === "GET" && pathname === "/internal/events") {
+        if (eventBus) {
+          eventBus.addClient(res);
+        } else {
+          json(res, 503, { error: "SSE_UNAVAILABLE", message: "Event stream not configured" });
         }
         return;
       }

@@ -4,6 +4,7 @@ import { createGenesisBlock } from "./genesis.js";
 import { Mempool } from "./mempool.js";
 import { startProducer } from "./producer.js";
 import { startApi } from "./api.js";
+import { EventBus } from "./events.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 const chainFilePath = getChainFilePath();
@@ -27,6 +28,7 @@ if (state.chain.length === 0) {
 }
 
 const mempool = new Mempool(keys.oraclePublicKey);
+const eventBus = new EventBus();
 
 const producer = startProducer(
   state,
@@ -35,15 +37,17 @@ const producer = startProducer(
   keys.poaPrivateKey,
   chainFilePath,
   keys.oraclePublicKey,
+  eventBus,
 );
 
-const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT);
+const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT, "0.0.0.0", eventBus);
 
 console.log(`Node running on port ${PORT} — block height: ${state.chain.length}`);
 
 function shutdown() {
   console.log("Shutting down...");
   producer.stop();
+  eventBus.closeAll();
   api.close().then(() => {
     console.log("Shutdown complete.");
     process.exit(0);

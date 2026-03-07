@@ -356,3 +356,27 @@ Notes:
 - `GET /internal/blocks?from=N&limit=M` defaults to from=0, limit=50, clamps limit to max 100, returns Block[]
 - 404 handler (`{ error: "NOT_FOUND" }`) and 500 error wrapper (`{ error: "INTERNAL_ERROR", message }`) already existed from Phase 0 implementation
 - tsc --noEmit, oxlint, and vitest all pass clean (67 tests total)
+
+## Task: SSE Event Stream (Phase 3, FR-15)
+
+Implemented Server-Sent Events (SSE) event stream with EventBus class, HTTP endpoint, producer/settlement wiring, and full test coverage. Fixed test issues with event count expectations and market timing.
+
+Files changed:
+- packages/node/src/events.ts (new — `EventBus` class with SSE client management and block event emission)
+- packages/node/src/api.ts (updated — added `GET /internal/events` SSE endpoint, added `eventBus` parameter to `startApi`)
+- packages/node/src/producer.ts (updated — added `eventBus` parameter, calls `emitBlockEvents` after block append but before state apply)
+- packages/node/src/index.ts (updated — creates EventBus, passes to producer and API, closes on shutdown)
+- packages/node/tests/sse.test.ts (new — 6 tests: block:new event on transfer, market:created, trade:executed for PlaceBet, market:resolved, market:cancelled, client count tracking)
+
+Notes:
+- `EventBus` manages SSE client connections with 30s keepalive heartbeat
+- `addClient(res)` sets SSE headers, registers client, cleans up on `close` event
+- `emitBlockEvents(block, stateBefore)` iterates transactions and emits per-tx events, then `block:new` at the end
+- For PlaceBet/SellShares events, tracks intermediate pool state via snapshots to compute accurate post-trade prices
+- Trade events include `sharesReceived`, `newPriceA`, `newPriceB` computed from the pool after the trade
+- `block:new` emitted last with `index`, `hash`, `txCount`, `timestamp`
+- Events are emitted after disk persist but before state apply (using pre-apply state for AMM price calculation)
+- Fixed test: resolve market test needed eventStartTime set to past after creation (CreateMarket validates future, ResolveMarket validates past)
+- Fixed test: cancel/resolve tests expected 3 events but only 2 emitted (market event + block:new; SettlePayout has no SSE event)
+- Fixed test: client count test uses relative baseCount to avoid stale connection interference
+- tsc --noEmit, oxlint, and vitest all pass clean (73 tests total)

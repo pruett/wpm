@@ -101,10 +101,10 @@
 - [x] Add 404 handler for unknown routes, 500 error wrapper
 
 ### SSE Event Stream (FR-15)
-- [ ] Create `packages/node/src/events.ts` — SSE event emitter: `block:new`, `market:created`, `market:resolved`, `market:cancelled`, `trade:executed`
-- [ ] Add `GET /internal/events` SSE endpoint
-- [ ] Wire events into block producer and settlement engine
-- [ ] Test: connect SSE, submit transaction, verify event received
+- [x] Create `packages/node/src/events.ts` — SSE event emitter: `block:new`, `market:created`, `market:resolved`, `market:cancelled`, `trade:executed`
+- [x] Add `GET /internal/events` SSE endpoint
+- [x] Wire events into block producer and settlement engine
+- [x] Test: connect SSE, submit transaction, verify event received
 
 ### Mempool Hardening (FR-14)
 - [ ] Add mempool capacity limit (1000 pending txs, `MEMPOOL_FULL`)
