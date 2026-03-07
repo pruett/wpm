@@ -94,3 +94,20 @@ Notes:
 - Returns empty ChainState if file doesn't exist or is empty (first startup triggers genesis elsewhere)
 - Descriptive errors on validation failure include block index and reason per spec
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create validation module (Phase 0)
+
+Created `packages/node/src/validation.ts` implementing FR-4 (block validation) and FR-5 (Transfer transaction validation).
+
+Files changed:
+- packages/node/src/validation.ts (new)
+
+Notes:
+- `ValidationResult` type: `{ valid: true } | { valid: false; error: { code, message } }` for structured error reporting
+- `validateBlock()` checks: index sequence, previousHash linkage, hash integrity (recomputed via sha256), PoA signature verification
+- `validateTransaction()` dispatches to type-specific validators, checks duplicate txId against committedTxIds
+- `validateTransfer()` checks: amount > 0, 2-decimal precision, no self-transfer, sufficient balance, RSA signature verification
+- Error codes match spec: INVALID_AMOUNT, INVALID_PRECISION, SELF_TRANSFER, INSUFFICIENT_BALANCE, INVALID_SIGNATURE, DUPLICATE_TX
+- Unsupported tx types return UNSUPPORTED_TX_TYPE (will be extended in Phase 1)
+- `hasTwoDecimalPlaces()` uses `Math.round(amount * 100) === amount * 100` to avoid floating-point issues
+- tsc --noEmit and oxlint pass clean
