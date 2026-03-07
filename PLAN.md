@@ -41,10 +41,10 @@
 ## Phase 1 — Core Transaction Types
 
 ### Distribute Transaction (FR-6)
-- [ ] Add `Distribute` type to shared types (if not already)
-- [ ] Add Distribute validation to `validation.ts` — treasury sender, reason enum, balance check
-- [ ] Add `POST /internal/distribute` endpoint that creates + signs Distribute tx with PoA key (FR-15)
-- [ ] Test: distribute from treasury, verify recipient balance
+- [x] Add `Distribute` type to shared types (if not already)
+- [x] Add Distribute validation to `validation.ts` — treasury sender, reason enum, balance check
+- [x] Add `POST /internal/distribute` endpoint that creates + signs Distribute tx with PoA key (FR-15)
+- [x] Test: distribute from treasury, verify recipient balance
 
 ### CreateMarket Transaction (FR-7)
 - [ ] Add `Market`, `AMMPool`, `CreateMarket` types to `@wpm/shared`

@@ -82,7 +82,7 @@ describe("Tracer bullet — full loop", () => {
 
     // Start mempool + API
     mempool = new Mempool();
-    api = startApi(state, mempool, PORT, "127.0.0.1");
+    api = startApi(state, mempool, { poaPublicKey, poaPrivateKey }, PORT, "127.0.0.1");
 
     // Wait for server to be listening
     await new Promise<void>((resolve) => {

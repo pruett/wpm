@@ -197,3 +197,23 @@ Notes:
 - Uses PORT 0 to let OS pick a free port, resolves actual port after `listening` event
 - Test uses `produceBlock()` directly instead of relying on the 1s polling loop
 - tsc --noEmit, oxlint, and vitest all pass clean
+
+## Task: Distribute Transaction (Phase 1, FR-6)
+
+Implemented Distribute transaction validation and `POST /internal/distribute` system endpoint.
+
+Files changed:
+- packages/node/src/validation.ts (updated — added `validateDistribute()` with treasury sender, amount, precision, reason, balance, and signature checks)
+- packages/node/src/api.ts (updated — added `POST /internal/distribute` endpoint, added `keys` parameter to `startApi`)
+- packages/node/src/index.ts (updated — pass keys to `startApi`)
+- packages/node/tests/tracer.test.ts (updated — pass keys to `startApi`)
+- packages/node/tests/distribute.test.ts (new — 6 tests: happy path distribute + balance verify, invalid reason, invalid amount, bad precision, insufficient treasury, all valid reasons)
+
+Notes:
+- `POST /internal/distribute` is a system endpoint: accepts `{ recipient, amount, reason }`, node creates and signs the DistributeTx with PoA key
+- `startApi` now requires a `keys` parameter `{ poaPublicKey, poaPrivateKey }` — breaking change to API signature
+- Valid reasons: "signup_airdrop", "referral_reward", "manual", "genesis" (genesis included for replay compatibility)
+- Distribute validation verifies sender is treasury address (UNAUTHORIZED_SENDER), not just signature
+- Treasury balance check skipped when sender === recipient (genesis mint case)
+- Error codes match spec: UNAUTHORIZED_SENDER, INVALID_AMOUNT, INVALID_PRECISION, INSUFFICIENT_TREASURY, INVALID_REASON, INVALID_SIGNATURE
+- tsc --noEmit, oxlint, and vitest all pass clean (12 tests total)

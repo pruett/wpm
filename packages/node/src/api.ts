@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { Transaction } from "@wpm/shared";
+import { randomUUID } from "node:crypto";
+import { sign } from "@wpm/shared";
+import type { Transaction, DistributeTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 
@@ -51,6 +53,7 @@ function matchRoute(
 export function startApi(
   state: ChainState,
   mempool: Mempool,
+  keys: { poaPublicKey: string; poaPrivateKey: string },
   port = 3001,
   host = "0.0.0.0",
 ): { server: ReturnType<typeof createServer>; close: () => Promise<void> } {
@@ -66,6 +69,35 @@ export function startApi(
         const result = mempool.add(body, state);
         if (result.accepted) {
           json(res, 202, { txId: body.id });
+        } else {
+          json(res, 400, result.error);
+        }
+        return;
+      }
+
+      // POST /internal/distribute
+      if (method === "POST" && pathname === "/internal/distribute") {
+        const body = (await parseJson(req)) as {
+          recipient: string;
+          amount: number;
+          reason: string;
+        };
+        const tx: DistributeTx = {
+          id: randomUUID(),
+          type: "Distribute",
+          timestamp: Date.now(),
+          sender: keys.poaPublicKey,
+          recipient: body.recipient,
+          amount: body.amount,
+          reason: body.reason as DistributeTx["reason"],
+          signature: "",
+        };
+        const signData = JSON.stringify({ ...tx, signature: undefined });
+        tx.signature = sign(signData, keys.poaPrivateKey);
+
+        const result = mempool.add(tx, state);
+        if (result.accepted) {
+          json(res, 202, { txId: tx.id });
         } else {
           json(res, 400, result.error);
         }

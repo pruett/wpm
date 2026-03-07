@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -75,6 +75,8 @@ export function validateTransaction(
   switch (tx.type) {
     case "Transfer":
       return validateTransfer(tx, state);
+    case "Distribute":
+      return validateDistribute(tx, state);
     default:
       return fail(
         "UNSUPPORTED_TX_TYPE",
@@ -114,6 +116,50 @@ function validateTransfer(
 
   const signData = JSON.stringify({ ...tx, signature: undefined });
   if (!verify(signData, tx.signature, tx.sender)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- Distribute Validation (FR-6) ---
+
+const VALID_DISTRIBUTE_REASONS = new Set([
+  "signup_airdrop",
+  "referral_reward",
+  "manual",
+  "genesis",
+]);
+
+function validateDistribute(
+  tx: DistributeTx,
+  state: ChainState,
+): ValidationResult {
+  if (tx.sender !== state.treasuryAddress) {
+    return fail("UNAUTHORIZED_SENDER", "Distribute sender must be the treasury");
+  }
+
+  if (tx.amount <= 0) {
+    return fail("INVALID_AMOUNT", "Distribute amount must be greater than 0");
+  }
+
+  if (!hasTwoDecimalPlaces(tx.amount)) {
+    return fail("INVALID_PRECISION", "Amount must have at most 2 decimal places");
+  }
+
+  if (!VALID_DISTRIBUTE_REASONS.has(tx.reason)) {
+    return fail("INVALID_REASON", `Invalid distribute reason: ${tx.reason}`);
+  }
+
+  if (tx.sender !== tx.recipient && state.getBalance(state.treasuryAddress) < tx.amount) {
+    return fail(
+      "INSUFFICIENT_TREASURY",
+      `Treasury balance ${state.getBalance(state.treasuryAddress)} is less than amount ${tx.amount}`,
+    );
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, state.treasuryAddress)) {
     return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
   }
 

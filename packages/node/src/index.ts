@@ -35,7 +35,7 @@ const producer = startProducer(
   chainFilePath,
 );
 
-const api = startApi(state, mempool, PORT);
+const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT);
 
 console.log(`Node running on port ${PORT} — block height: ${state.chain.length}`);
 
