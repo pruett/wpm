@@ -12,6 +12,7 @@ type MempoolResult =
   | { accepted: false; error: MempoolError };
 
 const MAX_TIMESTAMP_DRIFT_MS = 300_000;
+const MAX_CAPACITY = 1_000;
 
 export class Mempool {
   private readonly queue: Transaction[] = [];
@@ -23,6 +24,16 @@ export class Mempool {
   }
 
   add(tx: Transaction, state: ChainState): MempoolResult {
+    if (this.queue.length >= MAX_CAPACITY) {
+      return {
+        accepted: false,
+        error: {
+          code: "MEMPOOL_FULL",
+          message: `Mempool is at capacity (${MAX_CAPACITY} pending transactions)`,
+        },
+      };
+    }
+
     const drift = Math.abs(tx.timestamp - Date.now());
     if (drift > MAX_TIMESTAMP_DRIFT_MS) {
       return {
@@ -55,6 +66,16 @@ export class Mempool {
   }
 
   addDirect(tx: Transaction): MempoolResult {
+    if (this.queue.length >= MAX_CAPACITY) {
+      return {
+        accepted: false,
+        error: {
+          code: "MEMPOOL_FULL",
+          message: `Mempool is at capacity (${MAX_CAPACITY} pending transactions)`,
+        },
+      };
+    }
+
     if (this.pendingIds.has(tx.id)) {
       return {
         accepted: false,

@@ -380,3 +380,18 @@ Notes:
 - Fixed test: cancel/resolve tests expected 3 events but only 2 emitted (market event + block:new; SettlePayout has no SSE event)
 - Fixed test: client count test uses relative baseCount to avoid stale connection interference
 - tsc --noEmit, oxlint, and vitest all pass clean (73 tests total)
+
+## Task: Mempool Hardening (Phase 3, FR-14)
+
+Implemented mempool capacity limit and verified all three FR-14 hardening requirements are met. Added comprehensive test coverage.
+
+Files changed:
+- packages/node/src/mempool.ts (updated — added `MAX_CAPACITY = 1_000` constant, `MEMPOOL_FULL` rejection in both `add()` and `addDirect()`)
+- packages/node/tests/mempool.test.ts (new — 7 tests: capacity limit via add, capacity limit via addDirect, accept after drain frees capacity, timestamp drift future, timestamp drift past, duplicate against committedTxIds, duplicate against pending mempool)
+
+Notes:
+- Capacity check is the first guard in both `add()` and `addDirect()`, rejecting with `MEMPOOL_FULL` error code when queue length >= 1000
+- Timestamp drift check (±300,000ms, `TIMESTAMP_OUT_OF_RANGE`) was already implemented in Phase 0
+- Duplicate check already covered both paths: `pendingIds` (mempool-level, line 48) and `committedTxIds` (via `validateTransaction()` in validation.ts:72)
+- `addDirect()` (used for system txs like Referral) also respects capacity limit but does not check `committedTxIds` since system txs are freshly created with unique IDs
+- tsc --noEmit, oxlint, and vitest all pass clean (80 tests total)

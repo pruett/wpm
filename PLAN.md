@@ -107,9 +107,9 @@
 - [x] Test: connect SSE, submit transaction, verify event received
 
 ### Mempool Hardening (FR-14)
-- [ ] Add mempool capacity limit (1000 pending txs, `MEMPOOL_FULL`)
-- [ ] Add timestamp drift check (300,000ms window, `TIMESTAMP_OUT_OF_RANGE`)
-- [ ] Ensure duplicate check covers both mempool and committedTxIds
+- [x] Add mempool capacity limit (1000 pending txs, `MEMPOOL_FULL`)
+- [x] Add timestamp drift check (300,000ms window, `TIMESTAMP_OUT_OF_RANGE`)
+- [x] Ensure duplicate check covers both mempool and committedTxIds
 
 ### Invariant Checks
 - [ ] Add post-block invariant assertions: INV-1 (total supply conservation), INV-3 (no negative balances), INV-4 (no negative shares), INV-5 (k only increases)
