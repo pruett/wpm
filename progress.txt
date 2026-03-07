@@ -47,6 +47,21 @@ Notes:
 - Private key written with mode 0o600
 - bunx tsc --noEmit and oxlint pass clean
 
+## Task: Create genesis block (Phase 0)
+
+Created `packages/node/src/genesis.ts` — produces genesis block (index 0) with a Distribute tx minting 10M WPM to the treasury address (FR-1).
+
+Files changed:
+- packages/node/src/genesis.ts (new)
+
+Notes:
+- `createGenesisBlock(poaPublicKey, poaPrivateKey)` returns a fully signed Block
+- Single Distribute tx: sender=treasury, recipient=treasury, amount=10_000_000, reason="genesis"
+- Transaction signature signs JSON with signature field set to undefined
+- Block hash = sha256 of block JSON (hash/signature excluded), block signature signs the hash
+- previousHash is "0" for genesis block
+- tsc --noEmit and oxlint pass clean
+
 ## Task: Create ChainState class (Phase 0)
 
 Created `packages/node/src/state.ts` — the `ChainState` class managing all on-chain state.
