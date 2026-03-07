@@ -38,9 +38,11 @@ export function produceBlock(
 
   const candidates = mempool.drain(MAX_TXS_PER_BLOCK);
 
+  const SYSTEM_TX_TYPES = new Set(["SettlePayout", "Referral"]);
   const validTxs: Transaction[] = [];
   for (const tx of candidates) {
-    const result = validateTransaction(tx, state, oraclePublicKey);
+    const isSystemTx = SYSTEM_TX_TYPES.has(tx.type);
+    const result = isSystemTx ? { valid: true as const } : validateTransaction(tx, state, oraclePublicKey);
     if (result.valid) {
       validTxs.push(tx);
       // Inject settlement payouts after ResolveMarket or CancelMarket

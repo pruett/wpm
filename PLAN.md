@@ -85,11 +85,11 @@
 - [x] Test: create market -> place bets -> cancel -> verify refunds match cost basis, conservation holds
 
 ### Referral Transaction (FR-13)
-- [ ] Add `Referral` type to shared, add `referredUsers` set to ChainState
-- [ ] Add Referral validation — PoA sender, duplicate referral check, treasury balance
-- [ ] Add `POST /internal/referral-reward` endpoint (FR-15)
-- [ ] Reject Referral if received via `POST /internal/transaction` (`SYSTEM_TX_ONLY`)
-- [ ] Test: submit referral reward, verify 5000 WPM transferred, duplicate rejected
+- [x] Add `Referral` type to shared, add `referredUsers` set to ChainState
+- [x] Add Referral validation — PoA sender, duplicate referral check, treasury balance
+- [x] Add `POST /internal/referral-reward` endpoint (FR-15)
+- [x] Reject Referral if received via `POST /internal/transaction` (`SYSTEM_TX_ONLY`)
+- [x] Test: submit referral reward, verify 5000 WPM transferred, duplicate rejected
 
 ---
 

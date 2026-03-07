@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx, CancelMarketTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx, CancelMarketTx, ReferralTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -90,11 +90,15 @@ export function validateTransaction(
       return validateCancelMarket(tx, state, oraclePublicKey);
     case "SettlePayout":
       return fail("SYSTEM_TX_ONLY", "SettlePayout transactions are system-generated and cannot be submitted externally");
-    default:
+    case "Referral":
+      return fail("SYSTEM_TX_ONLY", "Referral transactions are system-generated and cannot be submitted externally");
+    default: {
+      const _exhaustive: never = tx;
       return fail(
         "UNSUPPORTED_TX_TYPE",
-        `Validation for ${tx.type} not yet implemented`,
+        `Validation for ${(_exhaustive as Transaction).type} not yet implemented`,
       );
+    }
   }
 }
 
@@ -354,6 +358,39 @@ function validateResolveMarket(
 
   const signData = JSON.stringify({ ...tx, signature: undefined });
   if (!verify(signData, tx.signature, oraclePublicKey)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- Referral Validation (FR-13) ---
+
+export function validateReferral(
+  tx: ReferralTx,
+  state: ChainState,
+): ValidationResult {
+  if (tx.sender !== state.treasuryAddress) {
+    return fail("UNAUTHORIZED_SENDER", "Referral sender must be the PoA signer / treasury");
+  }
+
+  if (state.getBalance(state.treasuryAddress) < tx.amount) {
+    return fail(
+      "INSUFFICIENT_TREASURY",
+      `Treasury balance ${state.getBalance(state.treasuryAddress)} is less than amount ${tx.amount}`,
+    );
+  }
+
+  if (state.referredUsers.has(tx.referredUser)) {
+    return fail("DUPLICATE_REFERRAL", `User ${tx.referredUser} has already been referred`);
+  }
+
+  if (state.committedTxIds.has(tx.id)) {
+    return fail("DUPLICATE_TX", `Transaction ${tx.id} already committed`);
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, state.treasuryAddress)) {
     return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
   }
 

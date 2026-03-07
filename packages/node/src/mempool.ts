@@ -54,6 +54,22 @@ export class Mempool {
     return { accepted: true };
   }
 
+  addDirect(tx: Transaction): MempoolResult {
+    if (this.pendingIds.has(tx.id)) {
+      return {
+        accepted: false,
+        error: {
+          code: "DUPLICATE_TX",
+          message: `Transaction ${tx.id} is already in the mempool`,
+        },
+      };
+    }
+
+    this.queue.push(tx);
+    this.pendingIds.add(tx.id);
+    return { accepted: true };
+  }
+
   drain(max: number): Transaction[] {
     const taken = this.queue.splice(0, max);
     for (const tx of taken) {

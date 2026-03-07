@@ -321,3 +321,24 @@ Notes:
 - Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before cancellation
 - Partial sell test confirms refund = net cost basis (original cost minus proportional reduction from sells)
 - tsc --noEmit, oxlint, and vitest all pass clean (54 tests total)
+
+## Task: Referral Transaction (Phase 2, FR-13)
+
+Implemented Referral transaction validation, `POST /internal/referral-reward` system endpoint, SYSTEM_TX_ONLY rejection, and full test coverage.
+
+Files changed:
+- packages/node/src/validation.ts (updated — added `validateReferral()` with PoA sender, treasury balance, duplicate referral, and signature checks; added SYSTEM_TX_ONLY rejection for Referral in `validateTransaction()`; exhaustive switch default)
+- packages/node/src/api.ts (updated — added `POST /internal/referral-reward` endpoint, imports `validateReferral`)
+- packages/node/src/mempool.ts (updated — added `addDirect()` method for pre-validated system transactions)
+- packages/node/src/producer.ts (updated — skip re-validation for system tx types: SettlePayout, Referral)
+- packages/node/tests/referral.test.ts (new — 5 tests: happy path 5000 WPM reward + balance verify, duplicate referral rejection, SYSTEM_TX_ONLY rejection via external API, insufficient treasury, referredUser tracking in state)
+
+Notes:
+- `POST /internal/referral-reward` accepts `{ inviterAddress, referredUser }`, node creates Referral tx for fixed 5000 WPM signed with PoA key
+- `validateReferral()` is exported and called directly by the API endpoint (separate from `validateTransaction()` which rejects with SYSTEM_TX_ONLY)
+- `addDirect()` on Mempool bypasses `validateTransaction()` — used for system txs that are pre-validated by the endpoint
+- Producer skips re-validation for system tx types (Referral, SettlePayout) since they were pre-validated at creation time
+- Error codes match spec: UNAUTHORIZED_SENDER, INSUFFICIENT_TREASURY, DUPLICATE_REFERRAL, SYSTEM_TX_ONLY, INVALID_SIGNATURE
+- `referredUsers` set and `applyReferral()` in ChainState were already implemented in Phase 0
+- `ReferralTx` type was already defined in shared types from Phase 0
+- tsc --noEmit, oxlint, and vitest all pass clean (59 tests total)

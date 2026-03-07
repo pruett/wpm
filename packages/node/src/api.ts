@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { sign, calculatePrices } from "@wpm/shared";
-import type { Transaction, DistributeTx } from "@wpm/shared";
+import type { Transaction, DistributeTx, ReferralTx } from "@wpm/shared";
+import { validateReferral } from "./validation.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
 
@@ -98,6 +99,39 @@ export function startApi(
         const result = mempool.add(tx, state);
         if (result.accepted) {
           json(res, 202, { txId: tx.id });
+        } else {
+          json(res, 400, result.error);
+        }
+        return;
+      }
+
+      // POST /internal/referral-reward
+      if (method === "POST" && pathname === "/internal/referral-reward") {
+        const body = (await parseJson(req)) as {
+          inviterAddress: string;
+          referredUser: string;
+        };
+        const tx: ReferralTx = {
+          id: randomUUID(),
+          type: "Referral",
+          timestamp: Date.now(),
+          sender: keys.poaPublicKey,
+          recipient: body.inviterAddress,
+          amount: 5000,
+          referredUser: body.referredUser,
+          signature: "",
+        };
+        const signData = JSON.stringify({ ...tx, signature: undefined });
+        tx.signature = sign(signData, keys.poaPrivateKey);
+
+        const result = validateReferral(tx, state);
+        if (result.valid) {
+          const mempoolResult = mempool.addDirect(tx);
+          if (mempoolResult.accepted) {
+            json(res, 202, { txId: tx.id });
+          } else {
+            json(res, 400, mempoolResult.error);
+          }
         } else {
           json(res, 400, result.error);
         }
