@@ -126,3 +126,21 @@ Notes:
 - `MempoolResult` type: `{ accepted: true } | { accepted: false; error: { code, message } }`
 - Capacity limit (1,000 / MEMPOOL_FULL) deferred to Phase 3 per plan
 - tsc --noEmit and oxlint pass clean
+
+## Task: Create block producer (Phase 0)
+
+Created `packages/node/src/producer.ts` implementing FR-3 — 1s polling loop for block production.
+
+Files changed:
+- packages/node/src/producer.ts (new)
+
+Notes:
+- `startProducer(state, mempool, poaPrivateKey, chainFilePath?)` starts a 1s setInterval polling loop, returns `{ stop }` handle
+- `produceBlock(state, mempool, poaPrivateKey, chainFilePath?)` is the core function, also exported for direct use/testing
+- Drains up to 100 txs from mempool (FIFO), re-validates each against current state, discards invalid ones (no re-queue)
+- If no valid txs remain after re-validation, produces no block
+- Constructs block: increments index, sets previousHash, computes SHA-256 hash, signs with PoA key
+- Appends block to chain.jsonl via persistence module, then applies to in-memory state
+- Returns the produced Block or null (useful for callers/tests)
+- SSE event emission deferred to Phase 3 per plan
+- tsc --noEmit and oxlint pass clean
