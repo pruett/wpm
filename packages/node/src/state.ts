@@ -14,6 +14,7 @@ import type {
   SettlePayoutTx,
   ReferralTx,
 } from "@wpm/shared";
+import { calculateBuy } from "@wpm/shared";
 
 export class ChainState {
   chain: Block[] = [];
@@ -165,10 +166,22 @@ export class ChainState {
     this.externalEventIds.set(tx.externalEventId, tx.marketId);
   }
 
-  private applyPlaceBet(_tx: PlaceBetTx): void {
-    // AMM math (mint-then-swap) will be implemented in Phase 1
-    // when @wpm/shared/amm is created
-    throw new Error("PlaceBet state application not yet implemented");
+  private applyPlaceBet(tx: PlaceBetTx): void {
+    const pool = this.pools.get(tx.marketId)!;
+    const result = calculateBuy(pool, tx.outcome, tx.amount);
+
+    // Debit sender
+    this.debit(tx.sender, tx.amount);
+
+    // Update pool
+    this.pools.set(tx.marketId, result.pool);
+
+    // Credit shares to sender
+    const position = this.getSharePosition(tx.sender, tx.marketId, tx.outcome);
+    this.setSharePosition(tx.sender, tx.marketId, tx.outcome, {
+      shares: Math.round((position.shares + result.sharesToUser) * 100) / 100,
+      costBasis: Math.round((position.costBasis + tx.amount) * 100) / 100,
+    });
   }
 
   private applySellShares(_tx: SellSharesTx): void {

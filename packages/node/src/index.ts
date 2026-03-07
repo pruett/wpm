@@ -26,13 +26,14 @@ if (state.chain.length === 0) {
   console.log(`Replayed ${state.chain.length} blocks.`);
 }
 
-const mempool = new Mempool();
+const mempool = new Mempool(keys.oraclePublicKey);
 
 const producer = startProducer(
   state,
   mempool,
   keys.poaPrivateKey,
   chainFilePath,
+  keys.oraclePublicKey,
 );
 
 const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT);

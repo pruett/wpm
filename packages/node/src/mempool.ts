@@ -16,6 +16,11 @@ const MAX_TIMESTAMP_DRIFT_MS = 300_000;
 export class Mempool {
   private readonly queue: Transaction[] = [];
   private readonly pendingIds: Set<string> = new Set();
+  private readonly oraclePublicKey?: string;
+
+  constructor(oraclePublicKey?: string) {
+    this.oraclePublicKey = oraclePublicKey;
+  }
 
   add(tx: Transaction, state: ChainState): MempoolResult {
     const drift = Math.abs(tx.timestamp - Date.now());
@@ -39,7 +44,7 @@ export class Mempool {
       };
     }
 
-    const validation = validateTransaction(tx, state);
+    const validation = validateTransaction(tx, state, this.oraclePublicKey);
     if (!validation.valid) {
       return { accepted: false, error: validation.error };
     }

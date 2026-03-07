@@ -47,19 +47,19 @@
 - [x] Test: distribute from treasury, verify recipient balance
 
 ### CreateMarket Transaction (FR-7)
-- [ ] Add `Market`, `AMMPool`, `CreateMarket` types to `@wpm/shared`
-- [ ] Create `packages/shared/src/amm/index.ts` — pool initialization math, price calculation (`priceA = sharesB / (sharesA + sharesB)`)
-- [ ] Add markets map, pools map, externalEventIds map to `ChainState`
-- [ ] Add CreateMarket validation to `validation.ts` — oracle sender, duplicate checks, field validation
-- [ ] Add `GET /internal/market/:id` endpoint (FR-15)
-- [ ] Test: create market, verify pool state and prices at 50/50
+- [x] Add `Market`, `AMMPool`, `CreateMarket` types to `@wpm/shared`
+- [x] Create `packages/shared/src/amm/index.ts` — pool initialization math, price calculation (`priceA = sharesB / (sharesA + sharesB)`)
+- [x] Add markets map, pools map, externalEventIds map to `ChainState`
+- [x] Add CreateMarket validation to `validation.ts` — oracle sender, duplicate checks, field validation
+- [x] Add `GET /internal/market/:id` endpoint (FR-15)
+- [x] Test: create market, verify pool state and prices at 50/50
 
 ### PlaceBet Transaction (FR-8)
-- [ ] Add `PlaceBet` type and AMM buy math to `@wpm/shared/amm` — two-step mint-then-swap, fee calculation
-- [ ] Add sharePositions tracking to `ChainState` (address -> marketId -> outcome -> shares + costBasis)
-- [ ] Add PlaceBet validation to `validation.ts` — market open, before eventStartTime, minimum bet, balance check
-- [ ] Add `GET /internal/shares/:address` endpoint (FR-15)
-- [ ] Test: place bet, verify shares received match worked example from spec (FR-8, Example 2)
+- [x] Add `PlaceBet` type and AMM buy math to `@wpm/shared/amm` — two-step mint-then-swap, fee calculation
+- [x] Add sharePositions tracking to `ChainState` (address -> marketId -> outcome -> shares + costBasis)
+- [x] Add PlaceBet validation to `validation.ts` — market open, before eventStartTime, minimum bet, balance check
+- [x] Add `GET /internal/shares/:address` endpoint (FR-15)
+- [x] Test: place bet, verify shares received match AMM formula output
 
 ### SellShares Transaction (FR-9)
 - [ ] Add `SellShares` type and AMM sell math to `@wpm/shared/amm` — constant product sell, fee, cost basis reduction

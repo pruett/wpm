@@ -13,9 +13,10 @@ export function startProducer(
   mempool: Mempool,
   poaPrivateKey: string,
   chainFilePath?: string,
+  oraclePublicKey?: string,
 ): { stop: () => void } {
   const timer = setInterval(() => {
-    produceBlock(state, mempool, poaPrivateKey, chainFilePath);
+    produceBlock(state, mempool, poaPrivateKey, chainFilePath, oraclePublicKey);
   }, POLL_INTERVAL_MS);
 
   return {
@@ -28,6 +29,7 @@ export function produceBlock(
   mempool: Mempool,
   poaPrivateKey: string,
   chainFilePath?: string,
+  oraclePublicKey?: string,
 ): Block | null {
   if (mempool.size === 0) return null;
 
@@ -35,7 +37,7 @@ export function produceBlock(
 
   const validTxs: Transaction[] = [];
   for (const tx of candidates) {
-    const result = validateTransaction(tx, state);
+    const result = validateTransaction(tx, state, oraclePublicKey);
     if (result.valid) {
       validTxs.push(tx);
     }

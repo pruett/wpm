@@ -217,3 +217,45 @@ Notes:
 - Treasury balance check skipped when sender === recipient (genesis mint case)
 - Error codes match spec: UNAUTHORIZED_SENDER, INVALID_AMOUNT, INVALID_PRECISION, INSUFFICIENT_TREASURY, INVALID_REASON, INVALID_SIGNATURE
 - tsc --noEmit, oxlint, and vitest all pass clean (12 tests total)
+
+## Task: CreateMarket Transaction (Phase 1, FR-7)
+
+Implemented CreateMarket transaction validation, AMM math module, market API endpoint, and full test coverage.
+
+Files changed:
+- packages/shared/src/amm/index.ts (new — `calculatePrices()` and `initializePool()` functions)
+- packages/shared/src/index.ts (updated — added amm re-export)
+- packages/node/src/validation.ts (updated — added `validateCreateMarket()` with oracle sender, duplicate market/event, event timing, seed amount, field, and signature checks)
+- packages/node/src/mempool.ts (updated — added `oraclePublicKey` constructor param, threaded to `validateTransaction()`)
+- packages/node/src/producer.ts (updated — added `oraclePublicKey` param to `startProducer()` and `produceBlock()`, threaded to re-validation)
+- packages/node/src/api.ts (updated — added `GET /internal/market/:id` endpoint returning market, pool, and prices)
+- packages/node/src/index.ts (updated — pass `oraclePublicKey` to Mempool and producer)
+- packages/node/tests/create-market.test.ts (new — 9 tests: happy path with 50/50 price verification, non-oracle rejection, duplicate marketId, duplicate externalEventId, event in past, invalid seed, bad precision, missing fields, 404 for unknown market)
+
+Notes:
+- `validateTransaction()` now accepts optional `oraclePublicKey` parameter — backward compatible, existing tests unaffected
+- AMM price formula: `priceA = sharesB / (sharesA + sharesB)`, `priceB = sharesA / (sharesA + sharesB)`
+- CreateMarket validation error codes match spec: UNAUTHORIZED_ORACLE, DUPLICATE_MARKET, DUPLICATE_EVENT, EVENT_IN_PAST, INVALID_SEED, INVALID_PRECISION, INSUFFICIENT_TREASURY, MISSING_FIELD, INVALID_SIGNATURE
+- Types (Market, AMMPool, CreateMarket) and ChainState maps (markets, pools, externalEventIds) were already created in Phase 0
+- `GET /internal/market/:id` returns `{ market, pool, prices }` with computed priceA/priceB
+- tsc --noEmit, oxlint, and vitest all pass clean (21 tests total)
+
+## Task: PlaceBet Transaction (Phase 1, FR-8)
+
+Implemented PlaceBet transaction with AMM buy math (two-step mint-then-swap), validation, state application, shares API endpoint, and full test coverage.
+
+Files changed:
+- packages/shared/src/amm/index.ts (updated — added `calculateBuy()` with mint-then-swap algorithm and 1% fee)
+- packages/node/src/validation.ts (updated — added `validatePlaceBet()` with market exists, open, timing, amount, precision, balance, and signature checks)
+- packages/node/src/state.ts (updated — implemented `applyPlaceBet()` using `calculateBuy()`, updates pool and share positions)
+- packages/node/src/api.ts (updated — added `GET /internal/shares/:address` endpoint returning all share positions)
+- packages/node/tests/place-bet.test.ts (new — 9 tests: happy path with AMM math verification, shares API, empty positions, non-existent market, minimum bet, bad precision, insufficient balance, invalid amount, accumulated bets)
+
+Notes:
+- `calculateBuy(pool, outcome, amount)` implements the two-step mint-then-swap: mint netAmount pairs into pool, swap opposite shares via constant product, distribute 1% fee equally to both sides
+- All intermediate values rounded to 2 decimal places via `round2()` helper
+- Spec Example 2 has an arithmetic error: states `(599*599)/698 = 513.47` but correct answer is `514.04`. Our implementation follows the formula correctly
+- Validation error codes: MARKET_NOT_FOUND, MARKET_NOT_OPEN, BETTING_CLOSED, INVALID_AMOUNT, MINIMUM_BET, INVALID_PRECISION, INSUFFICIENT_BALANCE, INVALID_SIGNATURE
+- `GET /internal/shares/:address` returns `{ address, positions }` where positions is `{ [marketId]: { [outcome]: { shares, costBasis } } }`
+- Share positions accumulate correctly across multiple bets on the same outcome
+- tsc --noEmit, oxlint, and vitest all pass clean (30 tests total)

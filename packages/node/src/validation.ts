@@ -1,5 +1,5 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx } from "@wpm/shared";
+import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -67,6 +67,7 @@ export function validateBlock(
 export function validateTransaction(
   tx: Transaction,
   state: ChainState,
+  oraclePublicKey?: string,
 ): ValidationResult {
   if (state.committedTxIds.has(tx.id)) {
     return fail("DUPLICATE_TX", `Transaction ${tx.id} already committed`);
@@ -77,6 +78,10 @@ export function validateTransaction(
       return validateTransfer(tx, state);
     case "Distribute":
       return validateDistribute(tx, state);
+    case "CreateMarket":
+      return validateCreateMarket(tx, state, oraclePublicKey);
+    case "PlaceBet":
+      return validatePlaceBet(tx, state);
     default:
       return fail(
         "UNSUPPORTED_TX_TYPE",
@@ -160,6 +165,112 @@ function validateDistribute(
 
   const signData = JSON.stringify({ ...tx, signature: undefined });
   if (!verify(signData, tx.signature, state.treasuryAddress)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- CreateMarket Validation (FR-7) ---
+
+const REQUIRED_MARKET_FIELDS = [
+  "sport",
+  "homeTeam",
+  "awayTeam",
+  "outcomeA",
+  "outcomeB",
+] as const;
+
+function validateCreateMarket(
+  tx: CreateMarketTx,
+  state: ChainState,
+  oraclePublicKey?: string,
+): ValidationResult {
+  if (!oraclePublicKey || tx.sender !== oraclePublicKey) {
+    return fail("UNAUTHORIZED_ORACLE", "CreateMarket sender must be the oracle");
+  }
+
+  if (state.markets.has(tx.marketId)) {
+    return fail("DUPLICATE_MARKET", `Market ${tx.marketId} already exists`);
+  }
+
+  if (state.externalEventIds.has(tx.externalEventId)) {
+    return fail("DUPLICATE_EVENT", `External event ${tx.externalEventId} already used`);
+  }
+
+  if (tx.eventStartTime <= tx.timestamp) {
+    return fail("EVENT_IN_PAST", "Event start time must be in the future");
+  }
+
+  if (tx.seedAmount <= 0) {
+    return fail("INVALID_SEED", "Seed amount must be greater than 0");
+  }
+
+  if (!hasTwoDecimalPlaces(tx.seedAmount)) {
+    return fail("INVALID_PRECISION", "Seed amount must have at most 2 decimal places");
+  }
+
+  if (state.getBalance(state.treasuryAddress) < tx.seedAmount) {
+    return fail(
+      "INSUFFICIENT_TREASURY",
+      `Treasury balance ${state.getBalance(state.treasuryAddress)} is less than seed amount ${tx.seedAmount}`,
+    );
+  }
+
+  for (const field of REQUIRED_MARKET_FIELDS) {
+    if (!tx[field] || tx[field].trim() === "") {
+      return fail("MISSING_FIELD", `Field ${field} is required`);
+    }
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, oraclePublicKey)) {
+    return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
+  }
+
+  return OK;
+}
+
+// --- PlaceBet Validation (FR-8) ---
+
+function validatePlaceBet(
+  tx: PlaceBetTx,
+  state: ChainState,
+): ValidationResult {
+  const market = state.markets.get(tx.marketId);
+  if (!market) {
+    return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
+  }
+
+  if (market.status !== "open") {
+    return fail("MARKET_NOT_OPEN", `Market ${tx.marketId} is not open`);
+  }
+
+  if (tx.timestamp >= market.eventStartTime) {
+    return fail("BETTING_CLOSED", "Betting is closed after event start time");
+  }
+
+  if (tx.amount <= 0) {
+    return fail("INVALID_AMOUNT", "Bet amount must be greater than 0");
+  }
+
+  if (tx.amount < 1) {
+    return fail("MINIMUM_BET", "Minimum bet is 1.00 WPM");
+  }
+
+  if (!hasTwoDecimalPlaces(tx.amount)) {
+    return fail("INVALID_PRECISION", "Amount must have at most 2 decimal places");
+  }
+
+  if (state.getBalance(tx.sender) < tx.amount) {
+    return fail(
+      "INSUFFICIENT_BALANCE",
+      `Sender balance ${state.getBalance(tx.sender)} is less than amount ${tx.amount}`,
+    );
+  }
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  if (!verify(signData, tx.signature, tx.sender)) {
     return fail("INVALID_SIGNATURE", "Transaction signature verification failed");
   }
 

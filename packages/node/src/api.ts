@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { sign } from "@wpm/shared";
+import { sign, calculatePrices } from "@wpm/shared";
 import type { Transaction, DistributeTx } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
@@ -143,6 +143,43 @@ export function startApi(
             return;
           }
           json(res, 200, block);
+          return;
+        }
+      }
+
+      // GET /internal/shares/:address
+      if (method === "GET") {
+        const sharesParams = matchRoute(pathname, "/internal/shares/:address");
+        if (sharesParams) {
+          const address = decodeURIComponent(sharesParams.address);
+          const byAddress = state.sharePositions.get(address);
+          const positions: Record<string, Record<string, { shares: number; costBasis: number }>> = {};
+          if (byAddress) {
+            for (const [marketId, byMarket] of byAddress) {
+              positions[marketId] = {};
+              for (const [outcome, pos] of byMarket) {
+                positions[marketId][outcome] = { shares: pos.shares, costBasis: pos.costBasis };
+              }
+            }
+          }
+          json(res, 200, { address, positions });
+          return;
+        }
+      }
+
+      // GET /internal/market/:id
+      if (method === "GET") {
+        const marketParams = matchRoute(pathname, "/internal/market/:id");
+        if (marketParams) {
+          const marketId = decodeURIComponent(marketParams.id);
+          const market = state.markets.get(marketId);
+          if (!market) {
+            json(res, 404, { error: "NOT_FOUND", message: `Market ${marketId} not found` });
+            return;
+          }
+          const pool = state.pools.get(marketId);
+          const prices = pool ? calculatePrices(pool) : { priceA: 0, priceB: 0 };
+          json(res, 200, { market, pool, prices });
           return;
         }
       }
