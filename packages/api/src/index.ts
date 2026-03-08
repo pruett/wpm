@@ -2,12 +2,14 @@ import { Hono } from "hono";
 import { trading } from "./routes/trading";
 import { events } from "./routes/events";
 import { auth } from "./routes/auth";
+import { wallet } from "./routes/wallet";
 
 const app = new Hono();
 
 app.route("/", trading);
 app.route("/", events);
 app.route("/", auth);
+app.route("/", wallet);
 const startTime = Date.now();
 
 const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";

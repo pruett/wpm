@@ -362,3 +362,27 @@ Files changed:
 - packages/api/src/middleware/admin.ts (new)
 - packages/api/tests/auth-admin.test.ts (new)
 - PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 2, Wallet Endpoints (FR-5): Full implementation
+
+- Created `packages/api/src/routes/wallet.ts` — wallet route with two endpoints:
+  - `GET /wallet/balance`: JWT auth → reads walletAddress from token → proxies to node `GET /internal/balance/:addr` → returns `{ address, balance }`
+  - `GET /wallet/transactions`: JWT auth → fetches all blocks from node via paginated `GET /internal/blocks` → filters transactions where user is sender or recipient (checks `sender` field on all tx types, `recipient` field on Transfer/Distribute/SettlePayout/Referral) → sorts by timestamp descending → paginates with `limit` (default 50, max 200, min 1) and `offset` (default 0) → returns `{ transactions, total, limit, offset }`
+- Mounted wallet routes in `packages/api/src/index.ts` via `app.route("/", wallet)`
+- Created `packages/api/tests/wallet.test.ts` — 10 integration tests covering:
+  - Balance matches node state (user1: 100K - 500 bet + 1000 transfer = 100,500)
+  - Balance for second user (50K - 1000 transfer = 49,000)
+  - Rejects missing auth → 401
+  - Rejects token without walletAddress → 401
+  - Transactions returns correct count (user1: 3 txs — Distribute recipient, PlaceBet sender, Transfer recipient)
+  - Transactions sorted by timestamp descending
+  - User2 transactions correct (2 txs — Distribute recipient, Transfer sender)
+  - Pagination with limit + offset (page 1: 2 items, page 2: 1 item)
+  - Limit clamped to 200 when exceeding max
+  - Auth rejection on transactions endpoint
+
+Files changed:
+- packages/api/src/routes/wallet.ts (new)
+- packages/api/src/index.ts (mounted wallet routes)
+- packages/api/tests/wallet.test.ts (new)
+- PLAN.md (marked 3 tasks complete)

@@ -73,9 +73,9 @@
 
 ### Wallet Endpoints (FR-5)
 
-- [ ] Create `packages/api/src/routes/wallet.ts` — `GET /wallet/balance` (read wallet from JWT, proxy to node `GET /internal/balance/:addr`)
-- [ ] Implement `GET /wallet/transactions` (fetch node state, filter transactions where user is sender or recipient, sort timestamp desc, paginate with `limit` default 50 max 200 and `offset` default 0)
-- [ ] Write tests (`bun:test`): balance matches node, pagination respected, limit clamped to 200
+- [x] Create `packages/api/src/routes/wallet.ts` — `GET /wallet/balance` (read wallet from JWT, proxy to node `GET /internal/balance/:addr`)
+- [x] Implement `GET /wallet/transactions` (fetch node state, filter transactions where user is sender or recipient, sort timestamp desc, paginate with `limit` default 50 max 200 and `offset` default 0)
+- [x] Write tests (`bun:test`): balance matches node, pagination respected, limit clamped to 200
 
 ### Market Endpoints (FR-6)
 
