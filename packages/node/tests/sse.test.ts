@@ -4,7 +4,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { generateKeyPair, sign } from "@wpm/shared";
-import type { TransferTx, CreateMarketTx, PlaceBetTx, ResolveMarketTx, CancelMarketTx } from "@wpm/shared";
+import type {
+  TransferTx,
+  CreateMarketTx,
+  PlaceBetTx,
+  ResolveMarketTx,
+  CancelMarketTx,
+} from "@wpm/shared";
 import { createGenesisBlock } from "../src/genesis.js";
 import { appendBlock } from "../src/persistence.js";
 import { ChainState } from "../src/state.js";
@@ -127,7 +133,15 @@ describe("SSE Event Stream", () => {
     // Fund user first
     const distTx = buildDistributeTx(poaPublicKey, poaPrivateKey, userPublicKey, 1000);
     mempool.addDirect(distTx);
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     // Connect SSE client, then produce a block
     const transferTx = buildTransferTx(userPublicKey, userPrivateKey, poaPublicKey, 10);
@@ -136,7 +150,15 @@ describe("SSE Event Stream", () => {
     const eventsPromise = collectSSE(baseUrl, 1);
     // Small delay to ensure SSE client connects before block production
     await new Promise((r) => setTimeout(r, 50));
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const events = await eventsPromise;
     expect(events.length).toBe(1);
@@ -156,7 +178,15 @@ describe("SSE Event Stream", () => {
 
     const eventsPromise = collectSSE(baseUrl, 2);
     await new Promise((r) => setTimeout(r, 50));
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const events = await eventsPromise;
     const marketEvent = events.find((e) => e.event === "market:created");
@@ -174,14 +204,30 @@ describe("SSE Event Stream", () => {
     const marketId = randomUUID();
     const createTx = buildCreateMarketTx(oraclePublicKey, oraclePrivateKey, marketId);
     mempool.add(createTx, state);
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const betTx = buildPlaceBetTx(userPublicKey, userPrivateKey, marketId, "A", 100);
     mempool.add(betTx, state);
 
     const eventsPromise = collectSSE(baseUrl, 2);
     await new Promise((r) => setTimeout(r, 50));
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const events = await eventsPromise;
     const tradeEvent = events.find((e) => e.event === "trade:executed");
@@ -201,7 +247,15 @@ describe("SSE Event Stream", () => {
     const marketId = randomUUID();
     const createTx = buildCreateMarketTx(oraclePublicKey, oraclePrivateKey, marketId);
     mempool.add(createTx, state);
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     // Move eventStartTime to the past so ResolveMarket passes EVENT_NOT_STARTED check
     const market = state.markets.get(marketId)!;
@@ -212,7 +266,15 @@ describe("SSE Event Stream", () => {
 
     const eventsPromise = collectSSE(baseUrl, 2);
     await new Promise((r) => setTimeout(r, 50));
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const events = await eventsPromise;
     const resolvedEvent = events.find((e) => e.event === "market:resolved");
@@ -228,14 +290,30 @@ describe("SSE Event Stream", () => {
     const marketId = randomUUID();
     const createTx = buildCreateMarketTx(oraclePublicKey, oraclePrivateKey, marketId);
     mempool.add(createTx, state);
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const cancelTx = buildCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId);
     mempool.add(cancelTx, state);
 
     const eventsPromise = collectSSE(baseUrl, 2);
     await new Promise((r) => setTimeout(r, 50));
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
 
     const events = await eventsPromise;
     const cancelledEvent = events.find((e) => e.event === "market:cancelled");
@@ -247,8 +325,14 @@ describe("SSE Event Stream", () => {
   });
 
   it("should track client count correctly", async () => {
-    // Wait for any stale connections from prior tests to close
-    await new Promise((r) => setTimeout(r, 100));
+    // Wait for any stale connections from prior tests to fully close
+    const waitForCount = async (expected: number, timeoutMs = 2000) => {
+      const start = Date.now();
+      while (eventBus.clientCount !== expected && Date.now() - start < timeoutMs) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    };
+    await waitForCount(0, 2000);
     const baseCount = eventBus.clientCount;
 
     const eventsPromise = collectSSE(baseUrl, 1, 300);
@@ -256,15 +340,20 @@ describe("SSE Event Stream", () => {
     expect(eventBus.clientCount).toBe(baseCount + 1);
 
     await eventsPromise;
-    // After timeout/disconnect
-    await new Promise((r) => setTimeout(r, 100));
+    // After timeout/disconnect — poll until the close event fires
+    await waitForCount(baseCount, 2000);
     expect(eventBus.clientCount).toBe(baseCount);
   });
 });
 
 // --- Helpers ---
 
-function buildTransferTx(sender: string, senderKey: string, recipient: string, amount: number): TransferTx {
+function buildTransferTx(
+  sender: string,
+  senderKey: string,
+  recipient: string,
+  amount: number,
+): TransferTx {
   const tx: TransferTx = {
     id: randomUUID(),
     type: "Transfer",
@@ -278,7 +367,12 @@ function buildTransferTx(sender: string, senderKey: string, recipient: string, a
   return tx;
 }
 
-function buildDistributeTx(poaPublicKey: string, poaPrivateKey: string, recipient: string, amount: number) {
+function buildDistributeTx(
+  poaPublicKey: string,
+  poaPrivateKey: string,
+  recipient: string,
+  amount: number,
+) {
   const tx = {
     id: randomUUID(),
     type: "Distribute" as const,

@@ -28,7 +28,15 @@ export function startProducer(
   eventBus?: EventBus,
 ): { stop: () => void } {
   const timer = setInterval(() => {
-    produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey, eventBus);
+    produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+      eventBus,
+    );
   }, POLL_INTERVAL_MS);
 
   return {
@@ -52,7 +60,9 @@ export function produceBlock(
   const validTxs: Transaction[] = [];
   for (const tx of candidates) {
     const isSystemTx = SYSTEM_TX_TYPES.has(tx.type);
-    const result = isSystemTx ? { valid: true as const } : validateTransaction(tx, state, oraclePublicKey);
+    const result = isSystemTx
+      ? { valid: true as const }
+      : validateTransaction(tx, state, oraclePublicKey);
     if (result.valid) {
       validTxs.push(tx);
       // Inject settlement payouts after ResolveMarket or CancelMarket

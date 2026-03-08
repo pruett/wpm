@@ -64,7 +64,10 @@ describe("Complete HTTP API (FR-15)", () => {
       amount: 1000,
       signature: "",
     };
-    transferTx.signature = sign(JSON.stringify({ ...transferTx, signature: undefined }), poaPrivateKey);
+    transferTx.signature = sign(
+      JSON.stringify({ ...transferTx, signature: undefined }),
+      poaPrivateKey,
+    );
 
     // Create a market
     const marketTx: CreateMarketTx = {
@@ -83,7 +86,10 @@ describe("Complete HTTP API (FR-15)", () => {
       externalEventId: "ext-1",
       signature: "",
     };
-    marketTx.signature = sign(JSON.stringify({ ...marketTx, signature: undefined }), oraclePrivateKey);
+    marketTx.signature = sign(
+      JSON.stringify({ ...marketTx, signature: undefined }),
+      oraclePrivateKey,
+    );
 
     mempool = new Mempool(oraclePublicKey);
     mempool.add(transferTx, state);

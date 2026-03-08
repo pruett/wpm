@@ -14,7 +14,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -198,13 +202,22 @@ describe("ResolveMarket & SettlePayout (FR-10, FR-12)", () => {
     // Resolve market — outcome A wins
     const resolveTx = makeResolveMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "A");
     await post(baseUrl, "/internal/transaction", resolveTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
     expect(block).not.toBeNull();
 
     // Block should contain ResolveMarket + SettlePayout txs
     expect(block!.transactions[0].type).toBe("ResolveMarket");
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
     expect(settlePayouts.length).toBeGreaterThanOrEqual(1);
 
     // User1 should receive winningShares * 1.00
@@ -218,7 +231,10 @@ describe("ResolveMarket & SettlePayout (FR-10, FR-12)", () => {
     expect(user2Payout).toBeUndefined();
 
     // Balances updated correctly
-    expect(state.getBalance(user1PublicKey)).toBeCloseTo(user1BalanceBefore + user1Payout!.amount, 2);
+    expect(state.getBalance(user1PublicKey)).toBeCloseTo(
+      user1BalanceBefore + user1Payout!.amount,
+      2,
+    );
     expect(state.getBalance(user2PublicKey)).toBe(user2BalanceBefore);
 
     // Treasury gets liquidity return (remainder)
@@ -311,12 +327,26 @@ describe("ResolveMarket & SettlePayout (FR-10, FR-12)", () => {
 
     const treasuryBefore = state.getBalance(poaPublicKey);
 
-    const resolveTx = makeResolveMarketTx(oraclePublicKey, oraclePrivateKey, newMarketTx.marketId, "A");
+    const resolveTx = makeResolveMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      newMarketTx.marketId,
+      "A",
+    );
     await post(baseUrl, "/internal/transaction", resolveTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
     expect(block).not.toBeNull();
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
 
     // Only treasury gets the payout
     expect(settlePayouts.length).toBe(1);
@@ -345,11 +375,25 @@ describe("ResolveMarket & SettlePayout (FR-10, FR-12)", () => {
     await post(baseUrl, "/internal/transaction", bet2);
     produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
-    const resolveTx = makeResolveMarketTx(oraclePublicKey, oraclePrivateKey, newMarketTx.marketId, "A");
+    const resolveTx = makeResolveMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      newMarketTx.marketId,
+      "A",
+    );
     await post(baseUrl, "/internal/transaction", resolveTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
 
     // Last payout should be treasury (liquidity_return)
     const lastPayout = settlePayouts[settlePayouts.length - 1];
@@ -359,7 +403,9 @@ describe("ResolveMarket & SettlePayout (FR-10, FR-12)", () => {
     // User payouts (all except last) should be sorted by recipient address
     const userPayouts = settlePayouts.slice(0, -1);
     for (let i = 1; i < userPayouts.length; i++) {
-      expect(userPayouts[i].recipient.localeCompare(userPayouts[i - 1].recipient)).toBeGreaterThanOrEqual(0);
+      expect(
+        userPayouts[i].recipient.localeCompare(userPayouts[i - 1].recipient),
+      ).toBeGreaterThanOrEqual(0);
     }
   });
 });

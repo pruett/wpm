@@ -14,9 +14,9 @@ The oracle key is generated at system initialization and registered with the nod
 
 All times are Eastern Time (ET). The schedule is public and documented in the web app.
 
-| Job | Schedule | Purpose |
-|-----|----------|---------|
-| **Ingest** | Daily at 6:00 AM ET | Fetch upcoming games, create markets |
+| Job         | Schedule                                | Purpose                               |
+| ----------- | --------------------------------------- | ------------------------------------- |
+| **Ingest**  | Daily at 6:00 AM ET                     | Fetch upcoming games, create markets  |
 | **Resolve** | Every 30 minutes, 12:00 PM – 1:00 AM ET | Check completed games, settle markets |
 
 Implementation: cron jobs within the Docker container (or a lightweight scheduler like `node-cron`).
@@ -66,12 +66,12 @@ The ingest job fetches games within the next **14 days**. This gives users time 
 2. For each market:
    a. Query ESPN API for the game's current status using `externalEventId`
    b. If game status is `final`:
-      - Determine winning team from the score
-      - Submit `ResolveMarket` transaction
-   c. If game status is `postponed` or `cancelled`:
-      - Submit `CancelMarket` transaction
-   d. If game status is `in_progress` or `scheduled`:
-      - Skip (game hasn't finished yet)
+   - Determine winning team from the score
+   - Submit `ResolveMarket` transaction
+     c. If game status is `postponed` or `cancelled`:
+   - Submit `CancelMarket` transaction
+     d. If game status is `in_progress` or `scheduled`:
+   - Skip (game hasn't finished yet)
 
 ### Score Interpretation
 
@@ -96,12 +96,14 @@ if (homeScore === awayScore) → CancelMarket      // tie → refund
 ### Tie Handling
 
 If a game ends in a tie (possible in NFL regular season):
+
 - Submit `CancelMarket` with reason `"Game ended in a tie"`
 - All bettors are refunded
 
 ## Sport Adapters
 
 Each sport has an adapter module that knows how to:
+
 1. Query ESPN for upcoming games
 2. Parse the response into a normalized format
 3. Query ESPN for game results
@@ -111,7 +113,7 @@ Each sport has an adapter module that knows how to:
 
 ```typescript
 interface SportAdapter {
-  sport: string;                              // "NFL", "NBA", etc.
+  sport: string; // "NFL", "NBA", etc.
   fetchUpcomingGames(days: number): Promise<RawGame[]>;
   fetchGameResult(externalEventId: string): Promise<GameResult>;
 }
@@ -120,7 +122,7 @@ interface RawGame {
   externalEventId: string;
   homeTeam: string;
   awayTeam: string;
-  startTime: number;              // Unix timestamp
+  startTime: number; // Unix timestamp
   sport: string;
 }
 
@@ -152,11 +154,13 @@ These are public, unauthenticated endpoints. No API key required.
 ### Future Adapters
 
 Adding a new sport requires:
+
 1. Create a new adapter implementing `SportAdapter`
 2. Register it in the adapter registry
 3. ESPN URL pattern is consistent: `/sports/{category}/{league}/scoreboard`
 
 Planned:
+
 - NBA: `/sports/basketball/nba/scoreboard`
 - NHL: `/sports/hockey/nhl/scoreboard`
 - MLB: `/sports/baseball/mlb/scoreboard`
@@ -193,13 +197,13 @@ This means the oracle can be restarted at any time without data loss.
 
 ```typescript
 interface OracleConfig {
-  nodeApiUrl: string;              // Internal API URL (e.g. "http://wpm-api:3000")
-  oracleKeyPath: string;          // Path to oracle's RSA private key
-  enabledSports: string[];        // ["NFL"] at launch
-  ingestCron: string;             // "0 6 * * *" (6am ET daily)
-  resolveCron: string;            // "*/30 12-24 * * *" (every 30min, 12pm-1am ET)
-  lookaheadDays: number;          // 14
-  defaultSeedAmount: number;      // 1000
+  nodeApiUrl: string; // Internal API URL (e.g. "http://wpm-api:3000")
+  oracleKeyPath: string; // Path to oracle's RSA private key
+  enabledSports: string[]; // ["NFL"] at launch
+  ingestCron: string; // "0 6 * * *" (6am ET daily)
+  resolveCron: string; // "*/30 12-24 * * *" (every 30min, 12pm-1am ET)
+  lookaheadDays: number; // 14
+  defaultSeedAmount: number; // 1000
 }
 ```
 

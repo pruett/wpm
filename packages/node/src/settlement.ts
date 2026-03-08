@@ -38,17 +38,22 @@ export function generateResolvePayouts(
 
     totalPaidOut += amount;
 
-    userPayouts.push(signTx({
-      id: randomUUID(),
-      type: "SettlePayout",
-      timestamp: tx.timestamp,
-      sender: poaPublicKey,
-      marketId: tx.marketId,
-      recipient: address,
-      amount,
-      payoutType: "winnings",
-      signature: "",
-    }, poaPrivateKey));
+    userPayouts.push(
+      signTx(
+        {
+          id: randomUUID(),
+          type: "SettlePayout",
+          timestamp: tx.timestamp,
+          sender: poaPublicKey,
+          marketId: tx.marketId,
+          recipient: address,
+          amount,
+          payoutType: "winnings",
+          signature: "",
+        },
+        poaPrivateKey,
+      ),
+    );
   }
 
   // Sort user payouts by recipient address ascending
@@ -59,17 +64,22 @@ export function generateResolvePayouts(
   // Treasury receives the remainder (conservation: sum(payouts) + treasury = wpmLocked)
   const treasuryReturn = round2(pool.wpmLocked - totalPaidOut);
   if (treasuryReturn > 0) {
-    payouts.push(signTx({
-      id: randomUUID(),
-      type: "SettlePayout",
-      timestamp: tx.timestamp,
-      sender: poaPublicKey,
-      marketId: tx.marketId,
-      recipient: poaPublicKey,
-      amount: treasuryReturn,
-      payoutType: "liquidity_return",
-      signature: "",
-    }, poaPrivateKey));
+    payouts.push(
+      signTx(
+        {
+          id: randomUUID(),
+          type: "SettlePayout",
+          timestamp: tx.timestamp,
+          sender: poaPublicKey,
+          marketId: tx.marketId,
+          recipient: poaPublicKey,
+          amount: treasuryReturn,
+          payoutType: "liquidity_return",
+          signature: "",
+        },
+        poaPrivateKey,
+      ),
+    );
   }
 
   return payouts;
@@ -101,17 +111,22 @@ export function generateCancelPayouts(
 
     totalUserRefunds += costBasis;
 
-    userRefunds.push(signTx({
-      id: randomUUID(),
-      type: "SettlePayout",
-      timestamp: tx.timestamp,
-      sender: poaPublicKey,
-      marketId: tx.marketId,
-      recipient: address,
-      amount: costBasis,
-      payoutType: "refund",
-      signature: "",
-    }, poaPrivateKey));
+    userRefunds.push(
+      signTx(
+        {
+          id: randomUUID(),
+          type: "SettlePayout",
+          timestamp: tx.timestamp,
+          sender: poaPublicKey,
+          marketId: tx.marketId,
+          recipient: address,
+          amount: costBasis,
+          payoutType: "refund",
+          signature: "",
+        },
+        poaPrivateKey,
+      ),
+    );
   }
 
   // Sort user refunds by recipient address ascending
@@ -122,17 +137,22 @@ export function generateCancelPayouts(
   // Treasury receives the remainder
   const treasuryReturn = round2(pool.wpmLocked - totalUserRefunds);
   if (treasuryReturn > 0) {
-    payouts.push(signTx({
-      id: randomUUID(),
-      type: "SettlePayout",
-      timestamp: tx.timestamp,
-      sender: poaPublicKey,
-      marketId: tx.marketId,
-      recipient: poaPublicKey,
-      amount: treasuryReturn,
-      payoutType: "liquidity_return",
-      signature: "",
-    }, poaPrivateKey));
+    payouts.push(
+      signTx(
+        {
+          id: randomUUID(),
+          type: "SettlePayout",
+          timestamp: tx.timestamp,
+          sender: poaPublicKey,
+          marketId: tx.marketId,
+          recipient: poaPublicKey,
+          amount: treasuryReturn,
+          payoutType: "liquidity_return",
+          signature: "",
+        },
+        poaPrivateKey,
+      ),
+    );
   }
 
   return payouts;

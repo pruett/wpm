@@ -13,7 +13,7 @@ A prediction market platform built on a custom blockchain for a small friend gro
 
 ## Market Model
 
-- **Type:** Automated Market Maker (AMM), constant product (x * y = k)
+- **Type:** Automated Market Maker (AMM), constant product (x \* y = k)
 - **Outcomes:** Binary only (Team A vs Team B)
 - **One market per game** (moneyline — who wins)
 - **Trading:** Users can buy and sell outcome shares before betting closes
@@ -27,33 +27,38 @@ A prediction market platform built on a custom blockchain for a small friend gro
 
 ## Transaction Types
 
-| Type | Submitter | Purpose |
-|------|-----------|---------|
-| `Transfer` | Any wallet | Send tokens between wallets |
-| `Distribute` | Node/system | Admin grants tokens to a user (node signs on behalf of treasury) |
-| `CreateMarket` | Oracle | Open a new binary betting market |
-| `PlaceBet` | Any wallet | Buy outcome shares from the AMM |
-| `SellShares` | Any wallet | Sell outcome shares back to the AMM |
-| `ResolveMarket` | Oracle | Submit final result for a market |
-| `SettlePayout` | Node/system | Distribute winnings after resolution |
-| `CancelMarket` | Oracle or Admin | Cancel a market and refund all bets |
-| `Referral` | System | Reward inviter when invited user signs up |
+| Type            | Submitter       | Purpose                                                          |
+| --------------- | --------------- | ---------------------------------------------------------------- |
+| `Transfer`      | Any wallet      | Send tokens between wallets                                      |
+| `Distribute`    | Node/system     | Admin grants tokens to a user (node signs on behalf of treasury) |
+| `CreateMarket`  | Oracle          | Open a new binary betting market                                 |
+| `PlaceBet`      | Any wallet      | Buy outcome shares from the AMM                                  |
+| `SellShares`    | Any wallet      | Sell outcome shares back to the AMM                              |
+| `ResolveMarket` | Oracle          | Submit final result for a market                                 |
+| `SettlePayout`  | Node/system     | Distribute winnings after resolution                             |
+| `CancelMarket`  | Oracle or Admin | Cancel a market and refund all bets                              |
+| `Referral`      | System          | Reward inviter when invited user signs up                        |
 
 ## Services
 
 ### Blockchain Node
+
 The core process. Holds the chain in memory, persists it to an append-only JSONL file on disk (`chain.jsonl`), replays on startup to rebuild state. Validates transactions and blocks, produces new blocks via Proof of Authority (single signer, static key on server), and manages the mempool. Blocks are produced on-demand when transactions are pending (no empty blocks). Timestamps are wall-clock based for market deadlines. This is the source of truth for all token balances, transaction history, share ownership, and AMM pool state.
 
 ### Settlement Engine
+
 Built into the blockchain node, not a standalone service. When an oracle resolution is accepted on-chain, this logic reads all share positions for the resolved market, computes payouts (winning shares pay 1.00 WPM each, losing shares pay 0.00), generates payout transactions, and returns remaining liquidity to treasury.
 
 ### Escrow / AMM Pool
+
 Protocol-level mechanism within the node. Each market has its own AMM pool holding outcome shares. When a user buys shares, their WPM enters the pool; when they sell, WPM exits. The constant product formula ensures the pool is always solvent. Funds are locked in the pool until resolution or cancellation.
 
 ### API Server
+
 HTTP interface that exposes the node's functionality to external clients (web app, admin portal) and the oracle server. Deployed on the same server as the blockchain node but runs as a distinct Docker container. Handles balance lookups, transaction submission, market queries, share pricing, user management, and SSE streams for real-time updates. Does not hold any signing keys — all system transactions (distribute, referral) are generated and signed by the node itself via internal endpoints.
 
 ### Oracle Server
+
 Separate process responsible for bridging real-world sports data onto the chain. Uses ESPN's API as the sole data source (free, no API key required). Runs two jobs on a fixed, publicly known schedule:
 
 - **Ingest** — Runs once daily at 6:00 AM ET. Fetches upcoming games and creates fully-seeded markets on-chain.
@@ -61,7 +66,9 @@ Separate process responsible for bridging real-world sports data onto the chain.
 - **Adapters** — Per-sport modules that know how to query ESPN and normalize responses. NFL at launch; architecture supports adding NBA, NHL, MLB, golf, tennis via new adapters.
 
 ### Web App
+
 User-facing Progressive Web App (PWA). Mobile-first responsive design. Displays:
+
 - Live markets with real-time odds (probability % and payout multiplier)
 - User's active bets and share positions
 - Leaderboard: all-time total WPM and weekly profit/loss
@@ -71,7 +78,9 @@ User-facing Progressive Web App (PWA). Mobile-first responsive design. Displays:
 Real-time updates via Server-Sent Events (SSE). Authentication via WebAuthn/passkeys. Wallet keys are custodial (stored server-side, passkey proves identity). User onboarding: invite code → name + email → passkey registration → 100,000 WPM airdrop.
 
 ### Admin Portal
+
 Full administrative interface for the chain operator. Capabilities:
+
 - Distribute tokens to users
 - Override market seed amounts
 - Cancel or manually resolve markets

@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { generateKeyPair, sign } from "@wpm/shared";
-import type { CreateMarketTx, PlaceBetTx, CancelMarketTx, SellSharesTx, SettlePayoutTx } from "@wpm/shared";
+import type {
+  CreateMarketTx,
+  PlaceBetTx,
+  CancelMarketTx,
+  SellSharesTx,
+  SettlePayoutTx,
+} from "@wpm/shared";
 import { createGenesisBlock } from "../src/genesis.js";
 import { appendBlock } from "../src/persistence.js";
 import { ChainState } from "../src/state.js";
@@ -14,7 +20,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -214,14 +224,28 @@ describe("CancelMarket (FR-11)", () => {
     const user2BalanceBefore = state.getBalance(user2PublicKey);
 
     // Cancel market (oracle sender)
-    const cancelTx = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "Game postponed");
+    const cancelTx = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      marketId,
+      "Game postponed",
+    );
     await post(baseUrl, "/internal/transaction", cancelTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("CancelMarket");
 
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
     expect(settlePayouts.length).toBeGreaterThanOrEqual(2); // at least user refunds + treasury
 
     // User1 refunded their cost basis
@@ -282,11 +306,25 @@ describe("CancelMarket (FR-11)", () => {
     const user1BalanceBefore = state.getBalance(user1PublicKey);
 
     // Cancel market
-    const cancelTx = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "Game cancelled");
+    const cancelTx = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      marketId,
+      "Game cancelled",
+    );
     await post(baseUrl, "/internal/transaction", cancelTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
     const user1Payout = settlePayouts.find((p) => p.recipient === user1PublicKey);
     expect(user1Payout).toBeDefined();
     // Refund should match the reduced cost basis (not the original 100)
@@ -294,7 +332,10 @@ describe("CancelMarket (FR-11)", () => {
     expect(user1Payout!.amount).toBeLessThan(100);
 
     // Balance increased by cost basis
-    expect(state.getBalance(user1PublicKey)).toBeCloseTo(user1BalanceBefore + costBasisAfterSell, 2);
+    expect(state.getBalance(user1PublicKey)).toBeCloseTo(
+      user1BalanceBefore + costBasisAfterSell,
+      2,
+    );
   });
 
   it("cancels zero-bet market with full seed return to treasury", async () => {
@@ -305,12 +346,26 @@ describe("CancelMarket (FR-11)", () => {
 
     const treasuryBefore = state.getBalance(poaPublicKey);
 
-    const cancelTx = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "Game ended in a tie");
+    const cancelTx = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      marketId,
+      "Game ended in a tie",
+    );
     await post(baseUrl, "/internal/transaction", cancelTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
     expect(block).not.toBeNull();
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
 
     // Only treasury payout
     expect(settlePayouts.length).toBe(1);
@@ -328,9 +383,21 @@ describe("CancelMarket (FR-11)", () => {
     produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Cancel with PoA key (admin)
-    const cancelTx = makeCancelMarketTx(poaPublicKey, poaPrivateKey, marketId, "Admin cancellation");
+    const cancelTx = makeCancelMarketTx(
+      poaPublicKey,
+      poaPrivateKey,
+      marketId,
+      "Admin cancellation",
+    );
     await post(baseUrl, "/internal/transaction", cancelTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("CancelMarket");
@@ -342,14 +409,24 @@ describe("CancelMarket (FR-11)", () => {
     await post(baseUrl, "/internal/transaction", createTx);
     produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
-    const cancelTx = makeCancelMarketTx(user1PublicKey, user1PrivateKey, createTx.marketId, "Unauthorized");
+    const cancelTx = makeCancelMarketTx(
+      user1PublicKey,
+      user1PrivateKey,
+      createTx.marketId,
+      "Unauthorized",
+    );
     const { status, json } = await post(baseUrl, "/internal/transaction", cancelTx);
     expect(status).toBe(400);
     expect((json as { code: string }).code).toBe("UNAUTHORIZED_SENDER");
   });
 
   it("rejects cancel for non-existent market", async () => {
-    const cancelTx = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, randomUUID(), "Not found");
+    const cancelTx = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      randomUUID(),
+      "Not found",
+    );
     const { status, json } = await post(baseUrl, "/internal/transaction", cancelTx);
     expect(status).toBe(400);
     expect((json as { code: string }).code).toBe("MARKET_NOT_FOUND");
@@ -367,7 +444,12 @@ describe("CancelMarket (FR-11)", () => {
     produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
 
     // Try cancel again
-    const cancel2 = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "Second cancel");
+    const cancel2 = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      marketId,
+      "Second cancel",
+    );
     const { status, json } = await post(baseUrl, "/internal/transaction", cancel2);
     expect(status).toBe(400);
     expect((json as { code: string }).code).toBe("MARKET_NOT_OPEN");
@@ -396,11 +478,25 @@ describe("CancelMarket (FR-11)", () => {
     const poolBefore = state.pools.get(marketId)!;
     const wpmLockedBefore = poolBefore.wpmLocked;
 
-    const cancelTx = makeCancelMarketTx(oraclePublicKey, oraclePrivateKey, marketId, "Game ended in a tie");
+    const cancelTx = makeCancelMarketTx(
+      oraclePublicKey,
+      oraclePrivateKey,
+      marketId,
+      "Game ended in a tie",
+    );
     await post(baseUrl, "/internal/transaction", cancelTx);
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
 
-    const settlePayouts = block!.transactions.filter((tx) => tx.type === "SettlePayout") as SettlePayoutTx[];
+    const settlePayouts = block!.transactions.filter(
+      (tx) => tx.type === "SettlePayout",
+    ) as SettlePayoutTx[];
     const totalPayouts = settlePayouts.reduce((sum, p) => sum + p.amount, 0);
     expect(totalPayouts).toBeCloseTo(wpmLockedBefore, 2);
   });

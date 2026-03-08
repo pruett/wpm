@@ -33,10 +33,7 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(payload);
 }
 
-function matchRoute(
-  pathname: string,
-  pattern: string,
-): Record<string, string> | null {
+function matchRoute(pathname: string, pattern: string): Record<string, string> | null {
   const patternParts = pattern.split("/");
   const pathParts = pathname.split("/");
   if (patternParts.length !== pathParts.length) return null;
@@ -164,7 +161,10 @@ export function startApi(
       // GET /internal/blocks
       if (method === "GET" && pathname === "/internal/blocks") {
         const from = Math.max(0, Number(url.searchParams.get("from") ?? "0") || 0);
-        const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50));
+        const limit = Math.min(
+          100,
+          Math.max(1, Number(url.searchParams.get("limit") ?? "50") || 50),
+        );
         const blocks = state.chain.slice(from, from + limit);
         json(res, 200, blocks);
         return;
@@ -200,7 +200,10 @@ export function startApi(
         if (blockParams) {
           const index = Number(blockParams.index);
           if (!Number.isInteger(index) || index < 0) {
-            json(res, 400, { error: "INVALID_INDEX", message: "Block index must be a non-negative integer" });
+            json(res, 400, {
+              error: "INVALID_INDEX",
+              message: "Block index must be a non-negative integer",
+            });
             return;
           }
           const block = state.chain[index];
@@ -219,7 +222,10 @@ export function startApi(
         if (sharesParams) {
           const address = decodeURIComponent(sharesParams.address);
           const byAddress = state.sharePositions.get(address);
-          const positions: Record<string, Record<string, { shares: number; costBasis: number }>> = {};
+          const positions: Record<
+            string,
+            Record<string, { shares: number; costBasis: number }>
+          > = {};
           if (byAddress) {
             for (const [marketId, byMarket] of byAddress) {
               positions[marketId] = {};

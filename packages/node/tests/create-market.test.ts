@@ -14,7 +14,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -112,7 +116,14 @@ describe("CreateMarket transaction (FR-7)", () => {
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
     expect(block).not.toBeNull();
     expect(block!.transactions).toHaveLength(1);
     expect(block!.transactions[0].type).toBe("CreateMarket");
@@ -123,7 +134,11 @@ describe("CreateMarket transaction (FR-7)", () => {
       `/internal/market/${encodeURIComponent(tx.marketId)}`,
     );
     expect(mStatus).toBe(200);
-    const result = mJson as { market: Market; pool: AMMPool; prices: { priceA: number; priceB: number } };
+    const result = mJson as {
+      market: Market;
+      pool: AMMPool;
+      prices: { priceA: number; priceB: number };
+    };
     expect(result.market.marketId).toBe(tx.marketId);
     expect(result.market.status).toBe("open");
     expect(result.market.sport).toBe("NFL");

@@ -1,5 +1,16 @@
 import { sha256, verify } from "@wpm/shared";
-import type { Block, Transaction, TransferTx, DistributeTx, CreateMarketTx, PlaceBetTx, SellSharesTx, ResolveMarketTx, CancelMarketTx, ReferralTx } from "@wpm/shared";
+import type {
+  Block,
+  Transaction,
+  TransferTx,
+  DistributeTx,
+  CreateMarketTx,
+  PlaceBetTx,
+  SellSharesTx,
+  ResolveMarketTx,
+  CancelMarketTx,
+  ReferralTx,
+} from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
 type ValidationError = {
@@ -7,9 +18,7 @@ type ValidationError = {
   message: string;
 };
 
-type ValidationResult =
-  | { valid: true }
-  | { valid: false; error: ValidationError };
+type ValidationResult = { valid: true } | { valid: false; error: ValidationError };
 
 function fail(code: string, message: string): ValidationResult {
   return { valid: false, error: { code, message } };
@@ -19,21 +28,14 @@ const OK: ValidationResult = { valid: true };
 
 // --- Block Validation (FR-4) ---
 
-export function validateBlock(
-  block: Block,
-  state: ChainState,
-): ValidationResult {
+export function validateBlock(block: Block, state: ChainState): ValidationResult {
   const expectedIndex = state.chain.length;
 
   if (block.index !== expectedIndex) {
-    return fail(
-      "INVALID_INDEX",
-      `Expected index ${expectedIndex}, got ${block.index}`,
-    );
+    return fail("INVALID_INDEX", `Expected index ${expectedIndex}, got ${block.index}`);
   }
 
-  const expectedPreviousHash =
-    expectedIndex === 0 ? "0" : state.chain[expectedIndex - 1].hash;
+  const expectedPreviousHash = expectedIndex === 0 ? "0" : state.chain[expectedIndex - 1].hash;
 
   if (block.previousHash !== expectedPreviousHash) {
     return fail(
@@ -89,9 +91,15 @@ export function validateTransaction(
     case "CancelMarket":
       return validateCancelMarket(tx, state, oraclePublicKey);
     case "SettlePayout":
-      return fail("SYSTEM_TX_ONLY", "SettlePayout transactions are system-generated and cannot be submitted externally");
+      return fail(
+        "SYSTEM_TX_ONLY",
+        "SettlePayout transactions are system-generated and cannot be submitted externally",
+      );
     case "Referral":
-      return fail("SYSTEM_TX_ONLY", "Referral transactions are system-generated and cannot be submitted externally");
+      return fail(
+        "SYSTEM_TX_ONLY",
+        "Referral transactions are system-generated and cannot be submitted externally",
+      );
     default: {
       const _exhaustive: never = tx;
       return fail(
@@ -108,10 +116,7 @@ function hasTwoDecimalPlaces(amount: number): boolean {
   return Math.round(amount * 100) === amount * 100;
 }
 
-function validateTransfer(
-  tx: TransferTx,
-  state: ChainState,
-): ValidationResult {
+function validateTransfer(tx: TransferTx, state: ChainState): ValidationResult {
   if (tx.amount <= 0) {
     return fail("INVALID_AMOUNT", "Transfer amount must be greater than 0");
   }
@@ -148,10 +153,7 @@ const VALID_DISTRIBUTE_REASONS = new Set([
   "genesis",
 ]);
 
-function validateDistribute(
-  tx: DistributeTx,
-  state: ChainState,
-): ValidationResult {
+function validateDistribute(tx: DistributeTx, state: ChainState): ValidationResult {
   if (tx.sender !== state.treasuryAddress) {
     return fail("UNAUTHORIZED_SENDER", "Distribute sender must be the treasury");
   }
@@ -185,13 +187,7 @@ function validateDistribute(
 
 // --- CreateMarket Validation (FR-7) ---
 
-const REQUIRED_MARKET_FIELDS = [
-  "sport",
-  "homeTeam",
-  "awayTeam",
-  "outcomeA",
-  "outcomeB",
-] as const;
+const REQUIRED_MARKET_FIELDS = ["sport", "homeTeam", "awayTeam", "outcomeA", "outcomeB"] as const;
 
 function validateCreateMarket(
   tx: CreateMarketTx,
@@ -245,10 +241,7 @@ function validateCreateMarket(
 
 // --- PlaceBet Validation (FR-8) ---
 
-function validatePlaceBet(
-  tx: PlaceBetTx,
-  state: ChainState,
-): ValidationResult {
+function validatePlaceBet(tx: PlaceBetTx, state: ChainState): ValidationResult {
   const market = state.markets.get(tx.marketId);
   if (!market) {
     return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
@@ -291,10 +284,7 @@ function validatePlaceBet(
 
 // --- SellShares Validation (FR-9) ---
 
-function validateSellShares(
-  tx: SellSharesTx,
-  state: ChainState,
-): ValidationResult {
+function validateSellShares(tx: SellSharesTx, state: ChainState): ValidationResult {
   const market = state.markets.get(tx.marketId);
   if (!market) {
     return fail("MARKET_NOT_FOUND", `Market ${tx.marketId} not found`);
@@ -366,10 +356,7 @@ function validateResolveMarket(
 
 // --- Referral Validation (FR-13) ---
 
-export function validateReferral(
-  tx: ReferralTx,
-  state: ChainState,
-): ValidationResult {
+export function validateReferral(tx: ReferralTx, state: ChainState): ValidationResult {
   if (tx.sender !== state.treasuryAddress) {
     return fail("UNAUTHORIZED_SENDER", "Referral sender must be the PoA signer / treasury");
   }

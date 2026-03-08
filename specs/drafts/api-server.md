@@ -96,11 +96,11 @@ interface MarketWithOdds {
   outcomeB: string;
   eventStartTime: number;
   status: "open" | "resolved" | "cancelled";
-  priceA: number;               // Current probability (0-1)
-  priceB: number;               // Current probability (0-1)
-  multiplierA: number;          // Payout multiplier
-  multiplierB: number;          // Payout multiplier
-  totalVolume: number;          // Total WPM traded in this market
+  priceA: number; // Current probability (0-1)
+  priceB: number; // Current probability (0-1)
+  multiplierA: number; // Payout multiplier
+  multiplierB: number; // Payout multiplier
+  totalVolume: number; // Total WPM traded in this market
   poolSharesA: number;
   poolSharesB: number;
 }
@@ -108,8 +108,8 @@ interface MarketWithOdds {
 interface UserPosition {
   sharesA: number;
   sharesB: number;
-  estimatedValueA: number;      // sharesA * priceA
-  estimatedValueB: number;      // sharesB * priceB
+  estimatedValueA: number; // sharesA * priceA
+  estimatedValueB: number; // sharesB * priceB
 }
 ```
 
@@ -158,8 +158,8 @@ interface LeaderboardEntry {
   userId: string;
   name: string;
   walletAddress: string;
-  totalWpm: number;             // All-time: current balance + value of open positions
-  weeklyPnl: number;           // Weekly: net gain/loss this week
+  totalWpm: number; // All-time: current balance + value of open positions
+  weeklyPnl: number; // Weekly: net gain/loss this week
   rank: number;
 }
 ```
@@ -234,7 +234,13 @@ Server-Sent Events stream. Client connects and receives events as they occur:
 ```typescript
 // Event types pushed to clients:
 interface SSEEvent {
-  type: "market_created" | "price_update" | "market_resolved" | "market_cancelled" | "bet_placed" | "new_block";
+  type:
+    | "market_created"
+    | "price_update"
+    | "market_resolved"
+    | "market_cancelled"
+    | "bet_placed"
+    | "new_block";
   data: object;
   timestamp: number;
 }
@@ -253,7 +259,7 @@ Sent whenever a `PlaceBet` or `SellShares` transaction is processed:
     "priceB": 0.38,
     "multiplierA": 1.61,
     "multiplierB": 2.63,
-    "totalVolume": 5230.00
+    "totalVolume": 5230.0
   }
 }
 ```
@@ -301,19 +307,19 @@ All errors return standard format:
 
 ### Error Codes
 
-| Code | HTTP Status | Meaning |
-|------|------------|---------|
-| `UNAUTHORIZED` | 401 | Missing or invalid auth token |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `MARKET_NOT_FOUND` | 404 | Market ID does not exist |
-| `MARKET_CLOSED` | 400 | Betting window has closed |
-| `MARKET_ALREADY_RESOLVED` | 400 | Market already resolved |
-| `INSUFFICIENT_BALANCE` | 400 | Not enough WPM |
-| `INSUFFICIENT_SHARES` | 400 | Not enough shares to sell |
-| `INVALID_AMOUNT` | 400 | Amount <= 0 or invalid |
-| `INVALID_INVITE_CODE` | 400 | Code expired, used, or invalid |
-| `DUPLICATE_REGISTRATION` | 409 | Email already registered |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
+| Code                      | HTTP Status | Meaning                        |
+| ------------------------- | ----------- | ------------------------------ |
+| `UNAUTHORIZED`            | 401         | Missing or invalid auth token  |
+| `FORBIDDEN`               | 403         | Insufficient permissions       |
+| `MARKET_NOT_FOUND`        | 404         | Market ID does not exist       |
+| `MARKET_CLOSED`           | 400         | Betting window has closed      |
+| `MARKET_ALREADY_RESOLVED` | 400         | Market already resolved        |
+| `INSUFFICIENT_BALANCE`    | 400         | Not enough WPM                 |
+| `INSUFFICIENT_SHARES`     | 400         | Not enough shares to sell      |
+| `INVALID_AMOUNT`          | 400         | Amount <= 0 or invalid         |
+| `INVALID_INVITE_CODE`     | 400         | Code expired, used, or invalid |
+| `DUPLICATE_REGISTRATION`  | 409         | Email already registered       |
+| `INTERNAL_ERROR`          | 500         | Unexpected server error        |
 
 ## Rate Limiting
 

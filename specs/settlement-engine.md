@@ -59,6 +59,7 @@ graph LR
 **Trigger:** The node processes a valid `ResolveMarket` transaction (market status transitions from `open` to `resolved`).
 
 **Input:**
+
 - `marketId` — the market being resolved
 - `winningOutcome` — `"A"` or `"B"`
 - `ChainState.sharePositions[*][marketId]` — every user's share balances for this market
@@ -96,9 +97,10 @@ graph LR
 **Output:** An ordered list of `SettlePayout` transactions injected into the current block immediately after the `ResolveMarket` transaction.
 
 **Acceptance Criteria:**
+
 - [ ] Given a market with users holding winning shares, when `ResolveMarket` is processed, then each winner receives exactly `winningShares * 1.00` WPM credited to their balance.
 - [ ] Given a market with users holding only losing shares, when `ResolveMarket` is processed, then those users receive no `SettlePayout` transaction and their balance is unchanged.
-- [ ] Given a market where the pool still holds winning-outcome shares, when `ResolveMarket` is processed, then treasury receives a `liquidity_return` payout equal to those shares * 1.00.
+- [ ] Given a market where the pool still holds winning-outcome shares, when `ResolveMarket` is processed, then treasury receives a `liquidity_return` payout equal to those shares \* 1.00.
 - [ ] Given a resolved market, when the block is finalized, then the market's pool and all associated share positions are deleted from state.
 
 ### FR-2: Cancellation Settlement
@@ -108,6 +110,7 @@ graph LR
 **Trigger:** The node processes a valid `CancelMarket` transaction (market status transitions from `open` to `cancelled`).
 
 **Input:**
+
 - `marketId` — the market being cancelled
 - `ChainState.sharePositions[*][marketId]` — every user's share balances
 - `ChainState.pools[marketId]` — the AMM pool state
@@ -144,6 +147,7 @@ graph LR
 **Output:** An ordered list of `SettlePayout` transactions injected into the current block immediately after the `CancelMarket` transaction.
 
 **Acceptance Criteria:**
+
 - [ ] Given a market with users holding shares, when `CancelMarket` is processed, then each user receives a refund equal to their tracked `costBasis` (rounded to 2 decimals).
 - [ ] Given a cancelled market, when all user refunds are computed, then treasury receives the remaining pool value (`totalPoolWPM - sum(userRefunds)`).
 - [ ] Given a cancelled market, when the block is finalized, then the market's pool and all associated share positions are deleted from state.
@@ -165,6 +169,7 @@ graph LR
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Given a market with zero bets (no PlaceBet transactions ever processed), when resolved, then treasury receives exactly `seedAmount` WPM.
 - [ ] Given a market with zero bets, when cancelled, then treasury receives exactly `seedAmount` WPM.
 - [ ] Given a zero-bet market, when settled, then exactly one `SettlePayout` transaction is generated.
@@ -178,32 +183,34 @@ graph LR
 ```typescript
 interface SettlePayoutTransaction extends BaseTransaction {
   type: "SettlePayout";
-  marketId: string;                                    // Market being settled
-  recipient: string;                                   // User or treasury address
-  amount: number;                                      // WPM payout (2 decimal precision, > 0)
+  marketId: string; // Market being settled
+  recipient: string; // User or treasury address
+  amount: number; // WPM payout (2 decimal precision, > 0)
   payoutType: "winnings" | "refund" | "liquidity_return";
 }
 ```
 
 **Field rules:**
 
-| Field | Constraints |
-|-------|-------------|
-| `id` | UUID v4, unique across all transactions |
-| `type` | Always `"SettlePayout"` |
-| `timestamp` | Same timestamp as the triggering `ResolveMarket` or `CancelMarket` transaction |
-| `sender` | System address (e.g., `"SYSTEM"`) — not a user wallet |
-| `signature` | Signed by the PoA signer key |
-| `marketId` | Must reference an existing market in `resolved` or `cancelled` status |
-| `recipient` | Must be a valid address (user public key or treasury address) |
-| `amount` | `> 0`, 2-decimal precision. Zero-amount payouts are never generated. |
+| Field        | Constraints                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `id`         | UUID v4, unique across all transactions                                                                                 |
+| `type`       | Always `"SettlePayout"`                                                                                                 |
+| `timestamp`  | Same timestamp as the triggering `ResolveMarket` or `CancelMarket` transaction                                          |
+| `sender`     | System address (e.g., `"SYSTEM"`) — not a user wallet                                                                   |
+| `signature`  | Signed by the PoA signer key                                                                                            |
+| `marketId`   | Must reference an existing market in `resolved` or `cancelled` status                                                   |
+| `recipient`  | Must be a valid address (user public key or treasury address)                                                           |
+| `amount`     | `> 0`, 2-decimal precision. Zero-amount payouts are never generated.                                                    |
 | `payoutType` | `"winnings"` for resolution winners, `"refund"` for cancellation refunds, `"liquidity_return"` for treasury reclamation |
 
 **Ordering within the block:**
+
 1. The triggering `ResolveMarket` or `CancelMarket` transaction comes first.
 2. All `SettlePayout` transactions follow immediately, ordered by: user payouts (sorted by recipient address ascending), then treasury `liquidity_return` last.
 
 **Acceptance Criteria:**
+
 - [ ] Given a settlement, when `SettlePayout` transactions are generated, then each has a unique UUID, valid PoA signature, and correct `payoutType`.
 - [ ] Given a settlement, when any computed payout rounds to 0.00 WPM, then no `SettlePayout` transaction is generated for that recipient.
 - [ ] Given a settlement, when the block is serialized, then `SettlePayout` transactions appear after the trigger transaction and before any unrelated transactions.
@@ -214,12 +221,14 @@ interface SettlePayoutTransaction extends BaseTransaction {
 **Description:** When `SettlePayout` transactions are applied to state, the recipient's WPM balance increases by the payout amount.
 
 **Processing:**
+
 ```
 For each SettlePayout transaction in the block:
   ChainState.balances[recipient] += amount
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Given a user with balance 500.00 WPM who wins a 150.00 WPM payout, when the block is applied, then their balance is 650.00 WPM.
 - [ ] Given treasury with balance 8,000,000.00 WPM receiving a 1,000.00 WPM liquidity return, when the block is applied, then treasury balance is 8,001,000.00 WPM.
 
@@ -251,12 +260,12 @@ For each SettlePayout transaction in the block:
 
 ### State Accessed
 
-| State | Type | Access | Purpose |
-|-------|------|--------|---------|
-| `markets[marketId]` | `Market` | Read | Get market status, seed amount, winning outcome |
-| `pools[marketId]` | `AMMPool` | Read + Delete | Get pool share counts for treasury return / price calc |
-| `sharePositions[address][marketId]` | `{ A: number, B: number, costBasis: number }` | Read + Delete | Get each user's share holdings and net WPM spent |
-| `balances[address]` | `number` | Write (via tx) | Credit payout amounts |
+| State                               | Type                                          | Access         | Purpose                                                |
+| ----------------------------------- | --------------------------------------------- | -------------- | ------------------------------------------------------ |
+| `markets[marketId]`                 | `Market`                                      | Read           | Get market status, seed amount, winning outcome        |
+| `pools[marketId]`                   | `AMMPool`                                     | Read + Delete  | Get pool share counts for treasury return / price calc |
+| `sharePositions[address][marketId]` | `{ A: number, B: number, costBasis: number }` | Read + Delete  | Get each user's share holdings and net WPM spent       |
+| `balances[address]`                 | `number`                                      | Write (via tx) | Credit payout amounts                                  |
 
 ### Market State Transitions
 
@@ -280,8 +289,8 @@ The settlement engine exposes a single function to the blockchain node's transac
 ```typescript
 function settle(
   trigger: ResolveMarketTransaction | CancelMarketTransaction,
-  state: ChainState
-): SettlePayoutTransaction[]
+  state: ChainState,
+): SettlePayoutTransaction[];
 ```
 
 - **Caller:** Blockchain node transaction processor, during block production.
@@ -295,14 +304,14 @@ The settlement engine produces `SettlePayout` transactions (schema defined in FR
 
 ## 7. Error Handling
 
-| Error Scenario | Detection | Response | Recovery |
-|---|---|---|---|
-| Market not found in state | `markets[marketId]` is undefined | Reject the triggering transaction; do not produce a block | Transaction returns to mempool or is discarded (should never happen if validation is correct) |
-| Pool not found for market | `pools[marketId]` is undefined | Reject the triggering transaction | Same as above |
-| Negative payout computed | `amount < 0` after calculation | Abort settlement; reject the block | Indicates a bug — log error, halt block production for manual inspection |
-| Rounding causes total payouts to exceed pool value | Sum of all `SettlePayout` amounts > pool WPM | Abort settlement; reject the block | Indicates a precision bug — requires code fix |
-| Division by zero in price calc (cancellation) | `pool.sharesA + pool.sharesB === 0` | Treat as zero-bet market (FR-3) | Generate single treasury reclamation |
-| Duplicate settlement attempt | Market status is already `resolved` or `cancelled` | Rejected at transaction validation (before settlement engine is invoked) | N/A — this is handled upstream |
+| Error Scenario                                     | Detection                                          | Response                                                                 | Recovery                                                                                      |
+| -------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Market not found in state                          | `markets[marketId]` is undefined                   | Reject the triggering transaction; do not produce a block                | Transaction returns to mempool or is discarded (should never happen if validation is correct) |
+| Pool not found for market                          | `pools[marketId]` is undefined                     | Reject the triggering transaction                                        | Same as above                                                                                 |
+| Negative payout computed                           | `amount < 0` after calculation                     | Abort settlement; reject the block                                       | Indicates a bug — log error, halt block production for manual inspection                      |
+| Rounding causes total payouts to exceed pool value | Sum of all `SettlePayout` amounts > pool WPM       | Abort settlement; reject the block                                       | Indicates a precision bug — requires code fix                                                 |
+| Division by zero in price calc (cancellation)      | `pool.sharesA + pool.sharesB === 0`                | Treat as zero-bet market (FR-3)                                          | Generate single treasury reclamation                                                          |
+| Duplicate settlement attempt                       | Market status is already `resolved` or `cancelled` | Rejected at transaction validation (before settlement engine is invoked) | N/A — this is handled upstream                                                                |
 
 ### Idempotency
 
@@ -329,24 +338,24 @@ If this invariant is violated, the settlement engine must abort and refuse to pr
 
 All log entries are structured JSON with the following fields:
 
-| Event | Level | Fields | Description |
-|-------|-------|--------|-------------|
-| `settlement.started` | INFO | `marketId`, `trigger` (`resolve` or `cancel`), `positionCount` | Settlement processing begins |
-| `settlement.payout_computed` | DEBUG | `marketId`, `recipient`, `amount`, `payoutType` | Individual payout calculated |
-| `settlement.treasury_return` | INFO | `marketId`, `amount` | Treasury liquidity return amount |
-| `settlement.completed` | INFO | `marketId`, `trigger`, `totalPayouts`, `txCount`, `durationMs` | Settlement finished successfully |
-| `settlement.aborted` | ERROR | `marketId`, `reason`, `state_snapshot` | Settlement failed — block rejected |
-| `settlement.solvency_check` | DEBUG | `marketId`, `totalPayouts`, `poolValue`, `delta` | Solvency invariant check result |
+| Event                        | Level | Fields                                                         | Description                        |
+| ---------------------------- | ----- | -------------------------------------------------------------- | ---------------------------------- |
+| `settlement.started`         | INFO  | `marketId`, `trigger` (`resolve` or `cancel`), `positionCount` | Settlement processing begins       |
+| `settlement.payout_computed` | DEBUG | `marketId`, `recipient`, `amount`, `payoutType`                | Individual payout calculated       |
+| `settlement.treasury_return` | INFO  | `marketId`, `amount`                                           | Treasury liquidity return amount   |
+| `settlement.completed`       | INFO  | `marketId`, `trigger`, `totalPayouts`, `txCount`, `durationMs` | Settlement finished successfully   |
+| `settlement.aborted`         | ERROR | `marketId`, `reason`, `state_snapshot`                         | Settlement failed — block rejected |
+| `settlement.solvency_check`  | DEBUG | `marketId`, `totalPayouts`, `poolValue`, `delta`               | Solvency invariant check result    |
 
 ### Metrics
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `settlement_total` | Counter | Total settlements executed (labels: `trigger=resolve\|cancel`, `status=success\|error`) |
-| `settlement_payouts_total` | Counter | Total `SettlePayout` transactions generated |
-| `settlement_payout_wpm_total` | Counter | Total WPM distributed via settlement |
-| `settlement_treasury_return_wpm_total` | Counter | Total WPM returned to treasury via settlement |
-| `settlement_duration_ms` | Histogram | Time taken to execute settlement |
+| Metric                                 | Type      | Description                                                                             |
+| -------------------------------------- | --------- | --------------------------------------------------------------------------------------- |
+| `settlement_total`                     | Counter   | Total settlements executed (labels: `trigger=resolve\|cancel`, `status=success\|error`) |
+| `settlement_payouts_total`             | Counter   | Total `SettlePayout` transactions generated                                             |
+| `settlement_payout_wpm_total`          | Counter   | Total WPM distributed via settlement                                                    |
+| `settlement_treasury_return_wpm_total` | Counter   | Total WPM returned to treasury via settlement                                           |
+| `settlement_duration_ms`               | Histogram | Time taken to execute settlement                                                        |
 
 ## 9. Validation & Acceptance Criteria
 
@@ -354,9 +363,9 @@ All log entries are structured JSON with the following fields:
 
 These scenarios must pass for the settlement engine to be considered correct:
 
-1. **Basic resolution — single winner:** One user holds 100 A shares, outcome A wins. User receives 100.00 WPM. Treasury receives its remaining pool winning shares * 1.00.
+1. **Basic resolution — single winner:** One user holds 100 A shares, outcome A wins. User receives 100.00 WPM. Treasury receives its remaining pool winning shares \* 1.00.
 
-2. **Basic resolution — multiple winners:** Three users hold A shares (50, 30, 20). Outcome A wins. Each receives their shares * 1.00 (50.00, 30.00, 20.00).
+2. **Basic resolution — multiple winners:** Three users hold A shares (50, 30, 20). Outcome A wins. Each receives their shares \* 1.00 (50.00, 30.00, 20.00).
 
 3. **Resolution — losers get nothing:** User holds 100 B shares, outcome A wins. User receives no payout. No `SettlePayout` transaction is generated for them.
 
@@ -370,9 +379,9 @@ These scenarios must pass for the settlement engine to be considered correct:
 
 8. **Zero-bet market — cancellation:** No users hold shares. Treasury receives exactly `seedAmount`.
 
-9. **All bets on one side — losing side wins:** All users bet A, outcome B wins. All users get 0. Treasury reclaims its pool B shares * 1.00 plus any remaining value.
+9. **All bets on one side — losing side wins:** All users bet A, outcome B wins. All users get 0. Treasury reclaims its pool B shares \* 1.00 plus any remaining value.
 
-10. **All bets on one side — winning side wins:** All users bet A, outcome A wins. All users receive their A shares * 1.00. Treasury's A shares in pool (if any) return as liquidity.
+10. **All bets on one side — winning side wins:** All users bet A, outcome A wins. All users receive their A shares \* 1.00. Treasury's A shares in pool (if any) return as liquidity.
 
 11. **Solvency check:** For every test case, assert `sum(all SettlePayout amounts) <= total WPM that entered the pool (seed + all buy amounts - all sell returns)`.
 
@@ -419,16 +428,16 @@ If priceA = 0.99 and priceB = 0.01, the refund is still based on each user's net
 
 ### Glossary
 
-| Term | Definition |
-|------|------------|
-| **AMM** | Automated Market Maker — the constant-product pricing mechanism for outcome shares |
-| **Winning shares** | Shares of the outcome that was declared the winner in a `ResolveMarket` transaction |
-| **Losing shares** | Shares of the outcome that was not declared the winner |
-| **Seed amount** | WPM initially deposited by treasury to create the AMM pool (default 1,000 WPM) |
-| **Liquidity return** | WPM returned to treasury from the pool after settlement |
-| **Position** | A user's share holdings for a specific market (`{ A: number, B: number, costBasis: number }`) |
-| **Pool value** | Total WPM equivalent held by the AMM pool, computed from share counts and prices |
-| **PoA signer** | The Proof of Authority key that signs all blocks and system transactions |
+| Term                 | Definition                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| **AMM**              | Automated Market Maker — the constant-product pricing mechanism for outcome shares            |
+| **Winning shares**   | Shares of the outcome that was declared the winner in a `ResolveMarket` transaction           |
+| **Losing shares**    | Shares of the outcome that was not declared the winner                                        |
+| **Seed amount**      | WPM initially deposited by treasury to create the AMM pool (default 1,000 WPM)                |
+| **Liquidity return** | WPM returned to treasury from the pool after settlement                                       |
+| **Position**         | A user's share holdings for a specific market (`{ A: number, B: number, costBasis: number }`) |
+| **Pool value**       | Total WPM equivalent held by the AMM pool, computed from share counts and prices              |
+| **PoA signer**       | The Proof of Authority key that signs all blocks and system transactions                      |
 
 ### References
 

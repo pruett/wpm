@@ -1,7 +1,9 @@
 {
   "name": "wpm",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

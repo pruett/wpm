@@ -4,10 +4,7 @@ import type { Block, DistributeTx } from "@wpm/shared";
 
 const GENESIS_SUPPLY = 10_000_000;
 
-export function createGenesisBlock(
-  poaPublicKey: string,
-  poaPrivateKey: string,
-): Block {
+export function createGenesisBlock(poaPublicKey: string, poaPrivateKey: string): Block {
   const timestamp = Date.now();
   const treasuryAddress = poaPublicKey;
 

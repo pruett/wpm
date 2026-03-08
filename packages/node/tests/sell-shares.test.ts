@@ -14,7 +14,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -179,14 +183,21 @@ describe("SellShares transaction (FR-9)", () => {
     const poolBefore = state.pools.get(marketId)!;
 
     // Sell half the shares
-    const sellAmount = Math.floor(positionBefore.shares / 2 * 100) / 100;
+    const sellAmount = Math.floor((positionBefore.shares / 2) * 100) / 100;
     const tx = makeSellSharesTx(userPublicKey, userPrivateKey, marketId, "A", sellAmount);
 
     const { status, json } = await post(baseUrl, "/internal/transaction", tx);
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("SellShares");
 
@@ -201,8 +212,12 @@ describe("SellShares transaction (FR-9)", () => {
     expect(positionAfter.shares).toBeCloseTo(positionBefore.shares - sellAmount, 2);
 
     // Cost basis reduced proportionally
-    const expectedCostBasisReduction = Math.round(positionBefore.costBasis * (sellAmount / positionBefore.shares) * 100) / 100;
-    expect(positionAfter.costBasis).toBeCloseTo(positionBefore.costBasis - expectedCostBasisReduction, 2);
+    const expectedCostBasisReduction =
+      Math.round(positionBefore.costBasis * (sellAmount / positionBefore.shares) * 100) / 100;
+    expect(positionAfter.costBasis).toBeCloseTo(
+      positionBefore.costBasis - expectedCostBasisReduction,
+      2,
+    );
 
     // Pool state matches formula
     const poolAfter = state.pools.get(marketId)!;

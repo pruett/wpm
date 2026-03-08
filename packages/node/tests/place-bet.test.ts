@@ -14,7 +14,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -159,7 +163,14 @@ describe("PlaceBet transaction (FR-8)", () => {
     expect(status).toBe(202);
     expect((json as { txId: string }).txId).toBe(tx.id);
 
-    const block = produceBlock(state, mempool, poaPublicKey, poaPrivateKey, chainFilePath, oraclePublicKey);
+    const block = produceBlock(
+      state,
+      mempool,
+      poaPublicKey,
+      poaPrivateKey,
+      chainFilePath,
+      oraclePublicKey,
+    );
     expect(block).not.toBeNull();
     expect(block!.transactions[0].type).toBe("PlaceBet");
 
@@ -177,10 +188,16 @@ describe("PlaceBet transaction (FR-8)", () => {
 
     // Verify pool state:
     // After fee: sharesA=514.04+0.50=514.54, sharesB=698+0.50=698.50
-    const { json: marketJson } = await get(baseUrl, `/internal/market/${encodeURIComponent(marketId)}`);
-    const result = marketJson as { pool: { sharesA: number; sharesB: number; k: number; wpmLocked: number }; prices: { priceA: number; priceB: number } };
+    const { json: marketJson } = await get(
+      baseUrl,
+      `/internal/market/${encodeURIComponent(marketId)}`,
+    );
+    const result = marketJson as {
+      pool: { sharesA: number; sharesB: number; k: number; wpmLocked: number };
+      prices: { priceA: number; priceB: number };
+    };
     expect(result.pool.sharesA).toBeCloseTo(514.54, 1);
-    expect(result.pool.sharesB).toBeCloseTo(698.50, 1);
+    expect(result.pool.sharesB).toBeCloseTo(698.5, 1);
     expect(result.pool.wpmLocked).toBe(1100);
 
     // Verify prices shifted toward A
@@ -194,7 +211,10 @@ describe("PlaceBet transaction (FR-8)", () => {
       `/internal/shares/${encodeURIComponent(userPublicKey)}`,
     );
     expect(status).toBe(200);
-    const result = json as { address: string; positions: Record<string, Record<string, SharePosition>> };
+    const result = json as {
+      address: string;
+      positions: Record<string, Record<string, SharePosition>>;
+    };
     expect(result.address).toBe(userPublicKey);
     expect(result.positions[marketId]).toBeDefined();
     expect(result.positions[marketId]["A"].shares).toBeCloseTo(183.96, 1);

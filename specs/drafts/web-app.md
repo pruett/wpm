@@ -19,6 +19,7 @@ The user-facing Progressive Web App (PWA). Mobile-first responsive design served
 **Route:** `/`
 
 For unauthenticated users:
+
 - App branding and brief description
 - "Join" button → invite code entry
 - "Sign In" button → passkey login
@@ -28,6 +29,7 @@ For unauthenticated users:
 **Route:** `/join`
 
 Step-by-step:
+
 1. Enter invite code → validate against API
 2. Enter name and email
 3. Create passkey (browser WebAuthn prompt)
@@ -41,6 +43,7 @@ Step-by-step:
 The main screen. Shows all open markets grouped by sport and date.
 
 Each market card displays:
+
 - Teams (with logos if available, otherwise text)
 - Game start time (with "closes in X hours" countdown)
 - Current odds: probability % for each outcome
@@ -49,6 +52,7 @@ Each market card displays:
 - User's position (if any): shares held, estimated value
 
 **Sorting/filtering:**
+
 - By sport (NFL, NBA, etc.)
 - By start time (soonest first — default)
 - "My bets" filter (only show markets where user has a position)
@@ -62,15 +66,18 @@ Each market card displays:
 Full view of a single market:
 
 **Header:**
+
 - Teams, sport, game start time
 - Market status badge (open / closed / resolved / cancelled)
 
 **Odds Panel:**
+
 - Large display of current probability for each outcome
 - Payout multiplier for each outcome
 - Price chart showing historical odds movement (optional, nice-to-have)
 
 **Trading Panel:**
+
 - Toggle: Buy / Sell
 - Buy mode:
   - Select outcome (A or B)
@@ -84,12 +91,14 @@ Full view of a single market:
   - "Sell Shares" button
 
 **My Position:**
+
 - Shares held (A and B)
 - Cost basis
 - Current estimated value
 - Unrealized P&L
 
 **Market Activity:**
+
 - Recent trades (anonymized or with names — TBD)
 - Total volume
 
@@ -100,14 +109,17 @@ Full view of a single market:
 Overview of all user's positions:
 
 **Active Positions:**
+
 - List of markets where user holds shares
 - For each: market name, shares held, current value, unrealized P&L
 
 **Resolved Bets:**
+
 - Historical results
 - For each: market name, outcome, shares held, payout received, net P&L
 
 **Summary Stats:**
+
 - Total portfolio value (balance + open position value)
 - All-time P&L
 - Win rate
@@ -120,10 +132,12 @@ Overview of all user's positions:
 Two tabs:
 
 **All-Time:**
+
 - Ranked by total WPM (balance + estimated position value)
 - Shows: rank, name, total WPM, change indicator
 
 **Weekly:**
+
 - Ranked by weekly profit/loss
 - Shows: rank, name, weekly P&L, number of bets
 - Resets every Monday at 12:00 AM ET
@@ -138,6 +152,7 @@ Two tabs:
 - Each transaction shows: type, amount, counterparty, timestamp
 
 **Transfer Flow:**
+
 - Enter recipient (by name search or wallet address)
 - Enter amount
 - Confirm → execute
@@ -192,20 +207,20 @@ Two tabs:
 On app load (after auth), open an SSE connection:
 
 ```javascript
-const eventSource = new EventSource('/events/stream', {
-  headers: { 'Authorization': `Bearer ${token}` }
+const eventSource = new EventSource("/events/stream", {
+  headers: { Authorization: `Bearer ${token}` },
 });
 
-eventSource.addEventListener('price_update', (e) => {
+eventSource.addEventListener("price_update", (e) => {
   const data = JSON.parse(e.data);
   // Update market card odds in real-time
 });
 
-eventSource.addEventListener('market_created', (e) => {
+eventSource.addEventListener("market_created", (e) => {
   // Add new market card to the list
 });
 
-eventSource.addEventListener('market_resolved', (e) => {
+eventSource.addEventListener("market_resolved", (e) => {
   // Update market status, show result
 });
 ```
@@ -240,6 +255,7 @@ SSE has built-in reconnection. If the connection drops, the browser automaticall
 ### Market Card
 
 Compact card for market list views:
+
 ```
 ┌──────────────────────────────┐
 │ NFL • Sun 4:25 PM ET         │

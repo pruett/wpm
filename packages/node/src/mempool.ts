@@ -8,9 +8,7 @@ type MempoolError = {
   message: string;
 };
 
-type MempoolResult =
-  | { accepted: true }
-  | { accepted: false; error: MempoolError };
+type MempoolResult = { accepted: true } | { accepted: false; error: MempoolError };
 
 const MAX_TIMESTAMP_DRIFT_MS = 300_000;
 const MAX_CAPACITY = 1_000;

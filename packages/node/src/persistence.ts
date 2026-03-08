@@ -15,10 +15,7 @@ export function appendBlock(block: Block, filePath?: string): void {
   appendFileSync(path, JSON.stringify(block) + "\n");
 }
 
-export function replayChain(
-  poaPublicKey: string,
-  filePath?: string,
-): ChainState {
+export function replayChain(poaPublicKey: string, filePath?: string): ChainState {
   const path = filePath ?? getChainFilePath();
 
   if (!existsSync(path)) {
@@ -53,21 +50,14 @@ export function replayChain(
   return state;
 }
 
-function validateBlockIntegrity(
-  block: Block,
-  expectedIndex: number,
-  state: ChainState,
-): void {
+function validateBlockIntegrity(block: Block, expectedIndex: number, state: ChainState): void {
   if (block.index !== expectedIndex) {
     throw new Error(
       `Block index mismatch at position ${expectedIndex}: expected ${expectedIndex}, got ${block.index}`,
     );
   }
 
-  const expectedPreviousHash =
-    expectedIndex === 0
-      ? "0"
-      : state.chain[expectedIndex - 1].hash;
+  const expectedPreviousHash = expectedIndex === 0 ? "0" : state.chain[expectedIndex - 1].hash;
 
   if (block.previousHash !== expectedPreviousHash) {
     throw new Error(

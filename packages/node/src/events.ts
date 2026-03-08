@@ -3,7 +3,12 @@ import type { Block } from "@wpm/shared";
 import { calculatePrices, calculateBuy, calculateSell, initializePool } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
-type SSEEventName = "block:new" | "market:created" | "market:resolved" | "market:cancelled" | "trade:executed";
+type SSEEventName =
+  | "block:new"
+  | "market:created"
+  | "market:resolved"
+  | "market:cancelled"
+  | "trade:executed";
 
 type SSEEvent = {
   event: SSEEventName;
@@ -17,10 +22,15 @@ type SSEClient = {
 
 const KEEPALIVE_INTERVAL_MS = 30_000;
 
+function isClientDead(res: ServerResponse): boolean {
+  return res.writableEnded || res.destroyed === true || res.socket?.destroyed === true;
+}
+
 export class EventBus {
   private clients: Set<SSEClient> = new Set();
 
   get clientCount(): number {
+    this.pruneDeadClients();
     return this.clients.size;
   }
 
@@ -31,20 +41,42 @@ export class EventBus {
       Connection: "keep-alive",
     });
 
-    const keepaliveTimer = setInterval(() => {
+    const client: SSEClient = {
+      res,
+      keepaliveTimer: undefined as unknown as ReturnType<typeof setInterval>,
+    };
+
+    const removeClient = () => {
+      if (!this.clients.has(client)) return;
+      clearInterval(client.keepaliveTimer);
+      this.clients.delete(client);
+    };
+
+    client.keepaliveTimer = setInterval(() => {
+      if (isClientDead(res)) {
+        removeClient();
+        return;
+      }
       res.write(": keepalive\n\n");
     }, KEEPALIVE_INTERVAL_MS);
 
-    const client: SSEClient = { res, keepaliveTimer };
     this.clients.add(client);
 
-    res.on("close", () => {
-      clearInterval(keepaliveTimer);
-      this.clients.delete(client);
-    });
+    // Works in Node.js; may not fire in Bun — emit() also prunes dead clients
+    res.on("close", removeClient);
+  }
+
+  private pruneDeadClients(): void {
+    for (const client of this.clients) {
+      if (isClientDead(client.res)) {
+        clearInterval(client.keepaliveTimer);
+        this.clients.delete(client);
+      }
+    }
   }
 
   emit(event: SSEEvent): void {
+    this.pruneDeadClients();
     const payload = `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`;
     for (const client of this.clients) {
       client.res.write(payload);

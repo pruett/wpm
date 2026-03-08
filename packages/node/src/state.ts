@@ -23,8 +23,7 @@ export class ChainState {
   referredUsers: Set<string> = new Set();
   markets: Map<string, Market> = new Map();
   pools: Map<string, AMMPool> = new Map();
-  sharePositions: Map<string, Map<string, Map<string, SharePosition>>> =
-    new Map();
+  sharePositions: Map<string, Map<string, Map<string, SharePosition>>> = new Map();
   externalEventIds: Map<string, string> = new Map();
 
   private readonly poaPublicKey: string;
@@ -53,11 +52,7 @@ export class ChainState {
     this.setBalance(address, this.getBalance(address) - amount);
   }
 
-  getSharePosition(
-    address: string,
-    marketId: string,
-    outcome: string,
-  ): SharePosition {
+  getSharePosition(address: string, marketId: string, outcome: string): SharePosition {
     return (
       this.sharePositions.get(address)?.get(marketId)?.get(outcome) ?? {
         shares: 0,
@@ -207,7 +202,8 @@ export class ChainState {
 
     // Reduce shares and cost basis proportionally
     const position = this.getSharePosition(tx.sender, tx.marketId, tx.outcome);
-    const costBasisReduction = Math.round(position.costBasis * (tx.shareAmount / position.shares) * 100) / 100;
+    const costBasisReduction =
+      Math.round(position.costBasis * (tx.shareAmount / position.shares) * 100) / 100;
     this.setSharePosition(tx.sender, tx.marketId, tx.outcome, {
       shares: Math.round((position.shares - tx.shareAmount) * 100) / 100,
       costBasis: Math.round((position.costBasis - costBasisReduction) * 100) / 100,

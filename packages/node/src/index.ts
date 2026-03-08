@@ -21,7 +21,9 @@ if (state.chain.length === 0) {
   const genesis = createGenesisBlock(keys.poaPublicKey, keys.poaPrivateKey);
   appendBlock(genesis, chainFilePath);
   state.applyBlock(genesis);
-  logger.info("genesis block created", { treasuryBalance: state.getBalance(state.treasuryAddress) });
+  logger.info("genesis block created", {
+    treasuryBalance: state.getBalance(state.treasuryAddress),
+  });
 } else {
   logger.info("chain loaded", { blockHeight: state.chain.length });
 }
@@ -39,7 +41,14 @@ const producer = startProducer(
   eventBus,
 );
 
-const api = startApi(state, mempool, { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey }, PORT, "0.0.0.0", eventBus);
+const api = startApi(
+  state,
+  mempool,
+  { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey },
+  PORT,
+  "0.0.0.0",
+  eventBus,
+);
 
 logger.info("node started", { port: PORT, blockHeight: state.chain.length });
 logger.metrics.blockHeight = state.chain.length;

@@ -13,7 +13,11 @@ import { startApi } from "../src/api.js";
 
 const PORT = 0;
 
-async function post(base: string, path: string, body: unknown): Promise<{ status: number; json: unknown }> {
+async function post(
+  base: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown }> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -151,7 +155,13 @@ describe("Referral transaction (FR-13)", () => {
     state2.setBalance(keys2.publicKey, 100);
 
     const mempool2 = new Mempool();
-    const api2 = startApi(state2, mempool2, { poaPublicKey: keys2.publicKey, poaPrivateKey: keys2.privateKey }, 0, "127.0.0.1");
+    const api2 = startApi(
+      state2,
+      mempool2,
+      { poaPublicKey: keys2.publicKey, poaPrivateKey: keys2.privateKey },
+      0,
+      "127.0.0.1",
+    );
     await new Promise<void>((resolve) => {
       if (api2.server.listening) return resolve();
       api2.server.once("listening", resolve);

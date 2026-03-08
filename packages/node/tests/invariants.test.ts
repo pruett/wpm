@@ -156,12 +156,8 @@ describe("Invariant checks", () => {
 
   describe("handleViolations", () => {
     it("throws on critical violation (INV-1)", () => {
-      const violations = [
-        { id: "INV-1", message: "supply mismatch", critical: true },
-      ];
-      expect(() => handleViolations(violations, 5)).toThrow(
-        "Critical invariant violation INV-1",
-      );
+      const violations = [{ id: "INV-1", message: "supply mismatch", critical: true }];
+      expect(() => handleViolations(violations, 5)).toThrow("Critical invariant violation INV-1");
     });
 
     it("does not throw on non-critical violations", () => {

@@ -10,10 +10,7 @@ export function calculatePrices(pool: AMMPool): {
   return { priceA, priceB };
 }
 
-export function initializePool(
-  marketId: string,
-  seedAmount: number,
-): AMMPool {
+export function initializePool(marketId: string, seedAmount: number): AMMPool {
   const half = seedAmount / 2;
   return {
     marketId,
@@ -40,11 +37,7 @@ type SellResult = {
   pool: AMMPool;
 };
 
-export function calculateSell(
-  pool: AMMPool,
-  outcome: "A" | "B",
-  shareAmount: number,
-): SellResult {
+export function calculateSell(pool: AMMPool, outcome: "A" | "B", shareAmount: number): SellResult {
   // Step 1: Add shares to the pool on the sold side
   let sharesA = pool.sharesA;
   let sharesB = pool.sharesB;
@@ -86,11 +79,7 @@ export function calculateSell(
   };
 }
 
-export function calculateBuy(
-  pool: AMMPool,
-  outcome: "A" | "B",
-  amount: number,
-): BuyResult {
+export function calculateBuy(pool: AMMPool, outcome: "A" | "B", amount: number): BuyResult {
   const fee = round2(amount * FEE_RATE);
   const netAmount = round2(amount - fee);
 
