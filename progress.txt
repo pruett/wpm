@@ -71,3 +71,20 @@ Files changed:
 - packages/api/src/crypto/wallet.ts (new)
 - packages/api/tests/crypto-wallet.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-07 — Phase 0, TB1, Task 6: Create middleware/auth.ts — JWT auth
+
+- Created `packages/api/src/middleware/auth.ts` — JWT signing, verification, and Hono auth middleware
+- `signJwt(payload)` — signs JWT with HMAC-SHA256 via Hono's `hono/jwt` utilities, keyed by `JWT_SECRET` env var
+- `verifyJwt(token)` — verifies signature + expiration, returns typed `JwtUserPayload`
+- `authMiddleware` — Hono middleware extracting `Bearer` token from `Authorization` header, verifies JWT, sets `c.set("user", payload)` on context
+- `JwtUserPayload` type: `sub`, `role` ("user" | "admin"), optional `walletAddress` + `email`, `iat`, `exp`
+- Default access token TTL: 15 minutes; custom `exp` supported for admin tokens (24h)
+- Returns structured `{ error: { code: "UNAUTHORIZED", message } }` JSON on all 401 paths
+- No new dependencies — leverages Hono's built-in `hono/jwt` (`sign`/`verify`)
+- Created `packages/api/tests/auth.test.ts` — 11 tests covering round-trip sign/verify, custom expiry, expired token rejection, tampered token rejection, wrong secret rejection, missing JWT_SECRET, middleware integration (valid token, missing header, malformed header, invalid token, expired token)
+
+Files changed:
+- packages/api/src/middleware/auth.ts (new)
+- packages/api/tests/auth.test.ts (new)
+- PLAN.md (marked task complete)
