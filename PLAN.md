@@ -44,10 +44,10 @@
 
 ### WebAuthn Registration (FR-1)
 
-- [ ] Add `@simplewebauthn/server` dependency to `packages/api/package.json`
-- [ ] Create `packages/api/src/routes/auth.ts` — `POST /auth/register/begin` (validate invite code active + has uses, validate email unique case-insensitive, validate name 1-50 chars, generate registration challenge, store in auth_challenges with 60s TTL, return WebAuthn options)
-- [ ] Implement `POST /auth/register/complete` (retrieve + validate challenge not expired, verify WebAuthn attestation, generate wallet keypair, encrypt private key, insert user + credential in single SQLite transaction, increment invite code use_count, call node `POST /internal/distribute` for 100,000 WPM airdrop, call `POST /internal/referral-reward` if invite code has referrer, issue access JWT + refresh cookie, delete challenge)
-- [ ] Write tests (`bun:test`): valid registration flow, duplicate email → `DUPLICATE_REGISTRATION` (409), invalid/exhausted invite code → `INVALID_INVITE_CODE` (400), expired challenge → `CHALLENGE_EXPIRED` (400), bad attestation → `WEBAUTHN_VERIFICATION_FAILED` (400)
+- [x] Add `@simplewebauthn/server` dependency to `packages/api/package.json`
+- [x] Create `packages/api/src/routes/auth.ts` — `POST /auth/register/begin` (validate invite code active + has uses, validate email unique case-insensitive, validate name 1-50 chars, generate registration challenge, store in auth_challenges with 60s TTL, return WebAuthn options)
+- [x] Implement `POST /auth/register/complete` (retrieve + validate challenge not expired, verify WebAuthn attestation, generate wallet keypair, encrypt private key, insert user + credential in single SQLite transaction, increment invite code use_count, call node `POST /internal/distribute` for 100,000 WPM airdrop, call `POST /internal/referral-reward` if invite code has referrer, issue access JWT + refresh cookie, delete challenge)
+- [x] Write tests (`bun:test`): valid registration flow, duplicate email → `DUPLICATE_REGISTRATION` (409), invalid/exhausted invite code → `INVALID_INVITE_CODE` (400), expired challenge → `CHALLENGE_EXPIRED` (400), bad attestation → `WEBAUTHN_VERIFICATION_FAILED` (400)
 
 ### WebAuthn Login (FR-2)
 

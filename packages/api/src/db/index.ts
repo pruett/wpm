@@ -1,12 +1,10 @@
 import { Database } from "bun:sqlite";
 
-const DB_PATH = process.env.DB_PATH ?? "wpm-api.db";
-
 let db: Database | null = null;
 
 export function getDb(): Database {
   if (db) return db;
-  db = openDatabase(DB_PATH);
+  db = openDatabase(process.env.DB_PATH ?? "wpm-api.db");
   return db;
 }
 

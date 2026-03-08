@@ -234,3 +234,39 @@ Files changed:
 - packages/api/src/db/queries.ts (new)
 - packages/api/tests/queries.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 1, WebAuthn Registration (FR-1): Full implementation
+
+- Added `@simplewebauthn/server@13.2.3` dependency to `packages/api/package.json`
+- Created `packages/api/src/routes/auth.ts` — WebAuthn registration endpoints:
+  - `POST /auth/register/begin`: validates invite code (active + has uses), email uniqueness (case-insensitive), name length (1-50 chars), email format; generates WebAuthn registration challenge via `@simplewebauthn/server`; stores challenge in `auth_challenges` with 60s TTL; returns `{ challengeId, publicKey }` with full WebAuthn options
+  - `POST /auth/register/complete`: retrieves + validates challenge (exists, not expired, correct type); verifies WebAuthn attestation via `verifyRegistrationResponse`; generates RSA wallet keypair; encrypts private key with AES-256-GCM; inserts user + credential; increments invite code usage; calls node `POST /internal/distribute` for 100,000 WPM airdrop; calls `POST /internal/referral-reward` if invite code has referrer; issues JWT; returns `{ userId, walletAddress, token }` (201)
+  - Re-validates invite code and email uniqueness in the complete step to prevent TOCTOU race conditions
+  - Deletes challenge on all terminal paths (success, expired, verification failure)
+- Mounted auth routes in `packages/api/src/index.ts` via `app.route("/", auth)`
+- Fixed `packages/api/src/db/index.ts` — changed `DB_PATH` from module-level const to reading `process.env.DB_PATH` dynamically in `getDb()`, fixing test isolation when multiple test files share the DB singleton
+- Created `packages/api/tests/auth-register.test.ts` — 12 tests covering:
+  - Valid begin flow (WebAuthn options shape, RP config, challenge stored in DB with correct TTL)
+  - Invalid/exhausted/deactivated invite codes → `INVALID_INVITE_CODE` (400)
+  - Duplicate email case-insensitive → `DUPLICATE_REGISTRATION` (409)
+  - Empty name, name >50 chars → validation error (400)
+  - Invalid email format → validation error (400)
+  - Expired challenge → `CHALLENGE_EXPIRED` (400) + cleanup
+  - Nonexistent challenge → `CHALLENGE_EXPIRED` (400)
+  - Invalid WebAuthn attestation → `WEBAUTHN_VERIFICATION_FAILED` (400) + cleanup
+- All test emails use `randomUUID()` to avoid collisions when test files share DB
+
+Gotchas:
+- `@simplewebauthn/server` v13 uses `Uint8Array_` type alias (= `Uint8Array`) for `userID`; pass `new TextEncoder().encode(userId)` to convert UUID string to bytes
+- `authenticatorSelection` in the response includes `requireResidentKey: true` (auto-added by simplewebauthn when `residentKey: "required"`)
+- bun:sqlite sandbox restriction requires `dangerouslyDisableSandbox` for `bun add`
+- Module-level `const DB_PATH = process.env.DB_PATH` freezes at first import; must read env dynamically in `getDb()` for test isolation
+
+Files changed:
+- packages/api/package.json (added @simplewebauthn/server)
+- packages/api/src/routes/auth.ts (new)
+- packages/api/src/index.ts (mounted auth routes)
+- packages/api/src/db/index.ts (dynamic DB_PATH read)
+- packages/api/tests/auth-register.test.ts (new)
+- bun.lock (updated)
+- PLAN.md (marked 4 tasks complete)

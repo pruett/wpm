@@ -10,6 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.2.3",
     "@wpm/shared": "workspace:*",
     "hono": "^4.12.5"
   },
