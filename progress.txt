@@ -7,3 +7,18 @@
 Files changed:
 - packages/api/package.json
 - bun.lock
+
+## 2026-03-07 — Phase 0, TB1, Task 2: Create index.ts with Hono app + /health
+
+- Created `packages/api/src/index.ts` — Hono app entry point
+- `GET /health` proxies node `/internal/health` with `AbortSignal.timeout(5000)`, returns API uptime + nodeReachable boolean + node stats when reachable
+- Returns `"degraded"` status when node is unreachable, `"ok"` otherwise
+- Served via `Bun.serve()` on `API_PORT` env (default 3000), `NODE_URL` env (default `http://localhost:3001`)
+- Added `@types/bun` dev dependency and `"types": ["bun"]` to api tsconfig for Bun global types
+- Exports `app` and `server` for testing
+
+Files changed:
+- packages/api/src/index.ts (new)
+- packages/api/tsconfig.json (added bun types)
+- packages/api/package.json (added @types/bun)
+- bun.lock
