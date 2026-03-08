@@ -51,3 +51,23 @@ Files changed:
 - packages/api/src/db/index.ts (new)
 - packages/api/tests/db.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-07 — Phase 0, TB1, Task 5: Create crypto/wallet.ts — wallet key generation + encryption
+
+- Created `packages/api/src/crypto/wallet.ts` — wallet key management module
+- `generateWalletKeyPair()` delegates to `@wpm/shared/crypto` `generateKeyPair()` (RSA-2048)
+- `encryptPrivateKey(key, secret)` — AES-256-GCM encryption using Web Crypto API (`crypto.subtle`)
+- `decryptPrivateKey(enc, secret)` — AES-256-GCM decryption, returns original PEM string
+- Key derivation: SHA-256 hash of secret via `Bun.CryptoHasher` → 32-byte AES key
+- Random 12-byte IV per encryption; format: `[IV (12 bytes)][ciphertext + GCM auth tag]`
+- Decision: did NOT modify `@wpm/shared/crypto` — `@wpm/node` deeply depends on it (all tx/block validation). Used Bun-native APIs in the API layer only.
+- Created `packages/api/tests/crypto-wallet.test.ts` — 8 tests covering key generation, round-trip encrypt/decrypt, random IV uniqueness, wrong secret rejection, tampered/truncated ciphertext rejection
+
+Gotchas:
+- Bun's `Buffer.buffer` returns `ArrayBufferLike` (union of `ArrayBuffer | SharedArrayBuffer`), needs cast to `ArrayBuffer` for Web Crypto API compatibility
+- `Bun.CryptoHasher.digest()` returns `Buffer`, not `Uint8Array` — extract underlying `ArrayBuffer` with `.buffer` + `.slice()`
+
+Files changed:
+- packages/api/src/crypto/wallet.ts (new)
+- packages/api/tests/crypto-wallet.test.ts (new)
+- PLAN.md (marked task complete)
