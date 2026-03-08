@@ -63,9 +63,9 @@
 
 ### Admin Auth (FR-4)
 
-- [ ] Implement `POST /auth/admin/login` in `packages/api/src/routes/auth.ts` (constant-time compare via `crypto.timingSafeEqual` apiKey vs `ADMIN_API_KEY` env, issue JWT with `role: "admin"`, `sub: "admin"`, 24h expiry)
-- [ ] Create `packages/api/src/middleware/admin.ts` — middleware checking `role === "admin"` from JWT context, return `FORBIDDEN` (403) otherwise
-- [ ] Write tests (`bun:test`): correct key → admin JWT, wrong key → 403, user JWT on admin route → 403
+- [x] Implement `POST /auth/admin/login` in `packages/api/src/routes/auth.ts` (constant-time compare via `crypto.timingSafeEqual` apiKey vs `ADMIN_API_KEY` env, issue JWT with `role: "admin"`, `sub: "admin"`, 24h expiry)
+- [x] Create `packages/api/src/middleware/admin.ts` — middleware checking `role === "admin"` from JWT context, return `FORBIDDEN` (403) otherwise
+- [x] Write tests (`bun:test`): correct key → admin JWT, wrong key → 403, user JWT on admin route → 403
 
 ---
 

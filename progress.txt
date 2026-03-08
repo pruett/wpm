@@ -329,3 +329,36 @@ Files changed:
 - packages/api/src/routes/auth.ts (added POST /auth/refresh, set refresh cookie on register + login)
 - packages/api/tests/auth-refresh.test.ts (new)
 - PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 1, Admin Auth (FR-4): Full implementation
+
+- Added `POST /auth/admin/login` to `packages/api/src/routes/auth.ts`
+  - Accepts `{ apiKey: string }` in request body
+  - Uses `crypto.timingSafeEqual` from `node:crypto` for constant-time comparison against `ADMIN_API_KEY` env var
+  - Issues JWT with `sub: "admin"`, `role: "admin"`, 24h expiry on successful match
+  - Returns `FORBIDDEN` (403) on wrong key, missing key, non-string key, or invalid JSON body
+  - Returns `INTERNAL_ERROR` (500) if `ADMIN_API_KEY` env is not configured
+- Created `packages/api/src/middleware/admin.ts` — admin authorization middleware
+  - Checks `role === "admin"` from JWT context (set by `authMiddleware`)
+  - Returns `FORBIDDEN` (403) if role is not admin
+  - Exports `AdminEnv` type for typed Hono context
+  - Designed to be chained after `authMiddleware` on admin routes
+- Created `packages/api/tests/auth-admin.test.ts` — 8 tests covering:
+  - Correct API key → admin JWT with 24h expiry and correct claims (sub, role)
+  - Wrong API key → FORBIDDEN 403
+  - Missing apiKey field → FORBIDDEN 403
+  - Non-string apiKey → FORBIDDEN 403
+  - Invalid JSON body → FORBIDDEN 403
+  - Admin JWT on admin route → 200 (through authMiddleware + adminMiddleware chain)
+  - User JWT on admin route → FORBIDDEN 403
+  - No auth header on admin route → UNAUTHORIZED 401
+
+Gotchas:
+- `crypto.subtle.timingSafeEqual` does not exist in Bun — use `timingSafeEqual` from `node:crypto` instead
+- `timingSafeEqual` requires both buffers to be the same length — check `byteLength` equality first (short-circuit) before calling it
+
+Files changed:
+- packages/api/src/routes/auth.ts (added POST /auth/admin/login, imported timingSafeEqual from node:crypto)
+- packages/api/src/middleware/admin.ts (new)
+- packages/api/tests/auth-admin.test.ts (new)
+- PLAN.md (marked 3 tasks complete)

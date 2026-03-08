@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { timingSafeEqual } from "node:crypto";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -428,6 +429,45 @@ auth.post("/auth/refresh", async (c) => {
   // Rotate refresh cookie
   const newRefreshToken = await signRefreshToken(user.id);
   setRefreshCookie(c, newRefreshToken);
+
+  return c.json({ token });
+});
+
+// --- POST /auth/admin/login ---
+
+auth.post("/auth/admin/login", async (c) => {
+  const adminApiKey = process.env.ADMIN_API_KEY;
+  if (!adminApiKey) {
+    return sendError(c, "INTERNAL_ERROR", "Admin API key not configured");
+  }
+
+  let body: { apiKey?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "FORBIDDEN", "Invalid request body");
+  }
+
+  const { apiKey } = body;
+  if (typeof apiKey !== "string") {
+    return sendError(c, "FORBIDDEN");
+  }
+
+  // Constant-time comparison to prevent timing attacks
+  const a = Buffer.from(apiKey);
+  const b = Buffer.from(adminApiKey);
+
+  if (a.byteLength !== b.byteLength || !timingSafeEqual(a, b)) {
+    return sendError(c, "FORBIDDEN");
+  }
+
+  // Issue admin JWT with 24h expiry
+  const now = Math.floor(Date.now() / 1000);
+  const token = await signJwt({
+    sub: "admin",
+    role: "admin" as const,
+    exp: now + 24 * 60 * 60,
+  });
 
   return c.json({ token });
 });
