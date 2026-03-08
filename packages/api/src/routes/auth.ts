@@ -1,8 +1,14 @@
 import { Hono } from "hono";
-import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from "@simplewebauthn/server";
 import { sendError } from "../errors";
 import {
   findUserByEmail,
+  findUserById,
   findActiveInviteCode,
   insertChallenge,
   findChallenge,
@@ -10,6 +16,8 @@ import {
   insertUser,
   insertCredential,
   incrementInviteCodeUse,
+  findCredentialById,
+  updateCredentialCounter,
 } from "../db/queries";
 import { generateWalletKeyPair, encryptPrivateKey } from "../crypto/wallet";
 import { signJwt } from "../middleware/auth";
@@ -235,6 +243,133 @@ auth.post("/auth/register/complete", async (c) => {
     },
     201,
   );
+});
+
+// --- POST /auth/login/begin ---
+
+auth.post("/auth/login/begin", async (c) => {
+  // Discoverable credentials (passkeys) — no allowCredentials needed
+  const options = await generateAuthenticationOptions({
+    rpID: RP_ID,
+    userVerification: "required",
+    timeout: 60000,
+  });
+
+  const challengeId = crypto.randomUUID();
+  const now = Date.now();
+
+  insertChallenge({
+    id: challengeId,
+    challenge: options.challenge,
+    type: "webauthn_login",
+    expiresAt: now + CHALLENGE_TTL_MS,
+  });
+
+  return c.json({
+    challengeId,
+    publicKey: options,
+  });
+});
+
+// --- POST /auth/login/complete ---
+
+auth.post("/auth/login/complete", async (c) => {
+  let body: { challengeId?: unknown; credential?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "UNAUTHORIZED", "Invalid request body");
+  }
+
+  const { challengeId, credential } = body;
+
+  if (typeof challengeId !== "string") {
+    return sendError(c, "UNAUTHORIZED", "Missing challenge ID");
+  }
+
+  // Retrieve and validate challenge
+  const challenge = findChallenge(challengeId);
+  if (!challenge) {
+    return sendError(c, "UNAUTHORIZED", "Invalid or expired challenge");
+  }
+
+  if (challenge.type !== "webauthn_login") {
+    deleteChallenge(challengeId);
+    return sendError(c, "UNAUTHORIZED", "Invalid challenge type");
+  }
+
+  if (Date.now() > challenge.expires_at) {
+    deleteChallenge(challengeId);
+    return sendError(c, "CHALLENGE_EXPIRED");
+  }
+
+  // Extract credential ID from the response
+  const cred = credential as { id?: string; rawId?: string; type?: string; response?: unknown };
+  if (!cred || typeof cred.id !== "string") {
+    deleteChallenge(challengeId);
+    return sendError(c, "UNAUTHORIZED", "Missing credential ID");
+  }
+
+  // Look up stored credential
+  const storedCredential = findCredentialById(cred.id);
+  if (!storedCredential) {
+    deleteChallenge(challengeId);
+    return sendError(c, "UNAUTHORIZED", "Unknown credential");
+  }
+
+  // Verify authentication assertion
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: credential as Parameters<typeof verifyAuthenticationResponse>[0]["response"],
+      expectedChallenge: challenge.challenge,
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+      requireUserVerification: true,
+      credential: {
+        id: storedCredential.credential_id,
+        publicKey: new Uint8Array(storedCredential.public_key),
+        counter: storedCredential.counter,
+      },
+    });
+  } catch {
+    deleteChallenge(challengeId);
+    return sendError(c, "UNAUTHORIZED", "Authentication verification failed");
+  }
+
+  if (!verification.verified) {
+    deleteChallenge(challengeId);
+    return sendError(c, "UNAUTHORIZED", "Authentication verification failed");
+  }
+
+  // Update credential counter
+  updateCredentialCounter(
+    storedCredential.credential_id,
+    verification.authenticationInfo.newCounter,
+  );
+
+  // Delete consumed challenge
+  deleteChallenge(challengeId);
+
+  // Look up user
+  const user = findUserById(storedCredential.user_id);
+  if (!user) {
+    return sendError(c, "UNAUTHORIZED", "User not found");
+  }
+
+  // Issue JWT
+  const token = await signJwt({
+    sub: user.id,
+    role: user.role as "user" | "admin",
+    walletAddress: user.wallet_address,
+    email: user.email,
+  });
+
+  return c.json({
+    userId: user.id,
+    walletAddress: user.wallet_address,
+    token,
+  });
 });
 
 function isValidEmail(email: string): boolean {

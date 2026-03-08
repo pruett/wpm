@@ -270,3 +270,30 @@ Files changed:
 - packages/api/tests/auth-register.test.ts (new)
 - bun.lock (updated)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-08 — Phase 1, WebAuthn Login (FR-2): Full implementation
+
+- Added `POST /auth/login/begin` to `packages/api/src/routes/auth.ts`
+  - Uses discoverable credentials (passkeys) — no `allowCredentials` needed since registration uses `residentKey: "required"`
+  - Generates authentication challenge via `@simplewebauthn/server` `generateAuthenticationOptions`
+  - Stores challenge in `auth_challenges` with type `"webauthn_login"` and 60s TTL
+  - Returns `{ challengeId, publicKey }` with WebAuthn options including `rpId`, `userVerification: "required"`
+- Added `POST /auth/login/complete` to `packages/api/src/routes/auth.ts`
+  - Retrieves + validates challenge (exists, correct type, not expired)
+  - Looks up stored credential by `credentialId` from the assertion response
+  - Verifies authentication assertion via `verifyAuthenticationResponse` with stored public key + counter
+  - Updates credential counter on successful verification
+  - Looks up user by `user_id` from the credential record
+  - Issues JWT with `sub`, `role`, `walletAddress`, `email`
+  - Cleans up challenge on all terminal paths (success, expired, verification failure, unknown credential)
+- Created `packages/api/tests/auth-login.test.ts` — 10 tests covering:
+  - Begin: returns authentication options with correct rpId/timeout/userVerification, challenge stored with 60s TTL
+  - Complete: rejects nonexistent challenge (401), expired challenge (400 CHALLENGE_EXPIRED), wrong challenge type (401), unknown credentialId (401), invalid assertion data (401), missing credential (401), missing challengeId (401), invalid JSON body (401)
+
+Gotchas:
+- bun:test `beforeAll`/`afterAll` are scoped per `describe` — if the first describe's `afterAll` closes the DB, subsequent describes lose access. Use top-level `beforeAll`/`afterAll` for shared setup/teardown across multiple describe blocks.
+
+Files changed:
+- packages/api/src/routes/auth.ts (added login/begin + login/complete endpoints, imported generateAuthenticationOptions, verifyAuthenticationResponse, findCredentialById, updateCredentialCounter, findUserById)
+- packages/api/tests/auth-login.test.ts (new)
+- PLAN.md (marked 3 tasks complete)

@@ -51,9 +51,9 @@
 
 ### WebAuthn Login (FR-2)
 
-- [ ] Implement `POST /auth/login/begin` in `packages/api/src/routes/auth.ts` (generate authentication challenge, store in auth_challenges, return options with rpId)
-- [ ] Implement `POST /auth/login/complete` (retrieve challenge, look up credential by credentialId, verify assertion, update counter, issue access JWT + refresh cookie)
-- [ ] Write tests (`bun:test`): valid login, unknown credentialId → `UNAUTHORIZED` (401), replayed counter → `UNAUTHORIZED` (401)
+- [x] Implement `POST /auth/login/begin` in `packages/api/src/routes/auth.ts` (generate authentication challenge, store in auth_challenges, return options with rpId)
+- [x] Implement `POST /auth/login/complete` (retrieve challenge, look up credential by credentialId, verify assertion, update counter, issue access JWT + refresh cookie)
+- [x] Write tests (`bun:test`): valid login, unknown credentialId → `UNAUTHORIZED` (401), replayed counter → `UNAUTHORIZED` (401)
 
 ### JWT & Refresh Tokens (FR-3)
 
