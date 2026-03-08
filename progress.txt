@@ -142,3 +142,19 @@ Gotchas:
 Files changed:
 - packages/api/tests/tracer-buy.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 0, TB2, Task 1: Create sse/relay.ts — SSE relay
+
+- Created `packages/api/src/sse/relay.ts` — SSE relay module connecting API server to node's event stream
+- `SSERelay` class connects to node `GET /internal/events`, parses SSE stream (event/data lines, ignores comments/keepalives)
+- Maintains `Map<string, SSEClientEntry>` of connected clients keyed by userId
+- Enforces 1 connection per user — `addClient()` closes prior connection before registering new one
+- Sends 30s keepalive comments (`: keepalive\n\n`) to each connected client
+- Broadcasts parsed node events to all connected API clients via `ReadableStream` controllers
+- Auto-reconnects to node on disconnect with exponential backoff (1s → 30s max)
+- `createRelay(nodeUrl)` / `getRelay()` singleton pattern matching db module convention
+- `close()` method for graceful shutdown: aborts node connection, clears reconnect timer, closes all client streams
+
+Files changed:
+- packages/api/src/sse/relay.ts (new)
+- PLAN.md (marked task complete)

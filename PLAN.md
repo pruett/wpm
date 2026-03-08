@@ -27,7 +27,7 @@
 
 ### Tracer Bullet 2: SSE Relay
 
-- [ ] Create `packages/api/src/sse/relay.ts` — on startup connect to node `GET /internal/events`, parse SSE stream, maintain `Map<userId, Response>` of connected clients, enforce 1 connection per user (close prior), 30s keepalive comments
+- [x] Create `packages/api/src/sse/relay.ts` — on startup connect to node `GET /internal/events`, parse SSE stream, maintain `Map<userId, Response>` of connected clients, enforce 1 connection per user (close prior), 30s keepalive comments
 - [ ] Create `packages/api/src/routes/events.ts` — `GET /events/stream` with JWT auth via `?token=` query param, register client in relay, stream events
 - [ ] Write `packages/api/tests/tracer-sse.test.ts` — integration test using `bun:test`: boot node + API, connect SSE client, submit a PlaceBet tx, verify `price:update` event received by client
 
