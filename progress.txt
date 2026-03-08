@@ -518,3 +518,38 @@ Files changed:
 - packages/api/src/routes/trading.ts (added buy/preview endpoint, imported calculateBuy + calculatePrices)
 - packages/api/tests/trading-preview.test.ts (new)
 - PLAN.md (marked 2 tasks complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/sell/preview
+
+- Added `POST /markets/:marketId/sell/preview` endpoint to `packages/api/src/routes/trading.ts`
+  - Read-only AMM preview: validates inputs, fetches market + pool from node, runs `calculateSell()` from `@wpm/shared/amm` without mutating state
+  - Returns `{ wpmReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB }`
+  - `wpmReceived` = `calculateSell().netReturn` (net after 1% fee)
+  - `effectivePrice` = wpmReceived / shareAmount (rounded to 2 decimals)
+  - `priceImpact` = absolute change in the sold outcome's price (rounded to 2 decimals)
+  - `fee` = 1% of gross WPM return (computed by replicating constant product formula to get gross, then `round2(gross * 0.01)`)
+  - `newPriceA` / `newPriceB` = prices from the resulting pool state (rounded to 2 decimals)
+  - Same market validation as buy/preview: exists, open, eventStartTime not passed
+  - Same input validation: outcome must be "A" or "B", amount > 0 with ≤2 decimal places
+- Added 13 tests to `packages/api/tests/trading-preview.test.ts` in new describe block:
+  - Valid sell preview on shifted-price market (correct response shape, prices sum to ~1.0)
+  - Preview matches AMM calculation exactly (wpmReceived, newPrices)
+  - Fee is 1% of gross return (verified against manual constant product formula)
+  - Preview on equal-price market returns correct values
+  - Preview is read-only — does not change pool state
+  - Invalid outcome → INVALID_OUTCOME (400)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Amount with exactly 2 decimal places accepted
+
+Gotchas:
+- `calculateSell` returns `netReturn` (after fee deduction) but doesn't expose the gross return or fee. To compute the fee for the response, replicate the constant product formula inline: `grossReturn = round2(oppositeShares - (sharesA * sharesB) / (soldSideShares + amount))`, then `fee = round2(grossReturn * 0.01)`.
+
+Files changed:
+- packages/api/src/routes/trading.ts (added sell/preview endpoint, imported calculateSell)
+- packages/api/tests/trading-preview.test.ts (added 13 tests in new describe block, imported calculateSell)
+- PLAN.md (marked task complete)

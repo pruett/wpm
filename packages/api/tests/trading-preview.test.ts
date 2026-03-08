@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync } from "fs";
 import { generateKeyPair, sign } from "@wpm/shared/crypto";
-import { calculateBuy, calculatePrices } from "@wpm/shared/amm";
+import { calculateBuy, calculateSell, calculatePrices } from "@wpm/shared/amm";
 import type { CreateMarketTx, DistributeTx, PlaceBetTx } from "@wpm/shared";
 
 // --- Env setup (must run before dynamic imports that capture env at module level) ---
@@ -461,5 +461,230 @@ describe("POST /markets/:marketId/buy/preview", () => {
     const body = await res.json();
     expect(body.sharesReceived).toBeGreaterThan(0);
     expect(body.fee).toBe(0.5); // 1% of 50.25 rounded to 2 decimals
+  });
+});
+
+describe("POST /markets/:marketId/sell/preview", () => {
+  test("returns preview for valid sell on shifted-price market", async () => {
+    const res = await app.request(`/markets/${marketId1}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 100 }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.wpmReceived).toBeGreaterThan(0);
+    expect(body.effectivePrice).toBeGreaterThan(0);
+    expect(body.priceImpact).toBeGreaterThanOrEqual(0);
+    expect(body.fee).toBeGreaterThan(0);
+    expect(body.newPriceA).toBeGreaterThan(0);
+    expect(body.newPriceB).toBeGreaterThan(0);
+    // New prices still sum to ~1.0
+    expect(body.newPriceA + body.newPriceB).toBeCloseTo(1.0, 4);
+  });
+
+  test("preview matches AMM calculation exactly", async () => {
+    const pool = state.pools.get(marketId1)!;
+    const sellResult = calculateSell(pool, "A", 200);
+    const newPrices = calculatePrices(sellResult.pool);
+
+    const res = await app.request(`/markets/${marketId1}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 200 }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.wpmReceived).toBe(sellResult.netReturn);
+    expect(body.newPriceA).toBe(Math.round(newPrices.priceA * 100) / 100);
+    expect(body.newPriceB).toBe(Math.round(newPrices.priceB * 100) / 100);
+  });
+
+  test("fee is 1% of gross return", async () => {
+    const pool = state.pools.get(marketId2)!;
+    // Manually compute gross return using constant product formula
+    const shareAmount = 100;
+    const grossReturn =
+      Math.round(
+        (pool.sharesB - (pool.sharesA * pool.sharesB) / (pool.sharesA + shareAmount)) * 100,
+      ) / 100;
+    const expectedFee = Math.round(grossReturn * 0.01 * 100) / 100;
+
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: shareAmount }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.fee).toBe(expectedFee);
+  });
+
+  test("preview on equal-price market returns correct values", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "B", amount: 50 }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.wpmReceived).toBeGreaterThan(0);
+    expect(body.effectivePrice).toBeGreaterThan(0);
+    expect(body.newPriceA + body.newPriceB).toBeCloseTo(1.0, 4);
+  });
+
+  test("preview is read-only — does not change pool state", async () => {
+    const poolBefore = { ...state.pools.get(marketId1)! };
+
+    await app.request(`/markets/${marketId1}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 500 }),
+    });
+
+    const poolAfter = state.pools.get(marketId1)!;
+    expect(poolAfter.sharesA).toBe(poolBefore.sharesA);
+    expect(poolAfter.sharesB).toBe(poolBefore.sharesB);
+    expect(poolAfter.k).toBe(poolBefore.k);
+    expect(poolAfter.wpmLocked).toBe(poolBefore.wpmLocked);
+  });
+
+  test("rejects invalid outcome", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "C", amount: 100 }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_OUTCOME");
+  });
+
+  test("rejects amount with 3+ decimal places", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 100.123 }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_AMOUNT");
+  });
+
+  test("rejects negative amount", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: -50 }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_AMOUNT");
+  });
+
+  test("rejects zero amount", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 0 }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVALID_AMOUNT");
+  });
+
+  test("returns 404 for nonexistent market", async () => {
+    const res = await app.request(`/markets/${randomUUID()}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 100 }),
+    });
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("MARKET_NOT_FOUND");
+  });
+
+  test("rejects preview on resolved market", async () => {
+    const res = await app.request(`/markets/${marketIdResolved}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "A", amount: 100 }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("MARKET_ALREADY_RESOLVED");
+  });
+
+  test("rejects request without auth", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outcome: "A", amount: 100 }),
+    });
+
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+
+  test("accepts amount with exactly 2 decimal places", async () => {
+    const res = await app.request(`/markets/${marketId2}/sell/preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ outcome: "B", amount: 50.25 }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.wpmReceived).toBeGreaterThan(0);
   });
 });
