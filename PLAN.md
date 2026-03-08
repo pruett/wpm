@@ -83,11 +83,11 @@
 - [x] Implement `GET /markets/:marketId` (fetch `GET /internal/market/:id`, fetch user positions from `GET /internal/shares/:addr`, compute estimated values using current prices, return market + pool + userPosition or null)
 - [x] Implement `GET /markets/:marketId/trades` (filter PlaceBet/SellShares txs by marketId from node state, join with SQLite users table for display names, sort desc, paginate limit default 20 max 100)
 - [x] Implement `GET /markets/resolved` (filter resolved + cancelled markets from node state, paginate limit default 20 max 100)
-- [ ] Write tests (`bun:test`): prices sum to ~1.00, userPosition populated/null correctly, MARKET_NOT_FOUND (404), trades show user names
+- [x] Write tests (`bun:test`): prices sum to ~1.00, userPosition populated/null correctly, MARKET_NOT_FOUND (404), trades show user names
 
 ### Trading Endpoints — Remaining (FR-7)
 
-- [ ] Implement `POST /markets/:marketId/buy/preview` in `packages/api/src/routes/trading.ts` (read-only AMM `calculateBuy` from `@wpm/shared`, return sharesReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB)
+- [x] Implement `POST /markets/:marketId/buy/preview` in `packages/api/src/routes/trading.ts` (read-only AMM `calculateBuy` from `@wpm/shared`, return sharesReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB)
 - [ ] Implement `POST /markets/:marketId/sell/preview` (read-only `calculateSell`, return wpmReceived, effectivePrice, priceImpact, fee, newPrices)
 - [ ] Implement `POST /markets/:marketId/sell` (validate user holds sufficient shares via node, construct `SellShares` tx, sign with custodial key, submit to node)
 - [ ] Create `packages/api/src/validation.ts` — shared helpers: `validateAmount(n)` (>0, ≤2 decimal places), `validateOutcome(o)` ("A" or "B"), `validateMarketTradeable(market)` (exists, open, eventStartTime > now)

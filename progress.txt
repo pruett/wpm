@@ -487,3 +487,34 @@ Files changed:
 - packages/api/src/routes/markets.ts (added GET /markets/resolved endpoint)
 - packages/api/tests/markets.test.ts (added market3/market4 fixtures, ResolveMarket/CancelMarket txs, 8 new tests)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/buy/preview
+
+- Added `POST /markets/:marketId/buy/preview` endpoint to `packages/api/src/routes/trading.ts`
+  - Read-only AMM preview: validates inputs, fetches market + pool from node, runs `calculateBuy()` from `@wpm/shared/amm` without mutating state
+  - Returns `{ sharesReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB }`
+  - `effectivePrice` = amount / sharesReceived (rounded to 2 decimals)
+  - `priceImpact` = absolute change in the purchased outcome's price (rounded to 2 decimals)
+  - `fee` = 1% of amount (rounded to 2 decimals)
+  - `newPriceA` / `newPriceB` = prices from the resulting pool state (rounded to 2 decimals)
+  - Same market validation as buy endpoint: exists, open, eventStartTime not passed
+  - Same input validation: outcome must be "A" or "B", amount > 0 with ≤2 decimal places
+- Also marked FR-6 market tests task complete (all test cases were already written inline with endpoint implementations)
+- Created `packages/api/tests/trading-preview.test.ts` — 12 integration tests covering:
+  - Valid preview on equal-price market (correct response shape, fee = 1%)
+  - Preview matches AMM calculation exactly (sharesReceived, newPrices)
+  - Preview on shifted-price market (prices still sum to ~1.0)
+  - Preview is read-only — does not change pool state
+  - Invalid outcome → INVALID_OUTCOME (400)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Amount with exactly 2 decimal places accepted
+
+Files changed:
+- packages/api/src/routes/trading.ts (added buy/preview endpoint, imported calculateBuy + calculatePrices)
+- packages/api/tests/trading-preview.test.ts (new)
+- PLAN.md (marked 2 tasks complete)

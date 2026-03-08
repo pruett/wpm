@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { sign as cryptoSign } from "@wpm/shared/crypto";
+import { calculateBuy, calculatePrices } from "@wpm/shared/amm";
 import type { PlaceBetTx } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
 import type { JwtUserPayload } from "../middleware/auth";
@@ -19,6 +20,90 @@ const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
 const trading = new Hono<Env>();
 
 trading.use("*", authMiddleware);
+
+trading.post("/markets/:marketId/buy/preview", async (c) => {
+  const { marketId } = c.req.param();
+
+  // Parse request body
+  let body: { outcome?: unknown; amount?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const { outcome, amount } = body;
+
+  // Validate outcome
+  if (outcome !== "A" && outcome !== "B") {
+    return sendError(c, "INVALID_OUTCOME");
+  }
+
+  // Validate amount
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+    return sendError(c, "INVALID_AMOUNT");
+  }
+
+  // Validate ≤ 2 decimal places
+  const parts = amount.toString().split(".");
+  if (parts[1] && parts[1].length > 2) {
+    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
+  }
+
+  // Validate market exists and is tradeable
+  const node = createNodeClient(NODE_URL);
+  const marketResult = await node.getMarket(marketId);
+
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market, pool } = marketResult.data;
+
+  if (market.status !== "open") {
+    if (market.status === "resolved") {
+      return sendError(c, "MARKET_ALREADY_RESOLVED");
+    }
+    return sendError(c, "MARKET_CLOSED");
+  }
+
+  if (Date.now() >= market.eventStartTime) {
+    return sendError(c, "MARKET_CLOSED");
+  }
+
+  // Calculate current prices before the trade
+  const currentPrices = calculatePrices(pool);
+
+  // Run AMM buy calculation (read-only — does not modify state)
+  const buyResult = calculateBuy(pool, outcome, amount);
+
+  // Calculate new prices from the resulting pool
+  const newPrices = calculatePrices(buyResult.pool);
+
+  // Fee is 1% of amount
+  const fee = Math.round(amount * 0.01 * 100) / 100;
+
+  // Effective price = amount / sharesReceived
+  const effectivePrice =
+    buyResult.sharesToUser > 0 ? Math.round((amount / buyResult.sharesToUser) * 100) / 100 : 0;
+
+  // Price impact = absolute change in the purchased outcome's price
+  const currentPrice = outcome === "A" ? currentPrices.priceA : currentPrices.priceB;
+  const newPrice = outcome === "A" ? newPrices.priceA : newPrices.priceB;
+  const priceImpact = Math.round(Math.abs(newPrice - currentPrice) * 100) / 100;
+
+  return c.json({
+    sharesReceived: buyResult.sharesToUser,
+    effectivePrice,
+    priceImpact,
+    fee,
+    newPriceA: Math.round(newPrices.priceA * 100) / 100,
+    newPriceB: Math.round(newPrices.priceB * 100) / 100,
+  });
+});
 
 trading.post("/markets/:marketId/buy", async (c) => {
   const user = c.get("user");
