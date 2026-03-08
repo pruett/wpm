@@ -553,3 +553,21 @@ Files changed:
 - packages/api/src/routes/trading.ts (added sell/preview endpoint, imported calculateSell)
 - packages/api/tests/trading-preview.test.ts (added 13 tests in new describe block, imported calculateSell)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/sell
+
+- Added `POST /markets/:marketId/sell` endpoint to `packages/api/src/routes/trading.ts`
+  - JWT auth → validate outcome ("A"/"B") + amount (>0, ≤2 decimals) → require walletAddress on token
+  - Fetch market from node → validate open + not past eventStartTime
+  - Fetch user shares from node `GET /internal/shares/:addr` → validate user holds ≥ amount of shares for the specified outcome → `INSUFFICIENT_SHARES` (400) if not
+  - Look up user in SQLite for encrypted private key → decrypt with AES-256-GCM
+  - Construct `SellSharesTx` with `shareAmount` field (not `amount` like PlaceBet)
+  - Sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+  - Response includes `txId`, `marketId`, `outcome`, `shareAmount`, `status: "accepted"`
+  - Maps node errors (INSUFFICIENT_SHARES, NODE_UNAVAILABLE) to API error catalog
+  - Validates market status (resolved → MARKET_ALREADY_RESOLVED, cancelled/closed → MARKET_CLOSED)
+- Pattern closely mirrors POST /markets/:marketId/buy but with SellSharesTx type and shares validation step
+
+Files changed:
+- packages/api/src/routes/trading.ts (added sell endpoint, imported SellSharesTx)
+- PLAN.md (marked task complete)

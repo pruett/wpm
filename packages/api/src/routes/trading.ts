@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sign as cryptoSign } from "@wpm/shared/crypto";
 import { calculateBuy, calculateSell, calculatePrices } from "@wpm/shared/amm";
-import type { PlaceBetTx } from "@wpm/shared";
+import type { PlaceBetTx, SellSharesTx } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
 import type { JwtUserPayload } from "../middleware/auth";
 import { sendError } from "../errors";
@@ -318,6 +318,148 @@ trading.post("/markets/:marketId/buy", async (c) => {
       marketId,
       outcome,
       amount,
+      status: "accepted",
+    },
+    202,
+  );
+});
+
+trading.post("/markets/:marketId/sell", async (c) => {
+  const user = c.get("user");
+  const { marketId } = c.req.param();
+
+  // Parse request body
+  let body: { outcome?: unknown; amount?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const { outcome, amount } = body;
+
+  // Validate outcome
+  if (outcome !== "A" && outcome !== "B") {
+    return sendError(c, "INVALID_OUTCOME");
+  }
+
+  // Validate amount (share quantity to sell)
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+    return sendError(c, "INVALID_AMOUNT");
+  }
+
+  // Validate ≤ 2 decimal places
+  const parts = amount.toString().split(".");
+  if (parts[1] && parts[1].length > 2) {
+    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
+  }
+
+  // Require wallet address on JWT
+  const walletAddress = user.walletAddress;
+  if (!walletAddress) {
+    return sendError(c, "UNAUTHORIZED", "Token missing wallet address");
+  }
+
+  // Validate market exists and is tradeable
+  const node = createNodeClient(NODE_URL);
+  const marketResult = await node.getMarket(marketId);
+
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market } = marketResult.data;
+
+  if (market.status !== "open") {
+    if (market.status === "resolved") {
+      return sendError(c, "MARKET_ALREADY_RESOLVED");
+    }
+    return sendError(c, "MARKET_CLOSED");
+  }
+
+  if (Date.now() >= market.eventStartTime) {
+    return sendError(c, "MARKET_CLOSED");
+  }
+
+  // Validate user holds sufficient shares
+  const sharesResult = await node.getShares(walletAddress);
+
+  if (!sharesResult.ok) {
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const marketPositions = sharesResult.data.positions[marketId];
+  const position = marketPositions?.[outcome];
+  const heldShares = position?.shares ?? 0;
+
+  if (heldShares < amount) {
+    return sendError(c, "INSUFFICIENT_SHARES");
+  }
+
+  // Look up user in DB for encrypted private key
+  const db = getDb();
+  const row = db.query("SELECT wallet_private_key_enc FROM users WHERE id = ?").get(user.sub) as {
+    wallet_private_key_enc: Buffer;
+  } | null;
+
+  if (!row) {
+    return sendError(c, "UNAUTHORIZED", "User not found");
+  }
+
+  // Decrypt private key
+  const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    return sendError(c, "INTERNAL_ERROR", "Wallet encryption key not configured");
+  }
+
+  let privateKey: string;
+  try {
+    privateKey = await decryptPrivateKey(row.wallet_private_key_enc, encryptionKey);
+  } catch {
+    return sendError(c, "INTERNAL_ERROR", "Failed to decrypt wallet key");
+  }
+
+  // Construct SellShares transaction
+  const tx: SellSharesTx = {
+    id: crypto.randomUUID(),
+    type: "SellShares",
+    timestamp: Date.now(),
+    sender: walletAddress,
+    signature: "",
+    marketId,
+    outcome,
+    shareAmount: amount,
+  };
+
+  // Sign transaction
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  tx.signature = cryptoSign(signData, privateKey);
+
+  // Submit to node
+  const result = await node.submitTransaction(tx);
+
+  if (!result.ok) {
+    const nodeError = result.error;
+    const errorStr = nodeError.error ?? "";
+
+    if (errorStr === "INSUFFICIENT_SHARES" || nodeError.message?.includes("INSUFFICIENT_SHARES")) {
+      return sendError(c, "INSUFFICIENT_SHARES");
+    }
+    if (result.status === 503) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+    return sendError(c, "INTERNAL_ERROR", nodeError.message);
+  }
+
+  return c.json(
+    {
+      txId: result.data.txId,
+      marketId,
+      outcome,
+      shareAmount: amount,
       status: "accepted",
     },
     202,
