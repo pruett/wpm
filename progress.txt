@@ -88,3 +88,21 @@ Files changed:
 - packages/api/src/middleware/auth.ts (new)
 - packages/api/tests/auth.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 0, TB1, Task 7: Create errors.ts — typed error helper + catalog
+
+- Created `packages/api/src/errors.ts` — typed error helper and error catalog matching spec Section 7
+- `ERRORS` constant maps all 19 error codes to their default HTTP status and message
+- `apiError(code, message?)` builds the `{ error: { code, message } }` envelope
+- `sendError(c, code, message?, status?)` sends a JSON error response from Hono context with correct HTTP status
+- Exports `ErrorCode` type for type-safe error code usage across the codebase
+- Uses Hono's `ContentfulStatusCode` for proper type compatibility with `c.json()`
+- Created `packages/api/tests/errors.test.ts` — 8 tests covering: default message, custom message, all codes structure, catalog completeness (19 codes), HTTP status mapping, sendError integration with correct status/body/custom message/status override
+
+Gotchas:
+- Hono's `c.json()` requires `ContentfulStatusCode` not `StatusCode` — the latter includes informational (1xx) codes that aren't valid for JSON responses
+
+Files changed:
+- packages/api/src/errors.ts (new)
+- packages/api/tests/errors.test.ts (new)
+- PLAN.md (marked task complete)
