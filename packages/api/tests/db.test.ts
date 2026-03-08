@@ -289,6 +289,102 @@ describe("db/index", () => {
     ).toThrow();
   });
 
+  test("creates auth_challenges table with correct columns", () => {
+    ({ db, path } = tmpDb());
+    const columns = db.query("PRAGMA table_info(auth_challenges)").all() as {
+      name: string;
+      type: string;
+      notnull: number;
+      pk: number;
+      dflt_value: string | null;
+    }[];
+
+    const colMap = new Map(columns.map((c) => [c.name, c]));
+
+    expect(colMap.get("id")!.pk).toBe(1);
+    expect(colMap.get("id")!.type).toBe("TEXT");
+
+    expect(colMap.get("challenge")!.notnull).toBe(1);
+    expect(colMap.get("challenge")!.type).toBe("TEXT");
+
+    expect(colMap.get("type")!.notnull).toBe(1);
+    expect(colMap.get("type")!.type).toBe("TEXT");
+
+    expect(colMap.get("user_data")!.notnull).toBe(0);
+    expect(colMap.get("user_data")!.type).toBe("TEXT");
+
+    expect(colMap.get("expires_at")!.notnull).toBe(1);
+    expect(colMap.get("expires_at")!.type).toBe("INTEGER");
+
+    expect(colMap.get("created_at")!.notnull).toBe(1);
+    expect(colMap.get("created_at")!.type).toBe("INTEGER");
+  });
+
+  test("auth_challenges insert and query round-trip", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+    const expiresAt = now + 60_000;
+
+    db.query(
+      "INSERT INTO auth_challenges (id, challenge, type, user_data, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(
+      "ch1",
+      "random-challenge-bytes",
+      "registration",
+      '{"email":"alice@test.com"}',
+      expiresAt,
+      now,
+    );
+
+    const challenge = db.query("SELECT * FROM auth_challenges WHERE id = ?").get("ch1") as {
+      id: string;
+      challenge: string;
+      type: string;
+      user_data: string | null;
+      expires_at: number;
+      created_at: number;
+    };
+
+    expect(challenge.id).toBe("ch1");
+    expect(challenge.challenge).toBe("random-challenge-bytes");
+    expect(challenge.type).toBe("registration");
+    expect(challenge.user_data).toBe('{"email":"alice@test.com"}');
+    expect(challenge.expires_at).toBe(expiresAt);
+    expect(challenge.created_at).toBe(now);
+  });
+
+  test("auth_challenges allows null user_data", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+
+    db.query(
+      "INSERT INTO auth_challenges (id, challenge, type, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+    ).run("ch2", "login-challenge", "login", now + 60_000, now);
+
+    const challenge = db.query("SELECT * FROM auth_challenges WHERE id = ?").get("ch2") as {
+      user_data: string | null;
+    };
+
+    expect(challenge.user_data).toBeNull();
+  });
+
+  test("auth_challenges enforces unique id PK", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+
+    db.query(
+      "INSERT INTO auth_challenges (id, challenge, type, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+    ).run("ch-dupe", "challenge1", "registration", now + 60_000, now);
+
+    expect(() =>
+      db
+        .query(
+          "INSERT INTO auth_challenges (id, challenge, type, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run("ch-dupe", "challenge2", "login", now + 60_000, now),
+    ).toThrow();
+  });
+
   test("migrate is idempotent", () => {
     ({ db, path } = tmpDb());
     // openDatabase already ran migrate once; opening again should not throw

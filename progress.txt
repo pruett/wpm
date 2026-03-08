@@ -206,3 +206,15 @@ Files changed:
 - packages/api/src/db/index.ts (added invite_codes CREATE TABLE)
 - packages/api/tests/db.test.ts (added 4 tests)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 1, Schema Completion, Task 3: Add auth_challenges table
+
+- Added `auth_challenges` table to `packages/api/src/db/index.ts` migration
+- Schema: id (TEXT PK), challenge (TEXT NOT NULL), type (TEXT NOT NULL), user_data (TEXT nullable), expires_at (INTEGER NOT NULL), created_at (INTEGER NOT NULL)
+- Used for storing WebAuthn registration/login challenges with TTL-based expiry
+- Added 4 tests to `packages/api/tests/db.test.ts`: column schema validation, insert/query round-trip, null user_data allowed, unique PK enforced
+
+Files changed:
+- packages/api/src/db/index.ts (added auth_challenges CREATE TABLE)
+- packages/api/tests/db.test.ts (added 4 tests)
+- PLAN.md (marked task complete)

@@ -56,6 +56,17 @@ function migrate(db: Database): void {
       created_at INTEGER NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS auth_challenges (
+      id         TEXT    PRIMARY KEY,
+      challenge  TEXT    NOT NULL,
+      type       TEXT    NOT NULL,
+      user_data  TEXT,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `);
 }
 
 export function closeDb(): void {
