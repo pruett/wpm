@@ -197,6 +197,98 @@ describe("db/index", () => {
     expect(cred.created_at).toBe(now);
   });
 
+  test("creates invite_codes table with correct columns", () => {
+    ({ db, path } = tmpDb());
+    const columns = db.query("PRAGMA table_info(invite_codes)").all() as {
+      name: string;
+      type: string;
+      notnull: number;
+      pk: number;
+      dflt_value: string | null;
+    }[];
+
+    const colMap = new Map(columns.map((c) => [c.name, c]));
+
+    expect(colMap.get("code")!.pk).toBe(1);
+    expect(colMap.get("code")!.type).toBe("TEXT");
+
+    expect(colMap.get("created_by")!.notnull).toBe(1);
+    expect(colMap.get("created_by")!.type).toBe("TEXT");
+
+    expect(colMap.get("referrer")!.notnull).toBe(0);
+    expect(colMap.get("referrer")!.type).toBe("TEXT");
+
+    expect(colMap.get("max_uses")!.notnull).toBe(1);
+    expect(colMap.get("max_uses")!.type).toBe("INTEGER");
+
+    expect(colMap.get("use_count")!.notnull).toBe(1);
+    expect(colMap.get("use_count")!.dflt_value).toBe("0");
+
+    expect(colMap.get("active")!.notnull).toBe(1);
+    expect(colMap.get("active")!.dflt_value).toBe("1");
+
+    expect(colMap.get("created_at")!.type).toBe("INTEGER");
+    expect(colMap.get("created_at")!.notnull).toBe(1);
+  });
+
+  test("invite_codes insert and query round-trip", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+
+    db.query(
+      "INSERT INTO invite_codes (code, created_by, referrer, max_uses, use_count, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run("ABCD1234", "admin", "wallet-referrer", 10, 0, 1, now);
+
+    const code = db.query("SELECT * FROM invite_codes WHERE code = ?").get("ABCD1234") as {
+      code: string;
+      created_by: string;
+      referrer: string | null;
+      max_uses: number;
+      use_count: number;
+      active: number;
+      created_at: number;
+    };
+
+    expect(code.code).toBe("ABCD1234");
+    expect(code.created_by).toBe("admin");
+    expect(code.referrer).toBe("wallet-referrer");
+    expect(code.max_uses).toBe(10);
+    expect(code.use_count).toBe(0);
+    expect(code.active).toBe(1);
+    expect(code.created_at).toBe(now);
+  });
+
+  test("invite_codes allows null referrer", () => {
+    ({ db, path } = tmpDb());
+
+    db.query(
+      "INSERT INTO invite_codes (code, created_by, max_uses, created_at) VALUES (?, ?, ?, ?)",
+    ).run("WXYZ5678", "admin", 5, Date.now());
+
+    const code = db.query("SELECT * FROM invite_codes WHERE code = ?").get("WXYZ5678") as {
+      referrer: string | null;
+    };
+
+    expect(code.referrer).toBeNull();
+  });
+
+  test("invite_codes enforces unique code PK", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+
+    db.query(
+      "INSERT INTO invite_codes (code, created_by, max_uses, created_at) VALUES (?, ?, ?, ?)",
+    ).run("DUPE1234", "admin", 10, now);
+
+    expect(() =>
+      db
+        .query(
+          "INSERT INTO invite_codes (code, created_by, max_uses, created_at) VALUES (?, ?, ?, ?)",
+        )
+        .run("DUPE1234", "admin", 5, now),
+    ).toThrow();
+  });
+
   test("migrate is idempotent", () => {
     ({ db, path } = tmpDb());
     // openDatabase already ran migrate once; opening again should not throw

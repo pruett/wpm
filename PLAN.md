@@ -38,7 +38,7 @@
 ### SQLite Schema Completion
 
 - [x] Add `webauthn_credentials` table to `packages/api/src/db/index.ts` (credential_id TEXT PK, user_id TEXT FK, public_key BLOB, counter INTEGER, created_at INTEGER)
-- [ ] Add `invite_codes` table (code TEXT PK, created_by TEXT, referrer TEXT nullable, max_uses INTEGER, use_count INTEGER, active INTEGER, created_at INTEGER)
+- [x] Add `invite_codes` table (code TEXT PK, created_by TEXT, referrer TEXT nullable, max_uses INTEGER, use_count INTEGER, active INTEGER, created_at INTEGER)
 - [ ] Add `auth_challenges` table (id TEXT PK, challenge TEXT, type TEXT, user_data TEXT nullable, expires_at INTEGER, created_at INTEGER)
 - [ ] Create `packages/api/src/db/queries.ts` — prepared statement helpers using `bun:sqlite` `db.query().get()` / `.all()` / `.run()` API: `findUserByEmail`, `findUserById`, `findUserByWallet`, `insertUser`, `findCredentialById`, `insertCredential`, `updateCredentialCounter`, `findActiveInviteCode`, `incrementInviteCodeUse`, `insertChallenge`, `findChallenge`, `deleteChallenge`, `deleteExpiredChallenges`
 

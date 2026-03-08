@@ -194,3 +194,15 @@ Files changed:
 - packages/api/src/db/index.ts (added webauthn_credentials CREATE TABLE)
 - packages/api/tests/db.test.ts (added 3 tests)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 1, Schema Completion, Task 2: Add invite_codes table
+
+- Added `invite_codes` table to `packages/api/src/db/index.ts` migration
+- Schema: code (TEXT PK), created_by (TEXT NOT NULL), referrer (TEXT nullable), max_uses (INTEGER NOT NULL), use_count (INTEGER NOT NULL DEFAULT 0), active (INTEGER NOT NULL DEFAULT 1), created_at (INTEGER NOT NULL)
+- No foreign key on created_by or referrer — these reference admin identity and wallet addresses which may not exist in the users table
+- Added 4 tests to `packages/api/tests/db.test.ts`: column schema validation, insert/query round-trip, null referrer allowed, unique PK enforced
+
+Files changed:
+- packages/api/src/db/index.ts (added invite_codes CREATE TABLE)
+- packages/api/tests/db.test.ts (added 4 tests)
+- PLAN.md (marked task complete)

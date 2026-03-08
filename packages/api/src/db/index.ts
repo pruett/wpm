@@ -44,6 +44,18 @@ function migrate(db: Database): void {
       created_at    INTEGER NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invite_codes (
+      code       TEXT    PRIMARY KEY,
+      created_by TEXT    NOT NULL,
+      referrer   TEXT,
+      max_uses   INTEGER NOT NULL,
+      use_count  INTEGER NOT NULL DEFAULT 0,
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL
+    )
+  `);
 }
 
 export function closeDb(): void {
