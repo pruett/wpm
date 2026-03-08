@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import type { Block } from "@wpm/shared";
+import type { Block, Transaction } from "@wpm/shared";
 import { calculatePrices } from "@wpm/shared/amm";
 import { authMiddleware } from "../middleware/auth";
 import type { JwtUserPayload } from "../middleware/auth";
 import { sendError } from "../errors";
 import { createNodeClient } from "../node-client";
+import { findUserByWallet } from "../db/queries";
 
 type Env = {
   Variables: {
@@ -144,6 +145,82 @@ markets.get("/markets/:marketId", async (c) => {
     pool: pool ?? null,
     prices,
     userPosition,
+  });
+});
+
+// GET /markets/:marketId/trades — trade history for a market with user display names
+markets.get("/markets/:marketId/trades", async (c) => {
+  const { marketId } = c.req.param();
+  const node = createNodeClient(NODE_URL);
+
+  // Verify market exists
+  const marketResult = await node.getMarket(marketId);
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  // Parse pagination params
+  const limitParam = Number(c.req.query("limit") ?? "20");
+  const limit = Math.min(100, Math.max(1, Number.isFinite(limitParam) ? limitParam : 20));
+  const offsetParam = Number(c.req.query("offset") ?? "0");
+  const offset = Math.max(0, Number.isFinite(offsetParam) ? offsetParam : 0);
+
+  // Fetch all blocks, filter PlaceBet/SellShares for this market
+  const trades: (Transaction & { type: "PlaceBet" | "SellShares" })[] = [];
+  let from = 0;
+  const batchSize = 100;
+
+  while (true) {
+    const blocksResult = await node.getBlocks(from, batchSize);
+    if (!blocksResult.ok) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+
+    const blocks: Block[] = blocksResult.data;
+    if (blocks.length === 0) break;
+
+    for (const block of blocks) {
+      for (const tx of block.transactions) {
+        if ((tx.type === "PlaceBet" || tx.type === "SellShares") && tx.marketId === marketId) {
+          trades.push(tx as Transaction & { type: "PlaceBet" | "SellShares" });
+        }
+      }
+    }
+
+    if (blocks.length < batchSize) break;
+    from += blocks.length;
+  }
+
+  // Sort by timestamp descending
+  trades.sort((a, b) => b.timestamp - a.timestamp);
+
+  // Build wallet → display name lookup from unique senders
+  const walletSet = new Set(trades.map((t) => t.sender));
+  const namesByWallet = new Map<string, string>();
+  for (const wallet of walletSet) {
+    const user = findUserByWallet(wallet);
+    if (user) {
+      namesByWallet.set(wallet, user.name);
+    }
+  }
+
+  // Apply pagination
+  const paginated = trades.slice(offset, offset + limit);
+
+  // Enrich with display name
+  const enriched = paginated.map((tx) => ({
+    ...tx,
+    userName: namesByWallet.get(tx.sender) ?? null,
+  }));
+
+  return c.json({
+    trades: enriched,
+    total: trades.length,
+    limit,
+    offset,
   });
 });
 

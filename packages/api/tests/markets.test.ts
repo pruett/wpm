@@ -447,3 +447,100 @@ describe("GET /markets/:marketId", () => {
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 });
+
+describe("GET /markets/:marketId/trades", () => {
+  test("returns trades for market with user display names", async () => {
+    const res = await app.request(`/markets/${marketId1}/trades`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.trades).toBeArray();
+    // market1 has 2 PlaceBet trades (500 on A, 300 on B)
+    expect(body.trades.length).toBe(2);
+    expect(body.total).toBe(2);
+
+    // All trades should have userName from SQLite join
+    for (const trade of body.trades) {
+      expect(trade.userName).toBe("Market User");
+      expect(trade.marketId).toBe(marketId1);
+      expect(["PlaceBet", "SellShares"]).toContain(trade.type);
+    }
+  });
+
+  test("trades sorted by timestamp descending", async () => {
+    const res = await app.request(`/markets/${marketId1}/trades`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    for (let i = 1; i < body.trades.length; i++) {
+      expect(body.trades[i - 1].timestamp).toBeGreaterThanOrEqual(body.trades[i].timestamp);
+    }
+  });
+
+  test("returns empty trades for market with no bets", async () => {
+    const res = await app.request(`/markets/${marketId2}/trades`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.trades).toBeArray();
+    expect(body.trades.length).toBe(0);
+    expect(body.total).toBe(0);
+  });
+
+  test("pagination with limit and offset", async () => {
+    const res = await app.request(`/markets/${marketId1}/trades?limit=1&offset=0`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.trades.length).toBe(1);
+    expect(body.total).toBe(2);
+    expect(body.limit).toBe(1);
+    expect(body.offset).toBe(0);
+
+    // Page 2
+    const res2 = await app.request(`/markets/${marketId1}/trades?limit=1&offset=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body2 = await res2.json();
+    expect(body2.trades.length).toBe(1);
+    expect(body2.total).toBe(2);
+    expect(body2.offset).toBe(1);
+
+    // Different trades on each page
+    expect(body.trades[0].id).not.toBe(body2.trades[0].id);
+  });
+
+  test("limit clamped to 100", async () => {
+    const res = await app.request(`/markets/${marketId1}/trades?limit=500`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    expect(body.limit).toBe(100);
+  });
+
+  test("returns 404 for nonexistent market", async () => {
+    const res = await app.request(`/markets/${randomUUID()}/trades`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("MARKET_NOT_FOUND");
+  });
+
+  test("rejects request without auth", async () => {
+    const res = await app.request(`/markets/${marketId1}/trades`);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+});

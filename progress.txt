@@ -435,3 +435,27 @@ Files changed:
 - packages/api/src/routes/markets.ts (added GET /markets/:marketId endpoint)
 - packages/api/tests/markets.test.ts (added user2 fixture + 6 tests)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/:marketId/trades
+
+- Added `GET /markets/:marketId/trades` endpoint to `packages/api/src/routes/markets.ts`
+  - Verifies market exists via node `GET /internal/market/:id` → 404 if not found
+  - Fetches all blocks from node, filters `PlaceBet` and `SellShares` transactions matching `marketId`
+  - Joins with SQLite `users` table via `findUserByWallet()` to add `userName` display name to each trade
+  - Sorts trades by timestamp descending
+  - Paginates with `limit` (default 20, max 100, min 1) and `offset` (default 0)
+  - Returns `{ trades, total, limit, offset }`
+  - Each trade includes all original tx fields plus `userName` (string or null if wallet not in users table)
+- Added 7 tests to `packages/api/tests/markets.test.ts`:
+  - Returns trades with correct user display names from SQLite join
+  - Trades sorted by timestamp descending
+  - Empty trades for market with no bets
+  - Pagination with limit and offset (page 1 and page 2 return different trades)
+  - Limit clamped to 100
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/:marketId/trades, imported findUserByWallet + Transaction type)
+- packages/api/tests/markets.test.ts (added 7 tests in new describe block)
+- PLAN.md (marked task complete)

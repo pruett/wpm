@@ -81,7 +81,7 @@
 
 - [x] Create `packages/api/src/routes/markets.ts` — `GET /markets` (fetch node state, filter `status: "open"` markets, enrich each with `calculatePrices()` from `@wpm/shared`, compute multipliers as `1/price`, compute `totalVolume` by summing `PlaceBet` + `SellShares` amounts for market)
 - [x] Implement `GET /markets/:marketId` (fetch `GET /internal/market/:id`, fetch user positions from `GET /internal/shares/:addr`, compute estimated values using current prices, return market + pool + userPosition or null)
-- [ ] Implement `GET /markets/:marketId/trades` (filter PlaceBet/SellShares txs by marketId from node state, join with SQLite users table for display names, sort desc, paginate limit default 20 max 100)
+- [x] Implement `GET /markets/:marketId/trades` (filter PlaceBet/SellShares txs by marketId from node state, join with SQLite users table for display names, sort desc, paginate limit default 20 max 100)
 - [ ] Implement `GET /markets/resolved` (filter resolved + cancelled markets from node state, paginate limit default 20 max 100)
 - [ ] Write tests (`bun:test`): prices sum to ~1.00, userPosition populated/null correctly, MARKET_NOT_FOUND (404), trades show user names
 
