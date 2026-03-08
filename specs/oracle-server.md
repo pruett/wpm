@@ -48,6 +48,7 @@ graph LR
 **Description:** The oracle authenticates to the blockchain using its own RSA key pair, distinct from the PoA signer key. The node recognizes this key as the sole authorized oracle.
 
 **Key pair lifecycle:**
+
 1. Generated once at system initialization (same key generation utility as the PoA signer).
 2. Private key stored on disk at the path specified by `oracleKeyPath` config, mounted into the Docker container as a read-only volume.
 3. Public key registered with the blockchain node at initialization.
@@ -55,6 +56,7 @@ graph LR
 **Transaction signing:** Every transaction the oracle submits (`CreateMarket`, `ResolveMarket`, `CancelMarket`) is signed with the oracle's RSA private key. The `sender` field contains the oracle's public key.
 
 **Acceptance Criteria:**
+
 - [ ] Given the oracle's public key is registered with the node, when the oracle submits a signed `CreateMarket` transaction, then the node accepts it.
 - [ ] Given a non-oracle key, when a `CreateMarket` transaction is submitted signed by that key, then the node rejects it.
 - [ ] Given the oracle's private key file is missing or unreadable, when the oracle process starts, then it exits immediately with a clear error log.
@@ -72,9 +74,9 @@ graph LR
 1. For each enabled sport adapter:
    a. Call `adapter.fetchUpcomingGames(lookaheadDays)` to retrieve games within the lookahead window (default: 14 days).
    b. For each returned `RawGame`:
-      - Query the API server (`GET http://wpm-api:3000/oracle/markets`) to check if a market with this `externalEventId` already exists (deduplication).
-      - If a market already exists, skip.
-      - If no market exists, construct a `CreateMarket` transaction:
+   - Query the API server (`GET http://wpm-api:3000/oracle/markets`) to check if a market with this `externalEventId` already exists (deduplication).
+   - If a market already exists, skip.
+   - If no market exists, construct a `CreateMarket` transaction:
 
 ```typescript
 {
@@ -101,6 +103,7 @@ graph LR
 **Outcome mapping convention:** Home team is always outcome A. Away team is always outcome B. This convention is critical for correct resolution.
 
 **Acceptance Criteria:**
+
 - [ ] Given 5 upcoming NFL games from ESPN and 0 existing markets, when ingest runs, then 5 `CreateMarket` transactions are submitted.
 - [ ] Given 5 upcoming NFL games and 3 already have markets, when ingest runs, then only 2 new `CreateMarket` transactions are submitted.
 - [ ] Given a game with `eventStartTime` within the 14-day window, when ingest runs, then a market is created for it.
@@ -123,15 +126,15 @@ graph LR
    b. Call `adapter.fetchGameResult(market.externalEventId)`.
    c. Branch on `result.status`:
 
-| ESPN Status | Oracle Action | Transaction |
-|-------------|---------------|-------------|
-| `final` and `homeScore > awayScore` | Resolve: home wins | `ResolveMarket` with `winningOutcome: "A"` |
-| `final` and `awayScore > homeScore` | Resolve: away wins | `ResolveMarket` with `winningOutcome: "B"` |
-| `final` and `homeScore === awayScore` | Cancel: tie | `CancelMarket` with reason `"Game ended in a tie"` |
-| `postponed` | Cancel: postponed | `CancelMarket` with reason `"Game postponed"` |
-| `cancelled` | Cancel: cancelled | `CancelMarket` with reason `"Game cancelled"` |
-| `in_progress` | Skip | None — game still playing |
-| `scheduled` | Skip | None — game hasn't started yet |
+| ESPN Status                           | Oracle Action      | Transaction                                        |
+| ------------------------------------- | ------------------ | -------------------------------------------------- |
+| `final` and `homeScore > awayScore`   | Resolve: home wins | `ResolveMarket` with `winningOutcome: "A"`         |
+| `final` and `awayScore > homeScore`   | Resolve: away wins | `ResolveMarket` with `winningOutcome: "B"`         |
+| `final` and `homeScore === awayScore` | Cancel: tie        | `CancelMarket` with reason `"Game ended in a tie"` |
+| `postponed`                           | Cancel: postponed  | `CancelMarket` with reason `"Game postponed"`      |
+| `cancelled`                           | Cancel: cancelled  | `CancelMarket` with reason `"Game cancelled"`      |
+| `in_progress`                         | Skip               | None — game still playing                          |
+| `scheduled`                           | Skip               | None — game hasn't started yet                     |
 
 3. For `ResolveMarket`, include a human-readable `finalScore` field, e.g. `"Chiefs 27, Eagles 24"`.
 4. Log each resolution or cancellation with market ID, teams, score, and outcome.
@@ -166,6 +169,7 @@ graph LR
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Given a market for a game that ESPN reports as `final` with home 27, away 24, when resolve runs, then a `ResolveMarket` transaction is submitted with `winningOutcome: "A"`.
 - [ ] Given a market for a game that ESPN reports as `final` with home 24, away 27, when resolve runs, then a `ResolveMarket` transaction is submitted with `winningOutcome: "B"`.
 - [ ] Given a market for a game that ESPN reports as `final` with a tied score, when resolve runs, then a `CancelMarket` transaction is submitted with reason `"Game ended in a tie"`.
@@ -180,6 +184,7 @@ graph LR
 **Description:** The oracle must never create two markets for the same ESPN event.
 
 **Mechanism:**
+
 1. On startup, query the API server for all existing markets and build an in-memory map of `externalEventId -> marketId`.
 2. Before each `CreateMarket` submission, check this map.
 3. After successful submission, add the new entry to the map.
@@ -188,6 +193,7 @@ graph LR
 **Why node-authoritative:** The blockchain node (accessed via the API server) is the source of truth. If the oracle restarts or the map is lost, it is rebuilt from on-chain state. There is no local database.
 
 **Acceptance Criteria:**
+
 - [ ] Given the oracle creates a market for ESPN event "401547417", when the next ingest cycle runs and ESPN still returns that event, then no duplicate market is created.
 - [ ] Given the oracle is restarted, when it starts up, then it rebuilds the deduplication map from the node and does not create duplicates.
 - [ ] Given two ingest cycles run in rapid succession (e.g., manual trigger), then no duplicates are created.
@@ -229,24 +235,25 @@ interface SportAdapter {
 
 ```typescript
 interface RawGame {
-  externalEventId: string;   // ESPN event ID
-  homeTeam: string;          // Full display name, e.g. "Kansas City Chiefs"
-  awayTeam: string;          // Full display name
-  startTime: number;         // Unix timestamp (ms)
-  sport: string;             // Adapter's sport identifier
+  externalEventId: string; // ESPN event ID
+  homeTeam: string; // Full display name, e.g. "Kansas City Chiefs"
+  awayTeam: string; // Full display name
+  startTime: number; // Unix timestamp (ms)
+  sport: string; // Adapter's sport identifier
 }
 
 interface GameResult {
   externalEventId: string;
   status: "final" | "in_progress" | "scheduled" | "postponed" | "cancelled";
-  homeScore?: number;        // Present when status is "final" or "in_progress"
-  awayScore?: number;        // Present when status is "final" or "in_progress"
+  homeScore?: number; // Present when status is "final" or "in_progress"
+  awayScore?: number; // Present when status is "final" or "in_progress"
 }
 ```
 
 **Adapter registry:** A map of `sport -> SportAdapter` instances. At startup, the oracle instantiates adapters for each sport listed in `config.enabledSports`.
 
 **Acceptance Criteria:**
+
 - [ ] Given the NFL adapter, when `fetchUpcomingGames(14)` is called, then it returns an array of `RawGame` objects with all fields populated.
 - [ ] Given the NFL adapter, when `fetchGameResult("401547417")` is called for a completed game, then it returns a `GameResult` with status `"final"` and numeric scores.
 - [ ] Given a new sport adapter is registered for "NBA", when ingest runs, then games from both NFL and NBA are fetched and markets created.
@@ -259,10 +266,10 @@ interface GameResult {
 
 **ESPN endpoints used:**
 
-| Purpose | URL | Parameters |
-|---------|-----|------------|
+| Purpose        | URL                                                                     | Parameters                 |
+| -------------- | ----------------------------------------------------------------------- | -------------------------- |
 | Upcoming games | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard` | `?dates=YYYYMMDD-YYYYMMDD` |
-| Game result | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary` | `?event={eventId}` |
+| Game result    | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary`    | `?event={eventId}`         |
 
 These endpoints are public, unauthenticated, and require no API key.
 
@@ -271,34 +278,39 @@ These endpoints are public, unauthenticated, and require no API key.
 ```typescript
 // ESPN scoreboard response shape (relevant fields):
 {
-  events: [{
-    id: "401547417",                    // externalEventId
-    date: "2024-02-11T23:30Z",          // ISO 8601 → parse to Unix ms
-    competitions: [{
-      competitors: [
+  events: [
+    {
+      id: "401547417", // externalEventId
+      date: "2024-02-11T23:30Z", // ISO 8601 → parse to Unix ms
+      competitions: [
         {
-          team: { displayName: "Kansas City Chiefs" },
-          homeAway: "home",
-          score: "27"
+          competitors: [
+            {
+              team: { displayName: "Kansas City Chiefs" },
+              homeAway: "home",
+              score: "27",
+            },
+            {
+              team: { displayName: "Philadelphia Eagles" },
+              homeAway: "away",
+              score: "24",
+            },
+          ],
+          status: {
+            type: {
+              name: "STATUS_FINAL", // or STATUS_SCHEDULED, STATUS_IN_PROGRESS
+              completed: true,
+            },
+          },
         },
-        {
-          team: { displayName: "Philadelphia Eagles" },
-          homeAway: "away",
-          score: "24"
-        }
       ],
-      status: {
-        type: {
-          name: "STATUS_FINAL",         // or STATUS_SCHEDULED, STATUS_IN_PROGRESS
-          completed: true
-        }
-      }
-    }]
-  }]
+    },
+  ];
 }
 ```
 
 **Mapping rules:**
+
 - `homeTeam` = competitor where `homeAway === "home"`, using `team.displayName`.
 - `awayTeam` = competitor where `homeAway === "away"`, using `team.displayName`.
 - `startTime` = `Date.parse(event.date)`.
@@ -307,16 +319,17 @@ These endpoints are public, unauthenticated, and require no API key.
 
 **Status mapping:**
 
-| ESPN `status.type.name` | Mapped `GameResult.status` |
-|--------------------------|----------------------------|
-| `STATUS_FINAL` | `"final"` |
-| `STATUS_IN_PROGRESS` | `"in_progress"` |
-| `STATUS_SCHEDULED` | `"scheduled"` |
-| `STATUS_POSTPONED` | `"postponed"` |
-| `STATUS_CANCELED` | `"cancelled"` |
-| Any other value | `"scheduled"` (safe default — skip) |
+| ESPN `status.type.name` | Mapped `GameResult.status`          |
+| ----------------------- | ----------------------------------- |
+| `STATUS_FINAL`          | `"final"`                           |
+| `STATUS_IN_PROGRESS`    | `"in_progress"`                     |
+| `STATUS_SCHEDULED`      | `"scheduled"`                       |
+| `STATUS_POSTPONED`      | `"postponed"`                       |
+| `STATUS_CANCELED`       | `"cancelled"`                       |
+| Any other value         | `"scheduled"` (safe default — skip) |
 
 **Acceptance Criteria:**
+
 - [ ] Given the ESPN scoreboard returns 3 events, when the NFL adapter parses the response, then 3 `RawGame` objects are returned with correct team names and start times.
 - [ ] Given an ESPN summary for a completed game, when the NFL adapter parses it, then `status` is `"final"` and `homeScore`/`awayScore` are numeric.
 - [ ] Given an ESPN response with an unrecognized status type, when the adapter parses it, then it defaults to `"scheduled"` and the game is skipped during resolution.
@@ -328,6 +341,7 @@ These endpoints are public, unauthenticated, and require no API key.
 **Description:** Adding a new sport requires only creating a new adapter module and registering it.
 
 **Steps to add a sport:**
+
 1. Create a new class/module implementing `SportAdapter`.
 2. Set `espnCategory` and `espnLeague` (ESPN URL pattern is consistent: `/sports/{category}/{league}/scoreboard`).
 3. Register it in the adapter registry.
@@ -335,13 +349,13 @@ These endpoints are public, unauthenticated, and require no API key.
 
 **Planned adapters (not at launch):**
 
-| Sport | `espnCategory` | `espnLeague` | Notes |
-|-------|-----------------|--------------|-------|
-| NBA | `basketball` | `nba` | Ties impossible in NBA (OT until winner) |
-| NHL | `hockey` | `nhl` | Regular season ties impossible (shootout). Check playoff OT rules. |
-| MLB | `baseball` | `mlb` | No ties. Extra innings until winner. |
-| Tennis | `tennis` | (varies) | Individual sport — needs different outcome label format |
-| Golf | `golf` | `pga` | Tournament format — may need different market model; potentially out of scope for binary markets |
+| Sport  | `espnCategory` | `espnLeague` | Notes                                                                                            |
+| ------ | -------------- | ------------ | ------------------------------------------------------------------------------------------------ |
+| NBA    | `basketball`   | `nba`        | Ties impossible in NBA (OT until winner)                                                         |
+| NHL    | `hockey`       | `nhl`        | Regular season ties impossible (shootout). Check playoff OT rules.                               |
+| MLB    | `baseball`     | `mlb`        | No ties. Extra innings until winner.                                                             |
+| Tennis | `tennis`       | (varies)     | Individual sport — needs different outcome label format                                          |
+| Golf   | `golf`         | `pga`        | Tournament format — may need different market model; potentially out of scope for binary markets |
 
 ## 4. Non-Functional Requirements
 
@@ -376,13 +390,13 @@ These endpoints are public, unauthenticated, and require no API key.
 - **Delivery guarantee:** At-most-once per cycle. Failed submissions are retried on the next scheduled cycle, not immediately (except ESPN retries per FR error handling).
 - **Expected responses:**
 
-| Status | Meaning | Oracle Action |
-|--------|---------|---------------|
-| `200` / `201` | Transaction accepted | Log success, update dedup map |
-| `400` | Validation error (e.g., market already exists, event time in past) | Log warning, skip |
-| `409` | Conflict (duplicate market) | Log info, skip (dedup working as intended) |
-| `500` | Node error | Log error, will retry next cycle |
-| Timeout / network error | API unreachable | Log error, will retry next cycle |
+| Status                  | Meaning                                                            | Oracle Action                              |
+| ----------------------- | ------------------------------------------------------------------ | ------------------------------------------ |
+| `200` / `201`           | Transaction accepted                                               | Log success, update dedup map              |
+| `400`                   | Validation error (e.g., market already exists, event time in past) | Log warning, skip                          |
+| `409`                   | Conflict (duplicate market)                                        | Log info, skip (dedup working as intended) |
+| `500`                   | Node error                                                         | Log error, will retry next cycle           |
+| Timeout / network error | API unreachable                                                    | Log error, will retry next cycle           |
 
 #### Query Markets — HTTP GET
 
@@ -471,18 +485,18 @@ Triggers an immediate resolve job. Same semantics as trigger ingest.
 
 #### Deduplication Map
 
-| Field | Type | Description |
-|-------|------|-------------|
-| key: `externalEventId` | `string` | ESPN event ID |
-| value: `marketId` | `string` | Corresponding on-chain market ID |
+| Field                  | Type     | Description                      |
+| ---------------------- | -------- | -------------------------------- |
+| key: `externalEventId` | `string` | ESPN event ID                    |
+| value: `marketId`      | `string` | Corresponding on-chain market ID |
 
 Rebuilt from the API server on startup. Refreshed at the start of each ingest cycle.
 
 #### Adapter Registry
 
-| Field | Type | Description |
-|-------|------|-------------|
-| key: `sport` | `string` | Sport identifier, e.g. `"NFL"` |
+| Field          | Type           | Description                     |
+| -------------- | -------------- | ------------------------------- |
+| key: `sport`   | `string`       | Sport identifier, e.g. `"NFL"`  |
 | value: adapter | `SportAdapter` | Adapter instance for that sport |
 
 Built once at startup from `config.enabledSports`.
@@ -490,6 +504,7 @@ Built once at startup from `config.enabledSports`.
 ### Referenced State (Owned by Blockchain Node)
 
 The oracle reads but does not own:
+
 - **Markets** — status, externalEventId, eventStartTime, sport
 - **Oracle public key registration** — the node knows which key is authorized
 
@@ -512,18 +527,18 @@ stateDiagram-v2
 
 ## 7. Error Handling
 
-| # | Error Scenario | Detection | Response | Recovery |
-|---|---------------|-----------|----------|----------|
-| E-1 | ESPN API returns HTTP error (4xx/5xx) | HTTP status code | Log error. Retry once after 5 seconds. | If retry fails, skip this cycle. Next scheduled run retries. |
-| E-2 | ESPN API times out (>10s) | Request timeout | Treat as E-1 (log, retry once, then skip). | Next cycle retries. |
-| E-3 | ESPN API returns malformed JSON | JSON parse error | Log error with raw response body (truncated to 1KB). Skip this adapter/game. | Next cycle retries. Admin notified via logs. |
-| E-4 | ESPN returns unexpected status type | Status not in known mapping | Map to `"scheduled"` (safe default). Log warning. | Game is skipped. Admin can manually resolve. |
-| E-5 | `CreateMarket` transaction rejected by node | Non-200 HTTP response from API | Log error with response body and game details. | Next ingest cycle retries (dedup check will see the market is still missing). |
-| E-6 | `ResolveMarket` transaction rejected by node | Non-200 HTTP response from API | Log error with response body, market ID, and score. | Next resolve cycle retries. Admin can manually resolve. |
-| E-7 | API server unreachable | Connection refused / timeout | Log error. Skip entire cycle. | Next cycle retries. Operator should check API server health. |
-| E-8 | Oracle private key file missing or corrupt | Startup key loading fails | Log fatal error. Exit process with code 1. | Operator must fix key file and restart container. |
-| E-9 | Score data missing for a "final" game | `homeScore` or `awayScore` is `undefined`/`NaN` | Log warning. Skip this game. | Next cycle retries. If persistent, admin resolves manually. |
-| E-10 | ESPN event ID not found in summary response | Event missing from response | Log warning. Skip this game. | May indicate ESPN removed the event. Admin should review. |
+| #    | Error Scenario                               | Detection                                       | Response                                                                     | Recovery                                                                      |
+| ---- | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| E-1  | ESPN API returns HTTP error (4xx/5xx)        | HTTP status code                                | Log error. Retry once after 5 seconds.                                       | If retry fails, skip this cycle. Next scheduled run retries.                  |
+| E-2  | ESPN API times out (>10s)                    | Request timeout                                 | Treat as E-1 (log, retry once, then skip).                                   | Next cycle retries.                                                           |
+| E-3  | ESPN API returns malformed JSON              | JSON parse error                                | Log error with raw response body (truncated to 1KB). Skip this adapter/game. | Next cycle retries. Admin notified via logs.                                  |
+| E-4  | ESPN returns unexpected status type          | Status not in known mapping                     | Map to `"scheduled"` (safe default). Log warning.                            | Game is skipped. Admin can manually resolve.                                  |
+| E-5  | `CreateMarket` transaction rejected by node  | Non-200 HTTP response from API                  | Log error with response body and game details.                               | Next ingest cycle retries (dedup check will see the market is still missing). |
+| E-6  | `ResolveMarket` transaction rejected by node | Non-200 HTTP response from API                  | Log error with response body, market ID, and score.                          | Next resolve cycle retries. Admin can manually resolve.                       |
+| E-7  | API server unreachable                       | Connection refused / timeout                    | Log error. Skip entire cycle.                                                | Next cycle retries. Operator should check API server health.                  |
+| E-8  | Oracle private key file missing or corrupt   | Startup key loading fails                       | Log fatal error. Exit process with code 1.                                   | Operator must fix key file and restart container.                             |
+| E-9  | Score data missing for a "final" game        | `homeScore` or `awayScore` is `undefined`/`NaN` | Log warning. Skip this game.                                                 | Next cycle retries. If persistent, admin resolves manually.                   |
+| E-10 | ESPN event ID not found in summary response  | Event missing from response                     | Log warning. Skip this game.                                                 | May indicate ESPN removed the event. Admin should review.                     |
 
 ### Idempotency
 
@@ -533,11 +548,11 @@ stateDiagram-v2
 
 ### Retry Policy
 
-| Scope | Strategy | Max Retries | Backoff |
-|-------|----------|-------------|---------|
-| ESPN API call | Retry once | 1 | Fixed 5 seconds |
-| Node transaction submission | No immediate retry | 0 | Deferred to next scheduled cycle |
-| Adapter-level (per game) | Skip and continue | 0 | Other games in the batch are still processed |
+| Scope                       | Strategy           | Max Retries | Backoff                                      |
+| --------------------------- | ------------------ | ----------- | -------------------------------------------- |
+| ESPN API call               | Retry once         | 1           | Fixed 5 seconds                              |
+| Node transaction submission | No immediate retry | 0           | Deferred to next scheduled cycle             |
+| Adapter-level (per game)    | Skip and continue  | 0           | Other games in the batch are still processed |
 
 Partial failures are isolated: if one game fails to ingest or resolve, the remaining games in the batch are still processed.
 
@@ -547,48 +562,49 @@ Partial failures are isolated: if one game fails to ingest or resolve, the remai
 
 Structured JSON logging to stdout (captured by Docker). Key fields on every log entry:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | ISO 8601 | When the log was emitted |
-| `level` | `info` / `warn` / `error` / `fatal` | Severity |
-| `job` | `"ingest"` / `"resolve"` / `"startup"` | Which job produced the log |
-| `sport` | `string` | Sport being processed (when applicable) |
-| `externalEventId` | `string` | ESPN event ID (when applicable) |
-| `marketId` | `string` | On-chain market ID (when applicable) |
-| `message` | `string` | Human-readable description |
+| Field             | Type                                   | Description                             |
+| ----------------- | -------------------------------------- | --------------------------------------- |
+| `timestamp`       | ISO 8601                               | When the log was emitted                |
+| `level`           | `info` / `warn` / `error` / `fatal`    | Severity                                |
+| `job`             | `"ingest"` / `"resolve"` / `"startup"` | Which job produced the log              |
+| `sport`           | `string`                               | Sport being processed (when applicable) |
+| `externalEventId` | `string`                               | ESPN event ID (when applicable)         |
+| `marketId`        | `string`                               | On-chain market ID (when applicable)    |
+| `message`         | `string`                               | Human-readable description              |
 
 **Log level usage:**
 
-| Level | When |
-|-------|------|
-| `info` | Job started, job completed, market created, market resolved, market cancelled |
-| `warn` | ESPN returned unexpected data, game skipped due to ambiguity, transaction rejected by node (non-fatal) |
-| `error` | ESPN API failure (after retry), API server unreachable, score parsing failure |
-| `fatal` | Oracle key missing/corrupt, startup failure — process will exit |
+| Level   | When                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------------ |
+| `info`  | Job started, job completed, market created, market resolved, market cancelled                          |
+| `warn`  | ESPN returned unexpected data, game skipped due to ambiguity, transaction rejected by node (non-fatal) |
+| `error` | ESPN API failure (after retry), API server unreachable, score parsing failure                          |
+| `fatal` | Oracle key missing/corrupt, startup failure — process will exit                                        |
 
 ### Metrics (logged per cycle)
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `ingest.games_fetched` | gauge | Number of games returned by ESPN |
-| `ingest.markets_created` | gauge | Number of new markets submitted this cycle |
-| `ingest.markets_skipped` | gauge | Number of games skipped (already exist) |
-| `ingest.errors` | counter | Number of errors during this ingest cycle |
-| `ingest.duration_ms` | gauge | Total ingest cycle duration |
-| `resolve.markets_checked` | gauge | Number of open markets checked |
-| `resolve.markets_resolved` | gauge | Number of markets resolved this cycle |
-| `resolve.markets_cancelled` | gauge | Number of markets cancelled this cycle |
-| `resolve.markets_pending` | gauge | Number of markets still in progress |
-| `resolve.errors` | counter | Number of errors during this resolve cycle |
-| `resolve.duration_ms` | gauge | Total resolve cycle duration |
-| `espn.requests` | counter | Total ESPN API requests this cycle |
-| `espn.failures` | counter | ESPN API failures this cycle |
+| Metric                      | Type    | Description                                |
+| --------------------------- | ------- | ------------------------------------------ |
+| `ingest.games_fetched`      | gauge   | Number of games returned by ESPN           |
+| `ingest.markets_created`    | gauge   | Number of new markets submitted this cycle |
+| `ingest.markets_skipped`    | gauge   | Number of games skipped (already exist)    |
+| `ingest.errors`             | counter | Number of errors during this ingest cycle  |
+| `ingest.duration_ms`        | gauge   | Total ingest cycle duration                |
+| `resolve.markets_checked`   | gauge   | Number of open markets checked             |
+| `resolve.markets_resolved`  | gauge   | Number of markets resolved this cycle      |
+| `resolve.markets_cancelled` | gauge   | Number of markets cancelled this cycle     |
+| `resolve.markets_pending`   | gauge   | Number of markets still in progress        |
+| `resolve.errors`            | counter | Number of errors during this resolve cycle |
+| `resolve.duration_ms`       | gauge   | Total resolve cycle duration               |
+| `espn.requests`             | counter | Total ESPN API requests this cycle         |
+| `espn.failures`             | counter | ESPN API failures this cycle               |
 
 These metrics are emitted as structured log entries at the end of each job cycle.
 
 ### Health Monitoring
 
 The oracle exposes a `GET /health` endpoint on internal port 3001 (see Inbound Interfaces). Docker uses this for container health checks. The admin portal can also check:
+
 - **`GET /health` response** — returns `lastIngest` and `lastResolve` timestamps directly from the oracle process.
 - **On-chain inference** — last ingest/resolve time can also be derived from the most recent `CreateMarket`, `ResolveMarket`, or `CancelMarket` transaction timestamps on-chain.
 - **Stale market detection** — if open markets with `eventStartTime` more than 6 hours in the past have not been resolved, the oracle may be unhealthy.
@@ -598,52 +614,52 @@ The oracle exposes a `GET /health` endpoint on internal port 3001 (see Inbound I
 ```typescript
 interface OracleConfig {
   /** Internal API URL for the wpm-api container. */
-  nodeApiUrl: string;                  // e.g. "http://wpm-api:3000"
+  nodeApiUrl: string; // e.g. "http://wpm-api:3000"
 
   /** Filesystem path to the oracle's RSA private key (PEM format). */
-  oracleKeyPath: string;              // e.g. "/secrets/oracle-key.pem"
+  oracleKeyPath: string; // e.g. "/secrets/oracle-key.pem"
 
   /** List of sport identifiers to activate adapters for. */
-  enabledSports: string[];            // ["NFL"] at launch
+  enabledSports: string[]; // ["NFL"] at launch
 
   /** Cron expression for the ingest job (evaluated in ET timezone). */
-  ingestCron: string;                  // "0 6 * * *" — 6:00 AM ET daily
+  ingestCron: string; // "0 6 * * *" — 6:00 AM ET daily
 
   /** Cron expression for the resolve job (evaluated in ET timezone). */
-  resolveCron: string;                 // "*/30 12-24 * * *" — every 30min, 12PM-1AM ET
+  resolveCron: string; // "*/30 12-24 * * *" — every 30min, 12PM-1AM ET
 
   /** How many days ahead to fetch games. */
-  lookaheadDays: number;               // 14
+  lookaheadDays: number; // 14
 
   /** Default WPM seed amount for new markets. Admin can override per-market. */
-  defaultSeedAmount: number;           // 1000
+  defaultSeedAmount: number; // 1000
 
   /** HTTP request timeout for ESPN API calls, in milliseconds. */
-  espnTimeoutMs: number;               // 10000
+  espnTimeoutMs: number; // 10000
 
   /** HTTP request timeout for node API calls, in milliseconds. */
-  nodeTimeoutMs: number;               // 5000
+  nodeTimeoutMs: number; // 5000
 
   /** Port for the oracle's internal HTTP API (health check, admin triggers). */
-  internalPort: number;                // 3001
+  internalPort: number; // 3001
 }
 ```
 
 **Environment variable mapping (Docker):**
 
-| Env Var | Config Field | Default |
-|---------|-------------|---------|
-| `ORACLE_NODE_API_URL` | `nodeApiUrl` | `http://wpm-api:3000` |
-| `ORACLE_KEY_PATH` | `oracleKeyPath` | `/secrets/oracle-key.pem` |
-| `ORACLE_ENABLED_SPORTS` | `enabledSports` | `NFL` (comma-separated) |
-| `ORACLE_INGEST_CRON` | `ingestCron` | `0 6 * * *` |
-| `ORACLE_RESOLVE_CRON` | `resolveCron` | `*/30 12-24 * * *` |
-| `ORACLE_LOOKAHEAD_DAYS` | `lookaheadDays` | `14` |
-| `ORACLE_DEFAULT_SEED` | `defaultSeedAmount` | `1000` |
-| `ORACLE_ESPN_TIMEOUT_MS` | `espnTimeoutMs` | `10000` |
-| `ORACLE_NODE_TIMEOUT_MS` | `nodeTimeoutMs` | `5000` |
-| `ORACLE_INTERNAL_PORT` | `internalPort` | `3001` |
-| `TZ` | (system timezone) | `America/New_York` |
+| Env Var                  | Config Field        | Default                   |
+| ------------------------ | ------------------- | ------------------------- |
+| `ORACLE_NODE_API_URL`    | `nodeApiUrl`        | `http://wpm-api:3000`     |
+| `ORACLE_KEY_PATH`        | `oracleKeyPath`     | `/secrets/oracle-key.pem` |
+| `ORACLE_ENABLED_SPORTS`  | `enabledSports`     | `NFL` (comma-separated)   |
+| `ORACLE_INGEST_CRON`     | `ingestCron`        | `0 6 * * *`               |
+| `ORACLE_RESOLVE_CRON`    | `resolveCron`       | `*/30 12-24 * * *`        |
+| `ORACLE_LOOKAHEAD_DAYS`  | `lookaheadDays`     | `14`                      |
+| `ORACLE_DEFAULT_SEED`    | `defaultSeedAmount` | `1000`                    |
+| `ORACLE_ESPN_TIMEOUT_MS` | `espnTimeoutMs`     | `10000`                   |
+| `ORACLE_NODE_TIMEOUT_MS` | `nodeTimeoutMs`     | `5000`                    |
+| `ORACLE_INTERNAL_PORT`   | `internalPort`      | `3001`                    |
+| `TZ`                     | (system timezone)   | `America/New_York`        |
 
 ## 10. Startup Sequence
 
@@ -661,18 +677,18 @@ interface OracleConfig {
 
 ### Critical Path Tests
 
-| # | Scenario | Expected Outcome |
-|---|----------|-----------------|
-| T-1 | Ingest with 0 existing markets and 5 upcoming games | 5 `CreateMarket` transactions submitted; all accepted by node |
-| T-2 | Ingest with all games already having markets | 0 transactions submitted; no errors |
-| T-3 | Resolve with 3 completed games (2 decisive, 1 tie) | 2 `ResolveMarket` + 1 `CancelMarket` transactions |
-| T-4 | Resolve with games still in progress | 0 transactions submitted for in-progress games |
-| T-5 | Resolve with a postponed game | 1 `CancelMarket` transaction with reason "Game postponed" |
-| T-6 | ESPN API returns 500 on first call | Retry after 5s; if still failing, cycle skipped, no bad data |
-| T-7 | ESPN returns malformed JSON | Error logged, game skipped, other games still processed |
-| T-8 | Oracle restarted mid-cycle | On restart, dedup map rebuilt from node; no duplicates on next cycle |
-| T-9 | Node rejects a transaction (400) | Error logged, other transactions in batch still submitted |
-| T-10 | Oracle key file missing at startup | Process exits with fatal log; does not run jobs |
+| #    | Scenario                                            | Expected Outcome                                                     |
+| ---- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| T-1  | Ingest with 0 existing markets and 5 upcoming games | 5 `CreateMarket` transactions submitted; all accepted by node        |
+| T-2  | Ingest with all games already having markets        | 0 transactions submitted; no errors                                  |
+| T-3  | Resolve with 3 completed games (2 decisive, 1 tie)  | 2 `ResolveMarket` + 1 `CancelMarket` transactions                    |
+| T-4  | Resolve with games still in progress                | 0 transactions submitted for in-progress games                       |
+| T-5  | Resolve with a postponed game                       | 1 `CancelMarket` transaction with reason "Game postponed"            |
+| T-6  | ESPN API returns 500 on first call                  | Retry after 5s; if still failing, cycle skipped, no bad data         |
+| T-7  | ESPN returns malformed JSON                         | Error logged, game skipped, other games still processed              |
+| T-8  | Oracle restarted mid-cycle                          | On restart, dedup map rebuilt from node; no duplicates on next cycle |
+| T-9  | Node rejects a transaction (400)                    | Error logged, other transactions in batch still submitted            |
+| T-10 | Oracle key file missing at startup                  | Process exits with fatal log; does not run jobs                      |
 
 ### Integration Checkpoints
 
@@ -694,27 +710,27 @@ interface OracleConfig {
 
 ## 12. Open Questions
 
-| # | Question | Status | Resolution |
-|---|----------|--------|------------|
-| 1 | Should the oracle expose a simple health endpoint (e.g., HTTP on an internal-only port) for Docker health checks, or is log-based monitoring sufficient? | **Resolved** | Yes. The oracle exposes `GET /health` on internal port 3001. See Inbound Interfaces (Section 5) and Health Monitoring (Section 8). |
-| 2 | Should the admin portal be able to trigger an ad-hoc ingest or resolve cycle (e.g., via an API call to the oracle), or should manual operations always go through direct transaction submission? | **Resolved** | Yes. The API server forwards admin trigger requests to `POST /trigger/ingest` and `POST /trigger/resolve` on the oracle's internal port 3001. See Inbound Interfaces (Section 5). |
-| 3 | For golf and tennis (non-head-to-head formats), should we define a different market model, or are those sports deferred until the market model is extended beyond binary? | Open | Determines whether golf/tennis adapters are feasible under the current architecture. Owner: Product. |
-| 4 | What is the expected behavior during the NFL offseason when there are no games? Should the oracle skip ingest silently, or log an explicit "no games found" message? | **Resolved** | Log silently at `info` level, no special handling. The ingest job runs, finds zero games, and logs the summary with `gamesFetched: 0, marketsCreated: 0`. No alerts or errors are raised. |
-| 5 | Should the `defaultSeedAmount` be configurable per-sport (e.g., more liquidity for NFL playoff games), or is a single global default sufficient? | **Resolved** | A single global default is sufficient for now. Per-sport or per-event overrides can be added later if needed. |
+| #   | Question                                                                                                                                                                                         | Status       | Resolution                                                                                                                                                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should the oracle expose a simple health endpoint (e.g., HTTP on an internal-only port) for Docker health checks, or is log-based monitoring sufficient?                                         | **Resolved** | Yes. The oracle exposes `GET /health` on internal port 3001. See Inbound Interfaces (Section 5) and Health Monitoring (Section 8).                                                        |
+| 2   | Should the admin portal be able to trigger an ad-hoc ingest or resolve cycle (e.g., via an API call to the oracle), or should manual operations always go through direct transaction submission? | **Resolved** | Yes. The API server forwards admin trigger requests to `POST /trigger/ingest` and `POST /trigger/resolve` on the oracle's internal port 3001. See Inbound Interfaces (Section 5).         |
+| 3   | For golf and tennis (non-head-to-head formats), should we define a different market model, or are those sports deferred until the market model is extended beyond binary?                        | Open         | Determines whether golf/tennis adapters are feasible under the current architecture. Owner: Product.                                                                                      |
+| 4   | What is the expected behavior during the NFL offseason when there are no games? Should the oracle skip ingest silently, or log an explicit "no games found" message?                             | **Resolved** | Log silently at `info` level, no special handling. The ingest job runs, finds zero games, and logs the summary with `gamesFetched: 0, marketsCreated: 0`. No alerts or errors are raised. |
+| 5   | Should the `defaultSeedAmount` be configurable per-sport (e.g., more liquidity for NFL playoff games), or is a single global default sufficient?                                                 | **Resolved** | A single global default is sufficient for now. Per-sport or per-event overrides can be added later if needed.                                                                             |
 
 ## Appendix
 
 ### Glossary
 
-| Term | Definition |
-|------|-----------|
-| **Adapter** | A per-sport module that knows how to query ESPN and normalize responses into `RawGame` and `GameResult` types. |
-| **Deduplication map** | In-memory mapping of ESPN event IDs to on-chain market IDs, used to prevent creating duplicate markets. |
-| **ESPN event ID** | A numeric string assigned by ESPN to uniquely identify a sporting event (stored as `externalEventId`). |
-| **Ingest** | The oracle job that fetches upcoming games and creates on-chain markets. |
-| **Lookahead window** | The number of days into the future the ingest job searches for games (default: 14). |
-| **Outcome A / Outcome B** | Binary market outcomes. By convention, A = home team wins, B = away team wins. |
-| **Resolve** | The oracle job that fetches final scores and submits resolution or cancellation transactions. |
+| Term                      | Definition                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Adapter**               | A per-sport module that knows how to query ESPN and normalize responses into `RawGame` and `GameResult` types. |
+| **Deduplication map**     | In-memory mapping of ESPN event IDs to on-chain market IDs, used to prevent creating duplicate markets.        |
+| **ESPN event ID**         | A numeric string assigned by ESPN to uniquely identify a sporting event (stored as `externalEventId`).         |
+| **Ingest**                | The oracle job that fetches upcoming games and creates on-chain markets.                                       |
+| **Lookahead window**      | The number of days into the future the ingest job searches for games (default: 14).                            |
+| **Outcome A / Outcome B** | Binary market outcomes. By convention, A = home team wins, B = away team wins.                                 |
+| **Resolve**               | The oracle job that fetches final scores and submits resolution or cancellation transactions.                  |
 
 ### References
 

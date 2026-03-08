@@ -10,23 +10,23 @@ Bun workspaces handle package linking. Turborepo provides dependency-aware build
 
 ### Packages
 
-| Package | Name | Purpose | Dependencies |
-|---------|------|---------|--------------|
-| `packages/shared` | `@wpm/shared` | Types, constants, AMM math, crypto utils | None |
-| `packages/node` | `@wpm/node` | Blockchain node process | `@wpm/shared` |
-| `packages/api` | `@wpm/api` | HTTP API server | `@wpm/shared` |
-| `packages/oracle` | `@wpm/oracle` | Oracle server (ingest + resolve) | `@wpm/shared` |
-| `packages/web` | `@wpm/web` | Frontend PWA | `@wpm/shared` (types only) |
+| Package           | Name          | Purpose                                  | Dependencies               |
+| ----------------- | ------------- | ---------------------------------------- | -------------------------- |
+| `packages/shared` | `@wpm/shared` | Types, constants, AMM math, crypto utils | None                       |
+| `packages/node`   | `@wpm/node`   | Blockchain node process                  | `@wpm/shared`              |
+| `packages/api`    | `@wpm/api`    | HTTP API server                          | `@wpm/shared`              |
+| `packages/oracle` | `@wpm/oracle` | Oracle server (ingest + resolve)         | `@wpm/shared`              |
+| `packages/web`    | `@wpm/web`    | Frontend PWA                             | `@wpm/shared` (types only) |
 
 ### Boundary Rule
 
-| Package | Contains | Does NOT contain |
-|---------|----------|-----------------|
-| `shared` | Types, interfaces, constants, pure math (AMM), crypto primitives | No I/O, no HTTP, no persistence, no side effects |
-| `node` | Chain state, block production, validation, settlement, JSONL persistence | No HTTP routing, no auth |
-| `api` | HTTP routes, auth, session management, SSE, request validation | No chain logic, no direct chain state |
-| `oracle` | ESPN fetching, game parsing, job scheduling | No chain logic, no user-facing anything |
-| `web` | UI components, pages, browser APIs | No server-side logic |
+| Package  | Contains                                                                 | Does NOT contain                                 |
+| -------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| `shared` | Types, interfaces, constants, pure math (AMM), crypto primitives         | No I/O, no HTTP, no persistence, no side effects |
+| `node`   | Chain state, block production, validation, settlement, JSONL persistence | No HTTP routing, no auth                         |
+| `api`    | HTTP routes, auth, session management, SSE, request validation           | No chain logic, no direct chain state            |
+| `oracle` | ESPN fetching, game parsing, job scheduling                              | No chain logic, no user-facing anything          |
+| `web`    | UI components, pages, browser APIs                                       | No server-side logic                             |
 
 The `api` talks to `node` over HTTP (via an internal client). It never imports node internals — only `@wpm/shared` types. This enforces the Docker container boundary at the code level.
 
@@ -263,10 +263,10 @@ jobs:
 
 ### Secrets (GitHub)
 
-| Secret | Purpose |
-|--------|---------|
-| `VPS_HOST` | Hetzner server IP |
-| `VPS_USER` | SSH user on VPS |
+| Secret        | Purpose                        |
+| ------------- | ------------------------------ |
+| `VPS_HOST`    | Hetzner server IP              |
+| `VPS_USER`    | SSH user on VPS                |
 | `VPS_SSH_KEY` | SSH private key for deployment |
 
 ### Image Registry
@@ -300,6 +300,7 @@ TZ=America/New_York
 ### Init Script
 
 `scripts/init-keys.sh`:
+
 1. Generate PoA signer RSA key pair → `/keys/signer.pem`, `/keys/signer.pub`
 2. Generate oracle RSA key pair → `/keys/oracle.pem`, `/keys/oracle.pub`
 3. Generate genesis block with treasury allocation

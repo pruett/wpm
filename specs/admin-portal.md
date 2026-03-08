@@ -56,6 +56,7 @@ graph LR
 **Trigger:** Admin navigates to any `/admin/*` route.
 
 **Processing:**
+
 1. Check for a valid JWT in the session with `role === "admin"`.
 2. If no valid admin JWT exists, redirect to the admin login page (`/admin/login`).
 3. Admin enters the static API key (stored in the `ADMIN_API_KEY` environment variable) on the login form (`/admin/login`).
@@ -63,6 +64,7 @@ graph LR
 5. JWT is stored in the browser and attached to all subsequent API requests as `Authorization: Bearer <token>`.
 
 **Acceptance Criteria:**
+
 - [ ] Given an unauthenticated user, when they navigate to `/admin`, then they are redirected to `/admin/login`
 - [ ] Given a user with a standard (non-admin) JWT, when they navigate to `/admin`, then they see a 403 Forbidden page, not the admin dashboard
 - [ ] Given the admin, when they enter valid credentials, then they receive a JWT with `role: "admin"` and are redirected to `/admin`
@@ -80,6 +82,7 @@ graph LR
 **Trigger:** Admin navigates to the dashboard (default admin landing page).
 
 **Processing:**
+
 1. Fetch data from multiple API endpoints in parallel:
    - `GET /admin/treasury` -- treasury balance and supply breakdown
    - `GET /admin/health` -- node status, chain height, mempool, oracle last run, uptime
@@ -89,16 +92,17 @@ graph LR
 
 **Display Panels:**
 
-| Panel | Data | Source Endpoint |
-|-------|------|-----------------|
-| Treasury Balance | Current balance, total supply breakdown (treasury / distributed / seeded in markets) | `GET /admin/treasury` |
-| Active Markets | Count of open markets, total volume across all open markets | `GET /markets` |
-| Users | Total user count, signups in the last 7 days | `GET /admin/users` |
-| Oracle Status | Last ingest run timestamp, last resolve run timestamp, next scheduled run | `GET /admin/health` |
-| Node Health | Chain height, mempool size, uptime | `GET /admin/health` |
-| Recent Activity | Last 20 transactions across the system (type, participants, amount, timestamp) | `GET /wallet/transactions?limit=20` (admin-scoped) |
+| Panel            | Data                                                                                 | Source Endpoint                                    |
+| ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| Treasury Balance | Current balance, total supply breakdown (treasury / distributed / seeded in markets) | `GET /admin/treasury`                              |
+| Active Markets   | Count of open markets, total volume across all open markets                          | `GET /markets`                                     |
+| Users            | Total user count, signups in the last 7 days                                         | `GET /admin/users`                                 |
+| Oracle Status    | Last ingest run timestamp, last resolve run timestamp, next scheduled run            | `GET /admin/health`                                |
+| Node Health      | Chain height, mempool size, uptime                                                   | `GET /admin/health`                                |
+| Recent Activity  | Last 20 transactions across the system (type, participants, amount, timestamp)       | `GET /wallet/transactions?limit=20` (admin-scoped) |
 
 **Acceptance Criteria:**
+
 - [ ] Given the admin is on the dashboard, when the page loads, then all six panels display current data
 - [ ] Given the API server is unreachable, when the dashboard loads, then each panel shows an error state (not a blank or spinner forever)
 - [ ] Given the oracle has not run in over 24 hours, when the dashboard loads, then the Oracle Status panel visually indicates a warning (e.g., amber text or icon)
@@ -114,34 +118,36 @@ graph LR
 **Trigger:** Admin navigates to the treasury page or submits a distribution.
 
 **Display:**
+
 - Current treasury balance (prominent, top of page)
 - Supply breakdown visualization:
 
-| Category | Description |
-|----------|-------------|
-| Treasury (unallocated) | WPM held by the treasury wallet, not yet distributed |
-| Distributed to users | Sum of all `Distribute` and signup airdrop transactions |
-| Locked in active market pools | Sum of seed amounts for all open markets |
-| Referral rewards paid | Sum of all `Referral` transactions |
+| Category                      | Description                                             |
+| ----------------------------- | ------------------------------------------------------- |
+| Treasury (unallocated)        | WPM held by the treasury wallet, not yet distributed    |
+| Distributed to users          | Sum of all `Distribute` and signup airdrop transactions |
+| Locked in active market pools | Sum of seed amounts for all open markets                |
+| Referral rewards paid         | Sum of all `Referral` transactions                      |
 
 - Distribution history table:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| Recipient | string | User name (linked to user detail) |
-| Amount | number | WPM distributed |
-| Reason | string | Free-form note entered by admin |
+| Column    | Type     | Description                         |
+| --------- | -------- | ----------------------------------- |
+| Recipient | string   | User name (linked to user detail)   |
+| Amount    | number   | WPM distributed                     |
+| Reason    | string   | Free-form note entered by admin     |
 | Timestamp | datetime | When the distribution was processed |
 
 **Distribute Tokens Form:**
 
-| Field | Type | Validation |
-|-------|------|------------|
-| Recipient | searchable dropdown | Required. Must be an existing user. Search by name or wallet address. |
-| Amount | number input | Required. Must be > 0. Must be <= current treasury balance. Must have at most 2 decimal places (0.01 WPM precision). |
-| Reason | text input | Required. 1-200 characters. |
+| Field     | Type                | Validation                                                                                                           |
+| --------- | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Recipient | searchable dropdown | Required. Must be an existing user. Search by name or wallet address.                                                |
+| Amount    | number input        | Required. Must be > 0. Must be <= current treasury balance. Must have at most 2 decimal places (0.01 WPM precision). |
+| Reason    | text input          | Required. 1-200 characters.                                                                                          |
 
 **Processing (distribute):**
+
 1. Admin fills out form and clicks "Confirm".
 2. A confirmation modal appears showing: recipient name, amount, reason, and the treasury balance after distribution.
 3. On confirm, `POST /admin/distribute` with `{ recipient, amount, reason }`.
@@ -149,6 +155,7 @@ graph LR
 5. On failure, show error message from API (e.g., `INSUFFICIENT_BALANCE`).
 
 **Acceptance Criteria:**
+
 - [ ] Given the treasury has 500,000 WPM, when the admin distributes 10,000 WPM to a user, then a `Distribute` transaction is submitted and the treasury balance decreases by 10,000
 - [ ] Given the treasury has 100 WPM, when the admin attempts to distribute 200 WPM, then the form shows a validation error before submission
 - [ ] Given the admin enters a negative amount, when they attempt to submit, then the form rejects the input
@@ -166,22 +173,23 @@ graph LR
 
 **Market List Table:**
 
-| Column | Type | Sortable | Filterable |
-|--------|------|----------|------------|
-| Market ID | string (truncated, copyable) | No | No |
-| Sport | string | Yes | Yes (dropdown: NFL, NBA, etc.) |
-| Teams | string ("Away @ Home") | No | Yes (text search) |
-| Status | enum | Yes | Yes (dropdown: open, resolved, cancelled) |
-| Start Time | datetime | Yes (default sort) | Yes (date range) |
-| Volume | number (WPM) | Yes | No |
-| Seed Amount | number (WPM) | Yes | No |
-| Created At | datetime | Yes | No |
+| Column      | Type                         | Sortable           | Filterable                                |
+| ----------- | ---------------------------- | ------------------ | ----------------------------------------- |
+| Market ID   | string (truncated, copyable) | No                 | No                                        |
+| Sport       | string                       | Yes                | Yes (dropdown: NFL, NBA, etc.)            |
+| Teams       | string ("Away @ Home")       | No                 | Yes (text search)                         |
+| Status      | enum                         | Yes                | Yes (dropdown: open, resolved, cancelled) |
+| Start Time  | datetime                     | Yes (default sort) | Yes (date range)                          |
+| Volume      | number (WPM)                 | Yes                | No                                        |
+| Seed Amount | number (WPM)                 | Yes                | No                                        |
+| Created At  | datetime                     | Yes                | No                                        |
 
 **Per-Market Actions:**
 
 #### FR-4a: View Market Detail
 
 Opens a detail view showing:
+
 - Full market info (all table columns, expanded)
 - AMM pool state: `poolSharesA`, `poolSharesB`, current prices, k-value
 - All share positions: table of users holding shares (user name, shares A, shares B, estimated value)
@@ -218,6 +226,7 @@ Opens a detail view showing:
 5. For existing open markets: adds additional liquidity to the pool.
 
 **Acceptance Criteria:**
+
 - [ ] Given an open market, when the admin cancels it with a reason, then all bettors receive full refunds and the treasury reclaims the seed
 - [ ] Given an open market, when the admin manually resolves it with outcome A, then the settlement engine pays out all outcome-A share holders at 1.00 WPM per share
 - [ ] Given a resolved market, when the admin attempts to cancel it, then the action is rejected with an appropriate error
@@ -233,21 +242,22 @@ Opens a detail view showing:
 
 **User List Table:**
 
-| Column | Type | Sortable | Filterable |
-|--------|------|----------|------------|
-| Name | string | Yes | Yes (text search) |
-| Email | string | No | Yes (text search) |
-| Wallet Address | string (truncated, copyable) | No | No |
-| Balance | number (WPM) | Yes | No |
-| Signup Date | datetime | Yes | Yes (date range) |
-| Invited By | string (inviter name) | No | Yes (dropdown) |
-| Status | enum (active) | No | No |
+| Column         | Type                         | Sortable | Filterable        |
+| -------------- | ---------------------------- | -------- | ----------------- |
+| Name           | string                       | Yes      | Yes (text search) |
+| Email          | string                       | No       | Yes (text search) |
+| Wallet Address | string (truncated, copyable) | No       | No                |
+| Balance        | number (WPM)                 | Yes      | No                |
+| Signup Date    | datetime                     | Yes      | Yes (date range)  |
+| Invited By     | string (inviter name)        | No       | Yes (dropdown)    |
+| Status         | enum (active)                | No       | No                |
 
 **Per-User Actions:**
 
 #### FR-5a: View User Detail
 
 Opens a detail view showing:
+
 - Profile: name, email, wallet address, signup date, invited by
 - Current balance
 - Active positions: all open market positions (market, outcome, shares, estimated value)
@@ -263,6 +273,7 @@ Shortcut to FR-3's distribute form, pre-populated with this user as the recipien
 Filtered view of the transaction history for this user's wallet address. Same as FR-5a's transaction history but as a dedicated page with pagination and type filters.
 
 **Acceptance Criteria:**
+
 - [ ] Given 20 users exist, when the admin views the user list, then all 20 users appear with correct balances
 - [ ] Given the admin views a user detail, when that user has 3 open positions, then all 3 positions are displayed with current estimated values
 - [ ] Given the admin clicks "Distribute" on a user row, then the distribute form opens with that user pre-selected as the recipient
@@ -277,37 +288,39 @@ Filtered view of the transaction history for this user's wallet address. Same as
 
 **Generate Codes Form:**
 
-| Field | Type | Validation |
-|-------|------|------------|
-| Count | number input | Required. 1-50. |
-| Max Uses | number input | Required. >= 1. How many times each code can be used before expiring. |
+| Field    | Type                           | Validation                                                                               |
+| -------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
+| Count    | number input                   | Required. 1-50.                                                                          |
+| Max Uses | number input                   | Required. >= 1. How many times each code can be used before expiring.                    |
 | Referrer | searchable dropdown (optional) | If set, the selected user receives 5,000 WPM referral reward when each code is redeemed. |
 
 **Processing (generate):**
+
 1. `POST /admin/invite-codes` with `{ count, maxUses, referrer? }`.
 2. API returns `{ codes: string[] }`.
 3. Display generated codes in a list with copy-to-clipboard buttons.
 
 **Invite Code Table:**
 
-| Column | Type | Sortable |
-|--------|------|----------|
-| Code | string (monospace, copyable) | No |
-| Created At | datetime | Yes |
-| Status | enum: active, fully-used, deactivated | Yes |
-| Referrer | string (user name or "None") | Yes |
-| Uses | string ("2 / 5" format) | No |
-| Used By | list of user names | No |
+| Column     | Type                                  | Sortable |
+| ---------- | ------------------------------------- | -------- |
+| Code       | string (monospace, copyable)          | No       |
+| Created At | datetime                              | Yes      |
+| Status     | enum: active, fully-used, deactivated | Yes      |
+| Referrer   | string (user name or "None")          | Yes      |
+| Uses       | string ("2 / 5" format)               | No       |
+| Used By    | list of user names                    | No       |
 
 **Per-Code Actions:**
 
-| Action | Endpoint | Behavior |
-|--------|----------|----------|
-| Deactivate | `DELETE /admin/invite-codes/:code` | Sets status to "deactivated". Code can no longer be used for signup. |
-| Copy Code | (client-side) | Copies code string to clipboard. Shows brief "Copied" toast. |
-| Copy Share Link | (client-side) | Copies `https://wpm.example.com/join?code=ABC123` to clipboard. Shows brief "Copied" toast. |
+| Action          | Endpoint                           | Behavior                                                                                    |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| Deactivate      | `DELETE /admin/invite-codes/:code` | Sets status to "deactivated". Code can no longer be used for signup.                        |
+| Copy Code       | (client-side)                      | Copies code string to clipboard. Shows brief "Copied" toast.                                |
+| Copy Share Link | (client-side)                      | Copies `https://wpm.example.com/join?code=ABC123` to clipboard. Shows brief "Copied" toast. |
 
 **Acceptance Criteria:**
+
 - [ ] Given the admin generates 5 codes with max 3 uses each, when the generation succeeds, then 5 unique codes are returned and displayed
 - [ ] Given a code with 3/3 uses, when a new user attempts signup with that code, then the API rejects it with `INVALID_INVITE_CODE`
 - [ ] Given an active code, when the admin deactivates it, then the code status changes to "deactivated" and it cannot be used for signup
@@ -324,48 +337,51 @@ Filtered view of the transaction history for this user's wallet address. Same as
 
 **Display:**
 
-| Section | Data | Source |
-|---------|------|--------|
-| Schedule | Ingest: daily 6:00 AM ET. Resolve: every 30 min, 12:00 PM - 1:00 AM ET. | Static (matches architecture doc) |
-| Last Run | Timestamps for last ingest and last resolve | `GET /admin/oracle/status` |
-| Next Scheduled Run | Computed from schedule and current time | Client-side calculation |
-| Run History | Table of recent runs (see below) | `GET /admin/oracle/history` |
-| Enabled Sports | Toggle list per sport (NFL, NBA, NHL, MLB, etc.) | `GET /admin/oracle/status` |
-| ESPN Connectivity | Test button and last-check result | `POST /admin/oracle/espn-test` |
+| Section            | Data                                                                    | Source                            |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------- |
+| Schedule           | Ingest: daily 6:00 AM ET. Resolve: every 30 min, 12:00 PM - 1:00 AM ET. | Static (matches architecture doc) |
+| Last Run           | Timestamps for last ingest and last resolve                             | `GET /admin/oracle/status`        |
+| Next Scheduled Run | Computed from schedule and current time                                 | Client-side calculation           |
+| Run History        | Table of recent runs (see below)                                        | `GET /admin/oracle/history`       |
+| Enabled Sports     | Toggle list per sport (NFL, NBA, NHL, MLB, etc.)                        | `GET /admin/oracle/status`        |
+| ESPN Connectivity  | Test button and last-check result                                       | `POST /admin/oracle/espn-test`    |
 
 **Run History Table:**
 
-| Column | Type |
-|--------|------|
-| Job Type | "ingest" or "resolve" |
-| Started At | datetime |
-| Duration | seconds |
-| Status | "success", "partial", "failure" |
-| Games Processed | number |
-| Markets Created | number (ingest only) |
-| Markets Resolved | number (resolve only) |
-| Errors | expandable error messages (if any) |
+| Column           | Type                               |
+| ---------------- | ---------------------------------- |
+| Job Type         | "ingest" or "resolve"              |
+| Started At       | datetime                           |
+| Duration         | seconds                            |
+| Status           | "success", "partial", "failure"    |
+| Games Processed  | number                             |
+| Markets Created  | number (ingest only)               |
+| Markets Resolved | number (resolve only)              |
+| Errors           | expandable error messages (if any) |
 
 **Manual Trigger Buttons:**
 
 Trigger requests are forwarded by the API server to the oracle's internal HTTP endpoint (port 3001). The oracle is the single source of truth for all ESPN parsing and market logic.
 
-| Button | Endpoint | Behavior |
-|--------|----------|----------|
-| "Run Ingest Now" | `POST /admin/oracle/ingest` | Triggers an immediate ingest job. Button shows a spinner until the job completes. Response includes summary (games found, markets created). |
+| Button            | Endpoint                     | Behavior                                                                                                                                        |
+| ----------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Run Ingest Now"  | `POST /admin/oracle/ingest`  | Triggers an immediate ingest job. Button shows a spinner until the job completes. Response includes summary (games found, markets created).     |
 | "Run Resolve Now" | `POST /admin/oracle/resolve` | Triggers an immediate resolve job. Button shows a spinner until the job completes. Response includes summary (games checked, markets resolved). |
 
 **Enabled Sports Toggles:**
+
 - Each sport has an on/off toggle.
 - Toggling a sport sends a config update to the oracle.
 - Only enabled sports are queried during ingest.
 - NFL is enabled by default at launch; others are disabled.
 
 **ESPN Connectivity Test:**
+
 - "Test ESPN Connection" button sends a lightweight request to ESPN's API through the oracle.
 - Displays result: "Connected" (green) with response time, or "Failed" (red) with error message.
 
 **Acceptance Criteria:**
+
 - [ ] Given the admin clicks "Run Ingest Now", when 3 upcoming NFL games exist on ESPN, then 3 new markets are created and the run appears in history with status "success"
 - [ ] Given the admin clicks "Run Resolve Now", when 2 games have final scores, then 2 markets are resolved and settlements are triggered
 - [ ] Given the admin clicks "Run Ingest Now" while an ingest is already running, then the button is disabled and shows "Running..."
@@ -384,37 +400,37 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 
 #### Node Status
 
-| Metric | Type | Source |
-|--------|------|--------|
-| Status | "running" / "stopped" | `GET /admin/health` |
-| Uptime | duration (e.g., "3d 14h 22m") | `GET /admin/health` |
+| Metric       | Type                              | Source              |
+| ------------ | --------------------------------- | ------------------- |
+| Status       | "running" / "stopped"             | `GET /admin/health` |
+| Uptime       | duration (e.g., "3d 14h 22m")     | `GET /admin/health` |
 | Memory Usage | MB (current / limit if available) | `GET /admin/health` |
 
 #### Chain Statistics
 
-| Metric | Type |
-|--------|------|
-| Block Height | number |
-| Total Transactions | number |
-| Total Blocks | number |
-| Chain File Size | bytes (human-readable, e.g., "14.2 MB") |
+| Metric             | Type                                    |
+| ------------------ | --------------------------------------- |
+| Block Height       | number                                  |
+| Total Transactions | number                                  |
+| Total Blocks       | number                                  |
+| Chain File Size    | bytes (human-readable, e.g., "14.2 MB") |
 
 #### Mempool
 
-| Metric | Type |
-|--------|------|
-| Current Size | number of pending transactions |
+| Metric               | Type                                                |
+| -------------------- | --------------------------------------------------- |
+| Current Size         | number of pending transactions                      |
 | Pending Transactions | expandable list with transaction type and submitter |
 
 #### Service Logs
 
 **Endpoint:** `GET /admin/system/logs/:service?lines=100`
 
-| Service | Container |
-|---------|-----------|
-| node | `wpm-node` |
-| api | `wpm-api` |
-| oracle | `wpm-oracle` |
+| Service | Container    |
+| ------- | ------------ |
+| node    | `wpm-node`   |
+| api     | `wpm-api`    |
+| oracle  | `wpm-oracle` |
 
 - Tab interface: one tab per service.
 - Each tab shows the last 100 log lines in a scrollable, monospace-font container.
@@ -422,6 +438,7 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 - Auto-scroll to bottom on load.
 
 **Acceptance Criteria:**
+
 - [ ] Given the node is running, when the admin views system health, then status shows "running" with correct uptime
 - [ ] Given 150 blocks have been produced, when the admin views chain stats, then block height shows 150
 - [ ] Given 3 transactions are in the mempool, when the admin views the mempool section, then all 3 are listed with their types
@@ -434,6 +451,7 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 **Description:** All admin actions are logged and visible in the dashboard activity feed.
 
 **Processing:**
+
 - Every mutating admin action (distribute, cancel market, resolve market, generate invite codes, deactivate invite code, trigger oracle, toggle sport) is recorded with:
   - Action type
   - Timestamp
@@ -444,6 +462,7 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 - Off-chain actions (trigger oracle, toggle sport) are logged by the API server.
 
 **Acceptance Criteria:**
+
 - [ ] Given the admin distributes tokens, when they view the dashboard, then the distribution appears in the recent activity feed
 - [ ] Given the admin triggers a manual oracle ingest, when they view the dashboard, then the trigger event appears in the activity feed
 
@@ -451,12 +470,12 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 
 ### Performance
 
-| Metric | Target | Rationale |
-|--------|--------|-----------|
-| Dashboard load time | < 2 seconds | Admin should get a quick overview without waiting |
-| Table rendering (up to 200 rows) | < 500ms | Largest expected dataset: ~200 markets per season |
-| API response for admin endpoints | < 1 second p99 | Single admin user, no high-concurrency concern |
-| Log fetch | < 3 seconds for 100 lines | Acceptable for debugging workflow |
+| Metric                           | Target                    | Rationale                                         |
+| -------------------------------- | ------------------------- | ------------------------------------------------- |
+| Dashboard load time              | < 2 seconds               | Admin should get a quick overview without waiting |
+| Table rendering (up to 200 rows) | < 500ms                   | Largest expected dataset: ~200 markets per season |
+| API response for admin endpoints | < 1 second p99            | Single admin user, no high-concurrency concern    |
+| Log fetch                        | < 3 seconds for 100 lines | Acceptable for debugging workflow                 |
 
 ### Reliability
 
@@ -466,15 +485,15 @@ Trigger requests are forwarded by the API server to the oracle's internal HTTP e
 
 ### Security
 
-| Concern | Approach |
-|---------|----------|
-| Authentication | Separate admin JWT. `role: "admin"` claim checked on every `/admin/*` API call. |
-| Authorization | Binary: admin or not-admin. No granular permissions. |
-| Route protection | Client-side route guard redirects non-admin to `/admin/login`. Server-side middleware rejects requests without admin JWT. Both layers required. |
-| Transport | HTTPS enforced via nginx TLS termination. |
-| Admin credential storage | Static API key in `ADMIN_API_KEY` environment variable. Never in client code or version control. |
-| Sensitive actions | Confirmation modals for all destructive actions (cancel market, resolve market, deactivate invite code). |
-| Session expiry | Admin JWT expires after 24 hours (shorter than user JWT's 7-day expiry). |
+| Concern                  | Approach                                                                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication           | Separate admin JWT. `role: "admin"` claim checked on every `/admin/*` API call.                                                                 |
+| Authorization            | Binary: admin or not-admin. No granular permissions.                                                                                            |
+| Route protection         | Client-side route guard redirects non-admin to `/admin/login`. Server-side middleware rejects requests without admin JWT. Both layers required. |
+| Transport                | HTTPS enforced via nginx TLS termination.                                                                                                       |
+| Admin credential storage | Static API key in `ADMIN_API_KEY` environment variable. Never in client code or version control.                                                |
+| Sensitive actions        | Confirmation modals for all destructive actions (cancel market, resolve market, deactivate invite code).                                        |
+| Session expiry           | Admin JWT expires after 24 hours (shorter than user JWT's 7-day expiry).                                                                        |
 
 ### Scalability
 
@@ -541,8 +560,8 @@ interface InviteCode {
   code: string;
   createdAt: number;
   status: "active" | "fully-used" | "deactivated";
-  referrer: string | null;      // userId of the referrer, or null
-  referrerName: string | null;  // display name of the referrer
+  referrer: string | null; // userId of the referrer, or null
+  referrerName: string | null; // display name of the referrer
   useCount: number;
   maxUses: number;
   usedBy: { userId: string; name: string; usedAt: number }[];
@@ -581,8 +600,8 @@ interface OracleRun {
   durationMs: number;
   status: "success" | "partial" | "failure";
   gamesProcessed: number;
-  marketsCreated: number;   // ingest only
-  marketsResolved: number;  // resolve only
+  marketsCreated: number; // ingest only
+  marketsResolved: number; // resolve only
   errors: string[];
 }
 ```
@@ -637,16 +656,16 @@ interface AdminUserProfile {
 
 ## 6. Error Handling
 
-| Error Scenario | Detection | User-Facing Response | Recovery |
-|---------------|-----------|---------------------|----------|
-| Admin JWT expired | 401 response from API | Redirect to `/admin/login` with "Session expired" message | Re-authenticate |
-| API server unreachable | Network error / timeout | Toast: "Unable to reach server. Check connectivity." | Manual retry via refresh or retry button |
-| Distribute exceeds treasury balance | 400 `INSUFFICIENT_BALANCE` | Inline error on form: "Treasury balance insufficient. Available: X WPM" | Admin adjusts amount |
-| Cancel/resolve on invalid market state | 400 `MARKET_ALREADY_RESOLVED` or `MARKET_ALREADY_CANCELLED` | Modal error: "This market has already been [resolved/cancelled]" | Refresh market list to see current state |
-| Oracle trigger while job is running | 409 or custom error | Button remains disabled, toast: "Job already in progress" | Wait for current job to complete |
-| ESPN unreachable during connectivity test | Oracle returns failure | Display "ESPN unreachable" with error detail | Retry later |
-| Invalid invite code parameters | 400 `INVALID_AMOUNT` | Inline form validation error | Admin corrects input |
-| Log fetch fails (container not found) | 404 or 500 | Tab shows "Logs unavailable for this service" | Check if container is running via System Health |
+| Error Scenario                            | Detection                                                   | User-Facing Response                                                    | Recovery                                        |
+| ----------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------- |
+| Admin JWT expired                         | 401 response from API                                       | Redirect to `/admin/login` with "Session expired" message               | Re-authenticate                                 |
+| API server unreachable                    | Network error / timeout                                     | Toast: "Unable to reach server. Check connectivity."                    | Manual retry via refresh or retry button        |
+| Distribute exceeds treasury balance       | 400 `INSUFFICIENT_BALANCE`                                  | Inline error on form: "Treasury balance insufficient. Available: X WPM" | Admin adjusts amount                            |
+| Cancel/resolve on invalid market state    | 400 `MARKET_ALREADY_RESOLVED` or `MARKET_ALREADY_CANCELLED` | Modal error: "This market has already been [resolved/cancelled]"        | Refresh market list to see current state        |
+| Oracle trigger while job is running       | 409 or custom error                                         | Button remains disabled, toast: "Job already in progress"               | Wait for current job to complete                |
+| ESPN unreachable during connectivity test | Oracle returns failure                                      | Display "ESPN unreachable" with error detail                            | Retry later                                     |
+| Invalid invite code parameters            | 400 `INVALID_AMOUNT`                                        | Inline form validation error                                            | Admin corrects input                            |
+| Log fetch fails (container not found)     | 404 or 500                                                  | Tab shows "Logs unavailable for this service"                           | Check if container is running via System Health |
 
 ### Idempotency
 
@@ -659,13 +678,13 @@ interface AdminUserProfile {
 
 ### Key Metrics
 
-| Metric | Type | Description | Alert Threshold |
-|--------|------|-------------|-----------------|
-| `admin.login.count` | counter | Admin login attempts (success/failure) | > 5 failures in 10 minutes (potential brute force) |
-| `admin.distribute.total_wpm` | counter | Total WPM distributed via admin portal | N/A (informational) |
-| `admin.market.cancel.count` | counter | Markets cancelled by admin | N/A |
-| `admin.market.manual_resolve.count` | counter | Markets manually resolved by admin | N/A |
-| `admin.oracle.manual_trigger.count` | counter | Manual oracle triggers | N/A |
+| Metric                              | Type    | Description                            | Alert Threshold                                    |
+| ----------------------------------- | ------- | -------------------------------------- | -------------------------------------------------- |
+| `admin.login.count`                 | counter | Admin login attempts (success/failure) | > 5 failures in 10 minutes (potential brute force) |
+| `admin.distribute.total_wpm`        | counter | Total WPM distributed via admin portal | N/A (informational)                                |
+| `admin.market.cancel.count`         | counter | Markets cancelled by admin             | N/A                                                |
+| `admin.market.manual_resolve.count` | counter | Markets manually resolved by admin     | N/A                                                |
+| `admin.oracle.manual_trigger.count` | counter | Manual oracle triggers                 | N/A                                                |
 
 ### Logging
 
@@ -713,26 +732,26 @@ These scenarios must pass for the admin portal to be considered functional:
 
 ## 10. Resolved Questions
 
-| # | Question | Resolution |
-|---|----------|------------|
-| 1 | Which admin auth mechanism to use: static API key or dedicated passkey? | **Resolved:** Static API key stored in `ADMIN_API_KEY` environment variable. Admin enters the key on `/admin/login`, API validates it and returns a JWT with `role: "admin"`. |
-| 2 | Should the admin portal auto-refresh dashboard data on a timer, or only on manual refresh? | **Resolved:** Start with manual refresh. |
-| 3 | Should Docker container status be exposed via the health endpoint? | **Resolved:** Deferred. Omit container status if not feasible. |
-| 4 | What is the format and length of generated invite codes? | **Resolved:** `WPM-` prefix + 6 uppercase alphanumeric characters (e.g., `WPM-A3K9B2`). |
+| #   | Question                                                                                   | Resolution                                                                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Which admin auth mechanism to use: static API key or dedicated passkey?                    | **Resolved:** Static API key stored in `ADMIN_API_KEY` environment variable. Admin enters the key on `/admin/login`, API validates it and returns a JWT with `role: "admin"`. |
+| 2   | Should the admin portal auto-refresh dashboard data on a timer, or only on manual refresh? | **Resolved:** Start with manual refresh.                                                                                                                                      |
+| 3   | Should Docker container status be exposed via the health endpoint?                         | **Resolved:** Deferred. Omit container status if not feasible.                                                                                                                |
+| 4   | What is the format and length of generated invite codes?                                   | **Resolved:** `WPM-` prefix + 6 uppercase alphanumeric characters (e.g., `WPM-A3K9B2`).                                                                                       |
 
 ## Appendix
 
 ### Glossary
 
-| Term | Definition |
-|------|------------|
-| Treasury | The system wallet that holds undistributed WPM. Source of all token distribution and market seeding. |
+| Term           | Definition                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------- |
+| Treasury       | The system wallet that holds undistributed WPM. Source of all token distribution and market seeding.     |
 | Seed / Seeding | Initial liquidity added to a market's AMM pool from the treasury at market creation. Default: 1,000 WPM. |
-| Distribute | Admin action to send WPM from treasury to a user's wallet. |
-| Oracle | The automated service that creates markets from ESPN data and resolves them with final scores. |
-| Ingest | Oracle job that fetches upcoming games and creates markets. |
-| Resolve | Oracle job that checks completed games and submits resolution transactions. |
-| Settlement | The process of paying out winning share holders after a market is resolved. |
+| Distribute     | Admin action to send WPM from treasury to a user's wallet.                                               |
+| Oracle         | The automated service that creates markets from ESPN data and resolves them with final scores.           |
+| Ingest         | Oracle job that fetches upcoming games and creates markets.                                              |
+| Resolve        | Oracle job that checks completed games and submits resolution transactions.                              |
+| Settlement     | The process of paying out winning share holders after a market is resolved.                              |
 
 ### References
 

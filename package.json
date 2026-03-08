@@ -1,7 +1,9 @@
 {
   "name": "wpm",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -9,6 +11,7 @@
     "fmt:check": "oxfmt --check ."
   },
   "devDependencies": {
+    "@types/node": "^25.3.5",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0"
   }

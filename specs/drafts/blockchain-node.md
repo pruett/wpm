@@ -8,12 +8,12 @@ The blockchain node is the core process and single source of truth for the WPM s
 
 ```typescript
 interface Block {
-  index: number;                // Sequential block number (0 = genesis)
-  timestamp: number;            // Unix timestamp (ms) when block was produced
-  transactions: Transaction[];  // Ordered list of transactions in this block
-  previousHash: string;         // SHA-256 hash of the previous block
-  hash: string;                 // SHA-256 hash of this block
-  signature: string;            // PoA signer's RSA signature over the hash
+  index: number; // Sequential block number (0 = genesis)
+  timestamp: number; // Unix timestamp (ms) when block was produced
+  transactions: Transaction[]; // Ordered list of transactions in this block
+  previousHash: string; // SHA-256 hash of the previous block
+  hash: string; // SHA-256 hash of this block
+  signature: string; // PoA signer's RSA signature over the hash
 }
 ```
 
@@ -38,6 +38,7 @@ SHA-256 of the concatenation: `index + timestamp + previousHash + JSON.stringify
 ### Block Validation
 
 A block is valid if:
+
 1. `index === previousBlock.index + 1`
 2. `previousHash === previousBlock.hash`
 3. `hash` matches the recomputed hash of the block's contents
@@ -51,11 +52,11 @@ All transactions share a base structure:
 
 ```typescript
 interface BaseTransaction {
-  id: string;              // UUID v4
-  type: TransactionType;   // Enum of all types
-  timestamp: number;       // Unix timestamp (ms) of creation
-  sender: string;          // Public key or system address of the sender
-  signature: string;       // RSA signature over the transaction payload (excluding signature field)
+  id: string; // UUID v4
+  type: TransactionType; // Enum of all types
+  timestamp: number; // Unix timestamp (ms) of creation
+  sender: string; // Public key or system address of the sender
+  signature: string; // RSA signature over the transaction payload (excluding signature field)
 }
 
 type TransactionType =
@@ -77,12 +78,13 @@ Move tokens between user wallets.
 ```typescript
 interface TransferTransaction extends BaseTransaction {
   type: "Transfer";
-  recipient: string;       // Recipient's public key
-  amount: number;          // WPM amount (2 decimal precision)
+  recipient: string; // Recipient's public key
+  amount: number; // WPM amount (2 decimal precision)
 }
 ```
 
 **Validation:**
+
 - Sender has sufficient balance (`balance >= amount`)
 - `amount > 0`
 - Sender !== recipient
@@ -97,11 +99,12 @@ interface DistributeTransaction extends BaseTransaction {
   type: "Distribute";
   recipient: string;
   amount: number;
-  reason: string;          // "signup_airdrop" | "referral_reward" | "manual"
+  reason: string; // "signup_airdrop" | "referral_reward" | "manual"
 }
 ```
 
 **Validation:**
+
 - Sender must be the treasury wallet address
 - Treasury has sufficient balance
 - `amount > 0`
@@ -114,19 +117,20 @@ Oracle creates a new betting market.
 ```typescript
 interface CreateMarketTransaction extends BaseTransaction {
   type: "CreateMarket";
-  marketId: string;             // UUID v4
-  sport: string;                // e.g. "NFL", "NBA"
-  homeTeam: string;             // Team name
-  awayTeam: string;             // Team name
-  outcomeA: string;             // Label for outcome A (e.g. "Chiefs win")
-  outcomeB: string;             // Label for outcome B (e.g. "Eagles win")
-  eventStartTime: number;       // Unix timestamp — betting closes at this time
-  seedAmount: number;           // WPM to seed each side of the AMM (default 1000)
-  externalEventId: string;      // ESPN event ID for resolution lookup
+  marketId: string; // UUID v4
+  sport: string; // e.g. "NFL", "NBA"
+  homeTeam: string; // Team name
+  awayTeam: string; // Team name
+  outcomeA: string; // Label for outcome A (e.g. "Chiefs win")
+  outcomeB: string; // Label for outcome B (e.g. "Eagles win")
+  eventStartTime: number; // Unix timestamp — betting closes at this time
+  seedAmount: number; // WPM to seed each side of the AMM (default 1000)
+  externalEventId: string; // ESPN event ID for resolution lookup
 }
 ```
 
 **Validation:**
+
 - Sender must be the oracle's public key
 - `eventStartTime` is in the future
 - `seedAmount > 0`
@@ -135,6 +139,7 @@ interface CreateMarketTransaction extends BaseTransaction {
 - Valid signature from oracle
 
 **Side effects:**
+
 - Deducts `seedAmount` from treasury balance
 - Creates AMM pool: `sharesA = seedAmount / 2`, `sharesB = seedAmount / 2`, `k = sharesA * sharesB`
 - Treasury receives LP position tracking (to reclaim at resolution)
@@ -147,18 +152,20 @@ User buys outcome shares from the AMM.
 interface PlaceBetTransaction extends BaseTransaction {
   type: "PlaceBet";
   marketId: string;
-  outcome: "A" | "B";          // Which outcome to buy shares of
-  amount: number;               // WPM to spend
+  outcome: "A" | "B"; // Which outcome to buy shares of
+  amount: number; // WPM to spend
 }
 ```
 
 **Validation:**
+
 - Market exists and is open (current time < `eventStartTime`)
 - Sender has sufficient balance
 - `amount > 0`
 - Valid signature from sender
 
 **Side effects (constant product AMM):**
+
 1. Apply 1% fee: `fee = amount * 0.01`, `netAmount = amount * 0.99`
 2. Fee stays in the pool (added to both sides proportionally)
 3. Mint new shares: `newShares = netAmount` (one of each outcome)
@@ -166,7 +173,7 @@ interface PlaceBetTransaction extends BaseTransaction {
 5. Give the shares of the CHOSEN outcome to the user
 6. Recalculate `k`
 
-*Detailed AMM math in the AMM Pool State section below.*
+_Detailed AMM math in the AMM Pool State section below._
 
 ### SellShares
 
@@ -177,17 +184,19 @@ interface SellSharesTransaction extends BaseTransaction {
   type: "SellShares";
   marketId: string;
   outcome: "A" | "B";
-  shareAmount: number;          // Number of shares to sell
+  shareAmount: number; // Number of shares to sell
 }
 ```
 
 **Validation:**
+
 - Market exists and is open (current time < `eventStartTime`)
 - Sender holds >= `shareAmount` shares of the specified outcome
 - `shareAmount > 0`
 - Valid signature from sender
 
 **Side effects:**
+
 1. Add user's shares back to the pool
 2. Calculate WPM to return based on constant product formula
 3. Apply 1% fee (deducted from WPM returned)
@@ -203,17 +212,19 @@ interface ResolveMarketTransaction extends BaseTransaction {
   type: "ResolveMarket";
   marketId: string;
   winningOutcome: "A" | "B";
-  finalScore: string;           // Human-readable, e.g. "Chiefs 27, Eagles 24"
+  finalScore: string; // Human-readable, e.g. "Chiefs 27, Eagles 24"
 }
 ```
 
 **Validation:**
+
 - Sender must be the oracle's public key
 - Market exists and is not already resolved or cancelled
 - `eventStartTime` has passed (game should have started)
 - Valid signature from oracle
 
 **Side effects:**
+
 - Sets market status to `resolved`
 - Triggers the Settlement Engine (see settlement-engine.md)
 
@@ -232,6 +243,7 @@ interface SettlePayoutTransaction extends BaseTransaction {
 ```
 
 **Validation:**
+
 - Sender must be the system address
 - Market is in `resolved` or `cancelled` status
 - Generated by settlement engine only (not user-submittable)
@@ -244,16 +256,18 @@ Cancel a market and trigger refunds.
 interface CancelMarketTransaction extends BaseTransaction {
   type: "CancelMarket";
   marketId: string;
-  reason: string;               // Human-readable reason
+  reason: string; // Human-readable reason
 }
 ```
 
 **Validation:**
+
 - Sender must be oracle or admin (PoA signer)
 - Market exists and is not already resolved or cancelled
 - Valid signature
 
 **Side effects:**
+
 - Sets market status to `cancelled`
 - Triggers settlement engine in refund mode (see settlement-engine.md)
 
@@ -264,14 +278,15 @@ System-generated reward when an invited user completes signup.
 ```typescript
 interface ReferralTransaction extends BaseTransaction {
   type: "Referral";
-  recipient: string;            // Inviter's public key
-  amount: number;               // 5,000 WPM
-  referredUser: string;         // New user's public key
-  inviteCode: string;           // The code that was used
+  recipient: string; // Inviter's public key
+  amount: number; // 5,000 WPM
+  referredUser: string; // New user's public key
+  inviteCode: string; // The code that was used
 }
 ```
 
 **Validation:**
+
 - Sender must be system/treasury
 - Treasury has sufficient balance
 - Invite code is valid and was used by the referred user
@@ -283,15 +298,16 @@ Each market maintains an AMM pool:
 ```typescript
 interface AMMPool {
   marketId: string;
-  sharesA: number;              // Outcome A shares in the pool
-  sharesB: number;              // Outcome B shares in the pool
-  k: number;                    // Invariant: sharesA * sharesB (recalculated after each trade)
+  sharesA: number; // Outcome A shares in the pool
+  sharesB: number; // Outcome B shares in the pool
+  k: number; // Invariant: sharesA * sharesB (recalculated after each trade)
 }
 ```
 
 ### Price Calculation
 
 The marginal price of each outcome:
+
 ```
 priceA = sharesB / (sharesA + sharesB)
 priceB = sharesA / (sharesA + sharesB)
@@ -365,14 +381,14 @@ The node maintains the following state, rebuilt from JSONL on startup:
 
 ```typescript
 interface ChainState {
-  chain: Block[];                           // Full block history
-  balances: Map<string, number>;            // address → WPM balance
+  chain: Block[]; // Full block history
+  balances: Map<string, number>; // address → WPM balance
   sharePositions: Map<string, Map<string, { A: number; B: number }>>;
-                                            // address → marketId → share counts
-  markets: Map<string, Market>;             // marketId → market state
-  pools: Map<string, AMMPool>;             // marketId → AMM pool state
-  mempool: Transaction[];                   // Pending transactions
-  inviteCodes: Map<string, InviteCode>;     // code → invite code state
+  // address → marketId → share counts
+  markets: Map<string, Market>; // marketId → market state
+  pools: Map<string, AMMPool>; // marketId → AMM pool state
+  mempool: Transaction[]; // Pending transactions
+  inviteCodes: Map<string, InviteCode>; // code → invite code state
 }
 
 interface Market {
@@ -394,9 +410,9 @@ interface Market {
 
 interface InviteCode {
   code: string;
-  createdBy: string;            // Admin who created it
-  usedBy?: string;              // Public key of user who redeemed it
-  referrer?: string;            // Public key of user who gets referral reward
+  createdBy: string; // Admin who created it
+  usedBy?: string; // Public key of user who redeemed it
+  referrer?: string; // Public key of user who gets referral reward
   maxUses: number;
   useCount: number;
   active: boolean;
@@ -416,6 +432,7 @@ After a new block is produced, it is appended as a single line to `chain.jsonl`.
 ### Startup Replay
 
 On startup:
+
 1. Read `chain.jsonl` line by line
 2. Deserialize each block
 3. Validate each block against the previous

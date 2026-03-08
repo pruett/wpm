@@ -7,10 +7,12 @@ Full administrative interface for the chain operator (Kevin). Provides "god mode
 ## Authentication
 
 Admin auth is separate from user passkeys. Options (choose at implementation time):
+
 - **Static API key** stored in environment variable, entered on the admin login page
 - **Dedicated admin passkey** registered during system setup
 
 The admin portal can be:
+
 - A separate route within the web app (`/admin/*`) protected by role check
 - A completely separate app on a different subdomain (`admin.wpm.example.com`)
 
@@ -57,6 +59,7 @@ Table of all markets (open, resolved, cancelled) with filters and search.
 **Columns:** Market ID, sport, teams, status, start time, volume, seed amount, created at
 
 **Actions per market:**
+
 - **View** → full market detail with pool state, all positions, all trades
 - **Cancel** → opens confirmation modal with reason field → submits `CancelMarket`
 - **Manually resolve** → select winning outcome, enter final score → submits `ResolveMarket`
@@ -65,6 +68,7 @@ Table of all markets (open, resolved, cancelled) with filters and search.
 - **Override seed** → change seed amount for future markets (or add liquidity to existing market)
 
 **Create manual market** (future feature, not MVP):
+
 - Form to create a custom market not tied to ESPN data
 - Enter: title, outcome A label, outcome B label, close time, seed amount
 
@@ -77,6 +81,7 @@ Table of all users.
 **Columns:** Name, email, wallet address, balance, signup date, invited by, status
 
 **Actions per user:**
+
 - **View** → full user detail: balance, positions, transaction history, referral stats
 - **Distribute tokens** → quick distribute form
 - **View transactions** → filtered transaction history for this user

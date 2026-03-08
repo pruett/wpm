@@ -10,6 +10,7 @@
 The CI/CD & Infrastructure component encompasses the monorepo tooling, containerization, reverse proxy, deployment pipeline, and server provisioning that make the WPM platform operational. It is not a single runtime service but rather the scaffolding that builds, connects, deploys, and operates every other component. Without it, individual packages cannot be built, linked, tested, deployed, or reached by users.
 
 This spec covers six sub-components:
+
 1. **Monorepo structure** -- Bun workspaces + Turborepo
 2. **Docker Compose orchestration** -- container definitions, networking, volumes
 3. **Nginx reverse proxy** -- TLS termination, routing, SSE support
@@ -97,6 +98,7 @@ VPS ──pull──> ghcr.io (images)
 **Configuration:**
 
 Root `package.json`:
+
 ```json
 {
   "name": "wpm",
@@ -106,6 +108,7 @@ Root `package.json`:
 ```
 
 Each package's `package.json` declares its workspace dependency:
+
 ```json
 {
   "name": "@wpm/api",
@@ -117,27 +120,28 @@ Each package's `package.json` declares its workspace dependency:
 
 **Packages:**
 
-| Package | Name | Purpose | Workspace Dependencies |
-|---------|------|---------|------------------------|
-| `packages/shared` | `@wpm/shared` | Types, constants, AMM math, crypto utils | None |
-| `packages/node` | `@wpm/node` | Blockchain node process | `@wpm/shared` |
-| `packages/api` | `@wpm/api` | HTTP API server | `@wpm/shared` |
-| `packages/oracle` | `@wpm/oracle` | Oracle server (ingest + resolve) | `@wpm/shared` |
-| `packages/web` | `@wpm/web` | Frontend PWA (React + Vite + vite-plugin-pwa + Tailwind CSS) | `@wpm/shared` |
+| Package           | Name          | Purpose                                                      | Workspace Dependencies |
+| ----------------- | ------------- | ------------------------------------------------------------ | ---------------------- |
+| `packages/shared` | `@wpm/shared` | Types, constants, AMM math, crypto utils                     | None                   |
+| `packages/node`   | `@wpm/node`   | Blockchain node process                                      | `@wpm/shared`          |
+| `packages/api`    | `@wpm/api`    | HTTP API server                                              | `@wpm/shared`          |
+| `packages/oracle` | `@wpm/oracle` | Oracle server (ingest + resolve)                             | `@wpm/shared`          |
+| `packages/web`    | `@wpm/web`    | Frontend PWA (React + Vite + vite-plugin-pwa + Tailwind CSS) | `@wpm/shared`          |
 
 **Boundary Rules:**
 
-| Package | Contains | Must NOT Contain |
-|---------|----------|------------------|
-| `shared` | Types, interfaces, constants, pure math (AMM), crypto primitives | I/O, HTTP, persistence, side effects |
-| `node` | Chain state, block production, validation, settlement, JSONL persistence | HTTP routing, auth |
-| `api` | HTTP routes, auth, session management, SSE, request validation | Chain logic, direct chain state mutation |
-| `oracle` | ESPN fetching, game parsing, job scheduling | Chain logic, user-facing endpoints |
-| `web` | UI components, pages, browser APIs | Server-side logic |
+| Package  | Contains                                                                 | Must NOT Contain                         |
+| -------- | ------------------------------------------------------------------------ | ---------------------------------------- |
+| `shared` | Types, interfaces, constants, pure math (AMM), crypto primitives         | I/O, HTTP, persistence, side effects     |
+| `node`   | Chain state, block production, validation, settlement, JSONL persistence | HTTP routing, auth                       |
+| `api`    | HTTP routes, auth, session management, SSE, request validation           | Chain logic, direct chain state mutation |
+| `oracle` | ESPN fetching, game parsing, job scheduling                              | Chain logic, user-facing endpoints       |
+| `web`    | UI components, pages, browser APIs                                       | Server-side logic                        |
 
 The `api` package communicates with `node` over HTTP via an internal client (`node-client.ts`). It never imports `@wpm/node` directly. This enforces the Docker container boundary at the code level.
 
 **Acceptance Criteria:**
+
 - [ ] Given a fresh clone, when `bun install` is run at the repo root, then all workspace symlinks are created and `@wpm/shared` is importable from every other package.
 - [ ] Given `@wpm/api` imports a type from `@wpm/shared`, when `bunx turbo build --filter=@wpm/api` is run, then the build succeeds without errors.
 - [ ] Given `@wpm/api` attempts to import from `@wpm/node`, then the TypeScript compiler produces an error (enforced by `tsconfig.json` path restrictions).
@@ -179,6 +183,7 @@ The `api` package communicates with `node` over HTTP via an internal client (`no
 **Build Order:** `@wpm/shared` builds first (no dependencies). Once `shared` completes, `node`, `api`, `oracle`, and `web` can all build in parallel since they each depend only on `shared` and not on each other.
 
 **Acceptance Criteria:**
+
 - [ ] Given all packages are unbuilt, when `bunx turbo build` is run, then `@wpm/shared` builds before all other packages.
 - [ ] Given `@wpm/shared` source changes, when `bunx turbo build` is run, then all downstream packages rebuild. When run again with no changes, Turborepo reports cache hits for all packages.
 - [ ] Given `bunx turbo test` is run, then tests for all packages execute and exit 0 on a healthy codebase.
@@ -216,6 +221,7 @@ CMD ["bun", "run", "dist/index.js"]
 ```
 
 **Image naming convention:**
+
 ```
 ghcr.io/<github-owner>/wpm-node:latest
 ghcr.io/<github-owner>/wpm-api:latest
@@ -227,6 +233,7 @@ The `nginx` service uses the stock `nginx:alpine` image; no custom build.
 
 **Docker Compose image declarations:**
 Each service in `docker-compose.yml` must declare both `build` (for local/CI builds) and `image` (for registry push/pull):
+
 ```yaml
 services:
   wpm-api:
@@ -237,6 +244,7 @@ services:
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Given a clean Docker environment, when `docker compose build` is run from the repo root, then all four custom images build successfully.
 - [ ] Given a built image for `wpm-api`, when it is run with the required environment variables, then the process starts and listens on port 3000.
 - [ ] Given `packages/shared/src` has changed, when any service image is rebuilt, then the image includes the updated shared code.
@@ -368,11 +376,13 @@ networks:
 **Service startup order:** `wpm-node` (must be healthy) -> `wpm-api` (must be healthy) -> `wpm-oracle`, `nginx`. `wpm-web` has no ordering dependency.
 
 **Key design decisions:**
+
 - Build context is the repo root (`.`) so every Dockerfile can `COPY packages/shared/`.
 - Key volumes are mounted `ro` (read-only) except in `wpm-node` which writes `chain-data`.
 - Health checks use `curl` against each service's health endpoint with `service_healthy` conditions in `depends_on` to enforce startup sequencing.
 
 **Acceptance Criteria:**
+
 - [ ] Given the VPS has pulled all images, when `docker compose up -d` is run, then all five containers reach `running` status within 60 seconds.
 - [ ] Given `wpm-node` is not yet healthy, then `wpm-api` does not start until the node health check passes.
 - [ ] Given `wpm-api` is not yet healthy, then `wpm-oracle` does not start until the API health check passes.
@@ -383,27 +393,29 @@ networks:
 
 **Description:** Docker named volumes store all persistent state. Three volumes exist:
 
-| Volume | Mount Point | Owner | Contents | Write Access |
-|--------|-------------|-------|----------|--------------|
-| `chain-data` | `/data` | `wpm-node` | `chain.jsonl` | `wpm-node` only |
-| `keys` | `/keys` | Init script | `signer.pem`, `signer.pub`, `oracle.pem`, `oracle.pub` | Init script only (mounted `ro` at runtime) |
-| `api-data` | `/data` | `wpm-api` | SQLite database (users, credentials, invite codes) | `wpm-api` only |
+| Volume       | Mount Point | Owner       | Contents                                               | Write Access                               |
+| ------------ | ----------- | ----------- | ------------------------------------------------------ | ------------------------------------------ |
+| `chain-data` | `/data`     | `wpm-node`  | `chain.jsonl`                                          | `wpm-node` only                            |
+| `keys`       | `/keys`     | Init script | `signer.pem`, `signer.pub`, `oracle.pem`, `oracle.pub` | Init script only (mounted `ro` at runtime) |
+| `api-data`   | `/data`     | `wpm-api`   | SQLite database (users, credentials, invite codes)     | `wpm-api` only                             |
 
 **Volume lifecycle:**
+
 - Created on first `docker compose up`.
 - Never destroyed by `docker compose down` (requires explicit `docker compose down -v`).
 - `chain-data` grows over time; `keys` is static after initialization; `api-data` grows slowly with user registrations.
 
 **Key files:**
 
-| File | Format | Size | Purpose |
-|------|--------|------|---------|
+| File         | Format                                 | Size    | Purpose                             |
+| ------------ | -------------------------------------- | ------- | ----------------------------------- |
 | `signer.pem` | PEM-encoded RSA private key (2048-bit) | ~1.7 KB | PoA block signing + treasury wallet |
-| `signer.pub` | PEM-encoded RSA public key | ~0.5 KB | Block signature verification |
-| `oracle.pem` | PEM-encoded RSA private key (2048-bit) | ~1.7 KB | Oracle transaction signing |
-| `oracle.pub` | PEM-encoded RSA public key | ~0.5 KB | Oracle signature verification |
+| `signer.pub` | PEM-encoded RSA public key             | ~0.5 KB | Block signature verification        |
+| `oracle.pem` | PEM-encoded RSA private key (2048-bit) | ~1.7 KB | Oracle transaction signing          |
+| `oracle.pub` | PEM-encoded RSA public key             | ~0.5 KB | Oracle signature verification       |
 
 **Acceptance Criteria:**
+
 - [ ] Given the init script has been run, when `wpm-node` starts, then it can read `signer.pem` from `/keys/signer.pem` and load a valid RSA private key.
 - [ ] Given `docker compose down` (without `-v`) and `docker compose up -d`, then `chain.jsonl` contains all previously written blocks.
 - [ ] Given `docker compose down -v` is run, then both volumes are destroyed and the system requires re-initialization.
@@ -414,12 +426,12 @@ networks:
 
 **Routing Rules:**
 
-| Path Pattern | Upstream | Protocol | Notes |
-|-------------|----------|----------|-------|
-| `/api/*` | `http://wpm-api:3000/` | HTTP/1.1 | Strip `/api` prefix via `proxy_pass` trailing slash |
-| `/events/*` | `http://wpm-api:3000/events/` | HTTP/1.1 | SSE: buffering disabled, 24h read timeout |
-| `/admin/api/*` | `http://wpm-api:3000/admin/api/` | HTTP/1.1 | Admin endpoints, same upstream as API |
-| `/*` (fallback) | `http://wpm-web:80/` | HTTP/1.1 | Static files (SPA) |
+| Path Pattern    | Upstream                         | Protocol | Notes                                               |
+| --------------- | -------------------------------- | -------- | --------------------------------------------------- |
+| `/api/*`        | `http://wpm-api:3000/`           | HTTP/1.1 | Strip `/api` prefix via `proxy_pass` trailing slash |
+| `/events/*`     | `http://wpm-api:3000/events/`    | HTTP/1.1 | SSE: buffering disabled, 24h read timeout           |
+| `/admin/api/*`  | `http://wpm-api:3000/admin/api/` | HTTP/1.1 | Admin endpoints, same upstream as API               |
+| `/*` (fallback) | `http://wpm-web:80/`             | HTTP/1.1 | Static files (SPA)                                  |
 
 **Full Nginx configuration:**
 
@@ -486,6 +498,7 @@ server {
 ```
 
 **SSE-specific configuration rationale:**
+
 - `proxy_buffering off` -- Nginx must not buffer SSE event data; it must stream immediately.
 - `proxy_cache off` -- SSE responses must not be cached.
 - `chunked_transfer_encoding off` -- SSE uses its own framing; chunked encoding interferes.
@@ -493,12 +506,14 @@ server {
 - `proxy_read_timeout 86400s` -- Allows the SSE connection to stay open for 24 hours.
 
 **TLS Configuration:**
+
 - Certificate source: Let's Encrypt via certbot.
 - Certificate files: `/etc/nginx/certs/fullchain.pem` and `/etc/nginx/certs/privkey.pem`.
 - Protocols: TLS 1.2 and 1.3 only.
 - Renewal: Cron job on the VPS runs `certbot renew` daily; Nginx reloads on renewal via `--deploy-hook "docker exec nginx nginx -s reload"`.
 
 **Acceptance Criteria:**
+
 - [ ] Given a valid TLS certificate, when a client connects to `https://wpm.example.com/api/markets`, then the request is proxied to `wpm-api:3000/markets` and returns a valid response.
 - [ ] Given a client connects to `http://wpm.example.com/anything`, then it receives a 301 redirect to `https://wpm.example.com/anything`.
 - [ ] Given a client opens an SSE connection to `/events/`, then the connection stays open for at least 60 minutes without being dropped by Nginx.
@@ -598,6 +613,7 @@ jobs:
 ```
 
 **Key pipeline behaviors:**
+
 - `concurrency.group: deploy` with `cancel-in-progress: false` ensures only one deploy runs at a time. A second push while deploying queues rather than cancels.
 - `timeout-minutes` prevents hung jobs from consuming runner minutes.
 - `docker image prune -f` on the VPS cleans up old images after deployment.
@@ -606,18 +622,20 @@ jobs:
 
 **GitHub Secrets:**
 
-| Secret | Type | Purpose | Rotation Policy |
-|--------|------|---------|-----------------|
-| `VPS_HOST` | String | Hetzner server IPv4 address | On VPS replacement |
-| `VPS_USER` | String | SSH username on VPS (e.g., `deploy`) | On user rotation |
-| `VPS_SSH_KEY` | SSH private key | Ed25519 key authorized on VPS | Annually or on compromise |
-| `GITHUB_TOKEN` | Auto-provided | GHCR authentication | Automatic per-run |
+| Secret         | Type            | Purpose                              | Rotation Policy           |
+| -------------- | --------------- | ------------------------------------ | ------------------------- |
+| `VPS_HOST`     | String          | Hetzner server IPv4 address          | On VPS replacement        |
+| `VPS_USER`     | String          | SSH username on VPS (e.g., `deploy`) | On user rotation          |
+| `VPS_SSH_KEY`  | SSH private key | Ed25519 key authorized on VPS        | Annually or on compromise |
+| `GITHUB_TOKEN` | Auto-provided   | GHCR authentication                  | Automatic per-run         |
 
 **Image tagging strategy:**
+
 - Every push to `main` tags images as `latest`. No version tags, no SHA tags.
 - Rationale: single-server hobby project; `latest` is sufficient. If rollback is needed, rebuild from the previous commit.
 
 **Acceptance Criteria:**
+
 - [ ] Given a push to `main` with all tests passing, when the workflow completes, then all four custom images are pushed to ghcr.io and the VPS is running the new images.
 - [ ] Given a push to `main` with a failing test, then the `build-and-deploy` job does not run and no deployment occurs.
 - [ ] Given two pushes to `main` in quick succession, then the second deployment waits for the first to finish (no concurrent deploys).
@@ -629,6 +647,7 @@ jobs:
 **Description:** The Hetzner VPS requires one-time setup before the CI/CD pipeline can deploy to it.
 
 **Server specification:**
+
 - **Provider:** Hetzner Cloud
 - **Plan:** CX21 (2 vCPU, 4 GB RAM, 40 GB disk) -- confirmed starting configuration
 - **OS:** Ubuntu 22.04 LTS or later
@@ -637,23 +656,23 @@ jobs:
 
 **Setup procedure:**
 
-| Step | Command / Action | Verification |
-|------|-----------------|-------------|
-| 1 | Provision VPS in Hetzner Cloud console | SSH accessible via root |
-| 2 | Create deploy user: `adduser deploy && usermod -aG docker deploy` | `ssh deploy@<ip>` works |
-| 3 | Install Docker: `curl -fsSL https://get.docker.com \| sh` | `docker --version` succeeds |
-| 4 | Install Docker Compose plugin: `apt install docker-compose-plugin` | `docker compose version` succeeds |
-| 5 | Clone repo: `git clone <repo> /opt/wpm && chown -R deploy:deploy /opt/wpm` | `/opt/wpm` exists |
-| 6 | Copy `.env` to `/opt/wpm/.env` with production values | File exists with `JWT_SECRET` set |
-| 7 | Run init script: `cd /opt/wpm && ./scripts/init-keys.sh` | Keys exist in Docker volume |
-| 8 | Start services: `docker compose up -d` | All containers running |
-| 9 | Install certbot: `apt install certbot` | `certbot --version` succeeds |
-| 10 | Obtain certificate: `certbot certonly --standalone -d wpm.example.com` | Certs in `/etc/letsencrypt` |
-| 11 | Symlink or copy certs to `./nginx/certs/` | Nginx starts with TLS |
-| 12 | Configure certbot renewal cron | `certbot renew --dry-run` succeeds |
-| 13 | Point domain A record to VPS IP | `dig wpm.example.com` resolves |
-| 14 | Add deploy user's SSH public key to `~deploy/.ssh/authorized_keys` | CI/CD SSH step works |
-| 15 | Configure firewall: `ufw allow 22,80,443/tcp && ufw enable` | Only SSH/HTTP/HTTPS open |
+| Step | Command / Action                                                           | Verification                       |
+| ---- | -------------------------------------------------------------------------- | ---------------------------------- |
+| 1    | Provision VPS in Hetzner Cloud console                                     | SSH accessible via root            |
+| 2    | Create deploy user: `adduser deploy && usermod -aG docker deploy`          | `ssh deploy@<ip>` works            |
+| 3    | Install Docker: `curl -fsSL https://get.docker.com \| sh`                  | `docker --version` succeeds        |
+| 4    | Install Docker Compose plugin: `apt install docker-compose-plugin`         | `docker compose version` succeeds  |
+| 5    | Clone repo: `git clone <repo> /opt/wpm && chown -R deploy:deploy /opt/wpm` | `/opt/wpm` exists                  |
+| 6    | Copy `.env` to `/opt/wpm/.env` with production values                      | File exists with `JWT_SECRET` set  |
+| 7    | Run init script: `cd /opt/wpm && ./scripts/init-keys.sh`                   | Keys exist in Docker volume        |
+| 8    | Start services: `docker compose up -d`                                     | All containers running             |
+| 9    | Install certbot: `apt install certbot`                                     | `certbot --version` succeeds       |
+| 10   | Obtain certificate: `certbot certonly --standalone -d wpm.example.com`     | Certs in `/etc/letsencrypt`        |
+| 11   | Symlink or copy certs to `./nginx/certs/`                                  | Nginx starts with TLS              |
+| 12   | Configure certbot renewal cron                                             | `certbot renew --dry-run` succeeds |
+| 13   | Point domain A record to VPS IP                                            | `dig wpm.example.com` resolves     |
+| 14   | Add deploy user's SSH public key to `~deploy/.ssh/authorized_keys`         | CI/CD SSH step works               |
+| 15   | Configure firewall: `ufw allow 22,80,443/tcp && ufw enable`                | Only SSH/HTTP/HTTPS open           |
 
 **Init script (`scripts/init-keys.sh`):**
 
@@ -692,6 +711,7 @@ echo "Next: start wpm-node to generate genesis block on first boot."
 The genesis block (minting 10,000,000 WPM to treasury) is generated by `wpm-node` on first startup when `chain.jsonl` does not exist -- not by the init script. The init script only handles key generation.
 
 **Acceptance Criteria:**
+
 - [ ] Given a freshly provisioned VPS, when all setup steps are completed, then `docker compose up -d` starts all services and `https://wpm.example.com` is reachable.
 - [ ] Given the init script is run, when `signer.pem` already exists, then the script aborts with an error (no overwrite).
 - [ ] Given the init script is run on a fresh volume, then four key files are created with correct permissions (private keys 600, public keys 644).
@@ -703,28 +723,29 @@ The genesis block (minting 10,000,000 WPM to treasury) is generated by `wpm-node
 
 **Environment variable inventory:**
 
-| Variable | Service | Source | Default | Required |
-|----------|---------|--------|---------|----------|
-| `NODE_PORT` | wpm-node | docker-compose.yml | `4000` | Yes |
-| `CHAIN_FILE` | wpm-node | docker-compose.yml | `/data/chain.jsonl` | Yes |
-| `SIGNER_KEY_PATH` | wpm-node | docker-compose.yml | `/keys/signer.pem` | Yes |
-| `ORACLE_PUBLIC_KEY_PATH` | wpm-node | docker-compose.yml | `/keys/oracle.pub` | Yes |
-| `API_PORT` | wpm-api | docker-compose.yml | `3000` | Yes |
-| `NODE_URL` | wpm-api | docker-compose.yml | `http://wpm-node:4000` | Yes |
-| `JWT_SECRET` | wpm-api | `.env` file on VPS | None | Yes |
-| `ADMIN_API_KEY` | wpm-api | `.env` file on VPS | None | Yes |
-| `ORACLE_PORT` | wpm-oracle | docker-compose.yml | `3001` | Yes |
-| `API_URL` | wpm-oracle | docker-compose.yml | `http://wpm-api:3000` | Yes |
-| `ORACLE_KEY_PATH` | wpm-oracle | docker-compose.yml | `/keys/oracle.pem` | Yes |
-| `ENABLED_SPORTS` | wpm-oracle | docker-compose.yml | `NFL` | Yes |
-| `INGEST_CRON` | wpm-oracle | docker-compose.yml | `0 6 * * *` | Yes |
-| `RESOLVE_CRON` | wpm-oracle | docker-compose.yml | `*/30 12-24 * * *` | Yes |
-| `LOOKAHEAD_DAYS` | wpm-oracle | docker-compose.yml | `14` | Yes |
-| `DEFAULT_SEED_AMOUNT` | wpm-oracle | docker-compose.yml | `1000` | Yes |
-| `TZ` | wpm-oracle | docker-compose.yml | `America/New_York` | Yes |
-| `DOMAIN` | VPS-level | `.env` file on VPS | None | Yes |
+| Variable                 | Service    | Source             | Default                | Required |
+| ------------------------ | ---------- | ------------------ | ---------------------- | -------- |
+| `NODE_PORT`              | wpm-node   | docker-compose.yml | `4000`                 | Yes      |
+| `CHAIN_FILE`             | wpm-node   | docker-compose.yml | `/data/chain.jsonl`    | Yes      |
+| `SIGNER_KEY_PATH`        | wpm-node   | docker-compose.yml | `/keys/signer.pem`     | Yes      |
+| `ORACLE_PUBLIC_KEY_PATH` | wpm-node   | docker-compose.yml | `/keys/oracle.pub`     | Yes      |
+| `API_PORT`               | wpm-api    | docker-compose.yml | `3000`                 | Yes      |
+| `NODE_URL`               | wpm-api    | docker-compose.yml | `http://wpm-node:4000` | Yes      |
+| `JWT_SECRET`             | wpm-api    | `.env` file on VPS | None                   | Yes      |
+| `ADMIN_API_KEY`          | wpm-api    | `.env` file on VPS | None                   | Yes      |
+| `ORACLE_PORT`            | wpm-oracle | docker-compose.yml | `3001`                 | Yes      |
+| `API_URL`                | wpm-oracle | docker-compose.yml | `http://wpm-api:3000`  | Yes      |
+| `ORACLE_KEY_PATH`        | wpm-oracle | docker-compose.yml | `/keys/oracle.pem`     | Yes      |
+| `ENABLED_SPORTS`         | wpm-oracle | docker-compose.yml | `NFL`                  | Yes      |
+| `INGEST_CRON`            | wpm-oracle | docker-compose.yml | `0 6 * * *`            | Yes      |
+| `RESOLVE_CRON`           | wpm-oracle | docker-compose.yml | `*/30 12-24 * * *`     | Yes      |
+| `LOOKAHEAD_DAYS`         | wpm-oracle | docker-compose.yml | `14`                   | Yes      |
+| `DEFAULT_SEED_AMOUNT`    | wpm-oracle | docker-compose.yml | `1000`                 | Yes      |
+| `TZ`                     | wpm-oracle | docker-compose.yml | `America/New_York`     | Yes      |
+| `DOMAIN`                 | VPS-level  | `.env` file on VPS | None                   | Yes      |
 
 **`.env.example` (committed to repo):**
+
 ```bash
 # Copy to .env on VPS and fill in values
 JWT_SECRET=
@@ -734,6 +755,7 @@ TZ=America/New_York
 ```
 
 **`.env` (on VPS, NOT committed):**
+
 ```bash
 JWT_SECRET=<random-64-char-hex-string>
 ADMIN_API_KEY=<random-32-char-hex-string>
@@ -742,6 +764,7 @@ TZ=America/New_York
 ```
 
 **Acceptance Criteria:**
+
 - [ ] Given `.env` is missing `JWT_SECRET`, when `wpm-api` starts, then it exits with a clear error message indicating the missing variable.
 - [ ] Given `.env.example` is committed to the repo, then it contains no actual secrets -- only placeholder values.
 - [ ] Given a service reads an environment variable, then it validates the value at startup and fails fast with a descriptive error if the value is invalid or missing.
@@ -751,12 +774,14 @@ TZ=America/New_York
 **Description:** `chain.jsonl` is the sole system-of-record. A daily backup cron job copies it to a local backup directory on the VPS.
 
 **Backup cron (on VPS):**
+
 ```bash
 # /etc/cron.d/wpm-backup
 0 4 * * * deploy docker cp wpm-wpm-node-1:/data/chain.jsonl /opt/wpm-backups/chain-$(date +\%Y\%m\%d).jsonl && find /opt/wpm-backups -name "chain-*.jsonl" -mtime +30 -delete
 ```
 
 **Behavior:**
+
 - Runs daily at 4:00 AM server time.
 - Copies `chain.jsonl` from the running node container.
 - Names the backup with a date stamp: `chain-20260306.jsonl`.
@@ -765,12 +790,14 @@ TZ=America/New_York
 - For MVP, local backup is sufficient since the chain file is tiny (kilobytes to low megabytes). Offsite backup (e.g., Cloudflare R2 free tier) can be added later for disaster recovery.
 
 **Recovery procedure:**
+
 1. Stop services: `docker compose down`
 2. Copy backup into the volume: `docker cp chain-YYYYMMDD.jsonl wpm-wpm-node-1:/data/chain.jsonl`
 3. Start services: `docker compose up -d`
 4. Node replays the JSONL file and rebuilds state.
 
 **Acceptance Criteria:**
+
 - [ ] Given the backup cron runs, then a dated copy of `chain.jsonl` appears in `/opt/wpm-backups/`.
 - [ ] Given backups older than 30 days exist, then they are deleted by the cron job.
 - [ ] Given a backup file is restored and services are started, then the node replays all blocks and reaches a consistent state.
@@ -779,39 +806,40 @@ TZ=America/New_York
 
 ### Performance
 
-| Metric | Target | Rationale |
-|--------|--------|-----------|
-| CI pipeline duration (test + build + deploy) | < 10 minutes | Fast feedback loop for developers |
-| Container startup (all services healthy) | < 60 seconds | Minimizes downtime window during deploy |
-| Nginx request latency overhead | < 5 ms added | Proxy layer should be transparent |
-| Docker image size (per service) | < 200 MB | Faster pulls on deploy |
+| Metric                                       | Target       | Rationale                               |
+| -------------------------------------------- | ------------ | --------------------------------------- |
+| CI pipeline duration (test + build + deploy) | < 10 minutes | Fast feedback loop for developers       |
+| Container startup (all services healthy)     | < 60 seconds | Minimizes downtime window during deploy |
+| Nginx request latency overhead               | < 5 ms added | Proxy layer should be transparent       |
+| Docker image size (per service)              | < 200 MB     | Faster pulls on deploy                  |
 
 ### Reliability
 
-| Metric | Target |
-|--------|--------|
-| Availability | Best-effort; no SLA (hobby project). Target: ~99% (< 3.6 days/year downtime). |
-| Recovery Time Objective (RTO) | < 30 minutes (manual SSH + restore from backup) |
-| Recovery Point Objective (RPO) | < 24 hours (daily backup) |
-| Auto-restart | All containers restart on crash via `unless-stopped` policy |
+| Metric                         | Target                                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| Availability                   | Best-effort; no SLA (hobby project). Target: ~99% (< 3.6 days/year downtime). |
+| Recovery Time Objective (RTO)  | < 30 minutes (manual SSH + restore from backup)                               |
+| Recovery Point Objective (RPO) | < 24 hours (daily backup)                                                     |
+| Auto-restart                   | All containers restart on crash via `unless-stopped` policy                   |
 
 ### Security
 
-| Concern | Measure |
-|---------|---------|
-| TLS | Enforced via Nginx; HTTP 301 redirects to HTTPS |
-| SSH access | Ed25519 key-based only; password auth disabled |
-| Secrets | `.env` file on VPS, never committed to repo |
-| Key files | Private keys are `chmod 600`; mounted read-only in containers |
-| Firewall | UFW allows only ports 22, 80, 443 |
+| Concern             | Measure                                                                        |
+| ------------------- | ------------------------------------------------------------------------------ |
+| TLS                 | Enforced via Nginx; HTTP 301 redirects to HTTPS                                |
+| SSH access          | Ed25519 key-based only; password auth disabled                                 |
+| Secrets             | `.env` file on VPS, never committed to repo                                    |
+| Key files           | Private keys are `chmod 600`; mounted read-only in containers                  |
+| Firewall            | UFW allows only ports 22, 80, 443                                              |
 | Container isolation | Services communicate only over the `wpm-net` bridge network; no `--privileged` |
-| HSTS | `Strict-Transport-Security` header with 1-year max-age |
-| Image provenance | Images built in CI from the same commit that passed tests |
-| Security headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection` |
+| HSTS                | `Strict-Transport-Security` header with 1-year max-age                         |
+| Image provenance    | Images built in CI from the same commit that passed tests                      |
+| Security headers    | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection` |
 
 ### Scalability
 
 Not a primary concern. The system is designed for a single VPS serving ~10-50 users. If growth exceeds capacity:
+
 - Vertical scaling: live-resize the Hetzner plan (up to 16 vCPU, 32 GB RAM) with no migration required.
 - No horizontal scaling path is planned.
 
@@ -877,11 +905,11 @@ There is no automated rollback. The system relies on the CI pipeline's test gate
 
 ### Health Checks
 
-| Endpoint | Service | Checks | Called By |
-|----------|---------|--------|-----------|
-| `GET /internal/health` | wpm-node | Chain loaded, mempool accessible | Docker healthcheck, wpm-api |
-| `GET /health` | wpm-api | API server up, node reachable | Docker healthcheck, Nginx |
-| `GET /admin/system/health` | wpm-api | Aggregated: node status, oracle last run, chain height | Admin portal, external uptime monitor |
+| Endpoint                   | Service  | Checks                                                 | Called By                             |
+| -------------------------- | -------- | ------------------------------------------------------ | ------------------------------------- |
+| `GET /internal/health`     | wpm-node | Chain loaded, mempool accessible                       | Docker healthcheck, wpm-api           |
+| `GET /health`              | wpm-api  | API server up, node reachable                          | Docker healthcheck, Nginx             |
+| `GET /admin/system/health` | wpm-api  | Aggregated: node status, oracle last run, chain height | Admin portal, external uptime monitor |
 
 ### Logging
 
@@ -907,18 +935,18 @@ There is no automated rollback. The system relies on the CI pipeline's test gate
 
 ## 7. Error Handling
 
-| Error Scenario | Detection | Response | Recovery |
-|---------------|-----------|----------|----------|
-| Container crash | Docker detects exit | Auto-restart via `unless-stopped` policy | Container restarts; node replays `chain.jsonl` |
-| Node unhealthy during deploy | Healthcheck fails | `wpm-api` does not start (depends_on condition) | Fix node issue, redeploy |
-| VPS disk full | Container crashes on write | Alert via monitoring (health check fails) | SSH in, prune images/logs, expand disk |
-| TLS certificate expired | Nginx refuses connections | Certbot renewal cron should prevent this | Manual `certbot renew` + Nginx reload |
-| SSH deploy fails | GitHub Actions step fails | Workflow reports failure; VPS keeps running old version | Re-run workflow or SSH manually |
-| ghcr.io unavailable | `docker compose push` fails | Workflow fails; no deploy | Wait and re-run |
-| DNS not resolving | Users cannot reach the site | External monitoring alerts | Check registrar, fix A record |
-| Key volume accidentally deleted | Node fails to start (missing signer key) | Cannot produce blocks | Restore keys from secure backup; if no backup, system must be re-initialized (new genesis, all state lost) |
-| `chain.jsonl` corruption | Node fails on replay | Node does not start | Restore from backup |
-| Concurrent deploys | Race condition on container replacement | `concurrency` group in GitHub Actions prevents this | Pipeline queues the second deploy |
+| Error Scenario                  | Detection                                | Response                                                | Recovery                                                                                                   |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Container crash                 | Docker detects exit                      | Auto-restart via `unless-stopped` policy                | Container restarts; node replays `chain.jsonl`                                                             |
+| Node unhealthy during deploy    | Healthcheck fails                        | `wpm-api` does not start (depends_on condition)         | Fix node issue, redeploy                                                                                   |
+| VPS disk full                   | Container crashes on write               | Alert via monitoring (health check fails)               | SSH in, prune images/logs, expand disk                                                                     |
+| TLS certificate expired         | Nginx refuses connections                | Certbot renewal cron should prevent this                | Manual `certbot renew` + Nginx reload                                                                      |
+| SSH deploy fails                | GitHub Actions step fails                | Workflow reports failure; VPS keeps running old version | Re-run workflow or SSH manually                                                                            |
+| ghcr.io unavailable             | `docker compose push` fails              | Workflow fails; no deploy                               | Wait and re-run                                                                                            |
+| DNS not resolving               | Users cannot reach the site              | External monitoring alerts                              | Check registrar, fix A record                                                                              |
+| Key volume accidentally deleted | Node fails to start (missing signer key) | Cannot produce blocks                                   | Restore keys from secure backup; if no backup, system must be re-initialized (new genesis, all state lost) |
+| `chain.jsonl` corruption        | Node fails on replay                     | Node does not start                                     | Restore from backup                                                                                        |
+| Concurrent deploys              | Race condition on container replacement  | `concurrency` group in GitHub Actions prevents this     | Pipeline queues the second deploy                                                                          |
 
 ### Critical Warning: Key Loss
 
@@ -1043,21 +1071,21 @@ wpm/
 
 These scenarios must all pass for the infrastructure to be considered functional:
 
-| # | Scenario | Expected Outcome |
-|---|----------|-----------------|
-| 1 | `bun install` at repo root | All workspace symlinks created, no errors |
-| 2 | `bunx turbo build` | All packages build in correct order (shared first) |
-| 3 | `bunx turbo test` | All tests pass |
-| 4 | `docker compose build` | All four custom images build successfully |
-| 5 | `docker compose up -d` (on VPS with keys + .env) | All five containers reach `running` status |
-| 6 | `curl -k https://localhost/api/health` (on VPS) | Returns 200 from wpm-api |
-| 7 | `curl -k https://localhost/` (on VPS) | Returns SPA HTML from wpm-web |
-| 8 | SSE connection to `/events/` | Connection stays open, receives events |
-| 9 | `docker compose down && docker compose up -d` | `chain.jsonl` persists, node replays successfully |
-| 10 | Push to `main` with passing tests | Full CI/CD pipeline runs, VPS updated |
-| 11 | Push to `main` with failing tests | Pipeline stops at test stage, no deploy |
-| 12 | `init-keys.sh` on fresh volume | Four key files created with correct permissions |
-| 13 | `init-keys.sh` when keys exist | Script aborts, existing keys untouched |
+| #   | Scenario                                         | Expected Outcome                                   |
+| --- | ------------------------------------------------ | -------------------------------------------------- |
+| 1   | `bun install` at repo root                       | All workspace symlinks created, no errors          |
+| 2   | `bunx turbo build`                               | All packages build in correct order (shared first) |
+| 3   | `bunx turbo test`                                | All tests pass                                     |
+| 4   | `docker compose build`                           | All four custom images build successfully          |
+| 5   | `docker compose up -d` (on VPS with keys + .env) | All five containers reach `running` status         |
+| 6   | `curl -k https://localhost/api/health` (on VPS)  | Returns 200 from wpm-api                           |
+| 7   | `curl -k https://localhost/` (on VPS)            | Returns SPA HTML from wpm-web                      |
+| 8   | SSE connection to `/events/`                     | Connection stays open, receives events             |
+| 9   | `docker compose down && docker compose up -d`    | `chain.jsonl` persists, node replays successfully  |
+| 10  | Push to `main` with passing tests                | Full CI/CD pipeline runs, VPS updated              |
+| 11  | Push to `main` with failing tests                | Pipeline stops at test stage, no deploy            |
+| 12  | `init-keys.sh` on fresh volume                   | Four key files created with correct permissions    |
+| 13  | `init-keys.sh` when keys exist                   | Script aborts, existing keys untouched             |
 
 ### Integration Checkpoints
 
@@ -1070,27 +1098,27 @@ These scenarios must all pass for the infrastructure to be considered functional
 
 ## 10. Resolved Questions
 
-| # | Question | Resolution |
-|---|----------|------------|
-| 1 | Should key files be backed up to an off-server location? | Yes, recommended. For MVP, keys are on the VPS only. Offsite backup (e.g., encrypted in a password manager) should be done manually after initial generation. |
-| 2 | Should the CI pipeline run on PRs for pre-merge testing? | Yes. Add a separate `test-only` workflow triggered on `pull_request` events. Not blocking for MVP. |
-| 3 | Should images be tagged with commit SHA in addition to `latest`? | No. `latest` is sufficient for current scale. Rollback by reverting the commit and re-deploying. |
-| 4 | Should `chain.jsonl` backups be shipped off-server? | Not for MVP. Local backups to `/opt/wpm-backups/` are sufficient given the chain file is tiny. Offsite backup (e.g., Cloudflare R2 free tier) can be added later for disaster recovery. |
-| 5 | Should Docker log rotation be configured in `daemon.json` or per-container? | `daemon.json` -- apply globally. Configuration is specified in section 6 (Logging). |
+| #   | Question                                                                    | Resolution                                                                                                                                                                              |
+| --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should key files be backed up to an off-server location?                    | Yes, recommended. For MVP, keys are on the VPS only. Offsite backup (e.g., encrypted in a password manager) should be done manually after initial generation.                           |
+| 2   | Should the CI pipeline run on PRs for pre-merge testing?                    | Yes. Add a separate `test-only` workflow triggered on `pull_request` events. Not blocking for MVP.                                                                                      |
+| 3   | Should images be tagged with commit SHA in addition to `latest`?            | No. `latest` is sufficient for current scale. Rollback by reverting the commit and re-deploying.                                                                                        |
+| 4   | Should `chain.jsonl` backups be shipped off-server?                         | Not for MVP. Local backups to `/opt/wpm-backups/` are sufficient given the chain file is tiny. Offsite backup (e.g., Cloudflare R2 free tier) can be added later for disaster recovery. |
+| 5   | Should Docker log rotation be configured in `daemon.json` or per-container? | `daemon.json` -- apply globally. Configuration is specified in section 6 (Logging).                                                                                                     |
 
 ## Appendix
 
 ### Glossary
 
-| Term | Definition |
-|------|-----------|
-| **ghcr.io** | GitHub Container Registry -- Docker image hosting provided by GitHub |
-| **PoA** | Proof of Authority -- consensus mechanism using a single trusted signer |
-| **JSONL** | JSON Lines -- one JSON object per line, used for the append-only chain file |
-| **SSE** | Server-Sent Events -- HTTP-based unidirectional streaming protocol |
+| Term          | Definition                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| **ghcr.io**   | GitHub Container Registry -- Docker image hosting provided by GitHub                              |
+| **PoA**       | Proof of Authority -- consensus mechanism using a single trusted signer                           |
+| **JSONL**     | JSON Lines -- one JSON object per line, used for the append-only chain file                       |
+| **SSE**       | Server-Sent Events -- HTTP-based unidirectional streaming protocol                                |
 | **Turborepo** | Build system for JavaScript/TypeScript monorepos with dependency-aware task execution and caching |
-| **certbot** | Let's Encrypt client for obtaining and renewing TLS certificates |
-| **UFW** | Uncomplicated Firewall -- iptables frontend on Ubuntu |
+| **certbot**   | Let's Encrypt client for obtaining and renewing TLS certificates                                  |
+| **UFW**       | Uncomplicated Firewall -- iptables frontend on Ubuntu                                             |
 
 ### References
 
