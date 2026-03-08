@@ -218,3 +218,19 @@ Files changed:
 - packages/api/src/db/index.ts (added auth_challenges CREATE TABLE)
 - packages/api/tests/db.test.ts (added 4 tests)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 1, Schema Completion, Task 4: Create db/queries.ts — prepared statement helpers
+
+- Created `packages/api/src/db/queries.ts` — 12 prepared statement helper functions covering all 4 tables
+- Row types: `UserRow`, `WebAuthnCredentialRow`, `InviteCodeRow`, `AuthChallengeRow` exported for use across codebase
+- User queries: `findUserById`, `findUserByEmail`, `findUserByWallet`, `insertUser` (with default role "user" and auto-set `created_at`)
+- Credential queries: `findCredentialById`, `insertCredential` (default counter 0), `updateCredentialCounter`
+- Invite code queries: `findActiveInviteCode` (filters by active=1 AND use_count < max_uses), `incrementInviteCodeUse`
+- Challenge queries: `insertChallenge`, `findChallenge`, `deleteChallenge`, `deleteExpiredChallenges` (returns count of deleted rows)
+- All functions accept optional `db?: Database` parameter — defaults to `getDb()` singleton, but allows passing a specific instance for testing
+- Created `packages/api/tests/queries.test.ts` — 24 tests covering all functions: round-trips, null returns, edge cases (case-insensitive email, exhausted invite codes, expired challenge cleanup)
+
+Files changed:
+- packages/api/src/db/queries.ts (new)
+- packages/api/tests/queries.test.ts (new)
+- PLAN.md (marked task complete)
