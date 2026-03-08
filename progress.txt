@@ -158,3 +158,27 @@ Files changed:
 Files changed:
 - packages/api/src/sse/relay.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 0, TB2, Tasks 2-3: Create routes/events.ts + tracer-sse.test.ts
+
+- Created `packages/api/src/routes/events.ts` — `GET /events/stream` SSE endpoint
+- Auth via `?token=` query param (EventSource doesn't support headers) — verifies JWT with `verifyJwt()`
+- Registers client in SSE relay via `getRelay().addClient(userId)`, returns `ReadableStream` as SSE response
+- Sets proper SSE headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`
+- Mounted events route in `packages/api/src/index.ts` via `app.route("/", events)`
+- Created `packages/api/tests/tracer-sse.test.ts` — 5 integration tests:
+  - Rejects missing token → 401
+  - Rejects invalid token → 401
+  - Returns SSE stream with valid token (correct headers)
+  - Receives `trade:executed` event after PlaceBet tx + block production (full end-to-end: node → EventBus → relay → client stream)
+  - Enforces 1 connection per user (second connection replaces first, `connectedClients` stays at 1)
+
+Gotchas:
+- Module-level env capture in `trading.ts` (`const NODE_URL = process.env.NODE_URL`) causes cross-test pollution when tests use different ports — SSE test avoids importing trading module since it submits txs directly to mempool
+- Hono's `app.request()` with `ReadableStream` response: `controller.close()` may not immediately signal `done: true` to readers in test context — test relay state directly via `relay.connectedClients` instead
+
+Files changed:
+- packages/api/src/routes/events.ts (new)
+- packages/api/tests/tracer-sse.test.ts (new)
+- packages/api/src/index.ts (mounted events route)
+- PLAN.md (marked tasks complete)
