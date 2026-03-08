@@ -36,3 +36,18 @@ Files changed:
 Files changed:
 - packages/api/src/node-client.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-07 — Phase 0, TB1, Task 4: Create db/index.ts — SQLite init + users table
+
+- Created `packages/api/src/db/index.ts` — SQLite database module using `bun:sqlite`
+- `openDatabase(path)` factory: enables WAL mode, foreign keys, 5s busy timeout, then runs migrations
+- `getDb()` singleton accessor with lazy init, uses `DB_PATH` env (default `wpm-api.db`)
+- `closeDb()` for graceful shutdown
+- `users` table: id (TEXT PK), name, email (UNIQUE COLLATE NOCASE), wallet_address (UNIQUE), wallet_private_key_enc (BLOB), role (DEFAULT 'user'), created_at (INTEGER)
+- Email uniqueness is case-insensitive via `COLLATE NOCASE`
+- Created `packages/api/tests/db.test.ts` — 7 tests covering WAL mode, foreign keys, column schema, case-insensitive email uniqueness, wallet_address uniqueness, insert/query round-trip, idempotent migration
+
+Files changed:
+- packages/api/src/db/index.ts (new)
+- packages/api/tests/db.test.ts (new)
+- PLAN.md (marked task complete)
