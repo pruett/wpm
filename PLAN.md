@@ -23,7 +23,7 @@
 - [x] Create `packages/api/src/middleware/auth.ts` — `signJwt(payload)`, `verifyJwt(token)`, Hono middleware extracting Bearer token → decoded JWT on context (`c.set("user", ...)`)
 - [x] Create `packages/api/src/errors.ts` — typed error helper (`apiError(code, status, message)`) and error catalog constants matching spec Section 7
 - [x] Create `packages/api/src/routes/trading.ts` — `POST /markets/:marketId/buy` (happy path: extract wallet from JWT, decrypt private key, validate market open via node, construct `PlaceBet` tx, sign with `@wpm/shared` crypto, submit to node, return receipt)
-- [ ] Write `packages/api/tests/tracer-buy.test.ts` — integration test using `bun:test`: boot node, boot API, seed user row + encrypted key in SQLite, mint JWT, buy shares, verify response shape and node state updated
+- [x] Write `packages/api/tests/tracer-buy.test.ts` — integration test using `bun:test`: boot node, boot API, seed user row + encrypted key in SQLite, mint JWT, buy shares, verify response shape and node state updated
 
 ### Tracer Bullet 2: SSE Relay
 

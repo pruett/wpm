@@ -123,3 +123,22 @@ Files changed:
 - packages/api/src/routes/trading.ts (new)
 - packages/api/src/index.ts (added trading route mount)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 0, TB1, Task 9: Write tracer-buy.test.ts — integration test
+
+- Created `packages/api/tests/tracer-buy.test.ts` — full integration test for POST /markets/:marketId/buy
+- Boots a real blockchain node (in-process): genesis block, CreateMarket tx (oracle-signed), Distribute tx (PoA-signed), produces block to commit setup
+- Boots API: Hono app with trading routes, SQLite seeded with user + AES-256-GCM encrypted wallet key, JWT minted
+- 7 tests covering: successful buy (202 response shape), node state verification (balance decrease + shares credited via node HTTP API), missing auth (401), invalid outcome (400), invalid amount with 3+ decimals (400), negative amount (400), nonexistent market (404)
+- Uses dynamic imports (`await import()`) for API modules that capture `process.env` at module level (`trading.ts` → `NODE_URL`, `db/index.ts` → `DB_PATH`)
+- Uses `produceBlock()` directly (no `startProducer()`) for deterministic block production in tests
+- Verifies node state through the node's HTTP API (`/internal/balance`, `/internal/shares`) for true end-to-end validation
+
+Gotchas:
+- ESM import hoisting: static imports run before top-level code, so env vars must be set before `await import()` of modules that read env at module init
+- Node HTTP server (`node:http` `createServer`) requires sandbox bypass for `server.listen()` to bind
+- `appendBlock` in producer defaults to `/data/chain.jsonl` if no path given — must pass temp file path to avoid filesystem errors
+
+Files changed:
+- packages/api/tests/tracer-buy.test.ts (new)
+- PLAN.md (marked task complete)
