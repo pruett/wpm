@@ -20,7 +20,13 @@ import {
   updateCredentialCounter,
 } from "../db/queries";
 import { generateWalletKeyPair, encryptPrivateKey } from "../crypto/wallet";
-import { signJwt } from "../middleware/auth";
+import {
+  signJwt,
+  signRefreshToken,
+  verifyRefreshToken,
+  setRefreshCookie,
+  getRefreshCookie,
+} from "../middleware/auth";
 import { createNodeClient } from "../node-client";
 
 const RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
@@ -227,13 +233,16 @@ auth.post("/auth/register/complete", async (c) => {
     await node.referralReward(inviteCode.referrer, userData.userId);
   }
 
-  // Issue JWT
+  // Issue JWT + refresh token
   const token = await signJwt({
     sub: userData.userId,
     role: "user" as const,
     walletAddress: walletPublicKey,
     email: userData.email,
   });
+
+  const refreshToken = await signRefreshToken(userData.userId);
+  setRefreshCookie(c, refreshToken);
 
   return c.json(
     {
@@ -357,7 +366,7 @@ auth.post("/auth/login/complete", async (c) => {
     return sendError(c, "UNAUTHORIZED", "User not found");
   }
 
-  // Issue JWT
+  // Issue JWT + refresh token
   const token = await signJwt({
     sub: user.id,
     role: user.role as "user" | "admin",
@@ -365,11 +374,62 @@ auth.post("/auth/login/complete", async (c) => {
     email: user.email,
   });
 
+  const refreshToken = await signRefreshToken(user.id);
+  setRefreshCookie(c, refreshToken);
+
   return c.json({
     userId: user.id,
     walletAddress: user.wallet_address,
     token,
   });
+});
+
+// --- POST /auth/refresh ---
+
+auth.post("/auth/refresh", async (c) => {
+  const refreshToken = getRefreshCookie(c);
+  if (!refreshToken) {
+    return sendError(
+      c,
+      "UNAUTHORIZED",
+      "Refresh token expired or missing. Please re-authenticate.",
+    );
+  }
+
+  let payload;
+  try {
+    payload = await verifyRefreshToken(refreshToken);
+  } catch {
+    return sendError(
+      c,
+      "UNAUTHORIZED",
+      "Refresh token expired or missing. Please re-authenticate.",
+    );
+  }
+
+  // Validate user still exists
+  const user = findUserById(payload.sub);
+  if (!user) {
+    return sendError(
+      c,
+      "UNAUTHORIZED",
+      "Refresh token expired or missing. Please re-authenticate.",
+    );
+  }
+
+  // Issue fresh access JWT
+  const token = await signJwt({
+    sub: user.id,
+    role: user.role as "user" | "admin",
+    walletAddress: user.wallet_address,
+    email: user.email,
+  });
+
+  // Rotate refresh cookie
+  const newRefreshToken = await signRefreshToken(user.id);
+  setRefreshCookie(c, newRefreshToken);
+
+  return c.json({ token });
 });
 
 function isValidEmail(email: string): boolean {

@@ -57,9 +57,9 @@
 
 ### JWT & Refresh Tokens (FR-3)
 
-- [ ] Implement refresh token issuance in auth middleware — `httpOnly`, `Secure`, `SameSite=Strict` cookie named `wpm_refresh`, 7-day expiry, issued on login and registration
-- [ ] Implement `POST /auth/refresh` in `packages/api/src/routes/auth.ts` (read `wpm_refresh` cookie, validate signature + expiry + user exists, issue fresh 15-min access JWT, optionally rotate refresh cookie)
-- [ ] Write tests (`bun:test`): valid refresh → new JWT, expired cookie → 401, missing cookie → 401
+- [x] Implement refresh token issuance in auth middleware — `httpOnly`, `Secure`, `SameSite=Strict` cookie named `wpm_refresh`, 7-day expiry, issued on login and registration
+- [x] Implement `POST /auth/refresh` in `packages/api/src/routes/auth.ts` (read `wpm_refresh` cookie, validate signature + expiry + user exists, issue fresh 15-min access JWT, optionally rotate refresh cookie)
+- [x] Write tests (`bun:test`): valid refresh → new JWT, expired cookie → 401, missing cookie → 401
 
 ### Admin Auth (FR-4)
 

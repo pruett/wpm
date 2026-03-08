@@ -297,3 +297,35 @@ Files changed:
 - packages/api/src/routes/auth.ts (added login/begin + login/complete endpoints, imported generateAuthenticationOptions, verifyAuthenticationResponse, findCredentialById, updateCredentialCounter, findUserById)
 - packages/api/tests/auth-login.test.ts (new)
 - PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 1, JWT & Refresh Tokens (FR-3): Full implementation
+
+- Added refresh token support to `packages/api/src/middleware/auth.ts`:
+  - `signRefreshToken(userId)` — signs a JWT with `type: "refresh"` and 7-day TTL
+  - `verifyRefreshToken(token)` — verifies signature + expiry + enforces `type: "refresh"` (rejects access tokens)
+  - `setRefreshCookie(c, token)` — sets `wpm_refresh` cookie with `httpOnly`, `Secure`, `SameSite=Strict`, `Max-Age=604800` (7 days), `Path=/`
+  - `getRefreshCookie(c)` — reads `wpm_refresh` cookie from request
+  - Exports `REFRESH_COOKIE_NAME` constant for test use
+  - New type `RefreshTokenPayload` with `sub`, `type`, `iat`, `exp`
+- Updated `packages/api/src/routes/auth.ts`:
+  - `POST /auth/register/complete` now issues refresh token cookie alongside access JWT
+  - `POST /auth/login/complete` now issues refresh token cookie alongside access JWT
+  - Added `POST /auth/refresh` endpoint: reads `wpm_refresh` cookie, verifies refresh token signature + expiry + type, validates user still exists in SQLite, issues fresh 15-min access JWT, rotates refresh cookie with new 7-day token
+- Created `packages/api/tests/auth-refresh.test.ts` — 8 tests covering:
+  - Valid refresh → new access JWT with correct claims and 15-min TTL
+  - Refresh rotates cookie (Set-Cookie header with HttpOnly, Secure, SameSite=Strict, Max-Age=604800)
+  - Missing cookie → UNAUTHORIZED 401 with "re-authenticate" message
+  - Expired refresh token → UNAUTHORIZED 401
+  - Access token used as refresh token → UNAUTHORIZED 401 (type mismatch)
+  - Refresh token for deleted/nonexistent user → UNAUTHORIZED 401
+  - Tampered refresh token → UNAUTHORIZED 401
+  - Refresh token helper round-trip (sign + verify, 7-day TTL)
+
+Gotchas:
+- Hono cookie import is `hono/cookie`, NOT `hono/helper/cookie` — the package.json exports map `./cookie` to `./dist/helper/cookie/index.js`
+
+Files changed:
+- packages/api/src/middleware/auth.ts (added refresh token signing/verification, cookie helpers)
+- packages/api/src/routes/auth.ts (added POST /auth/refresh, set refresh cookie on register + login)
+- packages/api/tests/auth-refresh.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
