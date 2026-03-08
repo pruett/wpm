@@ -83,4 +83,68 @@ markets.get("/markets", async (c) => {
   return c.json({ markets: enriched });
 });
 
+// GET /markets/:marketId — single market with pool details and user position
+markets.get("/markets/:marketId", async (c) => {
+  const { marketId } = c.req.param();
+  const user = c.get("user");
+  const node = createNodeClient(NODE_URL);
+
+  // Fetch market + pool + prices from node
+  const marketResult = await node.getMarket(marketId);
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market, pool, prices } = marketResult.data;
+
+  // Fetch user position if they have a wallet
+  let userPosition: {
+    outcomeA: { shares: number; costBasis: number; estimatedValue: number } | null;
+    outcomeB: { shares: number; costBasis: number; estimatedValue: number } | null;
+  } | null = null;
+
+  if (user.walletAddress) {
+    const sharesResult = await node.getShares(user.walletAddress);
+    if (sharesResult.ok) {
+      const marketPositions = sharesResult.data.positions[marketId];
+      if (marketPositions) {
+        const posA = marketPositions["A"];
+        const posB = marketPositions["B"];
+        userPosition = {
+          outcomeA:
+            posA && posA.shares > 0
+              ? {
+                  shares: posA.shares,
+                  costBasis: posA.costBasis,
+                  estimatedValue: Math.round(posA.shares * prices.priceA * 100) / 100,
+                }
+              : null,
+          outcomeB:
+            posB && posB.shares > 0
+              ? {
+                  shares: posB.shares,
+                  costBasis: posB.costBasis,
+                  estimatedValue: Math.round(posB.shares * prices.priceB * 100) / 100,
+                }
+              : null,
+        };
+        // If both null, set userPosition to null
+        if (!userPosition.outcomeA && !userPosition.outcomeB) {
+          userPosition = null;
+        }
+      }
+    }
+  }
+
+  return c.json({
+    market,
+    pool: pool ?? null,
+    prices,
+    userPosition,
+  });
+});
+
 export { markets };

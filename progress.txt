@@ -413,3 +413,25 @@ Files changed:
 - packages/api/src/index.ts (mounted markets routes)
 - packages/api/tests/markets.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/:marketId
+
+- Added `GET /markets/:marketId` endpoint to `packages/api/src/routes/markets.ts`
+  - Fetches market + pool + prices from node `GET /internal/market/:id`
+  - Returns `MARKET_NOT_FOUND` (404) when node returns 404
+  - Fetches user positions from node `GET /internal/shares/:addr` if user has walletAddress
+  - Computes `estimatedValue` per outcome position as `shares * price` (rounded to 2 decimals)
+  - Returns `{ market, pool, prices, userPosition }` where userPosition is `{ outcomeA, outcomeB }` or `null`
+  - Each outcome position includes `shares`, `costBasis`, and `estimatedValue` (or null if no shares)
+- Added 6 tests to `packages/api/tests/markets.test.ts`:
+  - Returns market with pool and prices (fields validated, prices sum to ~1.0)
+  - User position populated when user has shares (both outcomes with shares/costBasis/estimatedValue)
+  - User position null when different user has no shares
+  - User position null for market where user has no positions
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/:marketId endpoint)
+- packages/api/tests/markets.test.ts (added user2 fixture + 6 tests)
+- PLAN.md (marked task complete)

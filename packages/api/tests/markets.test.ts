@@ -7,6 +7,10 @@ import { unlinkSync } from "fs";
 import { generateKeyPair, sign } from "@wpm/shared/crypto";
 import type { PlaceBetTx, DistributeTx, CreateMarketTx } from "@wpm/shared";
 
+// Second user for position testing
+const user2Keys = generateKeyPair();
+const user2Id = randomUUID();
+
 // --- Env setup (must run before dynamic imports that capture env at module level) ---
 const NODE_PORT = 14623;
 process.env.NODE_URL = `http://127.0.0.1:${NODE_PORT}`;
@@ -43,6 +47,7 @@ let eventBus: InstanceType<typeof EventBus>;
 let nodeApi: { server: any; close: () => Promise<void> };
 let app: InstanceType<typeof Hono>;
 let token: string;
+let token2: string;
 
 beforeAll(async () => {
   // 1. Bootstrap blockchain with genesis
@@ -190,12 +195,32 @@ beforeAll(async () => {
     Date.now(),
   );
 
-  // 9. Mint JWT
+  // Seed user2 in SQLite (no bets, no positions)
+  db.query(
+    "INSERT INTO users (id, name, email, wallet_address, wallet_private_key_enc, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).run(
+    user2Id,
+    "User Two",
+    "user2-markets@example.com",
+    user2Keys.publicKey,
+    Buffer.from("placeholder"),
+    "user",
+    Date.now(),
+  );
+
+  // 9. Mint JWTs
   token = await signJwt({
     sub: userId,
     role: "user" as const,
     walletAddress: userKeys.publicKey,
     email: "marketuser@example.com",
+  });
+
+  token2 = await signJwt({
+    sub: user2Id,
+    role: "user" as const,
+    walletAddress: user2Keys.publicKey,
+    email: "user2-markets@example.com",
   });
 
   // 10. Create Hono app with markets routes
@@ -333,6 +358,90 @@ describe("GET /markets", () => {
 
   test("rejects request without auth", async () => {
     const res = await app.request("/markets");
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+});
+
+describe("GET /markets/:marketId", () => {
+  test("returns market with pool and prices", async () => {
+    const res = await app.request(`/markets/${marketId1}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.market).toBeDefined();
+    expect(body.market.marketId).toBe(marketId1);
+    expect(body.market.sport).toBe("NBA");
+    expect(body.market.homeTeam).toBe("Lakers");
+    expect(body.market.awayTeam).toBe("Celtics");
+    expect(body.market.status).toBe("open");
+
+    expect(body.pool).toBeDefined();
+    expect(body.pool.marketId).toBe(marketId1);
+    expect(body.pool.sharesA).toBeGreaterThan(0);
+    expect(body.pool.sharesB).toBeGreaterThan(0);
+
+    expect(body.prices).toBeDefined();
+    const sum = body.prices.priceA + body.prices.priceB;
+    expect(sum).toBeCloseTo(1.0, 4);
+  });
+
+  test("includes user position when user has shares", async () => {
+    const res = await app.request(`/markets/${marketId1}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+
+    // User placed bets on market1 (outcome A: 500 WPM, outcome B: 300 WPM)
+    expect(body.userPosition).not.toBeNull();
+    expect(body.userPosition.outcomeA).not.toBeNull();
+    expect(body.userPosition.outcomeA.shares).toBeGreaterThan(0);
+    expect(body.userPosition.outcomeA.costBasis).toBeGreaterThan(0);
+    expect(body.userPosition.outcomeA.estimatedValue).toBeGreaterThan(0);
+
+    expect(body.userPosition.outcomeB).not.toBeNull();
+    expect(body.userPosition.outcomeB.shares).toBeGreaterThan(0);
+    expect(body.userPosition.outcomeB.costBasis).toBeGreaterThan(0);
+    expect(body.userPosition.outcomeB.estimatedValue).toBeGreaterThan(0);
+  });
+
+  test("userPosition is null when user has no shares", async () => {
+    // user2 has no bets on market1
+    const res = await app.request(`/markets/${marketId1}`, {
+      headers: { Authorization: `Bearer ${token2}` },
+    });
+
+    const body = await res.json();
+    expect(body.userPosition).toBeNull();
+  });
+
+  test("userPosition is null for market with no positions", async () => {
+    // user1 has no bets on market2
+    const res = await app.request(`/markets/${marketId2}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    expect(body.userPosition).toBeNull();
+  });
+
+  test("returns 404 for nonexistent market", async () => {
+    const res = await app.request(`/markets/${randomUUID()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("MARKET_NOT_FOUND");
+  });
+
+  test("rejects request without auth", async () => {
+    const res = await app.request(`/markets/${marketId1}`);
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error.code).toBe("UNAUTHORIZED");
