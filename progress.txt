@@ -386,3 +386,30 @@ Files changed:
 - packages/api/src/index.ts (mounted wallet routes)
 - packages/api/tests/wallet.test.ts (new)
 - PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets
+
+- Created `packages/api/src/routes/markets.ts` — `GET /markets` endpoint:
+  - JWT auth required
+  - Fetches node state for markets + pools, filters to `status: "open"` markets
+  - Enriches each market with `calculatePrices()` from `@wpm/shared/amm` (prices sum to ~1.0)
+  - Computes multipliers as `1/price` (rounded to 2 decimals)
+  - Computes `totalVolume` per market by fetching all blocks and summing `PlaceBet.amount` + `SellShares.shareAmount` for matching marketIds
+  - Returns `{ markets: [...] }` with all original market fields plus prices, multipliers, totalVolume
+- Mounted markets routes in `packages/api/src/index.ts` via `app.route("/", markets)`
+- Created `packages/api/tests/markets.test.ts` — 9 integration tests covering:
+  - Returns only open markets (2 markets)
+  - Prices sum to ~1.00 for all markets
+  - Multipliers computed as 1/price (rounded)
+  - Market with bets has correct totalVolume (500 + 300 = 800)
+  - Market without bets has zero volume
+  - Unbetted market has equal prices (0.5/0.5) and multipliers (2/2)
+  - Betted market has shifted prices
+  - Enriched markets retain original fields (sport, teams, outcomes, etc.)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (new)
+- packages/api/src/index.ts (mounted markets routes)
+- packages/api/tests/markets.test.ts (new)
+- PLAN.md (marked task complete)

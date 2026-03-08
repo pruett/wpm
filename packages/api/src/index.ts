@@ -3,6 +3,7 @@ import { trading } from "./routes/trading";
 import { events } from "./routes/events";
 import { auth } from "./routes/auth";
 import { wallet } from "./routes/wallet";
+import { markets } from "./routes/markets";
 
 const app = new Hono();
 
@@ -10,6 +11,7 @@ app.route("/", trading);
 app.route("/", events);
 app.route("/", auth);
 app.route("/", wallet);
+app.route("/", markets);
 const startTime = Date.now();
 
 const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
