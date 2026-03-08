@@ -459,3 +459,31 @@ Files changed:
 - packages/api/src/routes/markets.ts (added GET /markets/:marketId/trades, imported findUserByWallet + Transaction type)
 - packages/api/tests/markets.test.ts (added 7 tests in new describe block)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/resolved
+
+- Added `GET /markets/resolved` endpoint to `packages/api/src/routes/markets.ts`
+  - Fetches node state, filters markets with status "resolved" or "cancelled"
+  - Sorts by `resolvedAt` descending (falls back to `createdAt` for markets without `resolvedAt`)
+  - Paginates with `limit` (default 20, max 100, min 1) and `offset` (default 0)
+  - Returns `{ markets, total, limit, offset }`
+  - Route registered before `GET /markets/:marketId` to avoid parameterized route catching "resolved" as a marketId
+- Added 8 tests to `packages/api/tests/markets.test.ts`:
+  - Returns both resolved and cancelled markets (count = 2)
+  - Resolved market has winningOutcome, finalScore, resolvedAt, correct sport
+  - Cancelled market has cancelled status, resolvedAt
+  - Does not include open markets
+  - Sorted by resolvedAt descending
+  - Pagination with limit and offset (page 1 and page 2 return different markets)
+  - Limit clamped to 100
+  - Rejects request without auth → 401
+- Test setup expanded: added market3 (resolved with winningOutcome "A", finalScore "5-3") and market4 (cancelled) alongside existing open markets
+
+Gotchas:
+- CreateMarket validation requires `eventStartTime > tx.timestamp`, but ResolveMarket requires `tx.timestamp >= eventStartTime` — for tests, set eventStartTime very near future and resolve timestamp at `Math.max(Date.now(), eventStartTime)`
+- Route ordering matters in Hono: `/markets/resolved` must be defined before `/markets/:marketId` or the parameterized route will match first
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/resolved endpoint)
+- packages/api/tests/markets.test.ts (added market3/market4 fixtures, ResolveMarket/CancelMarket txs, 8 new tests)
+- PLAN.md (marked task complete)

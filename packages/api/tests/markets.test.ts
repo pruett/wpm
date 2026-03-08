@@ -5,7 +5,13 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync } from "fs";
 import { generateKeyPair, sign } from "@wpm/shared/crypto";
-import type { PlaceBetTx, DistributeTx, CreateMarketTx } from "@wpm/shared";
+import type {
+  PlaceBetTx,
+  DistributeTx,
+  CreateMarketTx,
+  ResolveMarketTx,
+  CancelMarketTx,
+} from "@wpm/shared";
 
 // Second user for position testing
 const user2Keys = generateKeyPair();
@@ -39,6 +45,8 @@ const oracleKeys = generateKeyPair();
 const userKeys = generateKeyPair();
 const marketId1 = randomUUID();
 const marketId2 = randomUUID();
+const marketId3 = randomUUID(); // will be resolved
+const marketId4 = randomUUID(); // will be cancelled
 const userId = randomUUID();
 
 let state: InstanceType<typeof ChainState>;
@@ -103,6 +111,55 @@ beforeAll(async () => {
   );
   mempool.add(createMarket2, state);
 
+  // Create market3 (will be resolved)
+  // eventStartTime must be > tx.timestamp for CreateMarket validation,
+  // but resolve timestamp must be >= eventStartTime, so use a very near future time
+  const market3EventStart = Date.now() + 50;
+  const createMarket3: CreateMarketTx = {
+    id: randomUUID(),
+    type: "CreateMarket",
+    timestamp: Date.now() + 2,
+    sender: oracleKeys.publicKey,
+    signature: "",
+    marketId: marketId3,
+    sport: "MLB",
+    homeTeam: "Yankees",
+    awayTeam: "Red Sox",
+    outcomeA: "Home",
+    outcomeB: "Away",
+    eventStartTime: market3EventStart,
+    seedAmount: 8000,
+    externalEventId: randomUUID(),
+  };
+  createMarket3.signature = sign(
+    JSON.stringify({ ...createMarket3, signature: undefined }),
+    oracleKeys.privateKey,
+  );
+  mempool.add(createMarket3, state);
+
+  // Create market4 (will be cancelled)
+  const createMarket4: CreateMarketTx = {
+    id: randomUUID(),
+    type: "CreateMarket",
+    timestamp: Date.now() + 3,
+    sender: oracleKeys.publicKey,
+    signature: "",
+    marketId: marketId4,
+    sport: "NHL",
+    homeTeam: "Rangers",
+    awayTeam: "Bruins",
+    outcomeA: "Home",
+    outcomeB: "Away",
+    eventStartTime: Date.now() + 3_600_000,
+    seedAmount: 6000,
+    externalEventId: randomUUID(),
+  };
+  createMarket4.signature = sign(
+    JSON.stringify({ ...createMarket4, signature: undefined }),
+    oracleKeys.privateKey,
+  );
+  mempool.add(createMarket4, state);
+
   // 3. Distribute WPM to user
   const dist: DistributeTx = {
     id: randomUUID(),
@@ -157,6 +214,50 @@ beforeAll(async () => {
   mempool.add(betTx2, state);
 
   // 6. Produce second block
+  produceBlock(
+    state,
+    mempool,
+    poaKeys.publicKey,
+    poaKeys.privateKey,
+    CHAIN_FILE,
+    oracleKeys.publicKey,
+    eventBus,
+  );
+
+  // 6b. Resolve market3 and cancel market4
+  // Resolve timestamp must be >= market3's eventStartTime
+  const resolveTx: ResolveMarketTx = {
+    id: randomUUID(),
+    type: "ResolveMarket",
+    timestamp: Math.max(Date.now() + 30, market3EventStart),
+    sender: oracleKeys.publicKey,
+    signature: "",
+    marketId: marketId3,
+    winningOutcome: "A",
+    finalScore: "5-3",
+  };
+  resolveTx.signature = sign(
+    JSON.stringify({ ...resolveTx, signature: undefined }),
+    oracleKeys.privateKey,
+  );
+  mempool.add(resolveTx, state);
+
+  const cancelTx: CancelMarketTx = {
+    id: randomUUID(),
+    type: "CancelMarket",
+    timestamp: Date.now() + 31,
+    sender: oracleKeys.publicKey,
+    signature: "",
+    marketId: marketId4,
+    reason: "Event postponed",
+  };
+  cancelTx.signature = sign(
+    JSON.stringify({ ...cancelTx, signature: undefined }),
+    oracleKeys.privateKey,
+  );
+  mempool.add(cancelTx, state);
+
+  // 6c. Produce third block to commit resolve + cancel
   produceBlock(
     state,
     mempool,
@@ -539,6 +640,115 @@ describe("GET /markets/:marketId/trades", () => {
 
   test("rejects request without auth", async () => {
     const res = await app.request(`/markets/${marketId1}/trades`);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error.code).toBe("UNAUTHORIZED");
+  });
+});
+
+describe("GET /markets/resolved", () => {
+  test("returns resolved and cancelled markets", async () => {
+    const res = await app.request("/markets/resolved", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.markets).toBeArray();
+    expect(body.markets.length).toBe(2);
+    expect(body.total).toBe(2);
+
+    const ids = body.markets.map((m: any) => m.marketId);
+    expect(ids).toContain(marketId3);
+    expect(ids).toContain(marketId4);
+  });
+
+  test("resolved market has winningOutcome and finalScore", async () => {
+    const res = await app.request("/markets/resolved", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    const resolved = body.markets.find((m: any) => m.marketId === marketId3);
+    expect(resolved.status).toBe("resolved");
+    expect(resolved.winningOutcome).toBe("A");
+    expect(resolved.finalScore).toBe("5-3");
+    expect(resolved.resolvedAt).toBeGreaterThan(0);
+    expect(resolved.sport).toBe("MLB");
+  });
+
+  test("cancelled market has cancelled status", async () => {
+    const res = await app.request("/markets/resolved", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    const cancelled = body.markets.find((m: any) => m.marketId === marketId4);
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.resolvedAt).toBeGreaterThan(0);
+    expect(cancelled.sport).toBe("NHL");
+  });
+
+  test("does not include open markets", async () => {
+    const res = await app.request("/markets/resolved", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    const statuses = body.markets.map((m: any) => m.status);
+    expect(statuses).not.toContain("open");
+  });
+
+  test("sorted by resolvedAt descending", async () => {
+    const res = await app.request("/markets/resolved", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    for (let i = 1; i < body.markets.length; i++) {
+      const timeA = body.markets[i - 1].resolvedAt ?? body.markets[i - 1].createdAt;
+      const timeB = body.markets[i].resolvedAt ?? body.markets[i].createdAt;
+      expect(timeA).toBeGreaterThanOrEqual(timeB);
+    }
+  });
+
+  test("pagination with limit and offset", async () => {
+    const res = await app.request("/markets/resolved?limit=1&offset=0", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.markets.length).toBe(1);
+    expect(body.total).toBe(2);
+    expect(body.limit).toBe(1);
+    expect(body.offset).toBe(0);
+
+    // Page 2
+    const res2 = await app.request("/markets/resolved?limit=1&offset=1", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body2 = await res2.json();
+    expect(body2.markets.length).toBe(1);
+    expect(body2.total).toBe(2);
+    expect(body2.offset).toBe(1);
+
+    // Different markets on each page
+    expect(body.markets[0].marketId).not.toBe(body2.markets[0].marketId);
+  });
+
+  test("limit clamped to 100", async () => {
+    const res = await app.request("/markets/resolved?limit=500", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const body = await res.json();
+    expect(body.limit).toBe(100);
+  });
+
+  test("rejects request without auth", async () => {
+    const res = await app.request("/markets/resolved");
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error.code).toBe("UNAUTHORIZED");

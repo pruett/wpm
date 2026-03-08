@@ -84,6 +84,45 @@ markets.get("/markets", async (c) => {
   return c.json({ markets: enriched });
 });
 
+// GET /markets/resolved — list resolved and cancelled markets with pagination
+markets.get("/markets/resolved", async (c) => {
+  const node = createNodeClient(NODE_URL);
+
+  const stateResult = await node.getState();
+  if (!stateResult.ok) {
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { markets: allMarkets } = stateResult.data;
+
+  // Filter to resolved + cancelled markets
+  const settled = Object.values(allMarkets).filter(
+    (m) => m.status === "resolved" || m.status === "cancelled",
+  );
+
+  // Sort by resolvedAt descending (resolved markets), then createdAt descending for cancelled
+  settled.sort((a, b) => {
+    const timeA = a.resolvedAt ?? a.createdAt;
+    const timeB = b.resolvedAt ?? b.createdAt;
+    return timeB - timeA;
+  });
+
+  // Parse pagination params
+  const limitParam = Number(c.req.query("limit") ?? "20");
+  const limit = Math.min(100, Math.max(1, Number.isFinite(limitParam) ? limitParam : 20));
+  const offsetParam = Number(c.req.query("offset") ?? "0");
+  const offset = Math.max(0, Number.isFinite(offsetParam) ? offsetParam : 0);
+
+  const paginated = settled.slice(offset, offset + limit);
+
+  return c.json({
+    markets: paginated,
+    total: settled.length,
+    limit,
+    offset,
+  });
+});
+
 // GET /markets/:marketId — single market with pool details and user position
 markets.get("/markets/:marketId", async (c) => {
   const { marketId } = c.req.param();
