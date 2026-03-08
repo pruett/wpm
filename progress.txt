@@ -22,3 +22,17 @@ Files changed:
 - packages/api/tsconfig.json (added bun types)
 - packages/api/package.json (added @types/bun)
 - bun.lock
+
+## 2026-03-07 — Phase 0, TB1, Task 3: Create node-client.ts
+
+- Created `packages/api/src/node-client.ts` — typed HTTP client wrapping all node internal endpoints
+- Uses Bun-native `fetch` with `AbortSignal.timeout(5000)` for all requests
+- Returns discriminated union `NodeResult<T>` — `{ ok: true, data: T }` or `{ ok: false, error, status }`
+- Returns `NODE_UNAVAILABLE` (503) on network failures / timeouts
+- Wraps all 9 endpoints: `getHealth`, `getBalance`, `getState`, `getMarket`, `getShares`, `getBlocks`, `getBlock`, `submitTransaction`, `distribute`, `referralReward`
+- Exports `createNodeClient(baseUrl)` factory and `NodeClient` type
+- URL-encodes path parameters (address, marketId) for safety
+
+Files changed:
+- packages/api/src/node-client.ts (new)
+- PLAN.md (marked task complete)
