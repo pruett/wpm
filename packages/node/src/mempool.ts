@@ -24,7 +24,7 @@ export class Mempool {
     this.oraclePublicKey = oraclePublicKey;
   }
 
-  add(tx: Transaction, state: ChainState): MempoolResult {
+  private checkCapacity(): MempoolResult | null {
     if (this.queue.length >= MAX_CAPACITY) {
       return {
         accepted: false,
@@ -34,6 +34,12 @@ export class Mempool {
         },
       };
     }
+    return null;
+  }
+
+  add(tx: Transaction, state: ChainState): MempoolResult {
+    const full = this.checkCapacity();
+    if (full) return full;
 
     const drift = Math.abs(tx.timestamp - Date.now());
     if (drift > MAX_TIMESTAMP_DRIFT_MS) {
@@ -72,15 +78,8 @@ export class Mempool {
   }
 
   addDirect(tx: Transaction): MempoolResult {
-    if (this.queue.length >= MAX_CAPACITY) {
-      return {
-        accepted: false,
-        error: {
-          code: "MEMPOOL_FULL",
-          message: `Mempool is at capacity (${MAX_CAPACITY} pending transactions)`,
-        },
-      };
-    }
+    const full = this.checkCapacity();
+    if (full) return full;
 
     if (this.pendingIds.has(tx.id)) {
       return {

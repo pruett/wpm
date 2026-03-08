@@ -1,10 +1,12 @@
 import type { ServerResponse } from "node:http";
-import type { Block, AMMPool } from "@wpm/shared";
-import { calculatePrices, calculateBuy, calculateSell } from "@wpm/shared";
+import type { Block } from "@wpm/shared";
+import { calculatePrices, calculateBuy, calculateSell, initializePool } from "@wpm/shared";
 import type { ChainState } from "./state.js";
 
+type SSEEventName = "block:new" | "market:created" | "market:resolved" | "market:cancelled" | "trade:executed";
+
 type SSEEvent = {
-  event: string;
+  event: SSEEventName;
   data: unknown;
 };
 
@@ -58,14 +60,7 @@ export class EventBus {
     for (const tx of block.transactions) {
       switch (tx.type) {
         case "CreateMarket": {
-          const halfSeed = tx.seedAmount / 2;
-          poolSnapshots.set(tx.marketId, {
-            marketId: tx.marketId,
-            sharesA: halfSeed,
-            sharesB: halfSeed,
-            k: halfSeed * halfSeed,
-            wpmLocked: tx.seedAmount,
-          });
+          poolSnapshots.set(tx.marketId, initializePool(tx.marketId, tx.seedAmount));
           this.emit({
             event: "market:created",
             data: {

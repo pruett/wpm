@@ -97,7 +97,6 @@ export function checkPriceSumInvariant(
 
 export function handleViolations(violations: InvariantViolation[], blockIndex: number): void {
   for (const v of violations) {
-    const prefix = `[${v.id}] Block ${blockIndex}:`;
     if (v.critical) {
       logger.error("critical invariant violation", { invariant: v.id, blockIndex, detail: v.message });
       throw new Error(`Critical invariant violation ${v.id}: ${v.message}`);

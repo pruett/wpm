@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { sign, calculatePrices } from "@wpm/shared";
-import type { Transaction, DistributeTx, ReferralTx, Market, AMMPool } from "@wpm/shared";
+import type { Transaction, DistributeTx, ReferralTx } from "@wpm/shared";
 import { validateReferral } from "./validation.js";
 import type { ChainState } from "./state.js";
 import type { Mempool } from "./mempool.js";
@@ -152,23 +152,11 @@ export function startApi(
 
       // GET /internal/state
       if (method === "GET" && pathname === "/internal/state") {
-        const balances: Record<string, number> = {};
-        for (const [address, balance] of state.balances) {
-          balances[address] = balance;
-        }
-        const markets: Record<string, Market> = {};
-        for (const [id, market] of state.markets) {
-          markets[id] = market;
-        }
-        const pools: Record<string, AMMPool> = {};
-        for (const [id, pool] of state.pools) {
-          pools[id] = pool;
-        }
         json(res, 200, {
           blockHeight: state.chain.length,
-          balances,
-          markets,
-          pools,
+          balances: Object.fromEntries(state.balances),
+          markets: Object.fromEntries(state.markets),
+          pools: Object.fromEntries(state.pools),
         });
         return;
       }

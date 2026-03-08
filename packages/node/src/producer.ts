@@ -16,6 +16,7 @@ import { logger } from "./logger.js";
 
 const POLL_INTERVAL_MS = 1_000;
 const MAX_TXS_PER_BLOCK = 100;
+const SYSTEM_TX_TYPES = new Set(["SettlePayout", "Referral"]);
 
 export function startProducer(
   state: ChainState,
@@ -48,7 +49,6 @@ export function produceBlock(
 
   const candidates = mempool.drain(MAX_TXS_PER_BLOCK);
 
-  const SYSTEM_TX_TYPES = new Set(["SettlePayout", "Referral"]);
   const validTxs: Transaction[] = [];
   for (const tx of candidates) {
     const isSystemTx = SYSTEM_TX_TYPES.has(tx.type);
@@ -119,17 +119,13 @@ export function produceBlock(
   // Post-block invariant checks
   const violations = checkPostBlockInvariants(state);
 
-  // INV-5: k only increases (check pools that still exist after block)
+  // INV-5: k only increases; INV-2: priceA + priceB === 1.00
   for (const [marketId, pool] of state.pools) {
     const prevK = previousKValues.get(marketId);
     if (prevK !== undefined) {
       const kViolation = checkPoolKInvariant(prevK, pool.k, marketId);
       if (kViolation) violations.push(kViolation);
     }
-  }
-
-  // INV-2: priceA + priceB === 1.00 for every open pool
-  for (const [marketId, pool] of state.pools) {
     const priceViolation = checkPriceSumInvariant(marketId, pool.sharesA, pool.sharesB);
     if (priceViolation) violations.push(priceViolation);
   }
