@@ -182,3 +182,15 @@ Files changed:
 - packages/api/tests/tracer-sse.test.ts (new)
 - packages/api/src/index.ts (mounted events route)
 - PLAN.md (marked tasks complete)
+
+## 2026-03-08 — Phase 1, Schema Completion, Task 1: Add webauthn_credentials table
+
+- Added `webauthn_credentials` table to `packages/api/src/db/index.ts` migration
+- Schema: credential_id (TEXT PK), user_id (TEXT FK → users.id), public_key (BLOB), counter (INTEGER DEFAULT 0), created_at (INTEGER)
+- Foreign key constraint enforced via `REFERENCES users(id)` (requires `PRAGMA foreign_keys = ON` already set)
+- Added 3 tests to `packages/api/tests/db.test.ts`: column schema validation, FK enforcement (rejects non-existent user), valid insert with existing user
+
+Files changed:
+- packages/api/src/db/index.ts (added webauthn_credentials CREATE TABLE)
+- packages/api/tests/db.test.ts (added 3 tests)
+- PLAN.md (marked task complete)

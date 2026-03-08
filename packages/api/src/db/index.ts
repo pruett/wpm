@@ -34,6 +34,16 @@ function migrate(db: Database): void {
       created_at             INTEGER NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS webauthn_credentials (
+      credential_id TEXT    PRIMARY KEY,
+      user_id       TEXT    NOT NULL REFERENCES users(id),
+      public_key    BLOB    NOT NULL,
+      counter       INTEGER NOT NULL DEFAULT 0,
+      created_at    INTEGER NOT NULL
+    )
+  `);
 }
 
 export function closeDb(): void {

@@ -129,6 +129,74 @@ describe("db/index", () => {
     expect(user.created_at).toBe(now);
   });
 
+  test("creates webauthn_credentials table with correct columns", () => {
+    ({ db, path } = tmpDb());
+    const columns = db.query("PRAGMA table_info(webauthn_credentials)").all() as {
+      name: string;
+      type: string;
+      notnull: number;
+      pk: number;
+      dflt_value: string | null;
+    }[];
+
+    const colMap = new Map(columns.map((c) => [c.name, c]));
+
+    expect(colMap.get("credential_id")!.pk).toBe(1);
+    expect(colMap.get("credential_id")!.type).toBe("TEXT");
+
+    expect(colMap.get("user_id")!.notnull).toBe(1);
+    expect(colMap.get("public_key")!.type).toBe("BLOB");
+    expect(colMap.get("public_key")!.notnull).toBe(1);
+
+    expect(colMap.get("counter")!.type).toBe("INTEGER");
+    expect(colMap.get("counter")!.notnull).toBe(1);
+    expect(colMap.get("counter")!.dflt_value).toBe("0");
+
+    expect(colMap.get("created_at")!.type).toBe("INTEGER");
+    expect(colMap.get("created_at")!.notnull).toBe(1);
+  });
+
+  test("webauthn_credentials enforces user_id FK", () => {
+    ({ db, path } = tmpDb());
+
+    // Insert credential referencing non-existent user should fail
+    expect(() =>
+      db
+        .query(
+          "INSERT INTO webauthn_credentials (credential_id, user_id, public_key, counter, created_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run("cred1", "nonexistent-user", Buffer.from("pubkey"), 0, Date.now()),
+    ).toThrow();
+  });
+
+  test("webauthn_credentials allows valid insert with existing user", () => {
+    ({ db, path } = tmpDb());
+    const now = Date.now();
+
+    db.query(
+      "INSERT INTO users (id, name, email, wallet_address, wallet_private_key_enc, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run("u1", "Alice", "alice@test.com", "wallet1", Buffer.from("enc1"), "user", now);
+
+    db.query(
+      "INSERT INTO webauthn_credentials (credential_id, user_id, public_key, counter, created_at) VALUES (?, ?, ?, ?, ?)",
+    ).run("cred1", "u1", Buffer.from("pubkey-data"), 0, now);
+
+    const cred = db
+      .query("SELECT * FROM webauthn_credentials WHERE credential_id = ?")
+      .get("cred1") as {
+      credential_id: string;
+      user_id: string;
+      public_key: Buffer;
+      counter: number;
+      created_at: number;
+    };
+
+    expect(cred.credential_id).toBe("cred1");
+    expect(cred.user_id).toBe("u1");
+    expect(cred.counter).toBe(0);
+    expect(cred.created_at).toBe(now);
+  });
+
   test("migrate is idempotent", () => {
     ({ db, path } = tmpDb());
     // openDatabase already ran migrate once; opening again should not throw
