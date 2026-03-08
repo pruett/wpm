@@ -106,3 +106,20 @@ Files changed:
 - packages/api/src/errors.ts (new)
 - packages/api/tests/errors.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 0, TB1, Task 8: Create routes/trading.ts — POST /markets/:marketId/buy
+
+- Created `packages/api/src/routes/trading.ts` — trading route with `POST /markets/:marketId/buy`
+- Happy path: JWT auth → validate outcome ("A"/"B") + amount (>0, ≤2 decimals) → fetch market from node (validate open + not past eventStartTime) → look up user in SQLite for encrypted private key → decrypt with AES-256-GCM → construct PlaceBetTx → sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+- Error handling: maps node errors (INSUFFICIENT_BALANCE, NODE_UNAVAILABLE) to API error catalog; validates market status (resolved → MARKET_ALREADY_RESOLVED, cancelled/closed → MARKET_CLOSED)
+- Uses typed Hono `Env` generic for `c.get("user")` type safety
+- Mounted trading router in `packages/api/src/index.ts` via `app.route("/", trading)`
+- Transaction signing follows node convention: `JSON.stringify({ ...tx, signature: undefined })`
+
+Gotchas:
+- Hono requires `Env` type param with `Variables` for typed `c.get()`/`c.set()` — without it, `c.get("user")` fails with TS2769 (no overload matches)
+
+Files changed:
+- packages/api/src/routes/trading.ts (new)
+- packages/api/src/index.ts (added trading route mount)
+- PLAN.md (marked task complete)

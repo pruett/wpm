@@ -1,6 +1,9 @@
 import { Hono } from "hono";
+import { trading } from "./routes/trading";
 
 const app = new Hono();
+
+app.route("/", trading);
 const startTime = Date.now();
 
 const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
