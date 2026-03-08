@@ -17,5 +17,8 @@ chain.jsonl
 # Nginx certs
 nginx/certs/
 
+# Claude
+.claude/worktrees/
+
 # OS
 .DS_Store
