@@ -90,8 +90,8 @@
 - [x] Implement `POST /markets/:marketId/buy/preview` in `packages/api/src/routes/trading.ts` (read-only AMM `calculateBuy` from `@wpm/shared`, return sharesReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB)
 - [x] Implement `POST /markets/:marketId/sell/preview` (read-only `calculateSell`, return wpmReceived, effectivePrice, priceImpact, fee, newPrices)
 - [x] Implement `POST /markets/:marketId/sell` (validate user holds sufficient shares via node, construct `SellShares` tx, sign with custodial key, submit to node)
-- [ ] Create `packages/api/src/validation.ts` — shared helpers: `validateAmount(n)` (>0, ≤2 decimal places), `validateOutcome(o)` ("A" or "B"), `validateMarketTradeable(market)` (exists, open, eventStartTime > now)
-- [ ] Write tests (`bun:test`): preview matches actual trade with no intervening trades, 3+ decimal places → `INVALID_AMOUNT` (400), market past eventStartTime → `MARKET_CLOSED` (400), insufficient balance → `INSUFFICIENT_BALANCE` (400), insufficient shares → `INSUFFICIENT_SHARES` (400), resolved market → `MARKET_ALREADY_RESOLVED` (400)
+- [x] Create `packages/api/src/validation.ts` — shared helpers: `validateAmount(n)` (>0, ≤2 decimal places), `validateOutcome(o)` ("A" or "B"), `validateMarketTradeable(market)` (exists, open, eventStartTime > now)
+- [x] Write tests (`bun:test`): preview matches actual trade with no intervening trades, 3+ decimal places → `INVALID_AMOUNT` (400), market past eventStartTime → `MARKET_CLOSED` (400), insufficient balance → `INSUFFICIENT_BALANCE` (400), insufficient shares → `INSUFFICIENT_SHARES` (400), resolved market → `MARKET_ALREADY_RESOLVED` (400)
 
 ### Transfer Endpoint (FR-8)
 

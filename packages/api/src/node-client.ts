@@ -37,7 +37,7 @@ type TxResult = {
 };
 
 type NodeError = {
-  error: string;
+  code: string;
   message: string;
 };
 
@@ -50,7 +50,7 @@ const TIMEOUT_MS = 5000;
 function nodeUnavailable(): NodeResult<never> {
   return {
     ok: false,
-    error: { error: "NODE_UNAVAILABLE", message: "Blockchain node is unreachable" },
+    error: { code: "NODE_UNAVAILABLE", message: "Blockchain node is unreachable" },
     status: 503,
   };
 }

@@ -8,6 +8,7 @@ import { sendError } from "../errors";
 import { createNodeClient } from "../node-client";
 import { getDb } from "../db/index";
 import { decryptPrivateKey } from "../crypto/wallet";
+import { validateAmount, validateOutcome, validateMarketTradeable } from "../validation";
 
 type Env = {
   Variables: {
@@ -15,7 +16,9 @@ type Env = {
   };
 };
 
-const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
+function getNodeUrl() {
+  return process.env.NODE_URL ?? "http://localhost:3001";
+}
 
 const trading = new Hono<Env>();
 
@@ -32,26 +35,22 @@ trading.post("/markets/:marketId/buy/preview", async (c) => {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
   }
 
-  const { outcome, amount } = body;
+  const { outcome, amount: rawAmount } = body;
 
   // Validate outcome
-  if (outcome !== "A" && outcome !== "B") {
+  if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
   // Validate amount
-  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
-    return sendError(c, "INVALID_AMOUNT");
+  const amountErr = validateAmount(rawAmount);
+  if (amountErr) {
+    return sendError(c, amountErr);
   }
-
-  // Validate ≤ 2 decimal places
-  const parts = amount.toString().split(".");
-  if (parts[1] && parts[1].length > 2) {
-    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
-  }
+  const amount = rawAmount as number;
 
   // Validate market exists and is tradeable
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
   if (!marketResult.ok) {
@@ -63,15 +62,9 @@ trading.post("/markets/:marketId/buy/preview", async (c) => {
 
   const { market, pool } = marketResult.data;
 
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED");
-  }
-
-  if (Date.now() >= market.eventStartTime) {
-    return sendError(c, "MARKET_CLOSED");
+  const marketErr = validateMarketTradeable(market);
+  if (marketErr) {
+    return sendError(c, marketErr);
   }
 
   // Calculate current prices before the trade
@@ -116,26 +109,22 @@ trading.post("/markets/:marketId/sell/preview", async (c) => {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
   }
 
-  const { outcome, amount } = body;
+  const { outcome, amount: rawAmount } = body;
 
   // Validate outcome
-  if (outcome !== "A" && outcome !== "B") {
+  if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
   // Validate amount (share quantity to sell)
-  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
-    return sendError(c, "INVALID_AMOUNT");
+  const amountErr = validateAmount(rawAmount);
+  if (amountErr) {
+    return sendError(c, amountErr);
   }
-
-  // Validate ≤ 2 decimal places
-  const parts = amount.toString().split(".");
-  if (parts[1] && parts[1].length > 2) {
-    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
-  }
+  const amount = rawAmount as number;
 
   // Validate market exists and is tradeable
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
   if (!marketResult.ok) {
@@ -147,15 +136,9 @@ trading.post("/markets/:marketId/sell/preview", async (c) => {
 
   const { market, pool } = marketResult.data;
 
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED");
-  }
-
-  if (Date.now() >= market.eventStartTime) {
-    return sendError(c, "MARKET_CLOSED");
+  const marketErr = validateMarketTradeable(market);
+  if (marketErr) {
+    return sendError(c, marketErr);
   }
 
   // Calculate current prices before the trade
@@ -206,23 +189,19 @@ trading.post("/markets/:marketId/buy", async (c) => {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
   }
 
-  const { outcome, amount } = body;
+  const { outcome, amount: rawAmount } = body;
 
   // Validate outcome
-  if (outcome !== "A" && outcome !== "B") {
+  if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
   // Validate amount
-  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
-    return sendError(c, "INVALID_AMOUNT");
+  const amountErr = validateAmount(rawAmount);
+  if (amountErr) {
+    return sendError(c, amountErr);
   }
-
-  // Validate ≤ 2 decimal places
-  const parts = amount.toString().split(".");
-  if (parts[1] && parts[1].length > 2) {
-    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
-  }
+  const amount = rawAmount as number;
 
   // Require wallet address on JWT
   const walletAddress = user.walletAddress;
@@ -231,7 +210,7 @@ trading.post("/markets/:marketId/buy", async (c) => {
   }
 
   // Validate market exists and is tradeable
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
   if (!marketResult.ok) {
@@ -243,15 +222,9 @@ trading.post("/markets/:marketId/buy", async (c) => {
 
   const { market } = marketResult.data;
 
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED");
-  }
-
-  if (Date.now() >= market.eventStartTime) {
-    return sendError(c, "MARKET_CLOSED");
+  const marketErr = validateMarketTradeable(market);
+  if (marketErr) {
+    return sendError(c, marketErr);
   }
 
   // Look up user in DB for encrypted private key
@@ -298,12 +271,8 @@ trading.post("/markets/:marketId/buy", async (c) => {
 
   if (!result.ok) {
     const nodeError = result.error;
-    const errorStr = nodeError.error ?? "";
 
-    if (
-      errorStr === "INSUFFICIENT_BALANCE" ||
-      nodeError.message?.includes("INSUFFICIENT_BALANCE")
-    ) {
+    if (nodeError.code === "INSUFFICIENT_BALANCE") {
       return sendError(c, "INSUFFICIENT_BALANCE");
     }
     if (result.status === 503) {
@@ -336,23 +305,19 @@ trading.post("/markets/:marketId/sell", async (c) => {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
   }
 
-  const { outcome, amount } = body;
+  const { outcome, amount: rawAmount } = body;
 
   // Validate outcome
-  if (outcome !== "A" && outcome !== "B") {
+  if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
   // Validate amount (share quantity to sell)
-  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
-    return sendError(c, "INVALID_AMOUNT");
+  const amountErr = validateAmount(rawAmount);
+  if (amountErr) {
+    return sendError(c, amountErr);
   }
-
-  // Validate ≤ 2 decimal places
-  const parts = amount.toString().split(".");
-  if (parts[1] && parts[1].length > 2) {
-    return sendError(c, "INVALID_AMOUNT", "Amount must have at most 2 decimal places");
-  }
+  const amount = rawAmount as number;
 
   // Require wallet address on JWT
   const walletAddress = user.walletAddress;
@@ -361,7 +326,7 @@ trading.post("/markets/:marketId/sell", async (c) => {
   }
 
   // Validate market exists and is tradeable
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
   if (!marketResult.ok) {
@@ -373,15 +338,9 @@ trading.post("/markets/:marketId/sell", async (c) => {
 
   const { market } = marketResult.data;
 
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED");
-  }
-
-  if (Date.now() >= market.eventStartTime) {
-    return sendError(c, "MARKET_CLOSED");
+  const marketErr = validateMarketTradeable(market);
+  if (marketErr) {
+    return sendError(c, marketErr);
   }
 
   // Validate user holds sufficient shares
@@ -443,9 +402,8 @@ trading.post("/markets/:marketId/sell", async (c) => {
 
   if (!result.ok) {
     const nodeError = result.error;
-    const errorStr = nodeError.error ?? "";
 
-    if (errorStr === "INSUFFICIENT_SHARES" || nodeError.message?.includes("INSUFFICIENT_SHARES")) {
+    if (nodeError.code === "INSUFFICIENT_SHARES") {
       return sendError(c, "INSUFFICIENT_SHARES");
     }
     if (result.status === 503) {

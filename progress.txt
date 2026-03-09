@@ -571,3 +571,34 @@ Files changed:
 Files changed:
 - packages/api/src/routes/trading.ts (added sell endpoint, imported SellSharesTx)
 - PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 2, Trading Endpoints (FR-7): Validation + Tests
+
+- Marked `packages/api/src/validation.ts` complete — already existed with `validateAmount`, `validateOutcome`, `validateMarketTradeable`
+- Fixed bug in `packages/api/src/node-client.ts`: `NodeError` type had `error` field but node actually returns `code` field — changed to `{ code: string, message: string }` to match actual node API response format
+- Fixed `packages/api/src/routes/trading.ts`:
+  - Updated error mapping to check `nodeError.code` instead of `nodeError.error` (was broken — INSUFFICIENT_BALANCE and INSUFFICIENT_SHARES errors from node were never matched)
+  - Changed module-level `const NODE_URL` to `getNodeUrl()` function to read env dynamically, fixing cross-test pollution when multiple test files share the same process
+  - Added `rawAmount`/`amount` type narrowing pattern: destructure as `rawAmount`, validate, then `const amount = rawAmount as number` — resolves TS2345/TS18046 errors from `unknown` type flowing into numeric operations
+- Created `packages/api/tests/trading-buy-sell.test.ts` — 10 integration tests covering:
+  - Buy: 3+ decimal places → INVALID_AMOUNT (400)
+  - Buy: market past eventStartTime → MARKET_CLOSED (400)
+  - Buy: insufficient balance → INSUFFICIENT_BALANCE (400)
+  - Buy: resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Sell: 3+ decimal places → INVALID_AMOUNT (400)
+  - Sell: market past eventStartTime → MARKET_CLOSED (400)
+  - Sell: insufficient shares → INSUFFICIENT_SHARES (400)
+  - Sell: zero shares for outcome → INSUFFICIENT_SHARES (400)
+  - Sell: resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Preview matches actual trade with no intervening trades (buy/preview → buy → verify AMM match)
+
+Gotchas:
+- Node returns `{ code, message }` but NodeError type had `{ error, message }` — silent type mismatch meant error codes were never matched at runtime (both `nodeError.error` and `nodeError.message?.includes("CODE")` failed)
+- Module-level `const NODE_URL = process.env.NODE_URL` captures env at first import — when multiple test files share a process, only the first file's NODE_URL is used. Fix: read env dynamically via function call.
+
+Files changed:
+- packages/api/src/node-client.ts (fixed NodeError type: `error` → `code`)
+- packages/api/src/routes/trading.ts (fixed error mapping, dynamic NODE_URL, type narrowing)
+- packages/api/src/validation.ts (no changes, already existed)
+- packages/api/tests/trading-buy-sell.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
