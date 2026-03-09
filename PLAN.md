@@ -100,10 +100,10 @@
 
 ### User Profile & Positions (FR-9)
 
-- [ ] Create `packages/api/src/routes/user.ts` — `GET /user/profile` (read from SQLite users table, return userId, name, email, walletAddress, createdAt)
-- [ ] Implement `GET /user/positions` (fetch share positions from node `GET /internal/shares/:addr`, fetch open markets from node state, join to compute current prices and estimated values per position)
-- [ ] Implement `GET /user/history` (filter resolved markets where user had shares, compute payout from SettlePayout txs for user, compute profit as payout minus cost basis)
-- [ ] Write tests (`bun:test`): profile fields correct, positions include current valuations, history includes accurate payout/profit
+- [x] Create `packages/api/src/routes/user.ts` — `GET /user/profile` (read from SQLite users table, return userId, name, email, walletAddress, createdAt)
+- [x] Implement `GET /user/positions` (fetch share positions from node `GET /internal/shares/:addr`, fetch open markets from node state, join to compute current prices and estimated values per position)
+- [x] Implement `GET /user/history` (filter resolved markets where user had shares, compute payout from SettlePayout txs for user, compute profit as payout minus cost basis)
+- [x] Write tests (`bun:test`): profile fields correct, positions include current valuations, history includes accurate payout/profit
 
 ### Leaderboard (FR-10)
 
