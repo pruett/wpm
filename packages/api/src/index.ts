@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { authRateLimit, adminRateLimit, userRateLimit } from "./middleware/rate-limit";
 import { trading } from "./routes/trading";
 import { events } from "./routes/events";
 import { auth } from "./routes/auth";
@@ -10,6 +11,14 @@ import { admin } from "./routes/admin";
 import { oracle } from "./routes/oracle";
 
 const app = new Hono();
+
+// Rate limiting — 10/min auth (IP), 120/min admin (IP), 60/min user (userId)
+app.use("/auth/*", authRateLimit);
+app.use("/admin/*", adminRateLimit);
+app.use("/wallet/*", userRateLimit);
+app.use("/markets/*", userRateLimit);
+app.use("/user/*", userRateLimit);
+app.use("/leaderboard/*", userRateLimit);
 
 app.route("/", trading);
 app.route("/", events);

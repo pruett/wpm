@@ -170,10 +170,10 @@
 
 ### Rate Limiting (NFR-4)
 
-- [ ] Create `packages/api/src/middleware/rate-limit.ts` — in-memory sliding window rate limiter
-- [ ] Apply per scope: 60/min user endpoints (key: userId), 120/min admin endpoints (key: IP), 10/min auth endpoints (key: IP), 1 concurrent SSE per user
-- [ ] Return HTTP 429 with `Retry-After` header and `{ error: { code: "RATE_LIMITED", message } }` body
-- [ ] Write tests (`bun:test`): within limit → succeeds, exceeding limit → 429 with Retry-After
+- [x] Create `packages/api/src/middleware/rate-limit.ts` — in-memory sliding window rate limiter
+- [x] Apply per scope: 60/min user endpoints (key: userId), 120/min admin endpoints (key: IP), 10/min auth endpoints (key: IP), 1 concurrent SSE per user
+- [x] Return HTTP 429 with `Retry-After` header and `{ error: { code: "RATE_LIMITED", message } }` body
+- [x] Write tests (`bun:test`): within limit → succeeds, exceeding limit → 429 with Retry-After
 
 ### Input Validation & CORS
 

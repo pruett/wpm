@@ -978,3 +978,45 @@ Files changed:
 - packages/api/src/routes/events.ts (read Last-Event-ID header + lastEventId query param)
 - packages/api/tests/sse-reconnect.test.ts (new — 9 integration tests)
 - PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 5, Rate Limiting (NFR-4): Full implementation
+
+- Created `packages/api/src/middleware/rate-limit.ts` — in-memory sliding window rate limiter:
+  - `createRateLimiter(config)` factory returns a Hono middleware with an attached `store` for testing
+  - Sliding window algorithm: tracks request timestamps per key, filters expired entries, rejects when count ≥ limit
+  - Returns HTTP 429 with `Retry-After` header (seconds until oldest request in window expires) and `{ error: { code: "RATE_LIMITED", message: "Too many requests" } }` body
+  - Periodic cleanup interval (60s) removes stale keys from store; timer is `unref()`ed to not keep process alive
+  - `keyFn` supports both sync and async key extraction — returns `null` to skip rate limiting
+  - `ipKey(c)` helper: extracts client IP from `x-forwarded-for` (first entry) → `x-real-ip` → `"unknown"`
+  - `userIdFromJwt(c)` helper: extracts `sub` claim from Bearer JWT in Authorization header; returns `null` on missing/invalid token (rate limiting skipped, auth middleware handles the 401 separately)
+  - `resetAllStores()` for test isolation
+- Pre-configured rate limiters:
+  - `authRateLimit`: 10 requests/min per IP (keyed by IP) — for `/auth/*` endpoints
+  - `adminRateLimit`: 120 requests/min per IP — for `/admin/*` endpoints
+  - `userRateLimit`: 60 requests/min per userId (keyed by JWT sub claim) — for `/wallet/*`, `/markets/*`, `/user/*`, `/leaderboard/*`
+  - SSE 1-concurrent-per-user: already enforced by `SSERelay.addClient()` which closes prior connections
+- Applied rate limiters in `packages/api/src/index.ts` via `app.use()` path patterns before route mounts
+- Created `packages/api/tests/rate-limit.test.ts` — 17 tests covering:
+  - Allows requests within limit (3 of 3 succeed)
+  - Rejects requests exceeding limit with 429 + RATE_LIMITED error body
+  - Includes Retry-After header on 429 (> 0, ≤ 60)
+  - Different keys are rate limited independently (userA, userB, userC)
+  - Window expires and requests are allowed again (100ms window, 150ms wait)
+  - Null key skips rate limiting (5 requests all succeed)
+  - Supports async keyFn
+  - Store tracks timestamps correctly (count matches request count)
+  - Stale timestamps filtered on new request after window expiry
+  - ipKey: extracts from x-forwarded-for, takes first from comma-separated list, falls back to x-real-ip
+  - userIdFromJwt: extracts userId from valid Bearer token, returns null for missing header, returns null for invalid token, different users independent
+  - resetAllStores clears all stores
+
+Gotchas:
+- User rate limiter extracts userId directly from the JWT in the Authorization header (via `verifyJwt`), not from `c.get("user")`, because the rate limiter middleware runs at the `app.use()` level before auth middleware in the sub-routers. This adds a fast HMAC-SHA256 verification but avoids coupling to middleware ordering.
+- SSE `/events/*` endpoint uses `?token=` query param for auth, not Authorization header, so the `userIdFromJwt` key extractor returns null and rate limiting is skipped. The 1-concurrent limit is handled by the relay.
+- Oracle endpoints (`/oracle/*`) are not rate limited — they are machine-to-machine with cryptographic signature authentication.
+
+Files changed:
+- packages/api/src/middleware/rate-limit.ts (new)
+- packages/api/src/index.ts (added rate limiter imports + app.use() path patterns)
+- packages/api/tests/rate-limit.test.ts (new — 17 tests)
+- PLAN.md (marked 4 tasks complete)
