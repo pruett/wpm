@@ -827,3 +827,25 @@ Files changed:
 - packages/api/src/routes/admin.ts (added 3 system monitoring endpoints, imported getAllUsers + getRelay)
 - packages/api/tests/admin-monitoring.test.ts (new)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, Oracle Triggers (FR-16): Full implementation
+
+- Added 2 oracle trigger proxy endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/oracle/ingest`: proxies to oracle server `POST /trigger/ingest` via `fetch` with `AbortSignal.timeout(30_000)`; forwards both success and error responses transparently; returns `NODE_UNAVAILABLE` (503) when oracle is unreachable
+  - `POST /admin/oracle/resolve`: proxies to oracle server `POST /trigger/resolve` via `fetch` with `AbortSignal.timeout(30_000)`; same error handling pattern
+- Oracle URL configurable via `ORACLE_URL` env var (default `http://wpm-oracle:3001`)
+- Uses dynamic `getOracleUrl()` function for test isolation (same pattern as NODE_URL)
+- Both endpoints protected by `authMiddleware` + `adminMiddleware` chain
+- Created `packages/api/tests/admin-oracle.test.ts` — 10 tests covering:
+  - Ingest: successful forward (200 with oracle response), error forward (400 with oracle error), oracle unreachable → NODE_UNAVAILABLE (503), user JWT → FORBIDDEN (403), missing auth → UNAUTHORIZED (401)
+  - Resolve: successful forward (200), error forward (500), oracle unreachable → NODE_UNAVAILABLE (503), user JWT → FORBIDDEN (403), missing auth → UNAUTHORIZED (401)
+- Tests use `Bun.serve` with port 0 for mock oracle server with mutable response fixtures
+
+Gotchas:
+- `Bun.serve` with `port: 0` requires sandbox bypass for port binding in tests
+- Mock oracle uses mutable `mockIngestResponse`/`mockResolveResponse` variables that tests can override before each request
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 2 oracle trigger endpoints, getOracleUrl helper)
+- packages/api/tests/admin-oracle.test.ts (new)
+- PLAN.md (marked 3 tasks complete)

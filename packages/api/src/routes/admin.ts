@@ -610,4 +610,54 @@ admin.get("/admin/health", adminMiddleware, async (c) => {
   });
 });
 
+// --- Oracle Triggers (FR-16) ---
+
+function getOracleUrl(): string {
+  return process.env.ORACLE_URL ?? "http://wpm-oracle:3001";
+}
+
+admin.post("/admin/oracle/ingest", adminMiddleware, async (c) => {
+  const oracleUrl = getOracleUrl();
+
+  try {
+    const res = await fetch(`${oracleUrl}/trigger/ingest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return c.json(data, res.status as 400 | 500);
+    }
+
+    return c.json(data);
+  } catch {
+    return sendError(c, "NODE_UNAVAILABLE", "Oracle server is unreachable");
+  }
+});
+
+admin.post("/admin/oracle/resolve", adminMiddleware, async (c) => {
+  const oracleUrl = getOracleUrl();
+
+  try {
+    const res = await fetch(`${oracleUrl}/trigger/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return c.json(data, res.status as 400 | 500);
+    }
+
+    return c.json(data);
+  } catch {
+    return sendError(c, "NODE_UNAVAILABLE", "Oracle server is unreachable");
+  }
+});
+
 export { admin };

@@ -143,9 +143,9 @@
 
 ### Oracle Triggers (FR-16)
 
-- [ ] Implement `POST /admin/oracle/ingest` in `packages/api/src/routes/admin.ts` (proxy to `http://wpm-oracle:3001/trigger/ingest` via `fetch` with `AbortSignal.timeout(30_000)`)
-- [ ] Implement `POST /admin/oracle/resolve` (proxy to `http://wpm-oracle:3001/trigger/resolve` via `fetch` with `AbortSignal.timeout(30_000)`)
-- [ ] Write tests (`bun:test`): successful forward, oracle unreachable → `NODE_UNAVAILABLE` (503)
+- [x] Implement `POST /admin/oracle/ingest` in `packages/api/src/routes/admin.ts` (proxy to `http://wpm-oracle:3001/trigger/ingest` via `fetch` with `AbortSignal.timeout(30_000)`)
+- [x] Implement `POST /admin/oracle/resolve` (proxy to `http://wpm-oracle:3001/trigger/resolve` via `fetch` with `AbortSignal.timeout(30_000)`)
+- [x] Write tests (`bun:test`): successful forward, oracle unreachable → `NODE_UNAVAILABLE` (503)
 
 ---
 
