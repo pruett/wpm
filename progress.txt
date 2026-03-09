@@ -654,3 +654,31 @@ Files changed:
 - packages/api/src/index.ts (mounted user routes)
 - packages/api/tests/user.test.ts (new)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 2, Leaderboard (FR-10): GET /leaderboard/alltime
+
+- Created `packages/api/src/routes/leaderboard.ts` — `GET /leaderboard/alltime` endpoint:
+  - JWT auth required
+  - Fetches node state once for all balances, markets, and pools (avoids N individual balance calls)
+  - For each user in SQLite: looks up balance from state, fetches share positions via `getShares()`, computes estimated value for open positions using AMM `calculatePrices()`
+  - `totalWpm = balance + positionValue` (both rounded to 2 decimals)
+  - Sorts descending by `totalWpm`, tiebreaks by `walletAddress` ascending (lexicographic)
+  - Assigns 1-indexed ranks
+  - Returns `{ rankings: [{ rank, userId, name, walletAddress, balance, positionValue, totalWpm }] }`
+- Added `getAllUsers()` helper to `packages/api/src/db/queries.ts` — bulk fetch all users ordered by `created_at` ascending
+- Mounted leaderboard routes in `packages/api/src/index.ts`
+- Created `packages/api/tests/leaderboard.test.ts` — 7 integration tests covering:
+  - Rankings sorted by totalWpm descending (3 users with different balances)
+  - 1-indexed rank assignment
+  - Response fields correct (rank, userId, name, walletAddress, balance, positionValue, totalWpm)
+  - User with positions has totalWpm = balance + positionValue
+  - User without positions has positionValue = 0
+  - Rankings are deterministic (same order from different requesters)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/leaderboard.ts (new)
+- packages/api/src/db/queries.ts (added getAllUsers)
+- packages/api/src/index.ts (mounted leaderboard routes)
+- packages/api/tests/leaderboard.test.ts (new)
+- PLAN.md (marked task complete)

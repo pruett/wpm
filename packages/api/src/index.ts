@@ -5,6 +5,7 @@ import { auth } from "./routes/auth";
 import { wallet } from "./routes/wallet";
 import { markets } from "./routes/markets";
 import { user } from "./routes/user";
+import { leaderboard } from "./routes/leaderboard";
 
 const app = new Hono();
 
@@ -14,6 +15,7 @@ app.route("/", auth);
 app.route("/", wallet);
 app.route("/", markets);
 app.route("/", user);
+app.route("/", leaderboard);
 const startTime = Date.now();
 
 const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";

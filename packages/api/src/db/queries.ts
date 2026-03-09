@@ -82,6 +82,10 @@ export function insertUser(
     );
 }
 
+export function getAllUsers(db?: Database): UserRow[] {
+  return (db ?? getDb()).query("SELECT * FROM users ORDER BY created_at ASC").all() as UserRow[];
+}
+
 // --- WebAuthn credential queries ---
 
 export function findCredentialById(

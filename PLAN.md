@@ -107,7 +107,7 @@
 
 ### Leaderboard (FR-10)
 
-- [ ] Create `packages/api/src/routes/leaderboard.ts` — `GET /leaderboard/alltime` (for each user in SQLite: fetch balance + sum estimated position values from node, sort desc by totalWpm, tiebreak by walletAddress, assign 1-indexed ranks)
+- [x] Create `packages/api/src/routes/leaderboard.ts` — `GET /leaderboard/alltime` (for each user in SQLite: fetch balance + sum estimated position values from node, sort desc by totalWpm, tiebreak by walletAddress, assign 1-indexed ranks)
 - [ ] Implement `GET /leaderboard/weekly` (define week as Mon 00:00 UTC → Sun 23:59 UTC, calculate weeklyPnl = current totalWpm − totalWpm at week-start derived from chain replay to Monday boundary block, sort desc)
 - [ ] Write tests (`bun:test`): rankings deterministic, weekly window boundaries correct
 
