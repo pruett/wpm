@@ -121,16 +121,16 @@ describe("POST /auth/admin/login", () => {
     expect(body.error.code).toBe("FORBIDDEN");
   });
 
-  test("invalid JSON body → FORBIDDEN 403", async () => {
+  test("invalid JSON body → VALIDATION_ERROR 400", async () => {
     const res = await app.request("/auth/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not json",
     });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
     const body = (await res.json()) as { error: { code: string } };
-    expect(body.error.code).toBe("FORBIDDEN");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 });
 

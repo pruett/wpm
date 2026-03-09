@@ -2,22 +2,13 @@ import { Hono } from "hono";
 import type { Block } from "@wpm/shared";
 import { calculatePrices } from "@wpm/shared/amm";
 import { authMiddleware } from "../middleware/auth";
-import type { JwtUserPayload } from "../middleware/auth";
+import type { AuthedEnv } from "../middleware/auth";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
+import { createNodeClient, getNodeUrl } from "../node-client";
 import { findUserById } from "../db/queries";
+import { round2 } from "../validation";
 
-type Env = {
-  Variables: {
-    user: JwtUserPayload;
-  };
-};
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
-
-const user = new Hono<Env>();
+const user = new Hono<AuthedEnv>();
 
 user.use("/user/*", authMiddleware);
 
@@ -50,13 +41,11 @@ user.get("/user/positions", async (c) => {
 
   const node = createNodeClient(getNodeUrl());
 
-  // Fetch user share positions
   const sharesResult = await node.getShares(walletAddress);
   if (!sharesResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
   }
 
-  // Fetch node state for markets and pools
   const stateResult = await node.getState();
   if (!stateResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
@@ -82,7 +71,6 @@ user.get("/user/positions", async (c) => {
 
   for (const [marketId, outcomeMap] of Object.entries(sharesResult.data.positions)) {
     const market = markets[marketId];
-    // Only include positions in open markets
     if (!market || market.status !== "open") continue;
 
     const pool = pools[marketId];
@@ -105,8 +93,8 @@ user.get("/user/positions", async (c) => {
         outcome,
         shares: pos.shares,
         costBasis: pos.costBasis,
-        currentPrice: Math.round(price * 100) / 100,
-        estimatedValue: Math.round(pos.shares * price * 100) / 100,
+        currentPrice: round2(price),
+        estimatedValue: round2(pos.shares * price),
       });
     }
   }
@@ -125,7 +113,6 @@ user.get("/user/history", async (c) => {
 
   const node = createNodeClient(getNodeUrl());
 
-  // Fetch node state for markets
   const stateResult = await node.getState();
   if (!stateResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
@@ -134,7 +121,6 @@ user.get("/user/history", async (c) => {
   const { markets } = stateResult.data;
 
   // Scan all blocks for user's PlaceBet costs and SettlePayout receipts
-  // (positions are deleted from state after settlement, so costBasis must come from tx history)
   const costByMarket = new Map<string, number>();
   const payoutsByMarket = new Map<string, number>();
   let from = 0;
@@ -169,7 +155,6 @@ user.get("/user/history", async (c) => {
     from += blocks.length;
   }
 
-  // Build history entries for resolved/cancelled markets where user placed bets or received payouts
   const involvedMarketIds = new Set<string>([...costByMarket.keys(), ...payoutsByMarket.keys()]);
 
   const history: {
@@ -196,7 +181,7 @@ user.get("/user/history", async (c) => {
 
     const costBasis = costByMarket.get(marketId) ?? 0;
     const payout = payoutsByMarket.get(marketId) ?? 0;
-    const profit = Math.round((payout - costBasis) * 100) / 100;
+    const profit = round2(payout - costBasis);
 
     history.push({
       marketId,
@@ -217,7 +202,6 @@ user.get("/user/history", async (c) => {
     });
   }
 
-  // Sort by resolvedAt descending
   history.sort((a, b) => (b.market.resolvedAt ?? 0) - (a.market.resolvedAt ?? 0));
 
   return c.json({ history });

@@ -1,44 +1,29 @@
 import { Hono } from "hono";
-import { sign as cryptoSign } from "@wpm/shared/crypto";
 import { calculateBuy, calculateSell, calculatePrices } from "@wpm/shared/amm";
 import type { PlaceBetTx, SellSharesTx } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
-import type { JwtUserPayload } from "../middleware/auth";
+import type { AuthedEnv } from "../middleware/auth";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
-import { getDb } from "../db/index";
-import { decryptPrivateKey } from "../crypto/wallet";
+import { createNodeClient, getNodeUrl } from "../node-client";
+import { getUserPrivateKey, signTransaction } from "../crypto/wallet";
 import {
+  round2,
+  parseJsonBody,
   validateAmount,
   validateOutcome,
   validateMarketTradeable,
   validateExtraFields,
 } from "../validation";
 
-type Env = {
-  Variables: {
-    user: JwtUserPayload;
-  };
-};
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
-
-const trading = new Hono<Env>();
+const trading = new Hono<AuthedEnv>();
 
 trading.use("*", authMiddleware);
 
 trading.post("/markets/:marketId/buy/preview", async (c) => {
   const { marketId } = c.req.param();
 
-  // Parse request body
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["outcome", "amount"]);
   if (extraErr) {
@@ -47,19 +32,16 @@ trading.post("/markets/:marketId/buy/preview", async (c) => {
 
   const { outcome, amount: rawAmount } = body;
 
-  // Validate outcome
   if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
-  // Validate amount
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Validate market exists and is tradeable
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -77,47 +59,32 @@ trading.post("/markets/:marketId/buy/preview", async (c) => {
     return sendError(c, marketErr);
   }
 
-  // Calculate current prices before the trade
   const currentPrices = calculatePrices(pool);
-
-  // Run AMM buy calculation (read-only — does not modify state)
   const buyResult = calculateBuy(pool, outcome, amount);
-
-  // Calculate new prices from the resulting pool
   const newPrices = calculatePrices(buyResult.pool);
 
-  // Fee is 1% of amount
-  const fee = Math.round(amount * 0.01 * 100) / 100;
+  const fee = round2(amount * 0.01);
+  const effectivePrice = buyResult.sharesToUser > 0 ? round2(amount / buyResult.sharesToUser) : 0;
 
-  // Effective price = amount / sharesReceived
-  const effectivePrice =
-    buyResult.sharesToUser > 0 ? Math.round((amount / buyResult.sharesToUser) * 100) / 100 : 0;
-
-  // Price impact = absolute change in the purchased outcome's price
   const currentPrice = outcome === "A" ? currentPrices.priceA : currentPrices.priceB;
   const newPrice = outcome === "A" ? newPrices.priceA : newPrices.priceB;
-  const priceImpact = Math.round(Math.abs(newPrice - currentPrice) * 100) / 100;
+  const priceImpact = round2(Math.abs(newPrice - currentPrice));
 
   return c.json({
     sharesReceived: buyResult.sharesToUser,
     effectivePrice,
     priceImpact,
     fee,
-    newPriceA: Math.round(newPrices.priceA * 100) / 100,
-    newPriceB: Math.round(newPrices.priceB * 100) / 100,
+    newPriceA: round2(newPrices.priceA),
+    newPriceB: round2(newPrices.priceB),
   });
 });
 
 trading.post("/markets/:marketId/sell/preview", async (c) => {
   const { marketId } = c.req.param();
 
-  // Parse request body
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["outcome", "amount"]);
   if (extraErr) {
@@ -126,19 +93,16 @@ trading.post("/markets/:marketId/sell/preview", async (c) => {
 
   const { outcome, amount: rawAmount } = body;
 
-  // Validate outcome
   if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
-  // Validate amount (share quantity to sell)
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Validate market exists and is tradeable
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -156,39 +120,29 @@ trading.post("/markets/:marketId/sell/preview", async (c) => {
     return sendError(c, marketErr);
   }
 
-  // Calculate current prices before the trade
   const currentPrices = calculatePrices(pool);
-
-  // Run AMM sell calculation (read-only — does not modify state)
   const sellResult = calculateSell(pool, outcome, amount);
-
-  // Calculate new prices from the resulting pool
   const newPrices = calculatePrices(sellResult.pool);
 
-  // Compute gross return to derive fee (replicate AMM's constant product formula)
   const grossReturn =
     outcome === "A"
-      ? Math.round((pool.sharesB - (pool.sharesA * pool.sharesB) / (pool.sharesA + amount)) * 100) /
-        100
-      : Math.round((pool.sharesA - (pool.sharesA * pool.sharesB) / (pool.sharesB + amount)) * 100) /
-        100;
-  const fee = Math.round(grossReturn * 0.01 * 100) / 100;
+      ? round2(pool.sharesB - (pool.sharesA * pool.sharesB) / (pool.sharesA + amount))
+      : round2(pool.sharesA - (pool.sharesA * pool.sharesB) / (pool.sharesB + amount));
+  const fee = round2(grossReturn * 0.01);
 
-  // Effective price = wpmReceived / shareAmount
-  const effectivePrice = amount > 0 ? Math.round((sellResult.netReturn / amount) * 100) / 100 : 0;
+  const effectivePrice = amount > 0 ? round2(sellResult.netReturn / amount) : 0;
 
-  // Price impact = absolute change in the sold outcome's price
   const currentPrice = outcome === "A" ? currentPrices.priceA : currentPrices.priceB;
   const newPrice = outcome === "A" ? newPrices.priceA : newPrices.priceB;
-  const priceImpact = Math.round(Math.abs(newPrice - currentPrice) * 100) / 100;
+  const priceImpact = round2(Math.abs(newPrice - currentPrice));
 
   return c.json({
     wpmReceived: sellResult.netReturn,
     effectivePrice,
     priceImpact,
     fee,
-    newPriceA: Math.round(newPrices.priceA * 100) / 100,
-    newPriceB: Math.round(newPrices.priceB * 100) / 100,
+    newPriceA: round2(newPrices.priceA),
+    newPriceB: round2(newPrices.priceB),
   });
 });
 
@@ -196,13 +150,8 @@ trading.post("/markets/:marketId/buy", async (c) => {
   const user = c.get("user");
   const { marketId } = c.req.param();
 
-  // Parse request body
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["outcome", "amount"]);
   if (extraErr) {
@@ -211,25 +160,21 @@ trading.post("/markets/:marketId/buy", async (c) => {
 
   const { outcome, amount: rawAmount } = body;
 
-  // Validate outcome
   if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
-  // Validate amount
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Require wallet address on JWT
   const walletAddress = user.walletAddress;
   if (!walletAddress) {
     return sendError(c, "UNAUTHORIZED", "Token missing wallet address");
   }
 
-  // Validate market exists and is tradeable
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -247,30 +192,13 @@ trading.post("/markets/:marketId/buy", async (c) => {
     return sendError(c, marketErr);
   }
 
-  // Look up user in DB for encrypted private key
-  const db = getDb();
-  const row = db.query("SELECT wallet_private_key_enc FROM users WHERE id = ?").get(user.sub) as {
-    wallet_private_key_enc: Buffer;
-  } | null;
-
-  if (!row) {
-    return sendError(c, "UNAUTHORIZED", "User not found");
-  }
-
-  // Decrypt private key
-  const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
-  if (!encryptionKey) {
-    return sendError(c, "INTERNAL_ERROR", "Wallet encryption key not configured");
-  }
-
   let privateKey: string;
   try {
-    privateKey = await decryptPrivateKey(row.wallet_private_key_enc, encryptionKey);
+    privateKey = await getUserPrivateKey(user.sub);
   } catch {
     return sendError(c, "INTERNAL_ERROR", "Failed to decrypt wallet key");
   }
 
-  // Construct PlaceBet transaction
   const tx: PlaceBetTx = {
     id: crypto.randomUUID(),
     type: "PlaceBet",
@@ -282,11 +210,8 @@ trading.post("/markets/:marketId/buy", async (c) => {
     amount,
   };
 
-  // Sign transaction (same pattern as node: sign JSON with signature: undefined)
-  const signData = JSON.stringify({ ...tx, signature: undefined });
-  tx.signature = cryptoSign(signData, privateKey);
+  signTransaction(tx, privateKey);
 
-  // Submit to node
   const result = await node.submitTransaction(tx);
 
   if (!result.ok) {
@@ -317,13 +242,8 @@ trading.post("/markets/:marketId/sell", async (c) => {
   const user = c.get("user");
   const { marketId } = c.req.param();
 
-  // Parse request body
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["outcome", "amount"]);
   if (extraErr) {
@@ -332,25 +252,21 @@ trading.post("/markets/:marketId/sell", async (c) => {
 
   const { outcome, amount: rawAmount } = body;
 
-  // Validate outcome
   if (!validateOutcome(outcome)) {
     return sendError(c, "INVALID_OUTCOME");
   }
 
-  // Validate amount (share quantity to sell)
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Require wallet address on JWT
   const walletAddress = user.walletAddress;
   if (!walletAddress) {
     return sendError(c, "UNAUTHORIZED", "Token missing wallet address");
   }
 
-  // Validate market exists and is tradeable
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -383,30 +299,13 @@ trading.post("/markets/:marketId/sell", async (c) => {
     return sendError(c, "INSUFFICIENT_SHARES");
   }
 
-  // Look up user in DB for encrypted private key
-  const db = getDb();
-  const row = db.query("SELECT wallet_private_key_enc FROM users WHERE id = ?").get(user.sub) as {
-    wallet_private_key_enc: Buffer;
-  } | null;
-
-  if (!row) {
-    return sendError(c, "UNAUTHORIZED", "User not found");
-  }
-
-  // Decrypt private key
-  const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
-  if (!encryptionKey) {
-    return sendError(c, "INTERNAL_ERROR", "Wallet encryption key not configured");
-  }
-
   let privateKey: string;
   try {
-    privateKey = await decryptPrivateKey(row.wallet_private_key_enc, encryptionKey);
+    privateKey = await getUserPrivateKey(user.sub);
   } catch {
     return sendError(c, "INTERNAL_ERROR", "Failed to decrypt wallet key");
   }
 
-  // Construct SellShares transaction
   const tx: SellSharesTx = {
     id: crypto.randomUUID(),
     type: "SellShares",
@@ -418,11 +317,8 @@ trading.post("/markets/:marketId/sell", async (c) => {
     shareAmount: amount,
   };
 
-  // Sign transaction
-  const signData = JSON.stringify({ ...tx, signature: undefined });
-  tx.signature = cryptoSign(signData, privateKey);
+  signTransaction(tx, privateKey);
 
-  // Submit to node
   const result = await node.submitTransaction(tx);
 
   if (!result.ok) {

@@ -16,6 +16,7 @@ type ApiErrorBody = {
 const ERRORS = {
   UNAUTHORIZED: [401, "Authentication required"] as const,
   FORBIDDEN: [403, "Insufficient permissions"] as const,
+  NOT_FOUND: [404, "Resource not found"] as const,
   MARKET_NOT_FOUND: [404, "Market not found"] as const,
   RECIPIENT_NOT_FOUND: [404, "Recipient not found"] as const,
   MARKET_CLOSED: [400, "Market betting window has closed"] as const,

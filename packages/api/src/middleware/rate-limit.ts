@@ -75,6 +75,10 @@ function ipKey(c: Context): string {
 }
 
 async function userIdFromJwt(c: Context): Promise<string | null> {
+  // Reuse already-verified user from auth middleware if available
+  const existing = c.get("user" as never) as { sub?: string } | undefined;
+  if (existing?.sub) return existing.sub;
+
   const authHeader = c.req.header("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
   try {

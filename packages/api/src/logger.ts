@@ -67,11 +67,12 @@ function writeLog(entry: LogEntry): void {
 }
 
 function log(level: LogLevel, message: string, fields?: Record<string, unknown>): void {
+  const sanitized = fields ? (sanitize(fields) as Record<string, unknown>) : undefined;
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...fields,
+    ...sanitized,
   };
   writeLog(entry);
 }
@@ -89,8 +90,7 @@ function error(message: string, fields?: Record<string, unknown>): void {
 }
 
 function audit(action: string, fields?: Record<string, unknown>): void {
-  const sanitized = fields ? (sanitize(fields) as Record<string, unknown>) : undefined;
-  log("info", `audit: ${action}`, { audit: true, ...sanitized });
+  log("info", `audit: ${action}`, { audit: true, ...fields });
 }
 
 export { info, warn, error, audit, sanitize, writeLog };

@@ -14,6 +14,7 @@ import { oracle } from "./routes/oracle";
 import { info, warn } from "./logger";
 import { getRelay } from "./sse/relay";
 import { closeDb } from "./db/index";
+import { createNodeClient, getNodeUrl } from "./node-client";
 
 type AppEnv = {
   Variables: {
@@ -97,40 +98,20 @@ app.route("/", admin);
 app.route("/", oracle);
 const startTime = Date.now();
 
-const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
 const API_PORT = Number(process.env.API_PORT) || 3000;
 
-type NodeHealth = {
-  status: string;
-  blockHeight: number;
-  mempoolSize: number;
-  uptimeMs: number;
-};
-
 app.get("/health", async (c) => {
-  let nodeHealth: NodeHealth | null = null;
-  let nodeReachable = false;
-
-  try {
-    const res = await fetch(`${NODE_URL}/internal/health`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (res.ok) {
-      nodeHealth = (await res.json()) as NodeHealth;
-      nodeReachable = true;
-    }
-  } catch {
-    // node unreachable
-  }
+  const node = createNodeClient(getNodeUrl());
+  const nodeResult = await node.getHealth();
 
   return c.json({
-    status: nodeReachable ? "ok" : "degraded",
+    status: nodeResult.ok ? "ok" : "degraded",
     uptimeMs: Date.now() - startTime,
-    nodeReachable,
-    ...(nodeHealth && {
+    nodeReachable: nodeResult.ok,
+    ...(nodeResult.ok && {
       node: {
-        blockHeight: nodeHealth.blockHeight,
-        mempoolSize: nodeHealth.mempoolSize,
+        blockHeight: nodeResult.data.blockHeight,
+        mempoolSize: nodeResult.data.mempoolSize,
       },
     }),
   });

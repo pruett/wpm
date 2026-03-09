@@ -437,7 +437,7 @@ describe("POST /oracle/transaction", () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("INVALID_AMOUNT");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("rejects tx with missing sender", async () => {

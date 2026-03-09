@@ -7,7 +7,7 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { sendError } from "../errors";
-import { validateExtraFields } from "../validation";
+import { parseJsonBody, validateExtraFields } from "../validation";
 import {
   findUserByEmail,
   findUserById,
@@ -29,12 +29,11 @@ import {
   setRefreshCookie,
   getRefreshCookie,
 } from "../middleware/auth";
-import { createNodeClient } from "../node-client";
+import { createNodeClient, getNodeUrl } from "../node-client";
 
 const RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
 const RP_NAME = process.env.WEBAUTHN_RP_NAME ?? "WPM";
 const ORIGIN = process.env.WEBAUTHN_ORIGIN ?? `https://${RP_ID}`;
-const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
 
 const CHALLENGE_TTL_MS = 60_000;
 
@@ -43,12 +42,8 @@ const auth = new Hono();
 // --- POST /auth/register/begin ---
 
 auth.post("/auth/register/begin", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: { code: "INVALID_INVITE_CODE", message: "Invalid request body" } }, 400);
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["inviteCode", "name", "email"]);
   if (extraErr) {
@@ -69,15 +64,12 @@ auth.post("/auth/register/begin", async (c) => {
 
   // Validate name: 1-50 characters
   if (typeof name !== "string" || name.length < 1 || name.length > 50) {
-    return c.json(
-      { error: { code: "VALIDATION_ERROR", message: "Name must be 1-50 characters" } },
-      400,
-    );
+    return sendError(c, "VALIDATION_ERROR", "Name must be 1-50 characters");
   }
 
   // Validate email format
   if (typeof email !== "string" || !isValidEmail(email)) {
-    return c.json({ error: { code: "VALIDATION_ERROR", message: "Invalid email format" } }, 400);
+    return sendError(c, "VALIDATION_ERROR", "Invalid email format");
   }
 
   // Check duplicate email (case-insensitive via COLLATE NOCASE in DB)
@@ -125,12 +117,8 @@ auth.post("/auth/register/begin", async (c) => {
 // --- POST /auth/register/complete ---
 
 auth.post("/auth/register/complete", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "CHALLENGE_EXPIRED", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["challengeId", "credential"]);
   if (extraErr) {
@@ -237,7 +225,7 @@ auth.post("/auth/register/complete", async (c) => {
   deleteChallenge(challengeId);
 
   // Airdrop 100,000 WPM to new wallet
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
   await node.distribute(walletPublicKey, 100_000, "signup_airdrop");
 
   // Referral reward if invite code has a referrer
@@ -295,12 +283,8 @@ auth.post("/auth/login/begin", async (c) => {
 // --- POST /auth/login/complete ---
 
 auth.post("/auth/login/complete", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "UNAUTHORIZED", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["challengeId", "credential"]);
   if (extraErr) {
@@ -457,12 +441,8 @@ auth.post("/auth/admin/login", async (c) => {
     return sendError(c, "INTERNAL_ERROR", "Admin API key not configured");
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "FORBIDDEN", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["apiKey"]);
   if (extraErr) {

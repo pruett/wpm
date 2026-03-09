@@ -1,14 +1,19 @@
 import { Hono } from "hono";
 import { randomUUID } from "crypto";
-import { sign as cryptoSign } from "@wpm/shared/crypto";
-import type { CancelMarketTx, ResolveMarketTx, CreateMarketTx, Block } from "@wpm/shared";
+import type { CancelMarketTx, ResolveMarketTx, CreateMarketTx } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
 import { adminMiddleware } from "../middleware/admin";
 import type { AdminEnv } from "../middleware/admin";
 import { sendError } from "../errors";
-import { validateAmount, validateOutcome, validateExtraFields } from "../validation";
-import { createNodeClient } from "../node-client";
-import type { NodeClient } from "../node-client";
+import {
+  round2,
+  parseJsonBody,
+  validateAmount,
+  validateOutcome,
+  validateMarketOpen,
+  validateExtraFields,
+} from "../validation";
+import { createNodeClient, getNodeUrl, fetchAllBlocks } from "../node-client";
 import {
   insertInviteCode,
   getAllInviteCodes,
@@ -19,24 +24,18 @@ import {
 } from "../db/queries";
 import { getRelay } from "../sse/relay";
 import { audit } from "../logger";
+import { signTransaction } from "../crypto/wallet";
+import { getOraclePrivateKey, getOraclePublicKey } from "../config";
 
 const VALID_REASONS = new Set(["signup_airdrop", "referral_reward", "manual"]);
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
 
 const admin = new Hono<AdminEnv>();
 
 admin.use("/admin/*", authMiddleware);
 
 admin.post("/admin/distribute", adminMiddleware, async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["recipient", "amount", "reason"]);
   if (extraErr) {
@@ -45,30 +44,26 @@ admin.post("/admin/distribute", adminMiddleware, async (c) => {
 
   const { recipient: rawRecipient, amount: rawAmount, reason: rawReason } = body;
 
-  // Validate amount
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Validate recipient is a non-empty string
   if (typeof rawRecipient !== "string" || !rawRecipient) {
     return sendError(c, "RECIPIENT_NOT_FOUND", "Recipient address is required");
   }
   const recipient = rawRecipient;
 
-  // Validate reason
   if (typeof rawReason !== "string" || !VALID_REASONS.has(rawReason)) {
     return sendError(
       c,
-      "INVALID_AMOUNT",
+      "VALIDATION_ERROR",
       `Invalid reason. Must be one of: ${[...VALID_REASONS].join(", ")}`,
     );
   }
   const reason = rawReason;
 
-  // Call node distribute endpoint
   const node = createNodeClient(getNodeUrl());
   const result = await node.distribute(recipient, amount, reason);
 
@@ -117,12 +112,8 @@ function generateCode(): string {
 }
 
 admin.post("/admin/invite-codes", adminMiddleware, async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["count", "maxUses", "referrer"]);
   if (extraErr) {
@@ -131,28 +122,25 @@ admin.post("/admin/invite-codes", adminMiddleware, async (c) => {
 
   const { count: rawCount, maxUses: rawMaxUses, referrer: rawReferrer } = body;
 
-  // Validate count
   if (
     typeof rawCount !== "number" ||
     !Number.isInteger(rawCount) ||
     rawCount < 1 ||
     rawCount > 100
   ) {
-    return sendError(c, "INVALID_AMOUNT", "count must be an integer between 1 and 100");
+    return sendError(c, "VALIDATION_ERROR", "count must be an integer between 1 and 100");
   }
   const count = rawCount;
 
-  // Validate maxUses
   if (typeof rawMaxUses !== "number" || !Number.isInteger(rawMaxUses) || rawMaxUses < 1) {
-    return sendError(c, "INVALID_AMOUNT", "maxUses must be a positive integer");
+    return sendError(c, "VALIDATION_ERROR", "maxUses must be a positive integer");
   }
   const maxUses = rawMaxUses;
 
-  // Validate optional referrer (must be an existing wallet if provided)
   let referrer: string | null = null;
   if (rawReferrer !== undefined && rawReferrer !== null) {
     if (typeof rawReferrer !== "string" || !rawReferrer) {
-      return sendError(c, "INVALID_AMOUNT", "referrer must be a valid wallet address");
+      return sendError(c, "VALIDATION_ERROR", "referrer must be a valid wallet address");
     }
     const referrerUser = findUserByWallet(rawReferrer);
     if (!referrerUser) {
@@ -166,7 +154,7 @@ admin.post("/admin/invite-codes", adminMiddleware, async (c) => {
   const existingCodes = new Set<string>();
   while (codes.length < count) {
     const code = generateCode();
-    if (!existingCodes.has(code) && !findInviteCode(code)) {
+    if (!existingCodes.has(code)) {
       codes.push(code);
       existingCodes.add(code);
       insertInviteCode({
@@ -208,7 +196,7 @@ admin.delete("/admin/invite-codes/:code", adminMiddleware, async (c) => {
 
   const existing = findInviteCode(code);
   if (!existing) {
-    return sendError(c, "MARKET_NOT_FOUND", "Invite code not found", 404);
+    return sendError(c, "NOT_FOUND", "Invite code not found");
   }
 
   if (existing.active === 0) {
@@ -227,37 +215,18 @@ admin.delete("/admin/invite-codes/:code", adminMiddleware, async (c) => {
 
 // --- Market Operations (FR-14) ---
 
-function getOraclePrivateKey(): string | null {
-  return process.env.ORACLE_PRIVATE_KEY ?? null;
-}
-
-function getOraclePublicKey(): string | null {
-  return process.env.ORACLE_PUBLIC_KEY ?? null;
-}
-
-async function fetchAllBlocks(node: NodeClient): Promise<Block[]> {
-  const allBlocks: Block[] = [];
-  let from = 0;
-  const batchSize = 50;
-  while (true) {
-    const result = await node.getBlocks(from, batchSize);
-    if (!result.ok) break;
-    allBlocks.push(...result.data);
-    if (result.data.length < batchSize) break;
-    from += batchSize;
-  }
-  return allBlocks;
+function requireOracleKeys(): { oraclePrivateKey: string; oraclePublicKey: string } | null {
+  const oraclePrivateKey = getOraclePrivateKey();
+  const oraclePublicKey = getOraclePublicKey();
+  if (!oraclePrivateKey || !oraclePublicKey) return null;
+  return { oraclePrivateKey, oraclePublicKey };
 }
 
 admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
   const { marketId } = c.req.param();
 
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["reason"]);
   if (extraErr) {
@@ -267,17 +236,15 @@ admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
   const { reason: rawReason } = body;
 
   if (typeof rawReason !== "string" || !rawReason.trim()) {
-    return sendError(c, "INVALID_AMOUNT", "reason is required");
+    return sendError(c, "VALIDATION_ERROR", "reason is required");
   }
   const reason = rawReason.trim();
 
-  const oraclePrivateKey = getOraclePrivateKey();
-  const oraclePublicKey = getOraclePublicKey();
-  if (!oraclePrivateKey || !oraclePublicKey) {
+  const keys = requireOracleKeys();
+  if (!keys) {
     return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
   }
 
-  // Validate market exists and is open
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -289,26 +256,26 @@ admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
   }
 
   const { market } = marketResult.data;
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  const statusErr = validateMarketOpen(market);
+  if (statusErr) {
+    return sendError(
+      c,
+      statusErr,
+      statusErr === "MARKET_CLOSED" ? "Market is already cancelled" : undefined,
+    );
   }
 
-  // Construct CancelMarket transaction signed by oracle
   const tx: CancelMarketTx = {
     id: randomUUID(),
     type: "CancelMarket",
     timestamp: Date.now(),
-    sender: oraclePublicKey,
+    sender: keys.oraclePublicKey,
     signature: "",
     marketId,
     reason,
   };
 
-  const signData = JSON.stringify({ ...tx, signature: undefined });
-  tx.signature = cryptoSign(signData, oraclePrivateKey);
+  signTransaction(tx, keys.oraclePrivateKey);
 
   const result = await node.submitTransaction(tx);
 
@@ -339,12 +306,8 @@ admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
 admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
   const { marketId } = c.req.param();
 
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["winningOutcome", "finalScore"]);
   if (extraErr) {
@@ -359,17 +322,15 @@ admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
   const winningOutcome = rawOutcome;
 
   if (typeof rawScore !== "string" || !rawScore.trim()) {
-    return sendError(c, "INVALID_AMOUNT", "finalScore is required");
+    return sendError(c, "VALIDATION_ERROR", "finalScore is required");
   }
   const finalScore = rawScore.trim();
 
-  const oraclePrivateKey = getOraclePrivateKey();
-  const oraclePublicKey = getOraclePublicKey();
-  if (!oraclePrivateKey || !oraclePublicKey) {
+  const keys = requireOracleKeys();
+  if (!keys) {
     return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
   }
 
-  // Validate market exists and is open
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -381,27 +342,27 @@ admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
   }
 
   const { market } = marketResult.data;
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  const statusErr = validateMarketOpen(market);
+  if (statusErr) {
+    return sendError(
+      c,
+      statusErr,
+      statusErr === "MARKET_CLOSED" ? "Market is already cancelled" : undefined,
+    );
   }
 
-  // Construct ResolveMarket transaction signed by oracle
   const tx: ResolveMarketTx = {
     id: randomUUID(),
     type: "ResolveMarket",
     timestamp: Math.max(Date.now(), market.eventStartTime),
-    sender: oraclePublicKey,
+    sender: keys.oraclePublicKey,
     signature: "",
     marketId,
     winningOutcome,
     finalScore,
   };
 
-  const signData = JSON.stringify({ ...tx, signature: undefined });
-  tx.signature = cryptoSign(signData, oraclePrivateKey);
+  signTransaction(tx, keys.oraclePrivateKey);
 
   const result = await node.submitTransaction(tx);
 
@@ -434,12 +395,8 @@ admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
 admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
   const { marketId } = c.req.param();
 
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["seedAmount"]);
   if (extraErr) {
@@ -454,13 +411,11 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
   }
   const seedAmount = rawSeedAmount as number;
 
-  const oraclePrivateKey = getOraclePrivateKey();
-  const oraclePublicKey = getOraclePublicKey();
-  if (!oraclePrivateKey || !oraclePublicKey) {
+  const keys = requireOracleKeys();
+  if (!keys) {
     return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
   }
 
-  // Validate market exists and is open
   const node = createNodeClient(getNodeUrl());
   const marketResult = await node.getMarket(marketId);
 
@@ -472,11 +427,13 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
   }
 
   const { market } = marketResult.data;
-  if (market.status !== "open") {
-    if (market.status === "resolved") {
-      return sendError(c, "MARKET_ALREADY_RESOLVED");
-    }
-    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  const statusErr = validateMarketOpen(market);
+  if (statusErr) {
+    return sendError(
+      c,
+      statusErr,
+      statusErr === "MARKET_CLOSED" ? "Market is already cancelled" : undefined,
+    );
   }
 
   // Check for existing trades (PlaceBet/SellShares) on this market
@@ -496,14 +453,13 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     id: randomUUID(),
     type: "CancelMarket",
     timestamp: Date.now(),
-    sender: oraclePublicKey,
+    sender: keys.oraclePublicKey,
     signature: "",
     marketId,
     reason: "Seed override",
   };
 
-  const cancelSignData = JSON.stringify({ ...cancelTx, signature: undefined });
-  cancelTx.signature = cryptoSign(cancelSignData, oraclePrivateKey);
+  signTransaction(cancelTx, keys.oraclePrivateKey);
 
   const cancelResult = await node.submitTransaction(cancelTx);
   if (!cancelResult.ok) {
@@ -521,7 +477,7 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     id: randomUUID(),
     type: "CreateMarket",
     timestamp: Date.now(),
-    sender: oraclePublicKey,
+    sender: keys.oraclePublicKey,
     signature: "",
     marketId: newMarketId,
     sport: market.sport,
@@ -534,8 +490,7 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     externalEventId: newExternalEventId,
   };
 
-  const createSignData = JSON.stringify({ ...createTx, signature: undefined });
-  createTx.signature = cryptoSign(createSignData, oraclePrivateKey);
+  signTransaction(createTx, keys.oraclePrivateKey);
 
   const createResult = await node.submitTransaction(createTx);
   if (!createResult.ok) {
@@ -572,21 +527,18 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
 admin.get("/admin/treasury", adminMiddleware, async (c) => {
   const node = createNodeClient(getNodeUrl());
 
-  // Get treasury address from genesis block (first tx sender = PoA/treasury)
   const genesisResult = await node.getBlock(0);
   if (!genesisResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
   }
   const treasuryAddress = genesisResult.data.transactions[0].sender;
 
-  // Get current treasury balance from state
   const stateResult = await node.getState();
   if (!stateResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
   }
   const balance = stateResult.data.balances[treasuryAddress] ?? 0;
 
-  // Scan all blocks for aggregate computations
   const blocks = await fetchAllBlocks(node);
 
   let totalDistributed = 0;
@@ -611,17 +563,16 @@ admin.get("/admin/treasury", adminMiddleware, async (c) => {
 
   return c.json({
     treasuryAddress,
-    balance: Math.round(balance * 100) / 100,
-    totalDistributed: Math.round(totalDistributed * 100) / 100,
-    totalSeeded: Math.round(totalSeeded * 100) / 100,
-    totalReclaimed: Math.round(totalReclaimed * 100) / 100,
+    balance: round2(balance),
+    totalDistributed: round2(totalDistributed),
+    totalSeeded: round2(totalSeeded),
+    totalReclaimed: round2(totalReclaimed),
   });
 });
 
 admin.get("/admin/users", adminMiddleware, async (c) => {
   const node = createNodeClient(getNodeUrl());
 
-  // Get balances from node state
   const stateResult = await node.getState();
   if (!stateResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");

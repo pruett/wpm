@@ -2,6 +2,7 @@ import { sign, verify } from "hono/jwt";
 import { setCookie, getCookie } from "hono/cookie";
 import type { Context } from "hono";
 import type { MiddlewareHandler } from "hono";
+import { sendError } from "../errors";
 
 const ALG = "HS256";
 const DEFAULT_ACCESS_TTL = 15 * 60; // 15 minutes
@@ -15,6 +16,12 @@ type JwtUserPayload = {
   email?: string;
   iat: number;
   exp: number;
+};
+
+type AuthedEnv = {
+  Variables: {
+    user: JwtUserPayload;
+  };
 };
 
 type RefreshTokenPayload = {
@@ -86,18 +93,12 @@ function getRefreshCookie(c: Context): string | undefined {
 const authMiddleware: MiddlewareHandler = async (c, next) => {
   const header = c.req.header("Authorization");
   if (!header) {
-    return c.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing authorization header" } },
-      401,
-    );
+    return sendError(c, "UNAUTHORIZED", "Missing authorization header");
   }
 
   const parts = header.split(" ");
   if (parts.length !== 2 || parts[0] !== "Bearer") {
-    return c.json(
-      { error: { code: "UNAUTHORIZED", message: "Invalid authorization format" } },
-      401,
-    );
+    return sendError(c, "UNAUTHORIZED", "Invalid authorization format");
   }
 
   try {
@@ -105,7 +106,7 @@ const authMiddleware: MiddlewareHandler = async (c, next) => {
     c.set("user", payload);
     await next();
   } catch {
-    return c.json({ error: { code: "UNAUTHORIZED", message: "Invalid or expired token" } }, 401);
+    return sendError(c, "UNAUTHORIZED", "Invalid or expired token");
   }
 };
 
@@ -119,4 +120,4 @@ export {
   authMiddleware,
   REFRESH_COOKIE_NAME,
 };
-export type { JwtUserPayload, RefreshTokenPayload };
+export type { JwtUserPayload, RefreshTokenPayload, AuthedEnv };

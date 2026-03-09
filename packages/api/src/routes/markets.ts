@@ -2,27 +2,20 @@ import { Hono } from "hono";
 import type { Block, Transaction } from "@wpm/shared";
 import { calculatePrices } from "@wpm/shared/amm";
 import { authMiddleware } from "../middleware/auth";
-import type { JwtUserPayload } from "../middleware/auth";
+import type { AuthedEnv } from "../middleware/auth";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
+import { createNodeClient, getNodeUrl } from "../node-client";
 import { findUserByWallet } from "../db/queries";
+import { round2, parsePagination } from "../validation";
 
-type Env = {
-  Variables: {
-    user: JwtUserPayload;
-  };
-};
-
-const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";
-
-const markets = new Hono<Env>();
+const markets = new Hono<AuthedEnv>();
 
 markets.use("/markets/*", authMiddleware);
 markets.use("/markets", authMiddleware);
 
 // GET /markets — list open markets with prices, multipliers, and volume
 markets.get("/markets", async (c) => {
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
 
   const stateResult = await node.getState();
   if (!stateResult.ok) {
@@ -74,8 +67,8 @@ markets.get("/markets", async (c) => {
       ...market,
       prices,
       multipliers: {
-        multiplierA: prices.priceA > 0 ? Math.round((1 / prices.priceA) * 100) / 100 : 0,
-        multiplierB: prices.priceB > 0 ? Math.round((1 / prices.priceB) * 100) / 100 : 0,
+        multiplierA: prices.priceA > 0 ? round2(1 / prices.priceA) : 0,
+        multiplierB: prices.priceB > 0 ? round2(1 / prices.priceB) : 0,
       },
       totalVolume,
     };
@@ -86,7 +79,7 @@ markets.get("/markets", async (c) => {
 
 // GET /markets/resolved — list resolved and cancelled markets with pagination
 markets.get("/markets/resolved", async (c) => {
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
 
   const stateResult = await node.getState();
   if (!stateResult.ok) {
@@ -95,23 +88,17 @@ markets.get("/markets/resolved", async (c) => {
 
   const { markets: allMarkets } = stateResult.data;
 
-  // Filter to resolved + cancelled markets
   const settled = Object.values(allMarkets).filter(
     (m) => m.status === "resolved" || m.status === "cancelled",
   );
 
-  // Sort by resolvedAt descending (resolved markets), then createdAt descending for cancelled
   settled.sort((a, b) => {
     const timeA = a.resolvedAt ?? a.createdAt;
     const timeB = b.resolvedAt ?? b.createdAt;
     return timeB - timeA;
   });
 
-  // Parse pagination params
-  const limitParam = Number(c.req.query("limit") ?? "20");
-  const limit = Math.min(100, Math.max(1, Number.isFinite(limitParam) ? limitParam : 20));
-  const offsetParam = Number(c.req.query("offset") ?? "0");
-  const offset = Math.max(0, Number.isFinite(offsetParam) ? offsetParam : 0);
+  const { limit, offset } = parsePagination(c);
 
   const paginated = settled.slice(offset, offset + limit);
 
@@ -127,9 +114,8 @@ markets.get("/markets/resolved", async (c) => {
 markets.get("/markets/:marketId", async (c) => {
   const { marketId } = c.req.param();
   const user = c.get("user");
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
 
-  // Fetch market + pool + prices from node
   const marketResult = await node.getMarket(marketId);
   if (!marketResult.ok) {
     if (marketResult.status === 404) {
@@ -140,7 +126,6 @@ markets.get("/markets/:marketId", async (c) => {
 
   const { market, pool, prices } = marketResult.data;
 
-  // Fetch user position if they have a wallet
   let userPosition: {
     outcomeA: { shares: number; costBasis: number; estimatedValue: number } | null;
     outcomeB: { shares: number; costBasis: number; estimatedValue: number } | null;
@@ -159,7 +144,7 @@ markets.get("/markets/:marketId", async (c) => {
               ? {
                   shares: posA.shares,
                   costBasis: posA.costBasis,
-                  estimatedValue: Math.round(posA.shares * prices.priceA * 100) / 100,
+                  estimatedValue: round2(posA.shares * prices.priceA),
                 }
               : null,
           outcomeB:
@@ -167,11 +152,10 @@ markets.get("/markets/:marketId", async (c) => {
               ? {
                   shares: posB.shares,
                   costBasis: posB.costBasis,
-                  estimatedValue: Math.round(posB.shares * prices.priceB * 100) / 100,
+                  estimatedValue: round2(posB.shares * prices.priceB),
                 }
               : null,
         };
-        // If both null, set userPosition to null
         if (!userPosition.outcomeA && !userPosition.outcomeB) {
           userPosition = null;
         }
@@ -190,9 +174,8 @@ markets.get("/markets/:marketId", async (c) => {
 // GET /markets/:marketId/trades — trade history for a market with user display names
 markets.get("/markets/:marketId/trades", async (c) => {
   const { marketId } = c.req.param();
-  const node = createNodeClient(NODE_URL);
+  const node = createNodeClient(getNodeUrl());
 
-  // Verify market exists
   const marketResult = await node.getMarket(marketId);
   if (!marketResult.ok) {
     if (marketResult.status === 404) {
@@ -201,11 +184,7 @@ markets.get("/markets/:marketId/trades", async (c) => {
     return sendError(c, "NODE_UNAVAILABLE");
   }
 
-  // Parse pagination params
-  const limitParam = Number(c.req.query("limit") ?? "20");
-  const limit = Math.min(100, Math.max(1, Number.isFinite(limitParam) ? limitParam : 20));
-  const offsetParam = Number(c.req.query("offset") ?? "0");
-  const offset = Math.max(0, Number.isFinite(offsetParam) ? offsetParam : 0);
+  const { limit, offset } = parsePagination(c);
 
   // Fetch all blocks, filter PlaceBet/SellShares for this market
   const trades: (Transaction & { type: "PlaceBet" | "SellShares" })[] = [];
@@ -233,10 +212,8 @@ markets.get("/markets/:marketId/trades", async (c) => {
     from += blocks.length;
   }
 
-  // Sort by timestamp descending
   trades.sort((a, b) => b.timestamp - a.timestamp);
 
-  // Build wallet → display name lookup from unique senders
   const walletSet = new Set(trades.map((t) => t.sender));
   const namesByWallet = new Map<string, string>();
   for (const wallet of walletSet) {
@@ -246,10 +223,8 @@ markets.get("/markets/:marketId/trades", async (c) => {
     }
   }
 
-  // Apply pagination
   const paginated = trades.slice(offset, offset + limit);
 
-  // Enrich with display name
   const enriched = paginated.map((tx) => ({
     ...tx,
     userName: namesByWallet.get(tx.sender) ?? null,

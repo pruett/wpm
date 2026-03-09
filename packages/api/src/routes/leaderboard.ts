@@ -1,26 +1,13 @@
 import { Hono } from "hono";
-import { calculatePrices, calculateBuy, calculateSell } from "@wpm/shared/amm";
 import type { Block, Transaction, AMMPool, SharePosition } from "@wpm/shared";
+import { calculatePrices, calculateBuy, calculateSell } from "@wpm/shared/amm";
 import { authMiddleware } from "../middleware/auth";
-import type { JwtUserPayload } from "../middleware/auth";
+import type { AuthedEnv } from "../middleware/auth";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
+import { createNodeClient, getNodeUrl, fetchAllBlocks } from "../node-client";
 import type { NodeClient } from "../node-client";
 import { getAllUsers } from "../db/queries";
-
-type Env = {
-  Variables: {
-    user: JwtUserPayload;
-  };
-};
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
+import { round2 } from "../validation";
 
 // Returns Monday 00:00:00.000 UTC of the current week
 function getWeekStartTimestamp(now?: Date): number {
@@ -164,20 +151,7 @@ class StateSnapshot {
   }
 }
 
-async function fetchAllBlocks(node: NodeClient): Promise<Block[] | null> {
-  const allBlocks: Block[] = [];
-  let from = 0;
-  while (true) {
-    const result = await node.getBlocks(from, 50);
-    if (!result.ok) return null;
-    allBlocks.push(...result.data);
-    if (result.data.length < 50) break;
-    from += result.data.length;
-  }
-  return allBlocks;
-}
-
-const leaderboard = new Hono<Env>();
+const leaderboard = new Hono<AuthedEnv>();
 
 leaderboard.use("/leaderboard/*", authMiddleware);
 
@@ -185,7 +159,6 @@ leaderboard.use("/leaderboard/*", authMiddleware);
 leaderboard.get("/leaderboard/alltime", async (c) => {
   const node = createNodeClient(getNodeUrl());
 
-  // Fetch node state once for balances, markets, and pools
   const stateResult = await node.getState();
   if (!stateResult.ok) {
     return sendError(c, "NODE_UNAVAILABLE");
@@ -193,10 +166,8 @@ leaderboard.get("/leaderboard/alltime", async (c) => {
 
   const { balances, markets, pools } = stateResult.data;
 
-  // Get all users from SQLite
   const users = getAllUsers();
 
-  // For each user, compute totalWpm = balance + sum of estimated open position values
   const entries: {
     userId: string;
     name: string;
@@ -209,7 +180,6 @@ leaderboard.get("/leaderboard/alltime", async (c) => {
   for (const user of users) {
     const balance = balances[user.wallet_address] ?? 0;
 
-    // Fetch share positions for this user
     let positionValue = 0;
     const sharesResult = await node.getShares(user.wallet_address);
     if (sharesResult.ok) {
@@ -228,8 +198,8 @@ leaderboard.get("/leaderboard/alltime", async (c) => {
       }
     }
 
-    positionValue = Math.round(positionValue * 100) / 100;
-    const totalWpm = Math.round((balance + positionValue) * 100) / 100;
+    positionValue = round2(positionValue);
+    const totalWpm = round2(balance + positionValue);
 
     entries.push({
       userId: user.id,
@@ -241,13 +211,11 @@ leaderboard.get("/leaderboard/alltime", async (c) => {
     });
   }
 
-  // Sort descending by totalWpm, tiebreak by walletAddress ascending
   entries.sort((a, b) => {
     if (b.totalWpm !== a.totalWpm) return b.totalWpm - a.totalWpm;
     return a.walletAddress.localeCompare(b.walletAddress);
   });
 
-  // Assign 1-indexed ranks
   const rankings = entries.map((entry, i) => ({
     rank: i + 1,
     ...entry,
@@ -260,7 +228,6 @@ leaderboard.get("/leaderboard/alltime", async (c) => {
 leaderboard.get("/leaderboard/weekly", async (c) => {
   const node = createNodeClient(getNodeUrl());
 
-  // 1. Fetch current state for current totalWpm
   const stateResult = await node.getState();
   if (!stateResult.ok) return sendError(c, "NODE_UNAVAILABLE");
   const {
@@ -269,15 +236,10 @@ leaderboard.get("/leaderboard/weekly", async (c) => {
     pools: currentPools,
   } = stateResult.data;
 
-  // 2. Fetch all blocks for chain replay
   const allBlocks = await fetchAllBlocks(node);
-  if (!allBlocks) return sendError(c, "NODE_UNAVAILABLE");
 
-  // 3. Compute Monday 00:00 UTC boundary
   const weekStart = getWeekStartTimestamp();
 
-  // 4. Replay blocks up to the Monday boundary to get historical state
-  // Derive treasury address from genesis block
   const treasuryAddress = allBlocks[0]?.transactions[0]?.sender ?? "";
   const snapshot = new StateSnapshot(treasuryAddress);
   for (const block of allBlocks) {
@@ -285,10 +247,8 @@ leaderboard.get("/leaderboard/weekly", async (c) => {
     snapshot.applyBlock(block);
   }
 
-  // 5. Get all users
   const users = getAllUsers();
 
-  // 6. Compute current and historical totalWpm per user
   const entries: {
     userId: string;
     name: string;
@@ -299,7 +259,6 @@ leaderboard.get("/leaderboard/weekly", async (c) => {
   }[] = [];
 
   for (const user of users) {
-    // Current totalWpm (same logic as alltime)
     const currentBalance = currentBalances[user.wallet_address] ?? 0;
     let currentPositionValue = 0;
     const sharesResult = await node.getShares(user.wallet_address);
@@ -319,7 +278,6 @@ leaderboard.get("/leaderboard/weekly", async (c) => {
     currentPositionValue = round2(currentPositionValue);
     const currentTotalWpm = round2(currentBalance + currentPositionValue);
 
-    // Historical totalWpm at week start from replayed state
     const historicalBalance = snapshot.getBalance(user.wallet_address);
     let historicalPositionValue = 0;
     const historicalPositions = snapshot.sharePositions.get(user.wallet_address);
@@ -353,13 +311,11 @@ leaderboard.get("/leaderboard/weekly", async (c) => {
     });
   }
 
-  // 7. Sort by weeklyPnl descending, tiebreak by walletAddress ascending
   entries.sort((a, b) => {
     if (b.weeklyPnl !== a.weeklyPnl) return b.weeklyPnl - a.weeklyPnl;
     return a.walletAddress.localeCompare(b.walletAddress);
   });
 
-  // 8. Assign 1-indexed ranks
   const rankings = entries.map((entry, i) => ({
     rank: i + 1,
     ...entry,

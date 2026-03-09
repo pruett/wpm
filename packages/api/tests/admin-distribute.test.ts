@@ -215,7 +215,7 @@ describe("POST /admin/distribute", () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("INVALID_AMOUNT");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
     expect(body.error.message).toContain("Invalid reason");
   });
 
@@ -235,7 +235,7 @@ describe("POST /admin/distribute", () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("INVALID_AMOUNT");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("rejects missing reason", async () => {
@@ -253,7 +253,7 @@ describe("POST /admin/distribute", () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("INVALID_AMOUNT");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 
   test("rejects invalid amount with 3+ decimal places", async () => {

@@ -29,10 +29,11 @@ describe("apiError", () => {
 });
 
 describe("ERRORS catalog", () => {
-  it("contains all 20 error codes from spec", () => {
+  it("contains all 21 error codes from spec", () => {
     const expectedCodes: ErrorCode[] = [
       "UNAUTHORIZED",
       "FORBIDDEN",
+      "NOT_FOUND",
       "MARKET_NOT_FOUND",
       "RECIPIENT_NOT_FOUND",
       "MARKET_CLOSED",
@@ -59,6 +60,7 @@ describe("ERRORS catalog", () => {
     const statusMap: Record<string, number> = {
       UNAUTHORIZED: 401,
       FORBIDDEN: 403,
+      NOT_FOUND: 404,
       MARKET_NOT_FOUND: 404,
       RECIPIENT_NOT_FOUND: 404,
       MARKET_CLOSED: 400,

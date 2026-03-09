@@ -134,6 +134,24 @@ export function createNodeClient(baseUrl: string) {
 
 export type NodeClient = ReturnType<typeof createNodeClient>;
 
+export function getNodeUrl(): string {
+  return process.env.NODE_URL ?? "http://localhost:3001";
+}
+
+export async function fetchAllBlocks(node: NodeClient): Promise<Block[]> {
+  const allBlocks: Block[] = [];
+  let from = 0;
+  const batchSize = 100;
+  while (true) {
+    const result = await node.getBlocks(from, batchSize);
+    if (!result.ok) break;
+    allBlocks.push(...result.data);
+    if (result.data.length < batchSize) break;
+    from += result.data.length;
+  }
+  return allBlocks;
+}
+
 export type {
   NodeHealthResponse,
   BalanceResponse,

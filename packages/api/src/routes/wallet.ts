@@ -1,26 +1,14 @@
 import { Hono } from "hono";
-import { sign as cryptoSign } from "@wpm/shared/crypto";
 import type { Transaction, TransferTx, Block } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
-import type { JwtUserPayload } from "../middleware/auth";
+import type { AuthedEnv } from "../middleware/auth";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
-import { getDb } from "../db/index";
+import { createNodeClient, getNodeUrl } from "../node-client";
 import { findUserByWallet } from "../db/queries";
-import { decryptPrivateKey } from "../crypto/wallet";
-import { validateAmount, validateExtraFields } from "../validation";
+import { getUserPrivateKey, signTransaction } from "../crypto/wallet";
+import { parseJsonBody, parsePagination, validateAmount, validateExtraFields } from "../validation";
 
-type Env = {
-  Variables: {
-    user: JwtUserPayload;
-  };
-};
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
-
-const wallet = new Hono<Env>();
+const wallet = new Hono<AuthedEnv>();
 
 wallet.use("*", authMiddleware);
 
@@ -55,11 +43,7 @@ wallet.get("/wallet/transactions", async (c) => {
     return sendError(c, "UNAUTHORIZED", "Token missing wallet address");
   }
 
-  // Parse pagination params
-  const limitParam = Number(c.req.query("limit") ?? "50");
-  const limit = Math.min(200, Math.max(1, Number.isFinite(limitParam) ? limitParam : 50));
-  const offsetParam = Number(c.req.query("offset") ?? "0");
-  const offset = Math.max(0, Number.isFinite(offsetParam) ? offsetParam : 0);
+  const { limit, offset } = parsePagination(c, { limit: 50, maxLimit: 200 });
 
   const node = createNodeClient(getNodeUrl());
 
@@ -112,13 +96,8 @@ wallet.post("/wallet/transfer", async (c) => {
     return sendError(c, "UNAUTHORIZED", "Token missing wallet address");
   }
 
-  // Parse request body
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
-  }
+  const body = await parseJsonBody(c);
+  if (body instanceof Response) return body;
 
   const extraErr = validateExtraFields(body, ["recipientAddress", "amount"]);
   if (extraErr) {
@@ -127,53 +106,32 @@ wallet.post("/wallet/transfer", async (c) => {
 
   const { recipientAddress, amount: rawAmount } = body;
 
-  // Validate amount
   const amountErr = validateAmount(rawAmount);
   if (amountErr) {
     return sendError(c, amountErr);
   }
   const amount = rawAmount as number;
 
-  // Validate recipientAddress is a string
   if (typeof recipientAddress !== "string" || !recipientAddress) {
     return sendError(c, "RECIPIENT_NOT_FOUND", "Recipient address is required");
   }
 
-  // Validate sender ≠ recipient
   if (walletAddress === recipientAddress) {
     return sendError(c, "INVALID_TRANSFER", "Cannot transfer to yourself");
   }
 
-  // Validate recipient exists (check users table)
   const recipient = findUserByWallet(recipientAddress);
   if (!recipient) {
     return sendError(c, "RECIPIENT_NOT_FOUND");
   }
 
-  // Look up user in DB for encrypted private key
-  const db = getDb();
-  const row = db.query("SELECT wallet_private_key_enc FROM users WHERE id = ?").get(user.sub) as {
-    wallet_private_key_enc: Buffer;
-  } | null;
-
-  if (!row) {
-    return sendError(c, "UNAUTHORIZED", "User not found");
-  }
-
-  // Decrypt private key
-  const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
-  if (!encryptionKey) {
-    return sendError(c, "INTERNAL_ERROR", "Wallet encryption key not configured");
-  }
-
   let privateKey: string;
   try {
-    privateKey = await decryptPrivateKey(row.wallet_private_key_enc, encryptionKey);
+    privateKey = await getUserPrivateKey(user.sub);
   } catch {
     return sendError(c, "INTERNAL_ERROR", "Failed to decrypt wallet key");
   }
 
-  // Construct Transfer transaction
   const tx: TransferTx = {
     id: crypto.randomUUID(),
     type: "Transfer",
@@ -184,11 +142,8 @@ wallet.post("/wallet/transfer", async (c) => {
     amount,
   };
 
-  // Sign transaction
-  const signData = JSON.stringify({ ...tx, signature: undefined });
-  tx.signature = cryptoSign(signData, privateKey);
+  signTransaction(tx, privateKey);
 
-  // Submit to node
   const node = createNodeClient(getNodeUrl());
   const result = await node.submitTransaction(tx);
 

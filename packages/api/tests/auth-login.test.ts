@@ -311,15 +311,15 @@ describe("POST /auth/login/complete", () => {
     expect(body.error.code).toBe("UNAUTHORIZED");
   });
 
-  test("rejects invalid request body → UNAUTHORIZED 401", async () => {
+  test("rejects invalid request body → VALIDATION_ERROR 400", async () => {
     const res = await app.request("/auth/login/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not-json",
     });
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("UNAUTHORIZED");
+    expect(body.error.code).toBe("VALIDATION_ERROR");
   });
 });

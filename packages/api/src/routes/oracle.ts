@@ -2,15 +2,8 @@ import { Hono } from "hono";
 import { verify } from "@wpm/shared/crypto";
 import type { Transaction } from "@wpm/shared";
 import { sendError } from "../errors";
-import { createNodeClient } from "../node-client";
-
-function getNodeUrl() {
-  return process.env.NODE_URL ?? "http://localhost:3001";
-}
-
-function getOraclePublicKey(): string | null {
-  return process.env.ORACLE_PUBLIC_KEY ?? null;
-}
+import { createNodeClient, getNodeUrl } from "../node-client";
+import { getOraclePublicKey } from "../config";
 
 const oracle = new Hono();
 
@@ -27,7 +20,7 @@ oracle.post("/oracle/transaction", async (c) => {
   try {
     tx = await c.req.json();
   } catch {
-    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+    return sendError(c, "VALIDATION_ERROR", "Invalid request body");
   }
 
   // Validate sender matches oracle public key

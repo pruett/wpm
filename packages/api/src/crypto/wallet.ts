@@ -1,4 +1,5 @@
-import { generateKeyPair } from "@wpm/shared/crypto";
+import { generateKeyPair, sign as cryptoSign } from "@wpm/shared/crypto";
+import { findUserById } from "../db/queries";
 
 const IV_LENGTH = 12;
 
@@ -55,4 +56,24 @@ export async function decryptPrivateKey(encrypted: Buffer, secret: string): Prom
   );
 
   return new TextDecoder().decode(decrypted);
+}
+
+export async function getUserPrivateKey(userId: string): Promise<string> {
+  const row = findUserById(userId);
+  if (!row) {
+    throw new Error("User not found");
+  }
+
+  const encryptionKey = process.env.WALLET_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    throw new Error("Wallet encryption key not configured");
+  }
+
+  return decryptPrivateKey(row.wallet_private_key_enc, encryptionKey);
+}
+
+export function signTransaction<T extends { signature: string }>(tx: T, privateKey: string): T {
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  tx.signature = cryptoSign(signData, privateKey);
+  return tx;
 }

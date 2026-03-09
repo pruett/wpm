@@ -1,12 +1,14 @@
 import { calculatePrices } from "@wpm/shared/amm";
 import type { Block } from "@wpm/shared";
-import { createNodeClient } from "../node-client";
-import type { NodeClient } from "../node-client";
+import { createNodeClient, fetchAllBlocks } from "../node-client";
+import type { NodeClient, StateResponse } from "../node-client";
 import { findUserByWallet, getAllUsers } from "../db/queries";
+import { round2 } from "../validation";
 
 const KEEPALIVE_INTERVAL_MS = 30_000;
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
+const encoder = new TextEncoder();
 
 type SSEClientEntry = {
   controller: ReadableStreamDefaultController;
@@ -61,10 +63,6 @@ type BlockNewData = {
   timestamp: number;
 };
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 export class SSERelay {
   private clients = new Map<string, SSEClientEntry>();
   private nodeUrl: string;
@@ -74,6 +72,9 @@ export class SSERelay {
   private connected = false;
   // Buffer market IDs from resolved/cancelled events for enrichment on block:new
   private pendingSettlementMarketIds = new Set<string>();
+  // Running volume counter per market (incremented on trade events)
+  private volumeByMarket = new Map<string, number>();
+  private volumeInitialized = false;
 
   constructor(nodeUrl: string) {
     this.nodeUrl = nodeUrl;
@@ -98,6 +99,13 @@ export class SSERelay {
 
       this.connected = true;
       this.reconnectAttempts = 0;
+
+      // Initialize volume counters from chain history on first connect
+      try {
+        await this.initializeVolume();
+      } catch {
+        // Volume will start from 0 if initialization fails
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -186,46 +194,42 @@ export class SSERelay {
     }
   }
 
-  private async computeMarketVolume(marketId: string): Promise<number> {
+  private async initializeVolume(): Promise<void> {
+    if (this.volumeInitialized) return;
     const node = this.getNodeClient();
-    let volume = 0;
-    let from = 0;
-    const batchSize = 100;
-
-    while (true) {
-      const blocksResult = await node.getBlocks(from, batchSize);
-      if (!blocksResult.ok) break;
-
-      const blocks = blocksResult.data;
-      if (blocks.length === 0) break;
-
-      for (const block of blocks) {
-        for (const tx of block.transactions) {
-          if (tx.type === "PlaceBet" && tx.marketId === marketId) {
-            volume += tx.amount;
-          } else if (tx.type === "SellShares" && tx.marketId === marketId) {
-            volume += tx.shareAmount;
-          }
+    const blocks = await fetchAllBlocks(node);
+    for (const block of blocks) {
+      for (const tx of block.transactions) {
+        if (tx.type === "PlaceBet") {
+          this.volumeByMarket.set(
+            tx.marketId,
+            (this.volumeByMarket.get(tx.marketId) ?? 0) + tx.amount,
+          );
+        } else if (tx.type === "SellShares") {
+          this.volumeByMarket.set(
+            tx.marketId,
+            (this.volumeByMarket.get(tx.marketId) ?? 0) + tx.shareAmount,
+          );
         }
       }
-
-      if (blocks.length < batchSize) break;
-      from += blocks.length;
     }
+    this.volumeInitialized = true;
+  }
 
-    return round2(volume);
+  private getMarketVolume(marketId: string): number {
+    return round2(this.volumeByMarket.get(marketId) ?? 0);
+  }
+
+  private addVolume(marketId: string, amount: number): void {
+    this.volumeByMarket.set(marketId, (this.volumeByMarket.get(marketId) ?? 0) + amount);
   }
 
   private async transformTradeExecuted(data: TradeExecutedData): Promise<ClientEvent[]> {
     const events: ClientEvent[] = [];
 
-    // 1. price:update — prices + multipliers + totalVolume from trade data
-    let totalVolume = 0;
-    try {
-      totalVolume = await this.computeMarketVolume(data.marketId);
-    } catch {
-      // Node unavailable — default to 0
-    }
+    // Increment running volume counter
+    this.addVolume(data.marketId, data.amount);
+    const totalVolume = this.getMarketVolume(data.marketId);
 
     events.push({
       event: "price:update",
@@ -464,7 +468,7 @@ export class SSERelay {
     if (id) raw += `id: ${id}\n`;
     raw += `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     try {
-      controller.enqueue(new TextEncoder().encode(raw));
+      controller.enqueue(encoder.encode(raw));
     } catch {
       // client disconnected
     }
@@ -475,6 +479,11 @@ export class SSERelay {
     fromBlockIndex: number,
   ): Promise<void> {
     const node = this.getNodeClient();
+
+    // Fetch state once for the entire replay
+    const stateResult = await node.getState();
+    const state = stateResult.ok ? stateResult.data : null;
+
     let from = fromBlockIndex;
     const batchSize = 50;
 
@@ -486,7 +495,7 @@ export class SSERelay {
       if (blocks.length === 0) break;
 
       for (const block of blocks) {
-        const events = await this.eventsFromBlock(block);
+        const events = this.eventsFromBlock(block, state);
         for (const ce of events) {
           this.sendToClient(controller, ce.event, ce.data, ce.id);
         }
@@ -497,13 +506,8 @@ export class SSERelay {
     }
   }
 
-  private async eventsFromBlock(block: Block): Promise<ClientEvent[]> {
+  private eventsFromBlock(block: Block, state: StateResponse | null): ClientEvent[] {
     const events: ClientEvent[] = [];
-    const node = this.getNodeClient();
-
-    // Fetch current state once for price lookups
-    const stateResult = await node.getState();
-    const state = stateResult.ok ? stateResult.data : null;
 
     const settlementMarketIds = new Set<string>();
 
@@ -534,12 +538,7 @@ export class SSERelay {
             priceB = prices.priceB;
           }
 
-          let totalVolume = 0;
-          try {
-            totalVolume = await this.computeMarketVolume(tx.marketId);
-          } catch {
-            // default to 0
-          }
+          const totalVolume = this.getMarketVolume(tx.marketId);
 
           events.push({
             event: "price:update",
@@ -655,7 +654,7 @@ export class SSERelay {
       start(controller) {
         const keepaliveTimer = setInterval(() => {
           try {
-            controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+            controller.enqueue(encoder.encode(": keepalive\n\n"));
           } catch {
             relay.removeClient(userId);
           }
@@ -704,7 +703,7 @@ export class SSERelay {
     let raw = "";
     if (id) raw += `id: ${id}\n`;
     raw += `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    const payload = new TextEncoder().encode(raw);
+    const payload = encoder.encode(raw);
 
     for (const [userId, client] of this.clients) {
       try {
@@ -743,7 +742,8 @@ export class SSERelay {
       this.reconnectTimer = null;
     }
 
-    for (const [userId] of this.clients) {
+    const userIds = [...this.clients.keys()];
+    for (const userId of userIds) {
       this.removeClient(userId);
     }
 
