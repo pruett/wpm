@@ -804,3 +804,26 @@ Files changed:
 - packages/api/src/routes/admin.ts (added 3 market operation endpoints, oracle key helpers, fetchAllBlocks)
 - packages/api/tests/admin-markets.test.ts (new)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, System Monitoring (FR-15): Full implementation
+
+- Added 3 system monitoring endpoints to `packages/api/src/routes/admin.ts`:
+  - `GET /admin/treasury`: derives treasury address from genesis block (first tx sender = PoA), fetches current balance from node state, scans all blocks to compute aggregates: `totalDistributed` (sum of all Distribute tx amounts), `totalSeeded` (sum of all CreateMarket seedAmounts), `totalReclaimed` (sum of SettlePayout with `payoutType: "liquidity_return"` to treasury address); returns `{ treasuryAddress, balance, totalDistributed, totalSeeded, totalReclaimed }` with all values rounded to 2 decimal places
+  - `GET /admin/users`: fetches all users from SQLite via `getAllUsers()`, enriches each with current balance from node state; returns `{ users: [{ userId, name, email, walletAddress, role, balance, createdAt }] }`
+  - `GET /admin/health`: proxies node `GET /internal/health`, augments with API uptime (`process.uptime()`), `apiVersion` from package.json ("0.0.1"), `connectedSSEClients` count from SSE relay (gracefully handles uninitialized relay); returns `"degraded"` status when node is unreachable, `"ok"` otherwise; includes node `blockHeight`, `mempoolSize`, `uptimeMs` when reachable
+- All 3 endpoints protected by `authMiddleware` + `adminMiddleware` chain
+- Imported `getAllUsers` from queries and `getRelay` from SSE relay module
+- Created `packages/api/tests/admin-monitoring.test.ts` — 16 tests covering:
+  - Treasury: returns balance and aggregates with correct types, totalDistributed includes all Distribute tx amounts, totalSeeded includes CreateMarket seedAmounts, totalReclaimed includes liquidity_return payouts, aggregates consistent with actual node state balance, rejects user JWT (403), rejects no auth (401)
+  - Users: returns all users with balances, entries have correct fields, balances match node state (user1: 99500 after 100K - 500 bet, user2: 50000), rejects user JWT (403), rejects no auth (401)
+  - Health: returns ok status with node info when reachable, reflects node block height (≥3), rejects user JWT (403), rejects no auth (401)
+
+Gotchas:
+- Treasury address is derived from genesis block's first transaction sender (PoA/treasury key), not hardcoded — the API discovers it at request time via `node.getBlock(0)`
+- `getRelay()` throws if SSE relay not initialized — wrapped in try/catch to default to 0 connected clients for the health endpoint
+- `process.uptime()` returns seconds, multiplied by 1000 for milliseconds to match the health endpoint convention
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 system monitoring endpoints, imported getAllUsers + getRelay)
+- packages/api/tests/admin-monitoring.test.ts (new)
+- PLAN.md (marked 4 tasks complete)

@@ -15,7 +15,9 @@ import {
   findInviteCode,
   deactivateInviteCode,
   findUserByWallet,
+  getAllUsers,
 } from "../db/queries";
+import { getRelay } from "../sse/relay";
 
 const VALID_REASONS = new Set(["signup_airdrop", "referral_reward", "manual"]);
 
@@ -493,6 +495,119 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     },
     202,
   );
+});
+
+// --- System Monitoring (FR-15) ---
+
+admin.get("/admin/treasury", adminMiddleware, async (c) => {
+  const node = createNodeClient(getNodeUrl());
+
+  // Get treasury address from genesis block (first tx sender = PoA/treasury)
+  const genesisResult = await node.getBlock(0);
+  if (!genesisResult.ok) {
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+  const treasuryAddress = genesisResult.data.transactions[0].sender;
+
+  // Get current treasury balance from state
+  const stateResult = await node.getState();
+  if (!stateResult.ok) {
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+  const balance = stateResult.data.balances[treasuryAddress] ?? 0;
+
+  // Scan all blocks for aggregate computations
+  const blocks = await fetchAllBlocks(node);
+
+  let totalDistributed = 0;
+  let totalSeeded = 0;
+  let totalReclaimed = 0;
+
+  for (const block of blocks) {
+    for (const tx of block.transactions) {
+      if (tx.type === "Distribute") {
+        totalDistributed += tx.amount;
+      } else if (tx.type === "CreateMarket") {
+        totalSeeded += tx.seedAmount;
+      } else if (
+        tx.type === "SettlePayout" &&
+        tx.payoutType === "liquidity_return" &&
+        tx.recipient === treasuryAddress
+      ) {
+        totalReclaimed += tx.amount;
+      }
+    }
+  }
+
+  return c.json({
+    treasuryAddress,
+    balance: Math.round(balance * 100) / 100,
+    totalDistributed: Math.round(totalDistributed * 100) / 100,
+    totalSeeded: Math.round(totalSeeded * 100) / 100,
+    totalReclaimed: Math.round(totalReclaimed * 100) / 100,
+  });
+});
+
+admin.get("/admin/users", adminMiddleware, async (c) => {
+  const node = createNodeClient(getNodeUrl());
+
+  // Get balances from node state
+  const stateResult = await node.getState();
+  if (!stateResult.ok) {
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const users = getAllUsers();
+
+  const enrichedUsers = users.map((user) => ({
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    walletAddress: user.wallet_address,
+    role: user.role,
+    balance: stateResult.data.balances[user.wallet_address] ?? 0,
+    createdAt: user.created_at,
+  }));
+
+  return c.json({ users: enrichedUsers });
+});
+
+admin.get("/admin/health", adminMiddleware, async (c) => {
+  const node = createNodeClient(getNodeUrl());
+
+  const nodeResult = await node.getHealth();
+
+  let sseClients = 0;
+  try {
+    sseClients = getRelay().connectedClients;
+  } catch {
+    // relay not initialized
+  }
+
+  const apiVersion = "0.0.1";
+
+  if (!nodeResult.ok) {
+    return c.json({
+      status: "degraded",
+      apiVersion,
+      uptimeMs: process.uptime() * 1000,
+      connectedSSEClients: sseClients,
+      nodeReachable: false,
+    });
+  }
+
+  return c.json({
+    status: "ok",
+    apiVersion,
+    uptimeMs: process.uptime() * 1000,
+    connectedSSEClients: sseClients,
+    nodeReachable: true,
+    node: {
+      blockHeight: nodeResult.data.blockHeight,
+      mempoolSize: nodeResult.data.mempoolSize,
+      uptimeMs: nodeResult.data.uptimeMs,
+    },
+  });
 });
 
 export { admin };

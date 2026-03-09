@@ -136,10 +136,10 @@
 
 ### System Monitoring (FR-15)
 
-- [ ] Implement `GET /admin/treasury` in `packages/api/src/routes/admin.ts` (derive from node state: balance from treasury address, totalDistributed = sum of Distribute amounts, totalSeeded = sum of CreateMarket seedAmounts, totalReclaimed = sum of SettlePayout with `payoutType: "liquidity_return"` to treasury)
-- [ ] Implement `GET /admin/users` (join SQLite users with node balances)
-- [ ] Implement `GET /admin/health` (proxy node `GET /internal/health`, augment with API uptime, apiVersion from package.json, connectedSSEClients count from relay)
-- [ ] Write tests (`bun:test`): treasury aggregates consistent with chain, health reflects node status
+- [x] Implement `GET /admin/treasury` in `packages/api/src/routes/admin.ts` (derive from node state: balance from treasury address, totalDistributed = sum of Distribute amounts, totalSeeded = sum of CreateMarket seedAmounts, totalReclaimed = sum of SettlePayout with `payoutType: "liquidity_return"` to treasury)
+- [x] Implement `GET /admin/users` (join SQLite users with node balances)
+- [x] Implement `GET /admin/health` (proxy node `GET /internal/health`, augment with API uptime, apiVersion from package.json, connectedSSEClients count from relay)
+- [x] Write tests (`bun:test`): treasury aggregates consistent with chain, health reflects node status
 
 ### Oracle Triggers (FR-16)
 
