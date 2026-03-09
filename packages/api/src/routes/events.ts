@@ -20,7 +20,11 @@ events.get("/events/stream", async (c) => {
   }
 
   const relay = getRelay();
-  const stream = relay.addClient(payload.sub);
+
+  // Read Last-Event-ID from header (automatic on EventSource reconnect) or query param
+  const lastEventId = c.req.header("Last-Event-ID") ?? c.req.query("lastEventId");
+
+  const stream = relay.addClient(payload.sub, lastEventId);
 
   return new Response(stream, {
     headers: {

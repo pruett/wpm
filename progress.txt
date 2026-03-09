@@ -943,3 +943,38 @@ Files changed:
 - packages/api/src/sse/relay.ts (added computeMarketVolume method, updated transformTradeExecuted)
 - packages/api/tests/tracer-sse.test.ts (added totalVolume assertion)
 - PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 5, SSE Event Transformation: Last-Event-ID reconnection + tests
+
+- Implemented `Last-Event-ID` reconnection in `packages/api/src/sse/relay.ts`:
+  - Added `id:` field to `block:new` SSE events using the block index — enables EventSource `Last-Event-ID` tracking
+  - Added `replayForClient(controller, fromBlockIndex)` method — fetches blocks from the node via paginated `GET /internal/blocks?from=N`, reconstructs client events from each block's transactions, and sends them to the reconnecting client's stream controller
+  - Added `eventsFromBlock(block)` private method — reconstructs the full set of client events from a block: `market:created` (CreateMarket), `price:update` + `bet:placed` (PlaceBet/SellShares), `market:resolved`/`market:cancelled` (ResolveMarket/CancelMarket), `payout:received` (SettlePayout excluding `liquidity_return`), and `block:new` with `id` field
+  - Added `sendToClient(controller, event, data, id?)` private method — targeted event delivery to a single client (vs broadcast to all)
+  - Modified `addClient(userId, lastEventId?)` to accept optional `lastEventId` parameter — when provided, replays missed blocks BEFORE registering the client for live broadcasts (ensures ordering: replay → live events)
+  - Updated `broadcastClientEvent()` to support optional `id` parameter for SSE event ID field
+- Updated `packages/api/src/routes/events.ts`:
+  - Reads `Last-Event-ID` from request header (automatic EventSource reconnect) or `lastEventId` query param (explicit reconnect)
+  - Passes to `relay.addClient(userId, lastEventId)`
+- Created `packages/api/tests/sse-reconnect.test.ts` — 9 integration tests covering:
+  - Live block:new events include `id` field with block index
+  - Reconnection with `Last-Event-ID=0` replays blocks from index 1 onward (correct block:new id)
+  - Reconnection replays `market:created` events from missed blocks (correct marketId, sport, teams)
+  - Reconnection replays `price:update` + `bet:placed` events from missed blocks (volume > 0, user enrichment)
+  - `lastEventId` query param works identically to `Last-Event-ID` header
+  - Reconnection at current block replays nothing (no block:new events emitted)
+  - Multiple blocks replayed in ascending order (block indices strictly increasing)
+  - Each replayed `block:new` event has `id` matching its `blockIndex`
+  - Non-block:new events in replay do not have `id` field
+
+Gotchas:
+- `addClient()` uses `this` alias (`relay = this`) because ReadableStream's `start()` callback needs non-arrow function for proper `controller` parameter binding, but also needs relay instance access
+- Replay runs before registering client for live broadcasts to prevent out-of-order events. There's a small window between replay completion and live registration where events could theoretically be missed, but this is negligible in practice.
+- `eventsFromBlock()` uses current state prices (not historical per-trade intermediate prices) for `price:update` events during replay — acceptable since the goal is to bring the client up to date
+- `sharesReceived` in replayed `bet:placed` events is 0 since AMM intermediate state isn't preserved in block history
+
+Files changed:
+- packages/api/src/sse/relay.ts (added replay methods, id field on block:new, updated addClient/broadcast)
+- packages/api/src/routes/events.ts (read Last-Event-ID header + lastEventId query param)
+- packages/api/tests/sse-reconnect.test.ts (new — 9 integration tests)
+- PLAN.md (marked 2 tasks complete)

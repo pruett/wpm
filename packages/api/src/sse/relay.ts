@@ -1,4 +1,5 @@
 import { calculatePrices } from "@wpm/shared/amm";
+import type { Block } from "@wpm/shared";
 import { createNodeClient } from "../node-client";
 import type { NodeClient } from "../node-client";
 import { findUserByWallet, getAllUsers } from "../db/queries";
@@ -20,6 +21,7 @@ type ParsedSSEEvent = {
 type ClientEvent = {
   event: string;
   data: unknown;
+  id?: string;
 };
 
 // Node event data types
@@ -163,7 +165,7 @@ export class SSERelay {
 
     const clientEvents = await this.transformEvent(parsed.event, nodeData);
     for (const ce of clientEvents) {
-      this.broadcastClientEvent(ce.event, ce.data);
+      this.broadcastClientEvent(ce.event, ce.data, ce.id);
     }
   }
 
@@ -375,7 +377,7 @@ export class SSERelay {
       }
     }
 
-    // block:new always emitted last
+    // block:new always emitted last — includes id for Last-Event-ID reconnection
     events.push({
       event: "block:new",
       data: {
@@ -383,6 +385,7 @@ export class SSERelay {
         timestamp: data.timestamp,
         transactionCount: data.txCount,
       },
+      id: String(data.index),
     });
 
     return events;
@@ -451,6 +454,185 @@ export class SSERelay {
     return entries.map((e, i) => ({ ...e, rank: i + 1 }));
   }
 
+  private sendToClient(
+    controller: ReadableStreamDefaultController,
+    event: string,
+    data: unknown,
+    id?: string,
+  ): void {
+    let raw = "";
+    if (id) raw += `id: ${id}\n`;
+    raw += `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    try {
+      controller.enqueue(new TextEncoder().encode(raw));
+    } catch {
+      // client disconnected
+    }
+  }
+
+  async replayForClient(
+    controller: ReadableStreamDefaultController,
+    fromBlockIndex: number,
+  ): Promise<void> {
+    const node = this.getNodeClient();
+    let from = fromBlockIndex;
+    const batchSize = 50;
+
+    while (true) {
+      const blocksResult = await node.getBlocks(from, batchSize);
+      if (!blocksResult.ok) break;
+
+      const blocks = blocksResult.data;
+      if (blocks.length === 0) break;
+
+      for (const block of blocks) {
+        const events = await this.eventsFromBlock(block);
+        for (const ce of events) {
+          this.sendToClient(controller, ce.event, ce.data, ce.id);
+        }
+      }
+
+      if (blocks.length < batchSize) break;
+      from += blocks.length;
+    }
+  }
+
+  private async eventsFromBlock(block: Block): Promise<ClientEvent[]> {
+    const events: ClientEvent[] = [];
+    const node = this.getNodeClient();
+
+    // Fetch current state once for price lookups
+    const stateResult = await node.getState();
+    const state = stateResult.ok ? stateResult.data : null;
+
+    const settlementMarketIds = new Set<string>();
+
+    for (const tx of block.transactions) {
+      switch (tx.type) {
+        case "CreateMarket":
+          events.push({
+            event: "market:created",
+            data: {
+              marketId: tx.marketId,
+              sport: tx.sport,
+              homeTeam: tx.homeTeam,
+              awayTeam: tx.awayTeam,
+              eventStartTime: tx.eventStartTime,
+            },
+          });
+          break;
+
+        case "PlaceBet":
+        case "SellShares": {
+          // Compute current prices from state
+          const pool = state?.pools[tx.marketId];
+          let priceA = 0.5;
+          let priceB = 0.5;
+          if (pool) {
+            const prices = calculatePrices(pool);
+            priceA = prices.priceA;
+            priceB = prices.priceB;
+          }
+
+          let totalVolume = 0;
+          try {
+            totalVolume = await this.computeMarketVolume(tx.marketId);
+          } catch {
+            // default to 0
+          }
+
+          events.push({
+            event: "price:update",
+            data: {
+              marketId: tx.marketId,
+              priceA,
+              priceB,
+              multiplierA: priceA > 0 ? round2(1 / priceA) : 0,
+              multiplierB: priceB > 0 ? round2(1 / priceB) : 0,
+              totalVolume,
+            },
+          });
+
+          if (tx.type === "PlaceBet") {
+            let userId: string | null = null;
+            let userName: string | null = null;
+            try {
+              const user = findUserByWallet(tx.sender);
+              if (user) {
+                userId = user.id;
+                userName = user.name;
+              }
+            } catch {
+              // DB lookup failed
+            }
+
+            events.push({
+              event: "bet:placed",
+              data: {
+                marketId: tx.marketId,
+                userId,
+                userName,
+                outcome: tx.outcome,
+                amount: tx.amount,
+                sharesReceived: 0, // Not available from block history
+              },
+            });
+          }
+          break;
+        }
+
+        case "ResolveMarket":
+          settlementMarketIds.add(tx.marketId);
+          events.push({
+            event: "market:resolved",
+            data: {
+              marketId: tx.marketId,
+              winningOutcome: tx.winningOutcome,
+              finalScore: tx.finalScore,
+            },
+          });
+          break;
+
+        case "CancelMarket":
+          settlementMarketIds.add(tx.marketId);
+          events.push({
+            event: "market:cancelled",
+            data: {
+              marketId: tx.marketId,
+              reason: tx.reason,
+            },
+          });
+          break;
+
+        case "SettlePayout":
+          if (tx.payoutType !== "liquidity_return") {
+            events.push({
+              event: "payout:received",
+              data: {
+                address: tx.recipient,
+                marketId: tx.marketId,
+                amount: tx.amount,
+              },
+            });
+          }
+          break;
+      }
+    }
+
+    // block:new with id for Last-Event-ID tracking
+    events.push({
+      event: "block:new",
+      data: {
+        blockIndex: block.index,
+        timestamp: block.timestamp,
+        transactionCount: block.transactions.length,
+      },
+      id: String(block.index),
+    });
+
+    return events;
+  }
+
   private scheduleReconnect(): void {
     if (this.abortController?.signal.aborted) return;
 
@@ -462,24 +644,43 @@ export class SSERelay {
     }, delay);
   }
 
-  addClient(userId: string): ReadableStream {
+  addClient(userId: string, lastEventId?: string): ReadableStream {
     // Enforce 1 connection per user — close prior
     this.removeClient(userId);
 
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const relay = this;
+
     const stream = new ReadableStream({
-      start: (controller) => {
+      start(controller) {
         const keepaliveTimer = setInterval(() => {
           try {
             controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
           } catch {
-            this.removeClient(userId);
+            relay.removeClient(userId);
           }
         }, KEEPALIVE_INTERVAL_MS);
 
-        this.clients.set(userId, { controller, keepaliveTimer });
+        const entry: SSEClientEntry = { controller, keepaliveTimer };
+
+        // If reconnecting with Last-Event-ID, replay missed blocks first,
+        // then register for live events. This ensures ordering: replay → live.
+        const fromBlock = lastEventId !== undefined ? parseInt(lastEventId, 10) : NaN;
+        if (!isNaN(fromBlock)) {
+          relay
+            .replayForClient(controller, fromBlock + 1)
+            .catch(() => {
+              // Replay failed — client will get live events going forward
+            })
+            .finally(() => {
+              relay.clients.set(userId, entry);
+            });
+        } else {
+          relay.clients.set(userId, entry);
+        }
       },
-      cancel: () => {
-        this.removeClient(userId);
+      cancel() {
+        relay.removeClient(userId);
       },
     });
 
@@ -499,8 +700,11 @@ export class SSERelay {
     this.clients.delete(userId);
   }
 
-  private broadcastClientEvent(event: string, data: unknown): void {
-    const payload = new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  private broadcastClientEvent(event: string, data: unknown, id?: string): void {
+    let raw = "";
+    if (id) raw += `id: ${id}\n`;
+    raw += `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    const payload = new TextEncoder().encode(raw);
 
     for (const [userId, client] of this.clients) {
       try {

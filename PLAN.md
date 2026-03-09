@@ -165,8 +165,8 @@
 
 - [x] Enrich `packages/api/src/sse/relay.ts` with event-type mapping: node `trade:executed` → client `price:update` + `bet:placed` + `balance:update`, node `market:created` → client `market:created`, node `market:resolved` → client `market:resolved` + `payout:received` + `balance:update` + `leaderboard:update`, node `block:new` → client `block:new`
 - [x] Add volume computation to `price:update` events (sum PlaceBet + SellShares amounts for market)
-- [ ] Implement `Last-Event-ID` reconnection — on client reconnect, replay missed events from the referenced block index onward via node `GET /internal/blocks?from=N`
-- [ ] Write tests (`bun:test`): each event type transforms correctly, reconnection replays missed events
+- [x] Implement `Last-Event-ID` reconnection — on client reconnect, replay missed events from the referenced block index onward via node `GET /internal/blocks?from=N`
+- [x] Write tests (`bun:test`): each event type transforms correctly, reconnection replays missed events
 
 ### Rate Limiting (NFR-4)
 
