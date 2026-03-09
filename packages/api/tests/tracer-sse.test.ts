@@ -197,7 +197,7 @@ describe("tracer-sse: GET /events/stream", () => {
     reader.cancel();
   });
 
-  test("receives trade:executed event after PlaceBet tx and block production", async () => {
+  test("receives transformed events after PlaceBet tx and block production", async () => {
     // 1. Connect SSE client
     const res = await app.request(`/events/stream?token=${token}`);
     expect(res.status).toBe(200);
@@ -233,8 +233,8 @@ describe("tracer-sse: GET /events/stream", () => {
       eventBus,
     );
 
-    // 4. Read SSE events with a timeout
-    const events: string[] = [];
+    // 4. Read SSE events with a timeout — wait for block:new (last event in sequence)
+    const receivedChunks: string[] = [];
     const readWithTimeout = async (timeoutMs: number): Promise<void> => {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
@@ -244,20 +244,37 @@ describe("tracer-sse: GET /events/stream", () => {
         );
         const { done, value } = await Promise.race([readPromise, timeoutPromise]);
         if (done) break;
-        events.push(decoder.decode(value, { stream: true }));
-        // Check if we have received a trade:executed event
-        const allText = events.join("");
-        if (allText.includes("trade:executed")) break;
+        receivedChunks.push(decoder.decode(value, { stream: true }));
+        // block:new is always the last event in a block's sequence
+        const allText = receivedChunks.join("");
+        if (allText.includes("block:new")) break;
       }
     };
 
-    await readWithTimeout(3000);
+    await readWithTimeout(5000);
     reader.cancel();
 
-    // 5. Verify we received the trade event
-    const allText = events.join("");
-    expect(allText).toContain("event: trade:executed");
+    // 5. Verify transformed events: trade:executed → price:update + bet:placed + balance:update
+    const allText = receivedChunks.join("");
+
+    // price:update with prices and multipliers
+    expect(allText).toContain("event: price:update");
     expect(allText).toContain(marketId);
+
+    // bet:placed with user info
+    expect(allText).toContain("event: bet:placed");
+    expect(allText).toContain("SSE Test User");
+
+    // balance:update with address
+    expect(allText).toContain("event: balance:update");
+
+    // block:new with renamed fields
+    expect(allText).toContain("event: block:new");
+    expect(allText).toContain("blockIndex");
+    expect(allText).toContain("transactionCount");
+
+    // Should NOT contain raw node events
+    expect(allText).not.toContain("event: trade:executed");
   });
 
   test("enforces 1 connection per user (new connection closes old)", async () => {
