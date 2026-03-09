@@ -184,10 +184,47 @@ export class SSERelay {
     }
   }
 
+  private async computeMarketVolume(marketId: string): Promise<number> {
+    const node = this.getNodeClient();
+    let volume = 0;
+    let from = 0;
+    const batchSize = 100;
+
+    while (true) {
+      const blocksResult = await node.getBlocks(from, batchSize);
+      if (!blocksResult.ok) break;
+
+      const blocks = blocksResult.data;
+      if (blocks.length === 0) break;
+
+      for (const block of blocks) {
+        for (const tx of block.transactions) {
+          if (tx.type === "PlaceBet" && tx.marketId === marketId) {
+            volume += tx.amount;
+          } else if (tx.type === "SellShares" && tx.marketId === marketId) {
+            volume += tx.shareAmount;
+          }
+        }
+      }
+
+      if (blocks.length < batchSize) break;
+      from += blocks.length;
+    }
+
+    return round2(volume);
+  }
+
   private async transformTradeExecuted(data: TradeExecutedData): Promise<ClientEvent[]> {
     const events: ClientEvent[] = [];
 
-    // 1. price:update — prices + multipliers from trade data
+    // 1. price:update — prices + multipliers + totalVolume from trade data
+    let totalVolume = 0;
+    try {
+      totalVolume = await this.computeMarketVolume(data.marketId);
+    } catch {
+      // Node unavailable — default to 0
+    }
+
     events.push({
       event: "price:update",
       data: {
@@ -196,7 +233,7 @@ export class SSERelay {
         priceB: data.newPriceB,
         multiplierA: data.newPriceA > 0 ? round2(1 / data.newPriceA) : 0,
         multiplierB: data.newPriceB > 0 ? round2(1 / data.newPriceB) : 0,
-        totalVolume: 0, // Computed in Phase 5 task 2
+        totalVolume,
       },
     });
 

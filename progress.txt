@@ -925,3 +925,21 @@ Files changed:
 - packages/api/src/sse/relay.ts (rewrote with event transformation layer)
 - packages/api/tests/tracer-sse.test.ts (updated to verify transformed events)
 - PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 5, SSE Event Transformation: Volume computation for price:update
+
+- Added `computeMarketVolume(marketId)` private method to `SSERelay` class
+  - Fetches all blocks from node via paginated `getBlocks()` (100 per batch)
+  - Sums `PlaceBet.amount` + `SellShares.shareAmount` for the specified marketId
+  - Returns `round2(volume)` for consistent 2-decimal precision
+  - Same volume computation pattern used in `GET /markets` route
+- Updated `transformTradeExecuted()` to call `computeMarketVolume()` before emitting `price:update`
+  - Replaces `totalVolume: 0` placeholder with actual computed volume
+  - Wrapped in try/catch — defaults to 0 if node unavailable
+- Updated `packages/api/tests/tracer-sse.test.ts` to verify `totalVolume` in `price:update` event
+  - Parses SSE event data and asserts `totalVolume === 50` (from the 50 WPM PlaceBet tx)
+
+Files changed:
+- packages/api/src/sse/relay.ts (added computeMarketVolume method, updated transformTradeExecuted)
+- packages/api/tests/tracer-sse.test.ts (added totalVolume assertion)
+- PLAN.md (marked task complete)

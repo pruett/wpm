@@ -257,9 +257,15 @@ describe("tracer-sse: GET /events/stream", () => {
     // 5. Verify transformed events: trade:executed → price:update + bet:placed + balance:update
     const allText = receivedChunks.join("");
 
-    // price:update with prices and multipliers
+    // price:update with prices, multipliers, and totalVolume
     expect(allText).toContain("event: price:update");
     expect(allText).toContain(marketId);
+
+    // Extract and verify price:update data includes totalVolume
+    const priceUpdateMatch = allText.match(/event: price:update\ndata: (.+)\n/);
+    expect(priceUpdateMatch).not.toBeNull();
+    const priceUpdateData = JSON.parse(priceUpdateMatch![1]);
+    expect(priceUpdateData.totalVolume).toBe(50); // 50 WPM from the PlaceBet tx
 
     // bet:placed with user info
     expect(allText).toContain("event: bet:placed");
