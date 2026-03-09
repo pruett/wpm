@@ -122,10 +122,10 @@
 
 ### Invite Code Management (FR-13)
 
-- [ ] Implement `POST /admin/invite-codes` in `packages/api/src/routes/admin.ts` (generate `count` unique 8-char uppercase alphanumeric codes, store each with maxUses, use_count=0, active=1, optional referrer validated as existing wallet)
-- [ ] Implement `GET /admin/invite-codes` (list all codes with full metadata)
-- [ ] Implement `DELETE /admin/invite-codes/:code` (set active=0, keep record)
-- [ ] Write tests (`bun:test`): correct count generated, codes are unique 8-char, deactivated code rejects registration
+- [x] Implement `POST /admin/invite-codes` in `packages/api/src/routes/admin.ts` (generate `count` unique 8-char uppercase alphanumeric codes, store each with maxUses, use_count=0, active=1, optional referrer validated as existing wallet)
+- [x] Implement `GET /admin/invite-codes` (list all codes with full metadata)
+- [x] Implement `DELETE /admin/invite-codes/:code` (set active=0, keep record)
+- [x] Write tests (`bun:test`): correct count generated, codes are unique 8-char, deactivated code rejects registration
 
 ### Market Operations (FR-14)
 

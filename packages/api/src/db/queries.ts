@@ -143,6 +143,41 @@ export function incrementInviteCodeUse(code: string, db?: Database): void {
     .run(code);
 }
 
+export function insertInviteCode(
+  invite: {
+    code: string;
+    createdBy: string;
+    referrer?: string | null;
+    maxUses: number;
+  },
+  db?: Database,
+): void {
+  (db ?? getDb())
+    .query(
+      "INSERT INTO invite_codes (code, created_by, referrer, max_uses, use_count, active, created_at) VALUES (?, ?, ?, ?, 0, 1, ?)",
+    )
+    .run(invite.code, invite.createdBy, invite.referrer ?? null, invite.maxUses, Date.now());
+}
+
+export function getAllInviteCodes(db?: Database): InviteCodeRow[] {
+  return (db ?? getDb())
+    .query("SELECT * FROM invite_codes ORDER BY created_at DESC")
+    .all() as InviteCodeRow[];
+}
+
+export function findInviteCode(code: string, db?: Database): InviteCodeRow | null {
+  return (db ?? getDb())
+    .query("SELECT * FROM invite_codes WHERE code = ?")
+    .get(code) as InviteCodeRow | null;
+}
+
+export function deactivateInviteCode(code: string, db?: Database): boolean {
+  const result = (db ?? getDb())
+    .query("UPDATE invite_codes SET active = 0 WHERE code = ? AND active = 1")
+    .run(code);
+  return result.changes > 0;
+}
+
 // --- Auth challenge queries ---
 
 export function insertChallenge(

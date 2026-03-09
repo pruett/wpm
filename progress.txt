@@ -750,3 +750,34 @@ Files changed:
 - packages/api/src/index.ts (mounted admin routes)
 - packages/api/tests/admin-distribute.test.ts (new)
 - PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 3, Invite Code Management (FR-13): Full implementation
+
+- Added 3 endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/invite-codes`: validates `count` (1-100 integer), `maxUses` (positive integer), optional `referrer` (validated as existing wallet via `findUserByWallet`); generates `count` unique 8-char uppercase alphanumeric codes using `crypto.getRandomValues`; stores each with `use_count=0`, `active=1`, `created_by="admin"`; returns `{ codes: [...] }` (201)
+  - `GET /admin/invite-codes`: lists all codes with full metadata (camelCase response fields, `active` as boolean); sorted by `created_at` descending
+  - `DELETE /admin/invite-codes/:code`: soft-deletes by setting `active=0`; returns 404 if code doesn't exist; returns "Already deactivated" message if already inactive; keeps record in database
+- Added 5 query helpers to `packages/api/src/db/queries.ts`: `insertInviteCode`, `getAllInviteCodes`, `findInviteCode` (find regardless of active status), `deactivateInviteCode` (returns boolean for whether a row was actually changed)
+- Created `packages/api/tests/admin-invite-codes.test.ts` — 17 tests covering:
+  - Generates correct number of codes (count=3)
+  - Codes are unique 8-char uppercase alphanumeric (regex validated)
+  - Codes stored in DB with correct metadata (maxUses, use_count=0, active=1, created_by, null referrer)
+  - Accepts optional referrer as existing wallet address
+  - Rejects referrer with unknown wallet → RECIPIENT_NOT_FOUND (404)
+  - Rejects invalid count (0) → 400
+  - Rejects invalid maxUses (0) → 400
+  - Rejects user JWT → FORBIDDEN (403)
+  - Rejects missing auth → UNAUTHORIZED (401)
+  - GET lists all codes with full camelCase metadata and boolean active
+  - GET rejects user JWT → FORBIDDEN (403)
+  - DELETE deactivates code (sets active=false in DB)
+  - Deactivated code not returned by findActiveInviteCode
+  - DELETE already inactive code returns "Already deactivated"
+  - DELETE nonexistent code → 404
+  - DELETE rejects user JWT → FORBIDDEN (403)
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 invite code endpoints + generateCode helper)
+- packages/api/src/db/queries.ts (added 5 query helpers)
+- packages/api/tests/admin-invite-codes.test.ts (new)
+- PLAN.md (marked 4 tasks complete)
