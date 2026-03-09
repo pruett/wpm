@@ -29,7 +29,7 @@ describe("apiError", () => {
 });
 
 describe("ERRORS catalog", () => {
-  it("contains all 19 error codes from spec", () => {
+  it("contains all 20 error codes from spec", () => {
     const expectedCodes: ErrorCode[] = [
       "UNAUTHORIZED",
       "FORBIDDEN",
@@ -47,6 +47,7 @@ describe("ERRORS catalog", () => {
       "CHALLENGE_EXPIRED",
       "WEBAUTHN_VERIFICATION_FAILED",
       "INVALID_TRANSFER",
+      "VALIDATION_ERROR",
       "RATE_LIMITED",
       "NODE_UNAVAILABLE",
       "INTERNAL_ERROR",

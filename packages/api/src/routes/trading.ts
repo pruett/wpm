@@ -8,7 +8,12 @@ import { sendError } from "../errors";
 import { createNodeClient } from "../node-client";
 import { getDb } from "../db/index";
 import { decryptPrivateKey } from "../crypto/wallet";
-import { validateAmount, validateOutcome, validateMarketTradeable } from "../validation";
+import {
+  validateAmount,
+  validateOutcome,
+  validateMarketTradeable,
+  validateExtraFields,
+} from "../validation";
 
 type Env = {
   Variables: {
@@ -28,11 +33,16 @@ trading.post("/markets/:marketId/buy/preview", async (c) => {
   const { marketId } = c.req.param();
 
   // Parse request body
-  let body: { outcome?: unknown; amount?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["outcome", "amount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { outcome, amount: rawAmount } = body;
@@ -102,11 +112,16 @@ trading.post("/markets/:marketId/sell/preview", async (c) => {
   const { marketId } = c.req.param();
 
   // Parse request body
-  let body: { outcome?: unknown; amount?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["outcome", "amount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { outcome, amount: rawAmount } = body;
@@ -182,11 +197,16 @@ trading.post("/markets/:marketId/buy", async (c) => {
   const { marketId } = c.req.param();
 
   // Parse request body
-  let body: { outcome?: unknown; amount?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["outcome", "amount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { outcome, amount: rawAmount } = body;
@@ -298,11 +318,16 @@ trading.post("/markets/:marketId/sell", async (c) => {
   const { marketId } = c.req.param();
 
   // Parse request body
-  let body: { outcome?: unknown; amount?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["outcome", "amount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { outcome, amount: rawAmount } = body;

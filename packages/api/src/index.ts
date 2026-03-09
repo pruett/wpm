@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
 import { authRateLimit, adminRateLimit, userRateLimit } from "./middleware/rate-limit";
 import { trading } from "./routes/trading";
 import { events } from "./routes/events";
@@ -10,7 +12,46 @@ import { leaderboard } from "./routes/leaderboard";
 import { admin } from "./routes/admin";
 import { oracle } from "./routes/oracle";
 
-const app = new Hono();
+type AppEnv = {
+  Variables: {
+    requestId: string;
+  };
+};
+
+const app = new Hono<AppEnv>();
+
+// CORS — allow configured origin (default: https://wpm.example.com)
+app.use(
+  "*",
+  cors({
+    origin: process.env.CORS_ORIGIN ?? "https://wpm.example.com",
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
+
+// Request body size limit — 64 KB
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 64 * 1024,
+    onError: (c) => {
+      return c.json(
+        { error: { code: "VALIDATION_ERROR", message: "Request body too large (max 64 KB)" } },
+        413,
+      );
+    },
+  }),
+);
+
+// X-Request-Id — unique ID per request
+app.use("*", async (c, next) => {
+  const requestId = crypto.randomUUID();
+  c.set("requestId", requestId);
+  c.header("X-Request-Id", requestId);
+  await next();
+});
 
 // Rate limiting — 10/min auth (IP), 120/min admin (IP), 60/min user (userId)
 app.use("/auth/*", authRateLimit);

@@ -47,4 +47,20 @@ function validateMarketTradeable(market: {
   return null;
 }
 
-export { validateAmount, validateOutcome, validateMarketTradeable };
+/**
+ * Checks for unknown/extra fields in a request body.
+ * Returns a descriptive string if extra fields are found, null if clean.
+ */
+function validateExtraFields(
+  body: Record<string, unknown>,
+  allowedFields: string[],
+): string | null {
+  const allowed = new Set(allowedFields);
+  const extra = Object.keys(body).filter((k) => !allowed.has(k));
+  if (extra.length > 0) {
+    return `Unknown fields: ${extra.join(", ")}`;
+  }
+  return null;
+}
+
+export { validateAmount, validateOutcome, validateMarketTradeable, validateExtraFields };

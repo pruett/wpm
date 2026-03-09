@@ -30,6 +30,7 @@ const ERRORS = {
   CHALLENGE_EXPIRED: [400, "Authentication challenge has expired"] as const,
   WEBAUTHN_VERIFICATION_FAILED: [400, "WebAuthn verification failed"] as const,
   INVALID_TRANSFER: [400, "Invalid transfer"] as const,
+  VALIDATION_ERROR: [400, "Request validation failed"] as const,
   RATE_LIMITED: [429, "Too many requests"] as const,
   NODE_UNAVAILABLE: [503, "Blockchain node is unreachable"] as const,
   INTERNAL_ERROR: [500, "Internal server error"] as const,

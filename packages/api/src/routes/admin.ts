@@ -6,7 +6,7 @@ import { authMiddleware } from "../middleware/auth";
 import { adminMiddleware } from "../middleware/admin";
 import type { AdminEnv } from "../middleware/admin";
 import { sendError } from "../errors";
-import { validateAmount, validateOutcome } from "../validation";
+import { validateAmount, validateOutcome, validateExtraFields } from "../validation";
 import { createNodeClient } from "../node-client";
 import type { NodeClient } from "../node-client";
 import {
@@ -35,6 +35,11 @@ admin.post("/admin/distribute", adminMiddleware, async (c) => {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["recipient", "amount", "reason"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { recipient: rawRecipient, amount: rawAmount, reason: rawReason } = body;
@@ -108,6 +113,11 @@ admin.post("/admin/invite-codes", adminMiddleware, async (c) => {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["count", "maxUses", "referrer"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { count: rawCount, maxUses: rawMaxUses, referrer: rawReferrer } = body;
@@ -228,6 +238,11 @@ admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
   }
 
+  const extraErr = validateExtraFields(body, ["reason"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
+  }
+
   const { reason: rawReason } = body;
 
   if (typeof rawReason !== "string" || !rawReason.trim()) {
@@ -301,6 +316,11 @@ admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["winningOutcome", "finalScore"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { winningOutcome: rawOutcome, finalScore: rawScore } = body;
@@ -383,6 +403,11 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["seedAmount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { seedAmount: rawSeedAmount } = body;

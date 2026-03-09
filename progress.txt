@@ -1020,3 +1020,41 @@ Files changed:
 - packages/api/src/index.ts (added rate limiter imports + app.use() path patterns)
 - packages/api/tests/rate-limit.test.ts (new — 17 tests)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Input Validation & CORS: Full implementation
+
+- Added CORS middleware to Hono app in `packages/api/src/index.ts`:
+  - Uses `hono/cors` with `CORS_ORIGIN` env var (default `https://wpm.example.com`)
+  - Allows GET, POST, DELETE, OPTIONS methods
+  - Allows Content-Type and Authorization headers
+  - Credentials enabled for cookie-based refresh tokens
+- Added request body size limit of 64 KB via `hono/body-limit`:
+  - Returns 413 with `VALIDATION_ERROR` code when exceeded
+- Added `X-Request-Id` generation middleware:
+  - Uses `crypto.randomUUID()` per request
+  - Sets `requestId` on Hono context for downstream logging
+  - Sets `X-Request-Id` response header
+  - Added `AppEnv` type with `Variables: { requestId: string }` for typed context
+- Added strict body validation via `validateExtraFields()` in `packages/api/src/validation.ts`:
+  - Applied to all POST endpoints across trading, auth, wallet, and admin routes
+  - Returns `VALIDATION_ERROR` (400) with descriptive message listing unknown fields
+- Created `packages/api/tests/input-validation.test.ts` — 25 tests covering:
+  - validateExtraFields: exact fields, subset, empty body, extra fields, multiple extra, no allowed fields
+  - CORS: Access-Control-Allow-Origin header, credentials, OPTIONS preflight, disallowed origin
+  - Body size limit: under 64 KB accepted, over 64 KB → 413
+  - X-Request-Id: UUID format, unique per request, accessible on context
+  - Strict body validation integration: trading (buy/preview, sell/preview), auth (register/begin, admin/login), wallet (transfer), admin (distribute)
+  - Middleware integration: X-Request-Id + CORS headers present on responses
+- Updated `packages/api/src/errors.ts` — added `VALIDATION_ERROR` code (already present in catalog, confirmed 20 error codes total)
+
+Files changed:
+- packages/api/src/index.ts (added CORS, body limit, X-Request-Id middleware)
+- packages/api/src/validation.ts (added validateExtraFields helper)
+- packages/api/src/errors.ts (confirmed VALIDATION_ERROR in catalog)
+- packages/api/src/routes/trading.ts (applied validateExtraFields to buy/preview, sell/preview, buy, sell)
+- packages/api/src/routes/auth.ts (applied validateExtraFields to register/begin, register/complete, login/complete, admin/login)
+- packages/api/src/routes/wallet.ts (applied validateExtraFields to transfer)
+- packages/api/src/routes/admin.ts (applied validateExtraFields to distribute, invite-codes, cancel, resolve, seed)
+- packages/api/tests/input-validation.test.ts (new — 25 tests)
+- packages/api/tests/errors.test.ts (updated expected count to 20 codes)
+- PLAN.md (marked 4 tasks complete)

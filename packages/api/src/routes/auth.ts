@@ -7,6 +7,7 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { sendError } from "../errors";
+import { validateExtraFields } from "../validation";
 import {
   findUserByEmail,
   findUserById,
@@ -42,11 +43,16 @@ const auth = new Hono();
 // --- POST /auth/register/begin ---
 
 auth.post("/auth/register/begin", async (c) => {
-  let body: { inviteCode?: unknown; name?: unknown; email?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: { code: "INVALID_INVITE_CODE", message: "Invalid request body" } }, 400);
+  }
+
+  const extraErr = validateExtraFields(body, ["inviteCode", "name", "email"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { inviteCode, name, email } = body;
@@ -119,11 +125,16 @@ auth.post("/auth/register/begin", async (c) => {
 // --- POST /auth/register/complete ---
 
 auth.post("/auth/register/complete", async (c) => {
-  let body: { challengeId?: unknown; credential?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "CHALLENGE_EXPIRED", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["challengeId", "credential"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { challengeId, credential } = body;
@@ -284,11 +295,16 @@ auth.post("/auth/login/begin", async (c) => {
 // --- POST /auth/login/complete ---
 
 auth.post("/auth/login/complete", async (c) => {
-  let body: { challengeId?: unknown; credential?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "UNAUTHORIZED", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["challengeId", "credential"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { challengeId, credential } = body;
@@ -441,11 +457,16 @@ auth.post("/auth/admin/login", async (c) => {
     return sendError(c, "INTERNAL_ERROR", "Admin API key not configured");
   }
 
-  let body: { apiKey?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "FORBIDDEN", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["apiKey"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { apiKey } = body;

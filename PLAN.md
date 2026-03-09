@@ -177,10 +177,10 @@
 
 ### Input Validation & CORS
 
-- [ ] Add CORS middleware to Hono app (allow `CORS_ORIGIN` env, default `https://wpm.example.com`)
-- [ ] Add request body size limit of 64 KB
-- [ ] Add `X-Request-Id` generation middleware (`crypto.randomUUID()` per request, set on context for logging)
-- [ ] Reject unknown/extra fields on all request bodies (strict schema validation)
+- [x] Add CORS middleware to Hono app (allow `CORS_ORIGIN` env, default `https://wpm.example.com`)
+- [x] Add request body size limit of 64 KB
+- [x] Add `X-Request-Id` generation middleware (`crypto.randomUUID()` per request, set on context for logging)
+- [x] Reject unknown/extra fields on all request bodies (strict schema validation)
 
 ### Structured Logging
 

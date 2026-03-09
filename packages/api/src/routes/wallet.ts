@@ -8,7 +8,7 @@ import { createNodeClient } from "../node-client";
 import { getDb } from "../db/index";
 import { findUserByWallet } from "../db/queries";
 import { decryptPrivateKey } from "../crypto/wallet";
-import { validateAmount } from "../validation";
+import { validateAmount, validateExtraFields } from "../validation";
 
 type Env = {
   Variables: {
@@ -113,11 +113,16 @@ wallet.post("/wallet/transfer", async (c) => {
   }
 
   // Parse request body
-  let body: { recipientAddress?: unknown; amount?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await c.req.json();
   } catch {
     return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const extraErr = validateExtraFields(body, ["recipientAddress", "amount"]);
+  if (extraErr) {
+    return sendError(c, "VALIDATION_ERROR", extraErr);
   }
 
   const { recipientAddress, amount: rawAmount } = body;
