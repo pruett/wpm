@@ -7,6 +7,7 @@ import { markets } from "./routes/markets";
 import { user } from "./routes/user";
 import { leaderboard } from "./routes/leaderboard";
 import { admin } from "./routes/admin";
+import { oracle } from "./routes/oracle";
 
 const app = new Hono();
 
@@ -18,6 +19,7 @@ app.route("/", markets);
 app.route("/", user);
 app.route("/", leaderboard);
 app.route("/", admin);
+app.route("/", oracle);
 const startTime = Date.now();
 
 const NODE_URL = process.env.NODE_URL ?? "http://localhost:3001";

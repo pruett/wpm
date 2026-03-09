@@ -849,3 +849,47 @@ Files changed:
 - packages/api/src/routes/admin.ts (added 2 oracle trigger endpoints, getOracleUrl helper)
 - packages/api/tests/admin-oracle.test.ts (new)
 - PLAN.md (marked 3 tasks complete)
+
+## 2026-03-09 — Phase 4, Oracle Inbound Interface: Full implementation
+
+- Created `packages/api/src/routes/oracle.ts` — two endpoints for oracle-to-API communication:
+  - `POST /oracle/transaction`: validates pre-signed oracle transactions before forwarding to node
+    - Loads `ORACLE_PUBLIC_KEY` from env dynamically via `getOraclePublicKey()`
+    - Validates `tx.sender === oraclePublicKey` to ensure only oracle transactions are accepted
+    - Verifies cryptographic signature using `verify()` from `@wpm/shared/crypto` against `JSON.stringify({ ...tx, signature: undefined })`
+    - Rejects: wrong sender (401), invalid/tampered signature (401), missing signature (401), invalid JSON (400)
+    - On valid signature, forwards tx to node `POST /internal/transaction` → returns 202 with `{ txId, status: "accepted" }`
+    - Maps node errors: 503 → NODE_UNAVAILABLE, others → INTERNAL_ERROR
+  - `GET /oracle/markets`: proxies node state with optional status filtering
+    - Fetches full node state via `getState()`
+    - Supports `?status=` query param with comma-separated values (e.g., `open,resolved,cancelled`)
+    - Returns all markets when no filter specified
+    - Silently ignores invalid status values (only accepts `open`, `resolved`, `cancelled`)
+    - Returns `{ markets: [...] }` with market objects from node state
+- Mounted oracle routes in `packages/api/src/index.ts` via `app.route("/", oracle)`
+- No auth middleware (JWT) on oracle routes — authentication is via cryptographic signature verification on the transaction itself
+- Created `packages/api/tests/oracle.test.ts` — 16 integration tests covering:
+  - POST /oracle/transaction:
+    - Valid oracle-signed CreateMarket tx → 202 accepted with txId
+    - Tx actually submitted to node and processed after block production (market exists in chain state)
+    - Wrong sender (non-oracle key) → UNAUTHORIZED (401)
+    - Tampered data after signing → UNAUTHORIZED (401) "Invalid oracle signature"
+    - Correct sender but wrong private key → UNAUTHORIZED (401)
+    - Missing signature field → UNAUTHORIZED (401)
+    - Invalid JSON body → INVALID_AMOUNT (400)
+    - Missing sender field → UNAUTHORIZED (401)
+  - GET /oracle/markets:
+    - No filter → returns all markets (≥3)
+    - status=open → only open markets
+    - status=resolved → only resolved markets
+    - status=cancelled → only cancelled markets
+    - Comma-separated status=open,resolved → both statuses
+    - All three statuses → all markets
+    - Invalid status value → empty array
+    - Mixed valid/invalid status values → only valid matches
+
+Files changed:
+- packages/api/src/routes/oracle.ts (new)
+- packages/api/src/index.ts (mounted oracle routes)
+- packages/api/tests/oracle.test.ts (new)
+- PLAN.md (marked 3 tasks complete)

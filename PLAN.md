@@ -153,9 +153,9 @@
 
 ### Oracle Transaction Relay
 
-- [ ] Create `packages/api/src/routes/oracle.ts` — `POST /oracle/transaction` (validate oracle signature against `ORACLE_PUBLIC_KEY` loaded from env/file, forward valid signed tx to node `POST /internal/transaction`)
-- [ ] Implement `GET /oracle/markets` (proxy to node state, filter by `?status=` query param supporting comma-separated values like `open,resolved,cancelled`)
-- [ ] Write tests (`bun:test`): valid oracle signature → forwarded, invalid signature → rejected, status filter works
+- [x] Create `packages/api/src/routes/oracle.ts` — `POST /oracle/transaction` (validate oracle signature against `ORACLE_PUBLIC_KEY` loaded from env/file, forward valid signed tx to node `POST /internal/transaction`)
+- [x] Implement `GET /oracle/markets` (proxy to node state, filter by `?status=` query param supporting comma-separated values like `open,resolved,cancelled`)
+- [x] Write tests (`bun:test`): valid oracle signature → forwarded, invalid signature → rejected, status filter works
 
 ---
 
