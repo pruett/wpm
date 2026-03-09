@@ -682,3 +682,40 @@ Files changed:
 - packages/api/src/index.ts (mounted leaderboard routes)
 - packages/api/tests/leaderboard.test.ts (new)
 - PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 2, Leaderboard (FR-10): GET /leaderboard/weekly
+
+- Added `GET /leaderboard/weekly` endpoint to `packages/api/src/routes/leaderboard.ts`
+  - Defines week as Mon 00:00:00.000 UTC → Sun 23:59:59.999 UTC
+  - Computes `weeklyPnl = currentTotalWpm - weekStartTotalWpm` for each user
+  - `weekStartTotalWpm` derived by replaying all blocks before Monday boundary using `StateSnapshot` class
+  - `currentTotalWpm` computed same as alltime (balance + estimated open position values)
+  - Sorts by `weeklyPnl` descending, tiebreaks by `walletAddress` ascending, 1-indexed ranks
+  - Returns `{ rankings: [...], weekStart }` with weekStart as UTC ms timestamp
+- Added `StateSnapshot` class — lightweight chain state replay that mirrors `ChainState.applyTransaction` logic
+  - Tracks balances, pools (AMMPool), share positions, and market statuses
+  - Handles all 9 transaction types identically to node's `ChainState`
+  - Accepts `treasuryAddress` in constructor (derived from genesis block's first tx sender)
+  - Cleans up pools and share positions on market settlement (same as ChainState.applyBlock)
+- Added `getWeekStartTimestamp(now?)` helper — computes Monday 00:00 UTC for any date
+- Added `fetchAllBlocks(node)` helper — paginates through node's `GET /internal/blocks` (50 per batch)
+- Exported `getWeekStartTimestamp` and `StateSnapshot` for testing
+- Created `packages/api/tests/leaderboard-weekly.test.ts` — 17 tests covering:
+  - Weekly rankings sorted by weeklyPnl descending (all users positive when all activity is this week)
+  - Correct response fields (rank, userId, name, walletAddress, currentTotalWpm, weekStartTotalWpm, weeklyPnl)
+  - weekStart timestamp is Monday 00:00 UTC (validated day/hour/minute/second)
+  - weeklyPnl = currentTotalWpm when all chain activity happened this week (weekStartTotalWpm = 0)
+  - User with bet has weeklyPnl reflecting position value
+  - Transfer between users is zero-sum in rankings
+  - 1-indexed rank assignment
+  - Rankings are deterministic across different requesters
+  - Rejects missing auth → UNAUTHORIZED (401)
+  - getWeekStartTimestamp: Wednesday → Monday, Monday → same Monday, Sunday → previous Monday, Saturday → previous Monday
+  - getWeekStartTimestamp: month boundary crossing, year boundary crossing
+  - StateSnapshot: replays blocks to produce correct balances
+  - StateSnapshot: stops at boundary block to give historical state
+
+Files changed:
+- packages/api/src/routes/leaderboard.ts (added weekly endpoint, StateSnapshot class, helper functions)
+- packages/api/tests/leaderboard-weekly.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
