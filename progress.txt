@@ -719,3 +719,34 @@ Files changed:
 - packages/api/src/routes/leaderboard.ts (added weekly endpoint, StateSnapshot class, helper functions)
 - packages/api/tests/leaderboard-weekly.test.ts (new)
 - PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 3, Token Distribution (FR-12): POST /admin/distribute
+
+- Created `packages/api/src/routes/admin.ts` — admin route with `POST /admin/distribute` endpoint
+  - Admin auth via `authMiddleware` + `adminMiddleware` chain on `/admin/*` paths
+  - Validates amount (>0, ≤2 decimals) via shared `validateAmount()` helper
+  - Validates recipient is a non-empty string
+  - Validates reason is one of `["signup_airdrop", "referral_reward", "manual"]` (excludes "genesis" which is node-internal only)
+  - Forwards to node `POST /internal/distribute` which handles PoA signing and mempool submission
+  - Maps node errors: `INSUFFICIENT_BALANCE` → 400, `NODE_UNAVAILABLE` → 503
+  - Returns 202 with `{ txId, recipient, amount, reason, status: "accepted" }`
+  - Uses dynamic `getNodeUrl()` for test isolation
+- Mounted admin routes in `packages/api/src/index.ts` via `app.route("/", admin)`
+- Created `packages/api/tests/admin-distribute.test.ts` — 12 integration tests covering:
+  - Valid distribute succeeds with 202 and correct response shape
+  - Treasury decreases and recipient increases after block production
+  - Accepts all 3 valid reasons (signup_airdrop, referral_reward, manual)
+  - Rejects invalid reason (400)
+  - Rejects genesis reason — admin cannot use it (400)
+  - Rejects missing reason (400)
+  - Rejects invalid amount with 3+ decimal places (400)
+  - Rejects zero amount (400)
+  - Rejects missing recipient (404)
+  - User JWT on admin route → FORBIDDEN (403)
+  - Missing auth → UNAUTHORIZED (401)
+
+Files changed:
+- packages/api/src/routes/admin.ts (new)
+- packages/api/src/index.ts (mounted admin routes)
+- packages/api/tests/admin-distribute.test.ts (new)
+- PLAN.md (marked 2 tasks complete)

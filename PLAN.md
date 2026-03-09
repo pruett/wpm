@@ -117,8 +117,8 @@
 
 ### Token Distribution (FR-12)
 
-- [ ] Create `packages/api/src/routes/admin.ts` — `POST /admin/distribute` (admin auth, validate recipient exists on-chain, validate amount > 0 with ≤2 decimals, validate reason in `["signup_airdrop", "referral_reward", "manual"]`, call node `POST /internal/distribute`)
-- [ ] Write test (`bun:test`): treasury decreases, recipient increases, invalid reason rejected
+- [x] Create `packages/api/src/routes/admin.ts` — `POST /admin/distribute` (admin auth, validate recipient exists on-chain, validate amount > 0 with ≤2 decimals, validate reason in `["signup_airdrop", "referral_reward", "manual"]`, call node `POST /internal/distribute`)
+- [x] Write test (`bun:test`): treasury decreases, recipient increases, invalid reason rejected
 
 ### Invite Code Management (FR-13)
 
