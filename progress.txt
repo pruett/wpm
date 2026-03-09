@@ -602,3 +602,32 @@ Files changed:
 - packages/api/src/validation.ts (no changes, already existed)
 - packages/api/tests/trading-buy-sell.test.ts (new)
 - PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 2, Transfer Endpoint (FR-8): Full implementation
+
+- Added `POST /wallet/transfer` endpoint to `packages/api/src/routes/wallet.ts`
+  - JWT auth → validate amount (>0, ≤2 decimals) → validate recipientAddress is a string
+  - Validate sender ≠ recipient → `INVALID_TRANSFER` (400)
+  - Validate recipient exists in users table via `findUserByWallet()` → `RECIPIENT_NOT_FOUND` (404) if not found
+  - Look up user in SQLite for encrypted private key → decrypt with AES-256-GCM
+  - Construct `TransferTx` with `recipient` and `amount` fields
+  - Sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+  - Response includes `txId`, `recipient`, `amount`, `status: "accepted"`
+  - Maps node errors (INSUFFICIENT_BALANCE, SELF_TRANSFER, NODE_UNAVAILABLE) to API error catalog
+- Changed `wallet.ts` `NODE_URL` from module-level const to `getNodeUrl()` function for test isolation (same pattern as trading.ts)
+- Created `packages/api/tests/wallet-transfer.test.ts` — 10 integration tests covering:
+  - Valid transfer succeeds (202 response shape with txId, recipient, amount, status)
+  - Transfer updates balances on node after block production (sender −500, recipient +500)
+  - Self-transfer → INVALID_TRANSFER (400)
+  - Unknown recipient → RECIPIENT_NOT_FOUND (404)
+  - Missing recipientAddress → RECIPIENT_NOT_FOUND (404)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Insufficient balance → INSUFFICIENT_BALANCE (400)
+
+Files changed:
+- packages/api/src/routes/wallet.ts (added POST /wallet/transfer, dynamic NODE_URL, new imports)
+- packages/api/tests/wallet-transfer.test.ts (new)
+- PLAN.md (marked 2 tasks complete)

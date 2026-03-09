@@ -95,8 +95,8 @@
 
 ### Transfer Endpoint (FR-8)
 
-- [ ] Implement `POST /wallet/transfer` in `packages/api/src/routes/wallet.ts` (validate amount, validate recipient exists on-chain, validate sender ≠ recipient, construct `Transfer` tx, sign with custodial key, submit to node)
-- [ ] Write tests (`bun:test`): valid transfer succeeds, self-transfer → `INVALID_TRANSFER` (400), unknown recipient → `RECIPIENT_NOT_FOUND` (404)
+- [x] Implement `POST /wallet/transfer` in `packages/api/src/routes/wallet.ts` (validate amount, validate recipient exists on-chain, validate sender ≠ recipient, construct `Transfer` tx, sign with custodial key, submit to node)
+- [x] Write tests (`bun:test`): valid transfer succeeds, self-transfer → `INVALID_TRANSFER` (400), unknown recipient → `RECIPIENT_NOT_FOUND` (404)
 
 ### User Profile & Positions (FR-9)
 
