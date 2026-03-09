@@ -781,3 +781,26 @@ Files changed:
 - packages/api/src/db/queries.ts (added 5 query helpers)
 - packages/api/tests/admin-invite-codes.test.ts (new)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, Market Operations (FR-14): Full implementation
+
+- Added 3 admin market operation endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/markets/:marketId/cancel`: validates market exists and is open, constructs `CancelMarketTx` signed by oracle private key, submits to node; requires `reason` in body; returns 202 with `{ txId, marketId, status }`
+  - `POST /admin/markets/:marketId/resolve`: validates market exists and is open, validates `winningOutcome` ("A"/"B") and `finalScore` (non-empty string), constructs `ResolveMarketTx` signed by oracle with `timestamp = Math.max(Date.now(), market.eventStartTime)` to satisfy validation rule, submits to node; returns 202 with `{ txId, marketId, winningOutcome, status }`
+  - `POST /admin/markets/:marketId/seed`: validates market exists and is open, fetches all blocks to check for PlaceBet/SellShares trades on the market → rejects with `MARKET_HAS_TRADES` (400) if trades exist; otherwise cancels existing market (CancelMarketTx) and creates a new market (CreateMarketTx) with new `marketId`, same sport/teams/outcomes/eventStartTime, new `seedAmount`, new `externalEventId` (derived from original + `-reseed-{uuid}` suffix); returns 202 with `{ cancelTxId, createTxId, oldMarketId, newMarketId, seedAmount, status }`
+- Added helper functions: `getOraclePrivateKey()`, `getOraclePublicKey()` (read from env), `fetchAllBlocks(node)` (paginated block fetching)
+- All 3 endpoints use oracle key for signing (loaded from `ORACLE_PRIVATE_KEY` and `ORACLE_PUBLIC_KEY` env vars)
+- Created `packages/api/tests/admin-markets.test.ts` — 24 integration tests covering:
+  - Cancel: succeeds with 202, market status changes to cancelled after block, rejects already-resolved (400), rejects already-cancelled (400), rejects nonexistent market (404), rejects missing reason (400), rejects user JWT (403), rejects no auth (401)
+  - Resolve: succeeds with 202, market has correct outcome/score after block, rejects already-resolved (400), rejects invalid outcome (400), rejects missing finalScore (400), rejects nonexistent market (404), rejects user JWT (403), rejects no auth (401)
+  - Seed: succeeds with 202 and returns both txIds + new marketId, old market cancelled + new market created after block with same params, rejects when market has trades (MARKET_HAS_TRADES 400), rejects invalid seedAmount (400), rejects zero seedAmount (400), rejects nonexistent market (404), rejects user JWT (403), rejects no auth (401)
+
+Gotchas:
+- ResolveMarket validation requires `tx.timestamp >= market.eventStartTime` — use `Math.max(Date.now(), market.eventStartTime)` to satisfy this. However, mempool rejects timestamps >5 min in the future (MAX_TIMESTAMP_DRIFT_MS), so markets with `eventStartTime` far in the future cannot be resolved until eventStartTime is within 5 minutes of current time.
+- Seed override creates a new market with a new `externalEventId` because the `externalEventIds` map in chain state is never cleaned up on cancel — the old externalEventId mapping persists. Using `{originalExternalEventId}-reseed-{shortUuid}` avoids the `DUPLICATE_EVENT` validation error.
+- Both cancel and create txs for seed are submitted to mempool simultaneously. The cancel tx is validated against current state (market open ✓). The create tx is validated independently with a new marketId/externalEventId. Both are processed in the next block, with cancel applied first (earlier in mempool).
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 market operation endpoints, oracle key helpers, fetchAllBlocks)
+- packages/api/tests/admin-markets.test.ts (new)
+- PLAN.md (marked 4 tasks complete)

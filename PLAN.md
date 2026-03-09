@@ -129,10 +129,10 @@
 
 ### Market Operations (FR-14)
 
-- [ ] Implement `POST /admin/markets/:marketId/cancel` in `packages/api/src/routes/admin.ts` (construct `CancelMarket` tx signed by PoA/admin authority, submit to node)
-- [ ] Implement `POST /admin/markets/:marketId/resolve` (construct `ResolveMarket` tx, submit to node)
-- [ ] Implement `POST /admin/markets/:marketId/seed` (check market has no PlaceBet/SellShares trades, if so reject with `MARKET_HAS_TRADES` (400), otherwise cancel existing + recreate with new seed amount)
-- [ ] Write tests (`bun:test`): cancel succeeds, resolve succeeds, seed override rejected when trades exist
+- [x] Implement `POST /admin/markets/:marketId/cancel` in `packages/api/src/routes/admin.ts` (construct `CancelMarket` tx signed by PoA/admin authority, submit to node)
+- [x] Implement `POST /admin/markets/:marketId/resolve` (construct `ResolveMarket` tx, submit to node)
+- [x] Implement `POST /admin/markets/:marketId/seed` (check market has no PlaceBet/SellShares trades, if so reject with `MARKET_HAS_TRADES` (400), otherwise cancel existing + recreate with new seed amount)
+- [x] Write tests (`bun:test`): cancel succeeds, resolve succeeds, seed override rejected when trades exist
 
 ### System Monitoring (FR-15)
 

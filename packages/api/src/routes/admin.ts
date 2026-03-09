@@ -1,11 +1,14 @@
 import { Hono } from "hono";
 import { randomUUID } from "crypto";
+import { sign as cryptoSign } from "@wpm/shared/crypto";
+import type { CancelMarketTx, ResolveMarketTx, CreateMarketTx, Block } from "@wpm/shared";
 import { authMiddleware } from "../middleware/auth";
 import { adminMiddleware } from "../middleware/admin";
 import type { AdminEnv } from "../middleware/admin";
 import { sendError } from "../errors";
-import { validateAmount } from "../validation";
+import { validateAmount, validateOutcome } from "../validation";
 import { createNodeClient } from "../node-client";
+import type { NodeClient } from "../node-client";
 import {
   insertInviteCode,
   getAllInviteCodes,
@@ -187,6 +190,309 @@ admin.delete("/admin/invite-codes/:code", adminMiddleware, async (c) => {
   deactivateInviteCode(code);
 
   return c.json({ code, active: false });
+});
+
+// --- Market Operations (FR-14) ---
+
+function getOraclePrivateKey(): string | null {
+  return process.env.ORACLE_PRIVATE_KEY ?? null;
+}
+
+function getOraclePublicKey(): string | null {
+  return process.env.ORACLE_PUBLIC_KEY ?? null;
+}
+
+async function fetchAllBlocks(node: NodeClient): Promise<Block[]> {
+  const allBlocks: Block[] = [];
+  let from = 0;
+  const batchSize = 50;
+  while (true) {
+    const result = await node.getBlocks(from, batchSize);
+    if (!result.ok) break;
+    allBlocks.push(...result.data);
+    if (result.data.length < batchSize) break;
+    from += batchSize;
+  }
+  return allBlocks;
+}
+
+admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
+  const { marketId } = c.req.param();
+
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const { reason: rawReason } = body;
+
+  if (typeof rawReason !== "string" || !rawReason.trim()) {
+    return sendError(c, "INVALID_AMOUNT", "reason is required");
+  }
+  const reason = rawReason.trim();
+
+  const oraclePrivateKey = getOraclePrivateKey();
+  const oraclePublicKey = getOraclePublicKey();
+  if (!oraclePrivateKey || !oraclePublicKey) {
+    return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
+  }
+
+  // Validate market exists and is open
+  const node = createNodeClient(getNodeUrl());
+  const marketResult = await node.getMarket(marketId);
+
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market } = marketResult.data;
+  if (market.status !== "open") {
+    if (market.status === "resolved") {
+      return sendError(c, "MARKET_ALREADY_RESOLVED");
+    }
+    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  }
+
+  // Construct CancelMarket transaction signed by oracle
+  const tx: CancelMarketTx = {
+    id: randomUUID(),
+    type: "CancelMarket",
+    timestamp: Date.now(),
+    sender: oraclePublicKey,
+    signature: "",
+    marketId,
+    reason,
+  };
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  tx.signature = cryptoSign(signData, oraclePrivateKey);
+
+  const result = await node.submitTransaction(tx);
+
+  if (!result.ok) {
+    if (result.status === 503) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+    return sendError(c, "INTERNAL_ERROR", result.error.message);
+  }
+
+  return c.json(
+    {
+      txId: result.data.txId,
+      marketId,
+      status: "accepted",
+    },
+    202,
+  );
+});
+
+admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
+  const { marketId } = c.req.param();
+
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const { winningOutcome: rawOutcome, finalScore: rawScore } = body;
+
+  if (!validateOutcome(rawOutcome)) {
+    return sendError(c, "INVALID_OUTCOME");
+  }
+  const winningOutcome = rawOutcome;
+
+  if (typeof rawScore !== "string" || !rawScore.trim()) {
+    return sendError(c, "INVALID_AMOUNT", "finalScore is required");
+  }
+  const finalScore = rawScore.trim();
+
+  const oraclePrivateKey = getOraclePrivateKey();
+  const oraclePublicKey = getOraclePublicKey();
+  if (!oraclePrivateKey || !oraclePublicKey) {
+    return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
+  }
+
+  // Validate market exists and is open
+  const node = createNodeClient(getNodeUrl());
+  const marketResult = await node.getMarket(marketId);
+
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market } = marketResult.data;
+  if (market.status !== "open") {
+    if (market.status === "resolved") {
+      return sendError(c, "MARKET_ALREADY_RESOLVED");
+    }
+    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  }
+
+  // Construct ResolveMarket transaction signed by oracle
+  const tx: ResolveMarketTx = {
+    id: randomUUID(),
+    type: "ResolveMarket",
+    timestamp: Math.max(Date.now(), market.eventStartTime),
+    sender: oraclePublicKey,
+    signature: "",
+    marketId,
+    winningOutcome,
+    finalScore,
+  };
+
+  const signData = JSON.stringify({ ...tx, signature: undefined });
+  tx.signature = cryptoSign(signData, oraclePrivateKey);
+
+  const result = await node.submitTransaction(tx);
+
+  if (!result.ok) {
+    if (result.status === 503) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+    return sendError(c, "INTERNAL_ERROR", result.error.message);
+  }
+
+  return c.json(
+    {
+      txId: result.data.txId,
+      marketId,
+      winningOutcome,
+      status: "accepted",
+    },
+    202,
+  );
+});
+
+admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
+  const { marketId } = c.req.param();
+
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return sendError(c, "INVALID_AMOUNT", "Invalid request body");
+  }
+
+  const { seedAmount: rawSeedAmount } = body;
+
+  const amountErr = validateAmount(rawSeedAmount);
+  if (amountErr) {
+    return sendError(c, amountErr);
+  }
+  const seedAmount = rawSeedAmount as number;
+
+  const oraclePrivateKey = getOraclePrivateKey();
+  const oraclePublicKey = getOraclePublicKey();
+  if (!oraclePrivateKey || !oraclePublicKey) {
+    return sendError(c, "INTERNAL_ERROR", "Oracle keys not configured");
+  }
+
+  // Validate market exists and is open
+  const node = createNodeClient(getNodeUrl());
+  const marketResult = await node.getMarket(marketId);
+
+  if (!marketResult.ok) {
+    if (marketResult.status === 404) {
+      return sendError(c, "MARKET_NOT_FOUND");
+    }
+    return sendError(c, "NODE_UNAVAILABLE");
+  }
+
+  const { market } = marketResult.data;
+  if (market.status !== "open") {
+    if (market.status === "resolved") {
+      return sendError(c, "MARKET_ALREADY_RESOLVED");
+    }
+    return sendError(c, "MARKET_CLOSED", "Market is already cancelled");
+  }
+
+  // Check for existing trades (PlaceBet/SellShares) on this market
+  const blocks = await fetchAllBlocks(node);
+  const hasTrades = blocks.some((block) =>
+    block.transactions.some(
+      (tx) => (tx.type === "PlaceBet" || tx.type === "SellShares") && tx.marketId === marketId,
+    ),
+  );
+
+  if (hasTrades) {
+    return sendError(c, "MARKET_HAS_TRADES");
+  }
+
+  // Cancel existing market
+  const cancelTx: CancelMarketTx = {
+    id: randomUUID(),
+    type: "CancelMarket",
+    timestamp: Date.now(),
+    sender: oraclePublicKey,
+    signature: "",
+    marketId,
+    reason: "Seed override",
+  };
+
+  const cancelSignData = JSON.stringify({ ...cancelTx, signature: undefined });
+  cancelTx.signature = cryptoSign(cancelSignData, oraclePrivateKey);
+
+  const cancelResult = await node.submitTransaction(cancelTx);
+  if (!cancelResult.ok) {
+    if (cancelResult.status === 503) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+    return sendError(c, "INTERNAL_ERROR", cancelResult.error.message);
+  }
+
+  // Create new market with new marketId and externalEventId, same params, new seed
+  const newMarketId = randomUUID();
+  const newExternalEventId = `${market.externalEventId}-reseed-${randomUUID().slice(0, 8)}`;
+
+  const createTx: CreateMarketTx = {
+    id: randomUUID(),
+    type: "CreateMarket",
+    timestamp: Date.now(),
+    sender: oraclePublicKey,
+    signature: "",
+    marketId: newMarketId,
+    sport: market.sport,
+    homeTeam: market.homeTeam,
+    awayTeam: market.awayTeam,
+    outcomeA: market.outcomeA,
+    outcomeB: market.outcomeB,
+    eventStartTime: market.eventStartTime,
+    seedAmount,
+    externalEventId: newExternalEventId,
+  };
+
+  const createSignData = JSON.stringify({ ...createTx, signature: undefined });
+  createTx.signature = cryptoSign(createSignData, oraclePrivateKey);
+
+  const createResult = await node.submitTransaction(createTx);
+  if (!createResult.ok) {
+    if (createResult.status === 503) {
+      return sendError(c, "NODE_UNAVAILABLE");
+    }
+    return sendError(c, "INTERNAL_ERROR", createResult.error.message);
+  }
+
+  return c.json(
+    {
+      cancelTxId: cancelResult.data.txId,
+      createTxId: createResult.data.txId,
+      oldMarketId: marketId,
+      newMarketId,
+      seedAmount,
+      status: "accepted",
+    },
+    202,
+  );
 });
 
 export { admin };
