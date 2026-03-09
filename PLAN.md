@@ -184,11 +184,11 @@
 
 ### Structured Logging
 
-- [ ] Create `packages/api/src/logger.ts` — structured JSON logger using `Bun.write(Bun.stdout, ...)` for zero-copy output: timestamp, level, requestId, userId, method, path, statusCode, durationMs, error
-- [ ] Add request/response logging middleware (log on completion with duration)
-- [ ] Audit log all admin actions (timestamp, admin identity, action, details)
-- [ ] Never log private keys, JWT tokens, or full WebAuthn credentials
+- [x] Create `packages/api/src/logger.ts` — structured JSON logger using `Bun.write(Bun.stdout, ...)` for zero-copy output: timestamp, level, requestId, userId, method, path, statusCode, durationMs, error
+- [x] Add request/response logging middleware (log on completion with duration)
+- [x] Audit log all admin actions (timestamp, admin identity, action, details)
+- [x] Never log private keys, JWT tokens, or full WebAuthn credentials
 
 ### Graceful Shutdown
 
-- [ ] Handle SIGTERM/SIGINT in `packages/api/src/index.ts`: call `server.stop()` on the `Bun.serve()` instance to drain in-flight requests, close SSE relay (disconnect all clients), close `bun:sqlite` Database, exit
+- [x] Handle SIGTERM/SIGINT in `packages/api/src/index.ts`: call `server.stop()` on the `Bun.serve()` instance to drain in-flight requests, close SSE relay (disconnect all clients), close `bun:sqlite` Database, exit

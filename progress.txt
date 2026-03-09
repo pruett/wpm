@@ -1058,3 +1058,50 @@ Files changed:
 - packages/api/tests/input-validation.test.ts (new — 25 tests)
 - packages/api/tests/errors.test.ts (updated expected count to 20 codes)
 - PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Structured Logging: Full implementation
+
+- Created `packages/api/src/logger.ts` — structured JSON logger module:
+  - `info(message, fields?)`, `warn(message, fields?)`, `error(message, fields?)` — log at different levels
+  - `audit(action, fields?)` — audit logging with `audit: true` flag and automatic sensitive field sanitization
+  - `sanitize(obj)` — recursively redacts sensitive keys (password, privateKey, token, apiKey, secret, wallet_private_key_enc, WALLET_ENCRYPTION_KEY, ADMIN_API_KEY, ORACLE_PRIVATE_KEY, credential, attestation, assertion, signature, etc.) to `[REDACTED]`
+  - Uses `Bun.write(Bun.stdout, ...)` with `TextEncoder` for zero-copy output
+  - Outputs newline-delimited JSON (one JSON object per line)
+  - Each log entry includes: `timestamp` (ISO 8601), `level`, `message`, plus any additional fields
+- Added request/response logging middleware to `packages/api/src/index.ts`:
+  - Logs on completion with `method`, `path`, `statusCode`, `durationMs`, `requestId`, and `userId` (if authenticated)
+  - Uses `warn` level for 5xx responses, `info` for all others
+  - Replaced `console.log` startup message with structured `info()` call
+- Added audit logging to all admin actions in `packages/api/src/routes/admin.ts`:
+  - `admin.distribute` — logs admin identity, recipient, amount, reason, txId
+  - `admin.invite-codes.create` — logs admin, count, maxUses, referrer
+  - `admin.invite-codes.delete` — logs admin, code
+  - `admin.market.cancel` — logs admin, marketId, reason, txId
+  - `admin.market.resolve` — logs admin, marketId, winningOutcome, finalScore, txId
+  - `admin.market.seed` — logs admin, old/new marketId, seedAmount, txIds
+  - `admin.oracle.ingest` — logs admin identity
+  - `admin.oracle.resolve` — logs admin identity
+  - All audit fields are sanitized before logging (sensitive values → `[REDACTED]`)
+- Created `packages/api/tests/logger.test.ts` — 18 tests covering:
+  - sanitize: redacts sensitive keys, nested objects, arrays, handles null/undefined/primitives, depth limiting, all known sensitive keys, passes non-sensitive keys
+  - log functions: info/warn/error produce correct level, ISO timestamp, additional fields, newline-delimited JSON
+  - audit: produces log with audit flag, sanitizes sensitive fields, works without fields
+  - request/response logging: logs method/path/status/duration/requestId, 500 responses use warn level
+
+Files changed:
+- packages/api/src/logger.ts (new)
+- packages/api/src/index.ts (added logging middleware, structured startup log)
+- packages/api/src/routes/admin.ts (added audit logging to all 8 admin action endpoints)
+- packages/api/tests/logger.test.ts (new — 18 tests)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Graceful Shutdown: Full implementation
+
+- Added SIGTERM/SIGINT signal handlers to `packages/api/src/index.ts`
+- `shutdown()` function executes in order: `server.stop()` to drain in-flight HTTP requests, `getRelay().close()` to disconnect all SSE clients and abort node connection, `closeDb()` to close the SQLite database, then `process.exit(0)`
+- SSE relay close is wrapped in try/catch — gracefully handles case where relay was never initialized (e.g., if server is shutting down before SSE connection was established)
+- Structured log messages emitted at shutdown start and completion for observability
+
+Files changed:
+- packages/api/src/index.ts (added signal handlers, imported getRelay + closeDb)
+- PLAN.md (marked task complete)

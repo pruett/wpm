@@ -18,6 +18,7 @@ import {
   getAllUsers,
 } from "../db/queries";
 import { getRelay } from "../sse/relay";
+import { audit } from "../logger";
 
 const VALID_REASONS = new Set(["signup_airdrop", "referral_reward", "manual"]);
 
@@ -80,6 +81,14 @@ admin.post("/admin/distribute", adminMiddleware, async (c) => {
     }
     return sendError(c, "INTERNAL_ERROR", result.error.message);
   }
+
+  audit("admin.distribute", {
+    admin: c.get("user").sub,
+    recipient,
+    amount,
+    reason,
+    txId: result.data.txId,
+  });
 
   return c.json(
     {
@@ -169,6 +178,13 @@ admin.post("/admin/invite-codes", adminMiddleware, async (c) => {
     }
   }
 
+  audit("admin.invite-codes.create", {
+    admin: c.get("user").sub,
+    count,
+    maxUses,
+    referrer,
+  });
+
   return c.json({ codes }, 201);
 });
 
@@ -200,6 +216,11 @@ admin.delete("/admin/invite-codes/:code", adminMiddleware, async (c) => {
   }
 
   deactivateInviteCode(code);
+
+  audit("admin.invite-codes.delete", {
+    admin: c.get("user").sub,
+    code,
+  });
 
   return c.json({ code, active: false });
 });
@@ -298,6 +319,13 @@ admin.post("/admin/markets/:marketId/cancel", adminMiddleware, async (c) => {
     return sendError(c, "INTERNAL_ERROR", result.error.message);
   }
 
+  audit("admin.market.cancel", {
+    admin: c.get("user").sub,
+    marketId,
+    reason,
+    txId: result.data.txId,
+  });
+
   return c.json(
     {
       txId: result.data.txId,
@@ -383,6 +411,14 @@ admin.post("/admin/markets/:marketId/resolve", adminMiddleware, async (c) => {
     }
     return sendError(c, "INTERNAL_ERROR", result.error.message);
   }
+
+  audit("admin.market.resolve", {
+    admin: c.get("user").sub,
+    marketId,
+    winningOutcome,
+    finalScore,
+    txId: result.data.txId,
+  });
 
   return c.json(
     {
@@ -508,6 +544,15 @@ admin.post("/admin/markets/:marketId/seed", adminMiddleware, async (c) => {
     }
     return sendError(c, "INTERNAL_ERROR", createResult.error.message);
   }
+
+  audit("admin.market.seed", {
+    admin: c.get("user").sub,
+    oldMarketId: marketId,
+    newMarketId,
+    seedAmount,
+    cancelTxId: cancelResult.data.txId,
+    createTxId: createResult.data.txId,
+  });
 
   return c.json(
     {
@@ -644,6 +689,8 @@ function getOracleUrl(): string {
 admin.post("/admin/oracle/ingest", adminMiddleware, async (c) => {
   const oracleUrl = getOracleUrl();
 
+  audit("admin.oracle.ingest", { admin: c.get("user").sub });
+
   try {
     const res = await fetch(`${oracleUrl}/trigger/ingest`, {
       method: "POST",
@@ -665,6 +712,8 @@ admin.post("/admin/oracle/ingest", adminMiddleware, async (c) => {
 
 admin.post("/admin/oracle/resolve", adminMiddleware, async (c) => {
   const oracleUrl = getOracleUrl();
+
+  audit("admin.oracle.resolve", { admin: c.get("user").sub });
 
   try {
     const res = await fetch(`${oracleUrl}/trigger/resolve`, {
