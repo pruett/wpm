@@ -1,62 +1,122 @@
-import type { Context } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { Schema } from "effect"
+import { HttpApiSchema } from "@effect/platform"
 
-// --- Error envelope type matching spec Section 7 ---
+export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
+  "Unauthorized",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 401 }),
+) {}
 
-type ApiErrorBody = {
-  error: {
-    code: string;
-    message: string;
-  };
-};
+export class Forbidden extends Schema.TaggedError<Forbidden>()(
+  "Forbidden",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 403 }),
+) {}
 
-// --- Error catalog constants ---
-// Each entry: [code, default HTTP status, default message]
+export class NotFound extends Schema.TaggedError<NotFound>()(
+  "NotFound",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 404 }),
+) {}
 
-const ERRORS = {
-  UNAUTHORIZED: [401, "Authentication required"] as const,
-  FORBIDDEN: [403, "Insufficient permissions"] as const,
-  NOT_FOUND: [404, "Resource not found"] as const,
-  MARKET_NOT_FOUND: [404, "Market not found"] as const,
-  RECIPIENT_NOT_FOUND: [404, "Recipient not found"] as const,
-  MARKET_CLOSED: [400, "Market betting window has closed"] as const,
-  MARKET_ALREADY_RESOLVED: [400, "Market is already resolved"] as const,
-  MARKET_HAS_TRADES: [400, "Cannot override market with existing trades"] as const,
-  INSUFFICIENT_BALANCE: [400, "Insufficient WPM balance"] as const,
-  INSUFFICIENT_SHARES: [400, "Insufficient shares to sell"] as const,
-  INVALID_AMOUNT: [400, "Invalid amount"] as const,
-  INVALID_OUTCOME: [400, 'Outcome must be "A" or "B"'] as const,
-  INVALID_INVITE_CODE: [400, "Invalid or exhausted invite code"] as const,
-  DUPLICATE_REGISTRATION: [409, "Email already registered"] as const,
-  CHALLENGE_EXPIRED: [400, "Authentication challenge has expired"] as const,
-  WEBAUTHN_VERIFICATION_FAILED: [400, "WebAuthn verification failed"] as const,
-  INVALID_TRANSFER: [400, "Invalid transfer"] as const,
-  VALIDATION_ERROR: [400, "Request validation failed"] as const,
-  RATE_LIMITED: [429, "Too many requests"] as const,
-  NODE_UNAVAILABLE: [503, "Blockchain node is unreachable"] as const,
-  INTERNAL_ERROR: [500, "Internal server error"] as const,
-} as const;
+export class MarketNotFound extends Schema.TaggedError<MarketNotFound>()(
+  "MarketNotFound",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 404 }),
+) {}
 
-type ErrorCode = keyof typeof ERRORS;
+export class RecipientNotFound extends Schema.TaggedError<RecipientNotFound>()(
+  "RecipientNotFound",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 404 }),
+) {}
 
-// --- Helper to build error response body ---
+export class MarketClosed extends Schema.TaggedError<MarketClosed>()(
+  "MarketClosed",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
 
-function apiError(code: ErrorCode, message?: string): ApiErrorBody {
-  const [, defaultMessage] = ERRORS[code];
-  return {
-    error: {
-      code,
-      message: message ?? defaultMessage,
-    },
-  };
-}
+export class MarketAlreadyResolved extends Schema.TaggedError<MarketAlreadyResolved>()(
+  "MarketAlreadyResolved",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
 
-// --- Helper to build and send error response from Hono context ---
+export class MarketHasTrades extends Schema.TaggedError<MarketHasTrades>()(
+  "MarketHasTrades",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
 
-function sendError(c: Context, code: ErrorCode, message?: string, status?: ContentfulStatusCode) {
-  const [defaultStatus] = ERRORS[code];
-  return c.json(apiError(code, message), (status ?? defaultStatus) as ContentfulStatusCode);
-}
+export class InsufficientBalance extends Schema.TaggedError<InsufficientBalance>()(
+  "InsufficientBalance",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
 
-export { ERRORS, apiError, sendError };
-export type { ErrorCode, ApiErrorBody };
+export class InsufficientShares extends Schema.TaggedError<InsufficientShares>()(
+  "InsufficientShares",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class InvalidAmount extends Schema.TaggedError<InvalidAmount>()(
+  "InvalidAmount",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class InvalidOutcome extends Schema.TaggedError<InvalidOutcome>()(
+  "InvalidOutcome",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class InvalidInviteCode extends Schema.TaggedError<InvalidInviteCode>()(
+  "InvalidInviteCode",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class DuplicateRegistration extends Schema.TaggedError<DuplicateRegistration>()(
+  "DuplicateRegistration",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
+export class ChallengeExpired extends Schema.TaggedError<ChallengeExpired>()(
+  "ChallengeExpired",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class WebAuthnFailed extends Schema.TaggedError<WebAuthnFailed>()(
+  "WebAuthnFailed",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class InvalidTransfer extends Schema.TaggedError<InvalidTransfer>()(
+  "InvalidTransfer",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class RateLimited extends Schema.TaggedError<RateLimited>()(
+  "RateLimited",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 429 }),
+) {}
+
+export class NodeUnavailable extends Schema.TaggedError<NodeUnavailable>()(
+  "NodeUnavailable",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 503 }),
+) {}
+
+export class InternalError extends Schema.TaggedError<InternalError>()(
+  "InternalError",
+  { message: Schema.String },
+  HttpApiSchema.annotations({ status: 500 }),
+) {}
