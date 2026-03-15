@@ -1,4 +1,4 @@
-0. Study the `packages/` directory to understand the monorepo structure.
+0. Study the `packages/node` and `packages/api` and `packages/shared` directories to understand the monorepo.
 1. Study @PLAN.md
 2. Review @progress.txt
 3. Find the highest-priority incomplete task and implement it.

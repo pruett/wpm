@@ -14,6 +14,11 @@ dist/
 # Chain data
 chain.jsonl
 
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
 # Nginx certs
 nginx/certs/
 
@@ -22,3 +27,6 @@ nginx/certs/
 
 # OS
 .DS_Store
+
+# opensrc - source code for packages
+opensrc/

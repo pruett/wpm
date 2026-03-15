@@ -1,437 +1,1107 @@
-## Task: Create shared types (Phase 0)
+## 2026-03-07 — Phase 0, TB1, Task 1: Add Hono dependency
 
-Created `packages/shared/src/types/index.ts` with all transaction types (Transfer, Distribute, CreateMarket, PlaceBet, SellShares, ResolveMarket, CancelMarket, SettlePayout, Referral), Block, Market, AMMPool, SharePosition, ChainState, and TransactionType union. Also created `packages/shared/src/index.ts` with re-export (partial — crypto subpath not yet built).
-
-Files changed:
-- packages/shared/src/types/index.ts (new)
-- packages/shared/src/index.ts (new)
-
-Notes:
-- Used `type` instead of `interface` per CLAUDE.md preference
-- Each transaction type is a standalone type with all BaseTransaction fields inlined (id, type, timestamp, sender, signature) plus type-specific fields, discriminated by `type` literal
-- ChainState uses Map/Set for balances, committedTxIds, markets, pools, etc.
-- sharePositions is Map<address, Map<marketId, Map<outcome, SharePosition>>>
-- tsc --noEmit and oxlint pass clean
-
-## Task: Create shared crypto utilities (Phase 0)
-
-Created `packages/shared/src/crypto/index.ts` with RSA 2048-bit key generation, sign, verify, and SHA-256 hash helpers using Node `crypto` module. Updated `packages/shared/src/index.ts` to re-export the crypto subpath.
+- Added `hono@^4.12.5` to `packages/api/package.json` dependencies
+- Updated scripts to use Bun runtime (`bun --watch`, `bun src/index.ts`, `bun test`) instead of tsx/node/vitest
+- SQLite handled by `bun:sqlite` built-in — no external dep needed
 
 Files changed:
-- packages/shared/src/crypto/index.ts (new)
-- packages/shared/src/index.ts (updated — added crypto re-export)
-- packages/shared/tsconfig.json (updated — added `"types": ["node"]`)
-- packages/shared/package.json (updated — added `@types/node` devDependency)
-- tsconfig.json (updated — added `"types": ["node"]`)
-- package.json (updated — added `@types/node` devDependency at root)
+- packages/api/package.json
+- bun.lock
 
-Notes:
-- Exports: `generateKeyPair()`, `sign(data, privateKey)`, `verify(data, signature, publicKey)`, `sha256(data)`
-- sign returns base64-encoded RSA signature, verify accepts base64
-- sha256 returns hex-encoded hash
-- Had to add @types/node to both shared package and root for tsc to resolve `node:crypto`
-- tsc --noEmit and oxlint pass clean
+## 2026-03-07 — Phase 0, TB1, Task 2: Create index.ts with Hono app + /health
 
-## Task: Create node key management (Phase 0)
-
-Created `packages/node/src/keys.ts` implementing FR-16 key management.
+- Created `packages/api/src/index.ts` — Hono app entry point
+- `GET /health` proxies node `/internal/health` with `AbortSignal.timeout(5000)`, returns API uptime + nodeReachable boolean + node stats when reachable
+- Returns `"degraded"` status when node is unreachable, `"ok"` otherwise
+- Served via `Bun.serve()` on `API_PORT` env (default 3000), `NODE_URL` env (default `http://localhost:3001`)
+- Added `@types/bun` dev dependency and `"types": ["bun"]` to api tsconfig for Bun global types
+- Exports `app` and `server` for testing
 
 Files changed:
-- packages/node/src/keys.ts (new)
+- packages/api/src/index.ts (new)
+- packages/api/tsconfig.json (added bun types)
+- packages/api/package.json (added @types/bun)
+- bun.lock
 
-Notes:
-- `loadKeys()` returns `{ poaPublicKey, poaPrivateKey, oraclePublicKey }`
-- PoA keys: loads from disk if both files exist, generates and writes if neither exists, throws if only one exists
-- Oracle key: checks `ORACLE_PUBLIC_KEY` env var first, then falls back to file on disk, throws if neither found
-- All paths configurable via optional `paths` parameter (defaults to `/data/*.pem`)
-- Private key written with mode 0o600
-- bunx tsc --noEmit and oxlint pass clean
+## 2026-03-07 — Phase 0, TB1, Task 3: Create node-client.ts
 
-## Task: Create genesis block (Phase 0)
-
-Created `packages/node/src/genesis.ts` — produces genesis block (index 0) with a Distribute tx minting 10M WPM to the treasury address (FR-1).
-
-Files changed:
-- packages/node/src/genesis.ts (new)
-
-Notes:
-- `createGenesisBlock(poaPublicKey, poaPrivateKey)` returns a fully signed Block
-- Single Distribute tx: sender=treasury, recipient=treasury, amount=10_000_000, reason="genesis"
-- Transaction signature signs JSON with signature field set to undefined
-- Block hash = sha256 of block JSON (hash/signature excluded), block signature signs the hash
-- previousHash is "0" for genesis block
-- tsc --noEmit and oxlint pass clean
-
-## Task: Create ChainState class (Phase 0)
-
-Created `packages/node/src/state.ts` — the `ChainState` class managing all on-chain state.
+- Created `packages/api/src/node-client.ts` — typed HTTP client wrapping all node internal endpoints
+- Uses Bun-native `fetch` with `AbortSignal.timeout(5000)` for all requests
+- Returns discriminated union `NodeResult<T>` — `{ ok: true, data: T }` or `{ ok: false, error, status }`
+- Returns `NODE_UNAVAILABLE` (503) on network failures / timeouts
+- Wraps all 9 endpoints: `getHealth`, `getBalance`, `getState`, `getMarket`, `getShares`, `getBlocks`, `getBlock`, `submitTransaction`, `distribute`, `referralReward`
+- Exports `createNodeClient(baseUrl)` factory and `NodeClient` type
+- URL-encodes path parameters (address, marketId) for safety
 
 Files changed:
-- packages/node/src/state.ts (new)
+- packages/api/src/node-client.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- Constructor takes `poaPublicKey` which doubles as `treasuryAddress` (per FR-16/spec)
-- Public fields: chain, balances, committedTxIds, referredUsers, markets, pools, sharePositions, externalEventIds
-- Helper methods: getBalance, setBalance, credit, debit, getSharePosition, setSharePosition
-- `applyBlock()` iterates transactions and dispatches to type-specific apply methods
-- Fully implemented apply methods: Transfer, Distribute, CreateMarket, ResolveMarket, CancelMarket, SettlePayout, Referral
-- PlaceBet and SellShares throw "not yet implemented" — requires AMM math from Phase 1 (@wpm/shared/amm)
-- CreateMarket initializes pool with seedAmount/2 per side, k = (seedAmount/2)^2, deducts from treasury
-- tsc --noEmit and oxlint pass clean
+## 2026-03-07 — Phase 0, TB1, Task 4: Create db/index.ts — SQLite init + users table
 
-## Task: Create JSONL persistence and replay (Phase 0)
-
-Created `packages/node/src/persistence.ts` implementing FR-2 — append-only JSONL persistence and startup replay.
+- Created `packages/api/src/db/index.ts` — SQLite database module using `bun:sqlite`
+- `openDatabase(path)` factory: enables WAL mode, foreign keys, 5s busy timeout, then runs migrations
+- `getDb()` singleton accessor with lazy init, uses `DB_PATH` env (default `wpm-api.db`)
+- `closeDb()` for graceful shutdown
+- `users` table: id (TEXT PK), name, email (UNIQUE COLLATE NOCASE), wallet_address (UNIQUE), wallet_private_key_enc (BLOB), role (DEFAULT 'user'), created_at (INTEGER)
+- Email uniqueness is case-insensitive via `COLLATE NOCASE`
+- Created `packages/api/tests/db.test.ts` — 7 tests covering WAL mode, foreign keys, column schema, case-insensitive email uniqueness, wallet_address uniqueness, insert/query round-trip, idempotent migration
 
 Files changed:
-- packages/node/src/persistence.ts (new)
+- packages/api/src/db/index.ts (new)
+- packages/api/tests/db.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- `appendBlock(block, filePath?)` appends a JSON-serialized block as a single line to chain.jsonl
-- `replayChain(poaPublicKey, filePath?)` reads chain.jsonl line by line, validates each block, and rebuilds ChainState
-- `getChainFilePath()` reads from `CHAIN_FILE` env var, defaults to `/data/chain.jsonl`
-- Validation checks: block index sequence, previousHash linkage, hash integrity (recomputed via sha256), PoA signature verification
-- Returns empty ChainState if file doesn't exist or is empty (first startup triggers genesis elsewhere)
-- Descriptive errors on validation failure include block index and reason per spec
-- tsc --noEmit and oxlint pass clean
+## 2026-03-07 — Phase 0, TB1, Task 5: Create crypto/wallet.ts — wallet key generation + encryption
 
-## Task: Create validation module (Phase 0)
+- Created `packages/api/src/crypto/wallet.ts` — wallet key management module
+- `generateWalletKeyPair()` delegates to `@wpm/shared/crypto` `generateKeyPair()` (RSA-2048)
+- `encryptPrivateKey(key, secret)` — AES-256-GCM encryption using Web Crypto API (`crypto.subtle`)
+- `decryptPrivateKey(enc, secret)` — AES-256-GCM decryption, returns original PEM string
+- Key derivation: SHA-256 hash of secret via `Bun.CryptoHasher` → 32-byte AES key
+- Random 12-byte IV per encryption; format: `[IV (12 bytes)][ciphertext + GCM auth tag]`
+- Decision: did NOT modify `@wpm/shared/crypto` — `@wpm/node` deeply depends on it (all tx/block validation). Used Bun-native APIs in the API layer only.
+- Created `packages/api/tests/crypto-wallet.test.ts` — 8 tests covering key generation, round-trip encrypt/decrypt, random IV uniqueness, wrong secret rejection, tampered/truncated ciphertext rejection
 
-Created `packages/node/src/validation.ts` implementing FR-4 (block validation) and FR-5 (Transfer transaction validation).
-
-Files changed:
-- packages/node/src/validation.ts (new)
-
-Notes:
-- `ValidationResult` type: `{ valid: true } | { valid: false; error: { code, message } }` for structured error reporting
-- `validateBlock()` checks: index sequence, previousHash linkage, hash integrity (recomputed via sha256), PoA signature verification
-- `validateTransaction()` dispatches to type-specific validators, checks duplicate txId against committedTxIds
-- `validateTransfer()` checks: amount > 0, 2-decimal precision, no self-transfer, sufficient balance, RSA signature verification
-- Error codes match spec: INVALID_AMOUNT, INVALID_PRECISION, SELF_TRANSFER, INSUFFICIENT_BALANCE, INVALID_SIGNATURE, DUPLICATE_TX
-- Unsupported tx types return UNSUPPORTED_TX_TYPE (will be extended in Phase 1)
-- `hasTwoDecimalPlaces()` uses `Math.round(amount * 100) === amount * 100` to avoid floating-point issues
-- tsc --noEmit and oxlint pass clean
-
-## Task: Create mempool (Phase 0)
-
-Created `packages/node/src/mempool.ts` implementing FR-14 (minimal) — FIFO queue for pending transactions.
+Gotchas:
+- Bun's `Buffer.buffer` returns `ArrayBufferLike` (union of `ArrayBuffer | SharedArrayBuffer`), needs cast to `ArrayBuffer` for Web Crypto API compatibility
+- `Bun.CryptoHasher.digest()` returns `Buffer`, not `Uint8Array` — extract underlying `ArrayBuffer` with `.buffer` + `.slice()`
 
 Files changed:
-- packages/node/src/mempool.ts (new)
+- packages/api/src/crypto/wallet.ts (new)
+- packages/api/tests/crypto-wallet.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- `Mempool` class with `add(tx, state)`, `drain(max)`, and `size` getter
-- `add()` checks: timestamp drift (±300,000ms → TIMESTAMP_OUT_OF_RANGE), duplicate against pendingIds (DUPLICATE_TX), then delegates to `validateTransaction()` for state-based validation
-- `drain(max)` splices up to N transactions from front of queue (FIFO), removes from pendingIds set
-- `MempoolResult` type: `{ accepted: true } | { accepted: false; error: { code, message } }`
-- Capacity limit (1,000 / MEMPOOL_FULL) deferred to Phase 3 per plan
-- tsc --noEmit and oxlint pass clean
+## 2026-03-07 — Phase 0, TB1, Task 6: Create middleware/auth.ts — JWT auth
 
-## Task: Create block producer (Phase 0)
-
-Created `packages/node/src/producer.ts` implementing FR-3 — 1s polling loop for block production.
-
-Files changed:
-- packages/node/src/producer.ts (new)
-
-Notes:
-- `startProducer(state, mempool, poaPrivateKey, chainFilePath?)` starts a 1s setInterval polling loop, returns `{ stop }` handle
-- `produceBlock(state, mempool, poaPrivateKey, chainFilePath?)` is the core function, also exported for direct use/testing
-- Drains up to 100 txs from mempool (FIFO), re-validates each against current state, discards invalid ones (no re-queue)
-- If no valid txs remain after re-validation, produces no block
-- Constructs block: increments index, sets previousHash, computes SHA-256 hash, signs with PoA key
-- Appends block to chain.jsonl via persistence module, then applies to in-memory state
-- Returns the produced Block or null (useful for callers/tests)
-- SSE event emission deferred to Phase 3 per plan
-- tsc --noEmit and oxlint pass clean
-
-## Task: Create HTTP API (Phase 0)
-
-Created `packages/node/src/api.ts` implementing FR-15 (minimal) — HTTP server on configurable port (default 3001).
+- Created `packages/api/src/middleware/auth.ts` — JWT signing, verification, and Hono auth middleware
+- `signJwt(payload)` — signs JWT with HMAC-SHA256 via Hono's `hono/jwt` utilities, keyed by `JWT_SECRET` env var
+- `verifyJwt(token)` — verifies signature + expiration, returns typed `JwtUserPayload`
+- `authMiddleware` — Hono middleware extracting `Bearer` token from `Authorization` header, verifies JWT, sets `c.set("user", payload)` on context
+- `JwtUserPayload` type: `sub`, `role` ("user" | "admin"), optional `walletAddress` + `email`, `iat`, `exp`
+- Default access token TTL: 15 minutes; custom `exp` supported for admin tokens (24h)
+- Returns structured `{ error: { code: "UNAUTHORIZED", message } }` JSON on all 401 paths
+- No new dependencies — leverages Hono's built-in `hono/jwt` (`sign`/`verify`)
+- Created `packages/api/tests/auth.test.ts` — 11 tests covering round-trip sign/verify, custom expiry, expired token rejection, tampered token rejection, wrong secret rejection, missing JWT_SECRET, middleware integration (valid token, missing header, malformed header, invalid token, expired token)
 
 Files changed:
-- packages/node/src/api.ts (new)
+- packages/api/src/middleware/auth.ts (new)
+- packages/api/tests/auth.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- `startApi(state, mempool, port?)` creates and starts an HTTP server, returns `{ server, close }` handle
-- Uses Node built-in `node:http` — no external dependencies
-- Endpoints implemented:
-  - `POST /internal/transaction` — parses JSON body as Transaction, submits to mempool, returns 202 `{ txId }` or 400 `{ code, message }`
-  - `GET /internal/health` — returns `{ status, blockHeight, mempoolSize, uptimeMs }`
-  - `GET /internal/balance/:address` — returns `{ address, balance }` (0 for unknown addresses)
-  - `GET /internal/block/:index` — returns Block JSON or 404
-- Unknown routes return 404 `{ error: "NOT_FOUND" }`
-- Internal errors return 500 `{ error: "INTERNAL_ERROR", message }`
-- All responses use `Content-Type: application/json`
-- Simple `matchRoute` helper for path parameter extraction (`:address`, `:index`)
-- tsc --noEmit and oxlint pass clean
+## 2026-03-08 — Phase 0, TB1, Task 7: Create errors.ts — typed error helper + catalog
 
-## Task: Create node startup entrypoint (Phase 0)
+- Created `packages/api/src/errors.ts` — typed error helper and error catalog matching spec Section 7
+- `ERRORS` constant maps all 19 error codes to their default HTTP status and message
+- `apiError(code, message?)` builds the `{ error: { code, message } }` envelope
+- `sendError(c, code, message?, status?)` sends a JSON error response from Hono context with correct HTTP status
+- Exports `ErrorCode` type for type-safe error code usage across the codebase
+- Uses Hono's `ContentfulStatusCode` for proper type compatibility with `c.json()`
+- Created `packages/api/tests/errors.test.ts` — 8 tests covering: default message, custom message, all codes structure, catalog completeness (19 codes), HTTP status mapping, sendError integration with correct status/body/custom message/status override
 
-Created `packages/node/src/index.ts` — the main entrypoint that wires all modules together.
+Gotchas:
+- Hono's `c.json()` requires `ContentfulStatusCode` not `StatusCode` — the latter includes informational (1xx) codes that aren't valid for JSON responses
 
 Files changed:
-- packages/node/src/index.ts (new)
+- packages/api/src/errors.ts (new)
+- packages/api/tests/errors.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- Startup sequence: load keys → replay chain (or create genesis if empty) → start mempool → start producer loop → start HTTP server
-- PORT configurable via `PORT` env var, defaults to 3001
-- Chain file path from `CHAIN_FILE` env var via `getChainFilePath()`
-- Graceful shutdown on SIGINT/SIGTERM: stops producer interval, closes HTTP server
-- Logs key startup milestones to stdout (keys loaded, chain replayed/genesis created, server running)
-- tsc --noEmit and oxlint pass clean
+## 2026-03-08 — Phase 0, TB1, Task 8: Create routes/trading.ts — POST /markets/:marketId/buy
 
-## Task: Create tracer bullet integration test (Phase 0)
+- Created `packages/api/src/routes/trading.ts` — trading route with `POST /markets/:marketId/buy`
+- Happy path: JWT auth → validate outcome ("A"/"B") + amount (>0, ≤2 decimals) → fetch market from node (validate open + not past eventStartTime) → look up user in SQLite for encrypted private key → decrypt with AES-256-GCM → construct PlaceBetTx → sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+- Error handling: maps node errors (INSUFFICIENT_BALANCE, NODE_UNAVAILABLE) to API error catalog; validates market status (resolved → MARKET_ALREADY_RESOLVED, cancelled/closed → MARKET_CLOSED)
+- Uses typed Hono `Env` generic for `c.get("user")` type safety
+- Mounted trading router in `packages/api/src/index.ts` via `app.route("/", trading)`
+- Transaction signing follows node convention: `JSON.stringify({ ...tx, signature: undefined })`
 
-Created `packages/node/tests/tracer.test.ts` — full-loop integration test proving HTTP API → mempool → block production → state query.
-
-Files changed:
-- packages/node/tests/tracer.test.ts (new)
-- packages/node/src/api.ts (updated — added `host` parameter to `startApi` for test binding to 127.0.0.1)
-- packages/node/src/state.ts (bugfix — `applyDistribute` now skips debit when sender === recipient, fixing genesis mint)
-
-Notes:
-- 6 tests covering: health check after genesis, treasury balance, Transfer submit + block produce + balance verify, block readable via API, duplicate tx rejection, insufficient balance rejection
-- Discovered and fixed a bug in `applyDistribute`: when sender === recipient (genesis case), debit + credit netted to 0. Fix: skip debit when sender === recipient so genesis mint correctly credits 10M to treasury
-- `startApi` now accepts optional `host` parameter (default "0.0.0.0") to allow tests to bind to 127.0.0.1
-- Uses PORT 0 to let OS pick a free port, resolves actual port after `listening` event
-- Test uses `produceBlock()` directly instead of relying on the 1s polling loop
-- tsc --noEmit, oxlint, and vitest all pass clean
-
-## Task: Distribute Transaction (Phase 1, FR-6)
-
-Implemented Distribute transaction validation and `POST /internal/distribute` system endpoint.
+Gotchas:
+- Hono requires `Env` type param with `Variables` for typed `c.get()`/`c.set()` — without it, `c.get("user")` fails with TS2769 (no overload matches)
 
 Files changed:
-- packages/node/src/validation.ts (updated — added `validateDistribute()` with treasury sender, amount, precision, reason, balance, and signature checks)
-- packages/node/src/api.ts (updated — added `POST /internal/distribute` endpoint, added `keys` parameter to `startApi`)
-- packages/node/src/index.ts (updated — pass keys to `startApi`)
-- packages/node/tests/tracer.test.ts (updated — pass keys to `startApi`)
-- packages/node/tests/distribute.test.ts (new — 6 tests: happy path distribute + balance verify, invalid reason, invalid amount, bad precision, insufficient treasury, all valid reasons)
+- packages/api/src/routes/trading.ts (new)
+- packages/api/src/index.ts (added trading route mount)
+- PLAN.md (marked task complete)
 
-Notes:
-- `POST /internal/distribute` is a system endpoint: accepts `{ recipient, amount, reason }`, node creates and signs the DistributeTx with PoA key
-- `startApi` now requires a `keys` parameter `{ poaPublicKey, poaPrivateKey }` — breaking change to API signature
-- Valid reasons: "signup_airdrop", "referral_reward", "manual", "genesis" (genesis included for replay compatibility)
-- Distribute validation verifies sender is treasury address (UNAUTHORIZED_SENDER), not just signature
-- Treasury balance check skipped when sender === recipient (genesis mint case)
-- Error codes match spec: UNAUTHORIZED_SENDER, INVALID_AMOUNT, INVALID_PRECISION, INSUFFICIENT_TREASURY, INVALID_REASON, INVALID_SIGNATURE
-- tsc --noEmit, oxlint, and vitest all pass clean (12 tests total)
+## 2026-03-08 — Phase 0, TB1, Task 9: Write tracer-buy.test.ts — integration test
 
-## Task: CreateMarket Transaction (Phase 1, FR-7)
+- Created `packages/api/tests/tracer-buy.test.ts` — full integration test for POST /markets/:marketId/buy
+- Boots a real blockchain node (in-process): genesis block, CreateMarket tx (oracle-signed), Distribute tx (PoA-signed), produces block to commit setup
+- Boots API: Hono app with trading routes, SQLite seeded with user + AES-256-GCM encrypted wallet key, JWT minted
+- 7 tests covering: successful buy (202 response shape), node state verification (balance decrease + shares credited via node HTTP API), missing auth (401), invalid outcome (400), invalid amount with 3+ decimals (400), negative amount (400), nonexistent market (404)
+- Uses dynamic imports (`await import()`) for API modules that capture `process.env` at module level (`trading.ts` → `NODE_URL`, `db/index.ts` → `DB_PATH`)
+- Uses `produceBlock()` directly (no `startProducer()`) for deterministic block production in tests
+- Verifies node state through the node's HTTP API (`/internal/balance`, `/internal/shares`) for true end-to-end validation
 
-Implemented CreateMarket transaction validation, AMM math module, market API endpoint, and full test coverage.
-
-Files changed:
-- packages/shared/src/amm/index.ts (new — `calculatePrices()` and `initializePool()` functions)
-- packages/shared/src/index.ts (updated — added amm re-export)
-- packages/node/src/validation.ts (updated — added `validateCreateMarket()` with oracle sender, duplicate market/event, event timing, seed amount, field, and signature checks)
-- packages/node/src/mempool.ts (updated — added `oraclePublicKey` constructor param, threaded to `validateTransaction()`)
-- packages/node/src/producer.ts (updated — added `oraclePublicKey` param to `startProducer()` and `produceBlock()`, threaded to re-validation)
-- packages/node/src/api.ts (updated — added `GET /internal/market/:id` endpoint returning market, pool, and prices)
-- packages/node/src/index.ts (updated — pass `oraclePublicKey` to Mempool and producer)
-- packages/node/tests/create-market.test.ts (new — 9 tests: happy path with 50/50 price verification, non-oracle rejection, duplicate marketId, duplicate externalEventId, event in past, invalid seed, bad precision, missing fields, 404 for unknown market)
-
-Notes:
-- `validateTransaction()` now accepts optional `oraclePublicKey` parameter — backward compatible, existing tests unaffected
-- AMM price formula: `priceA = sharesB / (sharesA + sharesB)`, `priceB = sharesA / (sharesA + sharesB)`
-- CreateMarket validation error codes match spec: UNAUTHORIZED_ORACLE, DUPLICATE_MARKET, DUPLICATE_EVENT, EVENT_IN_PAST, INVALID_SEED, INVALID_PRECISION, INSUFFICIENT_TREASURY, MISSING_FIELD, INVALID_SIGNATURE
-- Types (Market, AMMPool, CreateMarket) and ChainState maps (markets, pools, externalEventIds) were already created in Phase 0
-- `GET /internal/market/:id` returns `{ market, pool, prices }` with computed priceA/priceB
-- tsc --noEmit, oxlint, and vitest all pass clean (21 tests total)
-
-## Task: PlaceBet Transaction (Phase 1, FR-8)
-
-Implemented PlaceBet transaction with AMM buy math (two-step mint-then-swap), validation, state application, shares API endpoint, and full test coverage.
+Gotchas:
+- ESM import hoisting: static imports run before top-level code, so env vars must be set before `await import()` of modules that read env at module init
+- Node HTTP server (`node:http` `createServer`) requires sandbox bypass for `server.listen()` to bind
+- `appendBlock` in producer defaults to `/data/chain.jsonl` if no path given — must pass temp file path to avoid filesystem errors
 
 Files changed:
-- packages/shared/src/amm/index.ts (updated — added `calculateBuy()` with mint-then-swap algorithm and 1% fee)
-- packages/node/src/validation.ts (updated — added `validatePlaceBet()` with market exists, open, timing, amount, precision, balance, and signature checks)
-- packages/node/src/state.ts (updated — implemented `applyPlaceBet()` using `calculateBuy()`, updates pool and share positions)
-- packages/node/src/api.ts (updated — added `GET /internal/shares/:address` endpoint returning all share positions)
-- packages/node/tests/place-bet.test.ts (new — 9 tests: happy path with AMM math verification, shares API, empty positions, non-existent market, minimum bet, bad precision, insufficient balance, invalid amount, accumulated bets)
+- packages/api/tests/tracer-buy.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- `calculateBuy(pool, outcome, amount)` implements the two-step mint-then-swap: mint netAmount pairs into pool, swap opposite shares via constant product, distribute 1% fee equally to both sides
-- All intermediate values rounded to 2 decimal places via `round2()` helper
-- Spec Example 2 has an arithmetic error: states `(599*599)/698 = 513.47` but correct answer is `514.04`. Our implementation follows the formula correctly
-- Validation error codes: MARKET_NOT_FOUND, MARKET_NOT_OPEN, BETTING_CLOSED, INVALID_AMOUNT, MINIMUM_BET, INVALID_PRECISION, INSUFFICIENT_BALANCE, INVALID_SIGNATURE
-- `GET /internal/shares/:address` returns `{ address, positions }` where positions is `{ [marketId]: { [outcome]: { shares, costBasis } } }`
-- Share positions accumulate correctly across multiple bets on the same outcome
-- tsc --noEmit, oxlint, and vitest all pass clean (30 tests total)
+## 2026-03-08 — Phase 0, TB2, Task 1: Create sse/relay.ts — SSE relay
 
-## Task: SellShares Transaction (Phase 1, FR-9)
-
-Implemented SellShares transaction with AMM constant-product sell math, validation, state application, and full test coverage.
+- Created `packages/api/src/sse/relay.ts` — SSE relay module connecting API server to node's event stream
+- `SSERelay` class connects to node `GET /internal/events`, parses SSE stream (event/data lines, ignores comments/keepalives)
+- Maintains `Map<string, SSEClientEntry>` of connected clients keyed by userId
+- Enforces 1 connection per user — `addClient()` closes prior connection before registering new one
+- Sends 30s keepalive comments (`: keepalive\n\n`) to each connected client
+- Broadcasts parsed node events to all connected API clients via `ReadableStream` controllers
+- Auto-reconnects to node on disconnect with exponential backoff (1s → 30s max)
+- `createRelay(nodeUrl)` / `getRelay()` singleton pattern matching db module convention
+- `close()` method for graceful shutdown: aborts node connection, clears reconnect timer, closes all client streams
 
 Files changed:
-- packages/shared/src/amm/index.ts (updated — added `calculateSell()` with constant product sell, 1% fee, net return calculation)
-- packages/node/src/validation.ts (updated — added `validateSellShares()` with market, timing, amount, shares, and signature checks)
-- packages/node/src/state.ts (updated — implemented `applySellShares()` using `calculateSell()`, proportional cost basis reduction)
-- packages/node/tests/sell-shares.test.ts (new — 8 tests: happy path sell with AMM math verification, k invariant check, non-existent market, zero amount, below minimum, insufficient shares, wrong outcome, wpmLocked decrease)
+- packages/api/src/sse/relay.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- `calculateSell(pool, outcome, shareAmount)` implements FR-9 spec: add shares to pool, compute sharesToRemove via constant product, 1% fee on wpmToReturn, netReturn = wpmToReturn - fee, fee goes back to opposite side
-- Cost basis reduced proportionally: `costBasisReduction = costBasis * (shareAmount / previousShareCount)`
-- Validation error codes match spec: MARKET_NOT_FOUND, MARKET_NOT_OPEN, BETTING_CLOSED, INVALID_AMOUNT, MINIMUM_SELL, INSUFFICIENT_SHARES, INVALID_SIGNATURE
-- Minimum sell is 0.01 shares per spec
-- Pool k only increases after sell (fee adds to liquidity)
-- wpmLocked decreases by netReturn after sell
-- tsc --noEmit, oxlint, and vitest all pass clean (38 tests total)
+## 2026-03-08 — Phase 0, TB2, Tasks 2-3: Create routes/events.ts + tracer-sse.test.ts
 
-## Task: ResolveMarket & SettlePayout (Phase 2, FR-10, FR-12)
+- Created `packages/api/src/routes/events.ts` — `GET /events/stream` SSE endpoint
+- Auth via `?token=` query param (EventSource doesn't support headers) — verifies JWT with `verifyJwt()`
+- Registers client in SSE relay via `getRelay().addClient(userId)`, returns `ReadableStream` as SSE response
+- Sets proper SSE headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`
+- Mounted events route in `packages/api/src/index.ts` via `app.route("/", events)`
+- Created `packages/api/tests/tracer-sse.test.ts` — 5 integration tests:
+  - Rejects missing token → 401
+  - Rejects invalid token → 401
+  - Returns SSE stream with valid token (correct headers)
+  - Receives `trade:executed` event after PlaceBet tx + block production (full end-to-end: node → EventBus → relay → client stream)
+  - Enforces 1 connection per user (second connection replaces first, `connectedClients` stays at 1)
 
-Implemented market resolution with inline settlement payout generation, validation, and full test coverage.
-
-Files changed:
-- packages/node/src/settlement.ts (new — `generateResolvePayouts()` computes winner payouts and treasury remainder)
-- packages/node/src/validation.ts (updated — added `validateResolveMarket()` with oracle sender, market open, event started checks; SettlePayout returns SYSTEM_TX_ONLY)
-- packages/node/src/producer.ts (updated — imports `generateResolvePayouts`, injects SettlePayout txs inline after ResolveMarket during block production; added `poaPublicKey` param)
-- packages/node/src/state.ts (updated — `applyResolveMarket()` sets market status/winningOutcome/finalScore; `applySettlePayout()` decrements wpmLocked and credits recipient; `applyBlock()` cleans up pools and sharePositions for settled markets)
-- packages/node/src/index.ts (updated — pass `poaPublicKey` to producer)
-- packages/node/tests/resolve-market.test.ts (new — 8 tests: happy path resolution with payout conservation, SettlePayout rejection via API, non-oracle rejection, non-existent market, already resolved market, event not started, zero-bet market full seed return, payout ordering)
-
-Notes:
-- `generateResolvePayouts(tx, state, poaPublicKey, poaPrivateKey)` iterates all share positions for the resolved market, paying 1.00 WPM per winning share; treasury gets `wpmLocked - totalPaidOut` as liquidity_return
-- User payouts sorted by recipient address ascending, treasury payout always last
-- SettlePayout txs are signed with PoA key and injected into the same block as ResolveMarket — never submitted through mempool
-- `validateTransaction()` rejects SettlePayout with SYSTEM_TX_ONLY error code when received via API
-- ResolveMarket validation: UNAUTHORIZED_ORACLE, MARKET_NOT_FOUND, MARKET_NOT_OPEN, EVENT_NOT_STARTED, INVALID_SIGNATURE
-- After resolution, `applyBlock()` deletes the pool and all share positions for the settled market
-- Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before resolution
-- tsc --noEmit, oxlint, and vitest all pass clean (46 tests total)
-
-## Task: CancelMarket (Phase 2, FR-11)
-
-Implemented CancelMarket transaction with cancel settlement (cost-basis refunds), validation, and full test coverage.
+Gotchas:
+- Module-level env capture in `trading.ts` (`const NODE_URL = process.env.NODE_URL`) causes cross-test pollution when tests use different ports — SSE test avoids importing trading module since it submits txs directly to mempool
+- Hono's `app.request()` with `ReadableStream` response: `controller.close()` may not immediately signal `done: true` to readers in test context — test relay state directly via `relay.connectedClients` instead
 
 Files changed:
-- packages/shared/src/types/index.ts (updated — added `"refund"` to SettlePayoutTx.payoutType union for cancellation refunds)
-- packages/node/src/validation.ts (updated — added `validateCancelMarket()` with oracle or PoA sender, market open, and signature checks)
-- packages/node/src/settlement.ts (updated — added `generateCancelPayouts()` that refunds each user their tracked costBasis, treasury gets remainder)
-- packages/node/src/producer.ts (updated — wired `generateCancelPayouts` inline after CancelMarket during block production)
-- packages/node/tests/cancel-market.test.ts (new — 8 tests: happy path cancel with refund conservation, partial sell net cost basis refund, zero-bet cancel with full seed return, PoA/admin cancel, unauthorized sender rejection, non-existent market, already cancelled market, multi-user multi-outcome conservation)
+- packages/api/src/routes/events.ts (new)
+- packages/api/tests/tracer-sse.test.ts (new)
+- packages/api/src/index.ts (mounted events route)
+- PLAN.md (marked tasks complete)
 
-Notes:
-- CancelMarketTx type and `applyCancelMarket()` in state.ts were already implemented in Phase 0
-- `generateCancelPayouts(tx, state, poaPublicKey, poaPrivateKey)` iterates all share positions for the cancelled market, summing costBasis across both outcomes per user
-- User refunds use `payoutType: "refund"` (new union member), sorted by recipient address ascending; treasury gets `wpmLocked - totalUserRefunds` as `liquidity_return`
-- CancelMarket validation allows both oracle AND PoA signer (admin) as sender per spec FR-11 (`UNAUTHORIZED_SENDER` error)
-- Signature verified against whichever key the sender matches (oracle or PoA)
-- Conservation invariant verified: sum of all SettlePayout amounts === wpmLocked before cancellation
-- Partial sell test confirms refund = net cost basis (original cost minus proportional reduction from sells)
-- tsc --noEmit, oxlint, and vitest all pass clean (54 tests total)
+## 2026-03-08 — Phase 1, Schema Completion, Task 1: Add webauthn_credentials table
 
-## Task: Referral Transaction (Phase 2, FR-13)
-
-Implemented Referral transaction validation, `POST /internal/referral-reward` system endpoint, SYSTEM_TX_ONLY rejection, and full test coverage.
+- Added `webauthn_credentials` table to `packages/api/src/db/index.ts` migration
+- Schema: credential_id (TEXT PK), user_id (TEXT FK → users.id), public_key (BLOB), counter (INTEGER DEFAULT 0), created_at (INTEGER)
+- Foreign key constraint enforced via `REFERENCES users(id)` (requires `PRAGMA foreign_keys = ON` already set)
+- Added 3 tests to `packages/api/tests/db.test.ts`: column schema validation, FK enforcement (rejects non-existent user), valid insert with existing user
 
 Files changed:
-- packages/node/src/validation.ts (updated — added `validateReferral()` with PoA sender, treasury balance, duplicate referral, and signature checks; added SYSTEM_TX_ONLY rejection for Referral in `validateTransaction()`; exhaustive switch default)
-- packages/node/src/api.ts (updated — added `POST /internal/referral-reward` endpoint, imports `validateReferral`)
-- packages/node/src/mempool.ts (updated — added `addDirect()` method for pre-validated system transactions)
-- packages/node/src/producer.ts (updated — skip re-validation for system tx types: SettlePayout, Referral)
-- packages/node/tests/referral.test.ts (new — 5 tests: happy path 5000 WPM reward + balance verify, duplicate referral rejection, SYSTEM_TX_ONLY rejection via external API, insufficient treasury, referredUser tracking in state)
+- packages/api/src/db/index.ts (added webauthn_credentials CREATE TABLE)
+- packages/api/tests/db.test.ts (added 3 tests)
+- PLAN.md (marked task complete)
 
-Notes:
-- `POST /internal/referral-reward` accepts `{ inviterAddress, referredUser }`, node creates Referral tx for fixed 5000 WPM signed with PoA key
-- `validateReferral()` is exported and called directly by the API endpoint (separate from `validateTransaction()` which rejects with SYSTEM_TX_ONLY)
-- `addDirect()` on Mempool bypasses `validateTransaction()` — used for system txs that are pre-validated by the endpoint
-- Producer skips re-validation for system tx types (Referral, SettlePayout) since they were pre-validated at creation time
-- Error codes match spec: UNAUTHORIZED_SENDER, INSUFFICIENT_TREASURY, DUPLICATE_REFERRAL, SYSTEM_TX_ONLY, INVALID_SIGNATURE
-- `referredUsers` set and `applyReferral()` in ChainState were already implemented in Phase 0
-- `ReferralTx` type was already defined in shared types from Phase 0
-- tsc --noEmit, oxlint, and vitest all pass clean (59 tests total)
+## 2026-03-08 — Phase 1, Schema Completion, Task 2: Add invite_codes table
 
-## Task: Complete HTTP API (Phase 3, FR-15)
-
-Implemented remaining HTTP API endpoints: `GET /internal/state` (full chain state snapshot) and `GET /internal/blocks?from=N&limit=M` (paginated block list). The 404/500 error handlers were already in place from Phase 0.
+- Added `invite_codes` table to `packages/api/src/db/index.ts` migration
+- Schema: code (TEXT PK), created_by (TEXT NOT NULL), referrer (TEXT nullable), max_uses (INTEGER NOT NULL), use_count (INTEGER NOT NULL DEFAULT 0), active (INTEGER NOT NULL DEFAULT 1), created_at (INTEGER NOT NULL)
+- No foreign key on created_by or referrer — these reference admin identity and wallet addresses which may not exist in the users table
+- Added 4 tests to `packages/api/tests/db.test.ts`: column schema validation, insert/query round-trip, null referrer allowed, unique PK enforced
 
 Files changed:
-- packages/node/src/api.ts (updated — added `GET /internal/state` and `GET /internal/blocks` endpoints, imported Market/AMMPool types)
-- packages/node/tests/api-endpoints.test.ts (new — 8 tests: state snapshot with balances/markets/pools, blocks default pagination, from parameter, limit parameter, out-of-range from, limit clamping to max 100, 404 for unknown routes, 404 for unknown block)
+- packages/api/src/db/index.ts (added invite_codes CREATE TABLE)
+- packages/api/tests/db.test.ts (added 4 tests)
+- PLAN.md (marked task complete)
 
-Notes:
-- `GET /internal/state` returns `{ blockHeight, balances, markets, pools }` — Maps serialized to plain objects
-- `GET /internal/blocks?from=N&limit=M` defaults to from=0, limit=50, clamps limit to max 100, returns Block[]
-- 404 handler (`{ error: "NOT_FOUND" }`) and 500 error wrapper (`{ error: "INTERNAL_ERROR", message }`) already existed from Phase 0 implementation
-- tsc --noEmit, oxlint, and vitest all pass clean (67 tests total)
+## 2026-03-08 — Phase 1, Schema Completion, Task 3: Add auth_challenges table
 
-## Task: SSE Event Stream (Phase 3, FR-15)
-
-Implemented Server-Sent Events (SSE) event stream with EventBus class, HTTP endpoint, producer/settlement wiring, and full test coverage. Fixed test issues with event count expectations and market timing.
+- Added `auth_challenges` table to `packages/api/src/db/index.ts` migration
+- Schema: id (TEXT PK), challenge (TEXT NOT NULL), type (TEXT NOT NULL), user_data (TEXT nullable), expires_at (INTEGER NOT NULL), created_at (INTEGER NOT NULL)
+- Used for storing WebAuthn registration/login challenges with TTL-based expiry
+- Added 4 tests to `packages/api/tests/db.test.ts`: column schema validation, insert/query round-trip, null user_data allowed, unique PK enforced
 
 Files changed:
-- packages/node/src/events.ts (new — `EventBus` class with SSE client management and block event emission)
-- packages/node/src/api.ts (updated — added `GET /internal/events` SSE endpoint, added `eventBus` parameter to `startApi`)
-- packages/node/src/producer.ts (updated — added `eventBus` parameter, calls `emitBlockEvents` after block append but before state apply)
-- packages/node/src/index.ts (updated — creates EventBus, passes to producer and API, closes on shutdown)
-- packages/node/tests/sse.test.ts (new — 6 tests: block:new event on transfer, market:created, trade:executed for PlaceBet, market:resolved, market:cancelled, client count tracking)
+- packages/api/src/db/index.ts (added auth_challenges CREATE TABLE)
+- packages/api/tests/db.test.ts (added 4 tests)
+- PLAN.md (marked task complete)
 
-Notes:
-- `EventBus` manages SSE client connections with 30s keepalive heartbeat
-- `addClient(res)` sets SSE headers, registers client, cleans up on `close` event
-- `emitBlockEvents(block, stateBefore)` iterates transactions and emits per-tx events, then `block:new` at the end
-- For PlaceBet/SellShares events, tracks intermediate pool state via snapshots to compute accurate post-trade prices
-- Trade events include `sharesReceived`, `newPriceA`, `newPriceB` computed from the pool after the trade
-- `block:new` emitted last with `index`, `hash`, `txCount`, `timestamp`
-- Events are emitted after disk persist but before state apply (using pre-apply state for AMM price calculation)
-- Fixed test: resolve market test needed eventStartTime set to past after creation (CreateMarket validates future, ResolveMarket validates past)
-- Fixed test: cancel/resolve tests expected 3 events but only 2 emitted (market event + block:new; SettlePayout has no SSE event)
-- Fixed test: client count test uses relative baseCount to avoid stale connection interference
-- tsc --noEmit, oxlint, and vitest all pass clean (73 tests total)
+## 2026-03-08 — Phase 1, Schema Completion, Task 4: Create db/queries.ts — prepared statement helpers
 
-## Task: Mempool Hardening (Phase 3, FR-14)
-
-Implemented mempool capacity limit and verified all three FR-14 hardening requirements are met. Added comprehensive test coverage.
+- Created `packages/api/src/db/queries.ts` — 12 prepared statement helper functions covering all 4 tables
+- Row types: `UserRow`, `WebAuthnCredentialRow`, `InviteCodeRow`, `AuthChallengeRow` exported for use across codebase
+- User queries: `findUserById`, `findUserByEmail`, `findUserByWallet`, `insertUser` (with default role "user" and auto-set `created_at`)
+- Credential queries: `findCredentialById`, `insertCredential` (default counter 0), `updateCredentialCounter`
+- Invite code queries: `findActiveInviteCode` (filters by active=1 AND use_count < max_uses), `incrementInviteCodeUse`
+- Challenge queries: `insertChallenge`, `findChallenge`, `deleteChallenge`, `deleteExpiredChallenges` (returns count of deleted rows)
+- All functions accept optional `db?: Database` parameter — defaults to `getDb()` singleton, but allows passing a specific instance for testing
+- Created `packages/api/tests/queries.test.ts` — 24 tests covering all functions: round-trips, null returns, edge cases (case-insensitive email, exhausted invite codes, expired challenge cleanup)
 
 Files changed:
-- packages/node/src/mempool.ts (updated — added `MAX_CAPACITY = 1_000` constant, `MEMPOOL_FULL` rejection in both `add()` and `addDirect()`)
-- packages/node/tests/mempool.test.ts (new — 7 tests: capacity limit via add, capacity limit via addDirect, accept after drain frees capacity, timestamp drift future, timestamp drift past, duplicate against committedTxIds, duplicate against pending mempool)
+- packages/api/src/db/queries.ts (new)
+- packages/api/tests/queries.test.ts (new)
+- PLAN.md (marked task complete)
 
-Notes:
-- Capacity check is the first guard in both `add()` and `addDirect()`, rejecting with `MEMPOOL_FULL` error code when queue length >= 1000
-- Timestamp drift check (±300,000ms, `TIMESTAMP_OUT_OF_RANGE`) was already implemented in Phase 0
-- Duplicate check already covered both paths: `pendingIds` (mempool-level, line 48) and `committedTxIds` (via `validateTransaction()` in validation.ts:72)
-- `addDirect()` (used for system txs like Referral) also respects capacity limit but does not check `committedTxIds` since system txs are freshly created with unique IDs
-- tsc --noEmit, oxlint, and vitest all pass clean (80 tests total)
+## 2026-03-08 — Phase 1, WebAuthn Registration (FR-1): Full implementation
 
-## Task: Invariant Checks (Phase 3)
+- Added `@simplewebauthn/server@13.2.3` dependency to `packages/api/package.json`
+- Created `packages/api/src/routes/auth.ts` — WebAuthn registration endpoints:
+  - `POST /auth/register/begin`: validates invite code (active + has uses), email uniqueness (case-insensitive), name length (1-50 chars), email format; generates WebAuthn registration challenge via `@simplewebauthn/server`; stores challenge in `auth_challenges` with 60s TTL; returns `{ challengeId, publicKey }` with full WebAuthn options
+  - `POST /auth/register/complete`: retrieves + validates challenge (exists, not expired, correct type); verifies WebAuthn attestation via `verifyRegistrationResponse`; generates RSA wallet keypair; encrypts private key with AES-256-GCM; inserts user + credential; increments invite code usage; calls node `POST /internal/distribute` for 100,000 WPM airdrop; calls `POST /internal/referral-reward` if invite code has referrer; issues JWT; returns `{ userId, walletAddress, token }` (201)
+  - Re-validates invite code and email uniqueness in the complete step to prevent TOCTOU race conditions
+  - Deletes challenge on all terminal paths (success, expired, verification failure)
+- Mounted auth routes in `packages/api/src/index.ts` via `app.route("/", auth)`
+- Fixed `packages/api/src/db/index.ts` — changed `DB_PATH` from module-level const to reading `process.env.DB_PATH` dynamically in `getDb()`, fixing test isolation when multiple test files share the DB singleton
+- Created `packages/api/tests/auth-register.test.ts` — 12 tests covering:
+  - Valid begin flow (WebAuthn options shape, RP config, challenge stored in DB with correct TTL)
+  - Invalid/exhausted/deactivated invite codes → `INVALID_INVITE_CODE` (400)
+  - Duplicate email case-insensitive → `DUPLICATE_REGISTRATION` (409)
+  - Empty name, name >50 chars → validation error (400)
+  - Invalid email format → validation error (400)
+  - Expired challenge → `CHALLENGE_EXPIRED` (400) + cleanup
+  - Nonexistent challenge → `CHALLENGE_EXPIRED` (400)
+  - Invalid WebAuthn attestation → `WEBAUTHN_VERIFICATION_FAILED` (400) + cleanup
+- All test emails use `randomUUID()` to avoid collisions when test files share DB
 
-Implemented post-block invariant assertions (INV-1 through INV-5), per-trade price sum check (INV-2), pool k monotonicity check (INV-5), and critical violation halting (INV-1).
+Gotchas:
+- `@simplewebauthn/server` v13 uses `Uint8Array_` type alias (= `Uint8Array`) for `userID`; pass `new TextEncoder().encode(userId)` to convert UUID string to bytes
+- `authenticatorSelection` in the response includes `requireResidentKey: true` (auto-added by simplewebauthn when `residentKey: "required"`)
+- bun:sqlite sandbox restriction requires `dangerouslyDisableSandbox` for `bun add`
+- Module-level `const DB_PATH = process.env.DB_PATH` freezes at first import; must read env dynamically in `getDb()` for test isolation
 
 Files changed:
-- packages/node/src/invariants.ts (new — `checkPostBlockInvariants()`, `checkPoolKInvariant()`, `checkPriceSumInvariant()`, `handleViolations()`)
-- packages/node/src/producer.ts (updated — imports invariants module, snapshots pool k values before block apply, runs all invariant checks after `state.applyBlock()`)
-- packages/node/tests/invariants.test.ts (new — 16 tests: INV-1 supply conservation pass/fail/with-pools, INV-3 negative balance detection, INV-4 negative shares detection, INV-5 k increase/same/decrease, INV-2 price sum balanced/imbalanced/broken, handleViolations critical throw/non-critical warn)
+- packages/api/package.json (added @simplewebauthn/server)
+- packages/api/src/routes/auth.ts (new)
+- packages/api/src/index.ts (mounted auth routes)
+- packages/api/src/db/index.ts (dynamic DB_PATH read)
+- packages/api/tests/auth-register.test.ts (new)
+- bun.lock (updated)
+- PLAN.md (marked 4 tasks complete)
 
-Notes:
-- INV-1 (total supply conservation) is critical — throws Error to halt the node on violation
-- INV-3 (negative balances), INV-4 (negative shares), INV-5 (k decrease) are non-critical — log warnings via console.warn
-- INV-2 checks use tolerance of 0.0001 per spec; also handles NaN case (e.g. empty pool with 0/0 shares)
-- INV-5 compares pool k before and after block application; only checks pools that still exist post-block (resolved/cancelled pools are deleted)
-- INV-2 and INV-5 run per-pool after block application rather than per-trade, since state.applyBlock is atomic
-- tsc --noEmit, oxlint, and vitest all pass clean (96 tests total)
+## 2026-03-08 — Phase 1, WebAuthn Login (FR-2): Full implementation
 
-## Task: Structured Logging & Observability (Phase 3)
+- Added `POST /auth/login/begin` to `packages/api/src/routes/auth.ts`
+  - Uses discoverable credentials (passkeys) — no `allowCredentials` needed since registration uses `residentKey: "required"`
+  - Generates authentication challenge via `@simplewebauthn/server` `generateAuthenticationOptions`
+  - Stores challenge in `auth_challenges` with type `"webauthn_login"` and 60s TTL
+  - Returns `{ challengeId, publicKey }` with WebAuthn options including `rpId`, `userVerification: "required"`
+- Added `POST /auth/login/complete` to `packages/api/src/routes/auth.ts`
+  - Retrieves + validates challenge (exists, correct type, not expired)
+  - Looks up stored credential by `credentialId` from the assertion response
+  - Verifies authentication assertion via `verifyAuthenticationResponse` with stored public key + counter
+  - Updates credential counter on successful verification
+  - Looks up user by `user_id` from the credential record
+  - Issues JWT with `sub`, `role`, `walletAddress`, `email`
+  - Cleans up challenge on all terminal paths (success, expired, verification failure, unknown credential)
+- Created `packages/api/tests/auth-login.test.ts` — 10 tests covering:
+  - Begin: returns authentication options with correct rpId/timeout/userVerification, challenge stored with 60s TTL
+  - Complete: rejects nonexistent challenge (401), expired challenge (400 CHALLENGE_EXPIRED), wrong challenge type (401), unknown credentialId (401), invalid assertion data (401), missing credential (401), missing challengeId (401), invalid JSON body (401)
 
-Implemented structured JSON logger with log levels, metric counters, and timing instrumentation across block production, chain replay, mempool validation, and invariant checks.
+Gotchas:
+- bun:test `beforeAll`/`afterAll` are scoped per `describe` — if the first describe's `afterAll` closes the DB, subsequent describes lose access. Use top-level `beforeAll`/`afterAll` for shared setup/teardown across multiple describe blocks.
 
 Files changed:
-- packages/node/src/logger.ts (new — `Logger` class with singleton `logger` export, `Metrics` type)
-- packages/node/src/producer.ts (updated — imports logger, logs block production with timing/metrics, increments blocksProduced/ammTrades counters)
-- packages/node/src/invariants.ts (updated — replaced console.error/console.warn with logger.error/logger.warn, structured violation data)
-- packages/node/src/persistence.ts (updated — imports logger, logs chain replay with block count and timing)
-- packages/node/src/mempool.ts (updated — imports logger, tracks txValidated/txRejected/mempoolSize metrics, debug-level tx accept/reject logs)
-- packages/node/src/index.ts (updated — replaced all console.log calls with structured logger.info calls)
+- packages/api/src/routes/auth.ts (added login/begin + login/complete endpoints, imported generateAuthenticationOptions, verifyAuthenticationResponse, findCredentialById, updateCredentialCounter, findUserById)
+- packages/api/tests/auth-login.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
 
-Notes:
-- Logger outputs one JSON object per line to stdout (stderr for error level) with `level`, `msg`, `ts`, and optional structured data fields
-- Log level configurable via `LOG_LEVEL` env var, defaults to "info"; levels: debug, info, warn, error
-- `logger.metrics` exposes counters: blockHeight, mempoolSize, txValidated, txRejected, blocksProduced, ammTrades
-- Metrics are updated in-place by producer (block production), mempool (tx validation), and persistence (replay)
-- Block production logs include `durationMs` timing, block index, tx count, mempool size
-- Chain replay logs include `durationMs` timing and block count
-- Invariant violations logged with structured `invariant` id, `blockIndex`, and `detail` fields
-- No new tests needed — existing 96 tests continue to pass, structured output visible in test runs
-- tsc --noEmit, oxlint, and vitest all pass clean (96 tests total)
+## 2026-03-08 — Phase 1, JWT & Refresh Tokens (FR-3): Full implementation
+
+- Added refresh token support to `packages/api/src/middleware/auth.ts`:
+  - `signRefreshToken(userId)` — signs a JWT with `type: "refresh"` and 7-day TTL
+  - `verifyRefreshToken(token)` — verifies signature + expiry + enforces `type: "refresh"` (rejects access tokens)
+  - `setRefreshCookie(c, token)` — sets `wpm_refresh` cookie with `httpOnly`, `Secure`, `SameSite=Strict`, `Max-Age=604800` (7 days), `Path=/`
+  - `getRefreshCookie(c)` — reads `wpm_refresh` cookie from request
+  - Exports `REFRESH_COOKIE_NAME` constant for test use
+  - New type `RefreshTokenPayload` with `sub`, `type`, `iat`, `exp`
+- Updated `packages/api/src/routes/auth.ts`:
+  - `POST /auth/register/complete` now issues refresh token cookie alongside access JWT
+  - `POST /auth/login/complete` now issues refresh token cookie alongside access JWT
+  - Added `POST /auth/refresh` endpoint: reads `wpm_refresh` cookie, verifies refresh token signature + expiry + type, validates user still exists in SQLite, issues fresh 15-min access JWT, rotates refresh cookie with new 7-day token
+- Created `packages/api/tests/auth-refresh.test.ts` — 8 tests covering:
+  - Valid refresh → new access JWT with correct claims and 15-min TTL
+  - Refresh rotates cookie (Set-Cookie header with HttpOnly, Secure, SameSite=Strict, Max-Age=604800)
+  - Missing cookie → UNAUTHORIZED 401 with "re-authenticate" message
+  - Expired refresh token → UNAUTHORIZED 401
+  - Access token used as refresh token → UNAUTHORIZED 401 (type mismatch)
+  - Refresh token for deleted/nonexistent user → UNAUTHORIZED 401
+  - Tampered refresh token → UNAUTHORIZED 401
+  - Refresh token helper round-trip (sign + verify, 7-day TTL)
+
+Gotchas:
+- Hono cookie import is `hono/cookie`, NOT `hono/helper/cookie` — the package.json exports map `./cookie` to `./dist/helper/cookie/index.js`
+
+Files changed:
+- packages/api/src/middleware/auth.ts (added refresh token signing/verification, cookie helpers)
+- packages/api/src/routes/auth.ts (added POST /auth/refresh, set refresh cookie on register + login)
+- packages/api/tests/auth-refresh.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 1, Admin Auth (FR-4): Full implementation
+
+- Added `POST /auth/admin/login` to `packages/api/src/routes/auth.ts`
+  - Accepts `{ apiKey: string }` in request body
+  - Uses `crypto.timingSafeEqual` from `node:crypto` for constant-time comparison against `ADMIN_API_KEY` env var
+  - Issues JWT with `sub: "admin"`, `role: "admin"`, 24h expiry on successful match
+  - Returns `FORBIDDEN` (403) on wrong key, missing key, non-string key, or invalid JSON body
+  - Returns `INTERNAL_ERROR` (500) if `ADMIN_API_KEY` env is not configured
+- Created `packages/api/src/middleware/admin.ts` — admin authorization middleware
+  - Checks `role === "admin"` from JWT context (set by `authMiddleware`)
+  - Returns `FORBIDDEN` (403) if role is not admin
+  - Exports `AdminEnv` type for typed Hono context
+  - Designed to be chained after `authMiddleware` on admin routes
+- Created `packages/api/tests/auth-admin.test.ts` — 8 tests covering:
+  - Correct API key → admin JWT with 24h expiry and correct claims (sub, role)
+  - Wrong API key → FORBIDDEN 403
+  - Missing apiKey field → FORBIDDEN 403
+  - Non-string apiKey → FORBIDDEN 403
+  - Invalid JSON body → FORBIDDEN 403
+  - Admin JWT on admin route → 200 (through authMiddleware + adminMiddleware chain)
+  - User JWT on admin route → FORBIDDEN 403
+  - No auth header on admin route → UNAUTHORIZED 401
+
+Gotchas:
+- `crypto.subtle.timingSafeEqual` does not exist in Bun — use `timingSafeEqual` from `node:crypto` instead
+- `timingSafeEqual` requires both buffers to be the same length — check `byteLength` equality first (short-circuit) before calling it
+
+Files changed:
+- packages/api/src/routes/auth.ts (added POST /auth/admin/login, imported timingSafeEqual from node:crypto)
+- packages/api/src/middleware/admin.ts (new)
+- packages/api/tests/auth-admin.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 2, Wallet Endpoints (FR-5): Full implementation
+
+- Created `packages/api/src/routes/wallet.ts` — wallet route with two endpoints:
+  - `GET /wallet/balance`: JWT auth → reads walletAddress from token → proxies to node `GET /internal/balance/:addr` → returns `{ address, balance }`
+  - `GET /wallet/transactions`: JWT auth → fetches all blocks from node via paginated `GET /internal/blocks` → filters transactions where user is sender or recipient (checks `sender` field on all tx types, `recipient` field on Transfer/Distribute/SettlePayout/Referral) → sorts by timestamp descending → paginates with `limit` (default 50, max 200, min 1) and `offset` (default 0) → returns `{ transactions, total, limit, offset }`
+- Mounted wallet routes in `packages/api/src/index.ts` via `app.route("/", wallet)`
+- Created `packages/api/tests/wallet.test.ts` — 10 integration tests covering:
+  - Balance matches node state (user1: 100K - 500 bet + 1000 transfer = 100,500)
+  - Balance for second user (50K - 1000 transfer = 49,000)
+  - Rejects missing auth → 401
+  - Rejects token without walletAddress → 401
+  - Transactions returns correct count (user1: 3 txs — Distribute recipient, PlaceBet sender, Transfer recipient)
+  - Transactions sorted by timestamp descending
+  - User2 transactions correct (2 txs — Distribute recipient, Transfer sender)
+  - Pagination with limit + offset (page 1: 2 items, page 2: 1 item)
+  - Limit clamped to 200 when exceeding max
+  - Auth rejection on transactions endpoint
+
+Files changed:
+- packages/api/src/routes/wallet.ts (new)
+- packages/api/src/index.ts (mounted wallet routes)
+- packages/api/tests/wallet.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets
+
+- Created `packages/api/src/routes/markets.ts` — `GET /markets` endpoint:
+  - JWT auth required
+  - Fetches node state for markets + pools, filters to `status: "open"` markets
+  - Enriches each market with `calculatePrices()` from `@wpm/shared/amm` (prices sum to ~1.0)
+  - Computes multipliers as `1/price` (rounded to 2 decimals)
+  - Computes `totalVolume` per market by fetching all blocks and summing `PlaceBet.amount` + `SellShares.shareAmount` for matching marketIds
+  - Returns `{ markets: [...] }` with all original market fields plus prices, multipliers, totalVolume
+- Mounted markets routes in `packages/api/src/index.ts` via `app.route("/", markets)`
+- Created `packages/api/tests/markets.test.ts` — 9 integration tests covering:
+  - Returns only open markets (2 markets)
+  - Prices sum to ~1.00 for all markets
+  - Multipliers computed as 1/price (rounded)
+  - Market with bets has correct totalVolume (500 + 300 = 800)
+  - Market without bets has zero volume
+  - Unbetted market has equal prices (0.5/0.5) and multipliers (2/2)
+  - Betted market has shifted prices
+  - Enriched markets retain original fields (sport, teams, outcomes, etc.)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (new)
+- packages/api/src/index.ts (mounted markets routes)
+- packages/api/tests/markets.test.ts (new)
+- PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/:marketId
+
+- Added `GET /markets/:marketId` endpoint to `packages/api/src/routes/markets.ts`
+  - Fetches market + pool + prices from node `GET /internal/market/:id`
+  - Returns `MARKET_NOT_FOUND` (404) when node returns 404
+  - Fetches user positions from node `GET /internal/shares/:addr` if user has walletAddress
+  - Computes `estimatedValue` per outcome position as `shares * price` (rounded to 2 decimals)
+  - Returns `{ market, pool, prices, userPosition }` where userPosition is `{ outcomeA, outcomeB }` or `null`
+  - Each outcome position includes `shares`, `costBasis`, and `estimatedValue` (or null if no shares)
+- Added 6 tests to `packages/api/tests/markets.test.ts`:
+  - Returns market with pool and prices (fields validated, prices sum to ~1.0)
+  - User position populated when user has shares (both outcomes with shares/costBasis/estimatedValue)
+  - User position null when different user has no shares
+  - User position null for market where user has no positions
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/:marketId endpoint)
+- packages/api/tests/markets.test.ts (added user2 fixture + 6 tests)
+- PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/:marketId/trades
+
+- Added `GET /markets/:marketId/trades` endpoint to `packages/api/src/routes/markets.ts`
+  - Verifies market exists via node `GET /internal/market/:id` → 404 if not found
+  - Fetches all blocks from node, filters `PlaceBet` and `SellShares` transactions matching `marketId`
+  - Joins with SQLite `users` table via `findUserByWallet()` to add `userName` display name to each trade
+  - Sorts trades by timestamp descending
+  - Paginates with `limit` (default 20, max 100, min 1) and `offset` (default 0)
+  - Returns `{ trades, total, limit, offset }`
+  - Each trade includes all original tx fields plus `userName` (string or null if wallet not in users table)
+- Added 7 tests to `packages/api/tests/markets.test.ts`:
+  - Returns trades with correct user display names from SQLite join
+  - Trades sorted by timestamp descending
+  - Empty trades for market with no bets
+  - Pagination with limit and offset (page 1 and page 2 return different trades)
+  - Limit clamped to 100
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/:marketId/trades, imported findUserByWallet + Transaction type)
+- packages/api/tests/markets.test.ts (added 7 tests in new describe block)
+- PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Market Endpoints (FR-6): GET /markets/resolved
+
+- Added `GET /markets/resolved` endpoint to `packages/api/src/routes/markets.ts`
+  - Fetches node state, filters markets with status "resolved" or "cancelled"
+  - Sorts by `resolvedAt` descending (falls back to `createdAt` for markets without `resolvedAt`)
+  - Paginates with `limit` (default 20, max 100, min 1) and `offset` (default 0)
+  - Returns `{ markets, total, limit, offset }`
+  - Route registered before `GET /markets/:marketId` to avoid parameterized route catching "resolved" as a marketId
+- Added 8 tests to `packages/api/tests/markets.test.ts`:
+  - Returns both resolved and cancelled markets (count = 2)
+  - Resolved market has winningOutcome, finalScore, resolvedAt, correct sport
+  - Cancelled market has cancelled status, resolvedAt
+  - Does not include open markets
+  - Sorted by resolvedAt descending
+  - Pagination with limit and offset (page 1 and page 2 return different markets)
+  - Limit clamped to 100
+  - Rejects request without auth → 401
+- Test setup expanded: added market3 (resolved with winningOutcome "A", finalScore "5-3") and market4 (cancelled) alongside existing open markets
+
+Gotchas:
+- CreateMarket validation requires `eventStartTime > tx.timestamp`, but ResolveMarket requires `tx.timestamp >= eventStartTime` — for tests, set eventStartTime very near future and resolve timestamp at `Math.max(Date.now(), eventStartTime)`
+- Route ordering matters in Hono: `/markets/resolved` must be defined before `/markets/:marketId` or the parameterized route will match first
+
+Files changed:
+- packages/api/src/routes/markets.ts (added GET /markets/resolved endpoint)
+- packages/api/tests/markets.test.ts (added market3/market4 fixtures, ResolveMarket/CancelMarket txs, 8 new tests)
+- PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/buy/preview
+
+- Added `POST /markets/:marketId/buy/preview` endpoint to `packages/api/src/routes/trading.ts`
+  - Read-only AMM preview: validates inputs, fetches market + pool from node, runs `calculateBuy()` from `@wpm/shared/amm` without mutating state
+  - Returns `{ sharesReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB }`
+  - `effectivePrice` = amount / sharesReceived (rounded to 2 decimals)
+  - `priceImpact` = absolute change in the purchased outcome's price (rounded to 2 decimals)
+  - `fee` = 1% of amount (rounded to 2 decimals)
+  - `newPriceA` / `newPriceB` = prices from the resulting pool state (rounded to 2 decimals)
+  - Same market validation as buy endpoint: exists, open, eventStartTime not passed
+  - Same input validation: outcome must be "A" or "B", amount > 0 with ≤2 decimal places
+- Also marked FR-6 market tests task complete (all test cases were already written inline with endpoint implementations)
+- Created `packages/api/tests/trading-preview.test.ts` — 12 integration tests covering:
+  - Valid preview on equal-price market (correct response shape, fee = 1%)
+  - Preview matches AMM calculation exactly (sharesReceived, newPrices)
+  - Preview on shifted-price market (prices still sum to ~1.0)
+  - Preview is read-only — does not change pool state
+  - Invalid outcome → INVALID_OUTCOME (400)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Amount with exactly 2 decimal places accepted
+
+Files changed:
+- packages/api/src/routes/trading.ts (added buy/preview endpoint, imported calculateBuy + calculatePrices)
+- packages/api/tests/trading-preview.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/sell/preview
+
+- Added `POST /markets/:marketId/sell/preview` endpoint to `packages/api/src/routes/trading.ts`
+  - Read-only AMM preview: validates inputs, fetches market + pool from node, runs `calculateSell()` from `@wpm/shared/amm` without mutating state
+  - Returns `{ wpmReceived, effectivePrice, priceImpact, fee, newPriceA, newPriceB }`
+  - `wpmReceived` = `calculateSell().netReturn` (net after 1% fee)
+  - `effectivePrice` = wpmReceived / shareAmount (rounded to 2 decimals)
+  - `priceImpact` = absolute change in the sold outcome's price (rounded to 2 decimals)
+  - `fee` = 1% of gross WPM return (computed by replicating constant product formula to get gross, then `round2(gross * 0.01)`)
+  - `newPriceA` / `newPriceB` = prices from the resulting pool state (rounded to 2 decimals)
+  - Same market validation as buy/preview: exists, open, eventStartTime not passed
+  - Same input validation: outcome must be "A" or "B", amount > 0 with ≤2 decimal places
+- Added 13 tests to `packages/api/tests/trading-preview.test.ts` in new describe block:
+  - Valid sell preview on shifted-price market (correct response shape, prices sum to ~1.0)
+  - Preview matches AMM calculation exactly (wpmReceived, newPrices)
+  - Fee is 1% of gross return (verified against manual constant product formula)
+  - Preview on equal-price market returns correct values
+  - Preview is read-only — does not change pool state
+  - Invalid outcome → INVALID_OUTCOME (400)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Nonexistent market → MARKET_NOT_FOUND (404)
+  - Resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Amount with exactly 2 decimal places accepted
+
+Gotchas:
+- `calculateSell` returns `netReturn` (after fee deduction) but doesn't expose the gross return or fee. To compute the fee for the response, replicate the constant product formula inline: `grossReturn = round2(oppositeShares - (sharesA * sharesB) / (soldSideShares + amount))`, then `fee = round2(grossReturn * 0.01)`.
+
+Files changed:
+- packages/api/src/routes/trading.ts (added sell/preview endpoint, imported calculateSell)
+- packages/api/tests/trading-preview.test.ts (added 13 tests in new describe block, imported calculateSell)
+- PLAN.md (marked task complete)
+
+## 2026-03-08 — Phase 2, Trading Endpoints (FR-7): POST /markets/:marketId/sell
+
+- Added `POST /markets/:marketId/sell` endpoint to `packages/api/src/routes/trading.ts`
+  - JWT auth → validate outcome ("A"/"B") + amount (>0, ≤2 decimals) → require walletAddress on token
+  - Fetch market from node → validate open + not past eventStartTime
+  - Fetch user shares from node `GET /internal/shares/:addr` → validate user holds ≥ amount of shares for the specified outcome → `INSUFFICIENT_SHARES` (400) if not
+  - Look up user in SQLite for encrypted private key → decrypt with AES-256-GCM
+  - Construct `SellSharesTx` with `shareAmount` field (not `amount` like PlaceBet)
+  - Sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+  - Response includes `txId`, `marketId`, `outcome`, `shareAmount`, `status: "accepted"`
+  - Maps node errors (INSUFFICIENT_SHARES, NODE_UNAVAILABLE) to API error catalog
+  - Validates market status (resolved → MARKET_ALREADY_RESOLVED, cancelled/closed → MARKET_CLOSED)
+- Pattern closely mirrors POST /markets/:marketId/buy but with SellSharesTx type and shares validation step
+
+Files changed:
+- packages/api/src/routes/trading.ts (added sell endpoint, imported SellSharesTx)
+- PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 2, Trading Endpoints (FR-7): Validation + Tests
+
+- Marked `packages/api/src/validation.ts` complete — already existed with `validateAmount`, `validateOutcome`, `validateMarketTradeable`
+- Fixed bug in `packages/api/src/node-client.ts`: `NodeError` type had `error` field but node actually returns `code` field — changed to `{ code: string, message: string }` to match actual node API response format
+- Fixed `packages/api/src/routes/trading.ts`:
+  - Updated error mapping to check `nodeError.code` instead of `nodeError.error` (was broken — INSUFFICIENT_BALANCE and INSUFFICIENT_SHARES errors from node were never matched)
+  - Changed module-level `const NODE_URL` to `getNodeUrl()` function to read env dynamically, fixing cross-test pollution when multiple test files share the same process
+  - Added `rawAmount`/`amount` type narrowing pattern: destructure as `rawAmount`, validate, then `const amount = rawAmount as number` — resolves TS2345/TS18046 errors from `unknown` type flowing into numeric operations
+- Created `packages/api/tests/trading-buy-sell.test.ts` — 10 integration tests covering:
+  - Buy: 3+ decimal places → INVALID_AMOUNT (400)
+  - Buy: market past eventStartTime → MARKET_CLOSED (400)
+  - Buy: insufficient balance → INSUFFICIENT_BALANCE (400)
+  - Buy: resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Sell: 3+ decimal places → INVALID_AMOUNT (400)
+  - Sell: market past eventStartTime → MARKET_CLOSED (400)
+  - Sell: insufficient shares → INSUFFICIENT_SHARES (400)
+  - Sell: zero shares for outcome → INSUFFICIENT_SHARES (400)
+  - Sell: resolved market → MARKET_ALREADY_RESOLVED (400)
+  - Preview matches actual trade with no intervening trades (buy/preview → buy → verify AMM match)
+
+Gotchas:
+- Node returns `{ code, message }` but NodeError type had `{ error, message }` — silent type mismatch meant error codes were never matched at runtime (both `nodeError.error` and `nodeError.message?.includes("CODE")` failed)
+- Module-level `const NODE_URL = process.env.NODE_URL` captures env at first import — when multiple test files share a process, only the first file's NODE_URL is used. Fix: read env dynamically via function call.
+
+Files changed:
+- packages/api/src/node-client.ts (fixed NodeError type: `error` → `code`)
+- packages/api/src/routes/trading.ts (fixed error mapping, dynamic NODE_URL, type narrowing)
+- packages/api/src/validation.ts (no changes, already existed)
+- packages/api/tests/trading-buy-sell.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 2, Transfer Endpoint (FR-8): Full implementation
+
+- Added `POST /wallet/transfer` endpoint to `packages/api/src/routes/wallet.ts`
+  - JWT auth → validate amount (>0, ≤2 decimals) → validate recipientAddress is a string
+  - Validate sender ≠ recipient → `INVALID_TRANSFER` (400)
+  - Validate recipient exists in users table via `findUserByWallet()` → `RECIPIENT_NOT_FOUND` (404) if not found
+  - Look up user in SQLite for encrypted private key → decrypt with AES-256-GCM
+  - Construct `TransferTx` with `recipient` and `amount` fields
+  - Sign with `@wpm/shared/crypto` sign() → submit to node → return 202 receipt
+  - Response includes `txId`, `recipient`, `amount`, `status: "accepted"`
+  - Maps node errors (INSUFFICIENT_BALANCE, SELF_TRANSFER, NODE_UNAVAILABLE) to API error catalog
+- Changed `wallet.ts` `NODE_URL` from module-level const to `getNodeUrl()` function for test isolation (same pattern as trading.ts)
+- Created `packages/api/tests/wallet-transfer.test.ts` — 10 integration tests covering:
+  - Valid transfer succeeds (202 response shape with txId, recipient, amount, status)
+  - Transfer updates balances on node after block production (sender −500, recipient +500)
+  - Self-transfer → INVALID_TRANSFER (400)
+  - Unknown recipient → RECIPIENT_NOT_FOUND (404)
+  - Missing recipientAddress → RECIPIENT_NOT_FOUND (404)
+  - Amount with 3+ decimal places → INVALID_AMOUNT (400)
+  - Zero amount → INVALID_AMOUNT (400)
+  - Negative amount → INVALID_AMOUNT (400)
+  - Missing auth → UNAUTHORIZED (401)
+  - Insufficient balance → INSUFFICIENT_BALANCE (400)
+
+Files changed:
+- packages/api/src/routes/wallet.ts (added POST /wallet/transfer, dynamic NODE_URL, new imports)
+- packages/api/tests/wallet-transfer.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 2, User Profile & Positions (FR-9): Full implementation
+
+- Created `packages/api/src/routes/user.ts` — three endpoints:
+  - `GET /user/profile`: JWT auth → look up user in SQLite by `sub` → return `{ userId, name, email, walletAddress, createdAt }`
+  - `GET /user/positions`: JWT auth → fetch share positions from node `GET /internal/shares/:addr` → fetch node state for markets/pools → filter to open markets only → compute current price from AMM `calculatePrices()` and `estimatedValue = shares * price` → return `{ positions: [...] }` with each position including `marketId`, market summary, `outcome`, `shares`, `costBasis`, `currentPrice`, `estimatedValue`
+  - `GET /user/history`: JWT auth → scan all blocks for PlaceBet txs (costBasis per market) and SettlePayout txs (payout per market, excluding `liquidity_return`) → filter to resolved/cancelled markets → compute `profit = payout - costBasis` → sort by `resolvedAt` descending → return `{ history: [...] }` with each entry including `marketId`, market summary, `costBasis`, `payout`, `profit`
+- Mounted user routes in `packages/api/src/index.ts` via `app.route("/", user)`
+- Uses dynamic `getNodeUrl()` function for test isolation (same pattern as wallet/trading)
+- Created `packages/api/tests/user.test.ts` — 15 integration tests covering:
+  - Profile: correct fields for user1, correct fields for user2, rejects missing auth (401), nonexistent user returns 401
+  - Positions: returns open market positions with valuations (shares, costBasis, currentPrice, estimatedValue, market info), empty positions for user with no bets, rejects missing auth (401), rejects token without wallet address (401)
+  - History: returns resolved + cancelled markets (2 entries), resolved market has correct payout/profit (winner), cancelled market has full refund (payout = costBasis, profit = 0), empty history for user with no bets, does not include open markets, rejects missing auth (401), rejects token without wallet address (401)
+
+Gotchas:
+- Share positions for resolved/cancelled markets are deleted from chain state during `applyBlock()` cleanup. costBasis for history must be computed from PlaceBet transaction amounts in block history, not from the positions map.
+- Settlement payouts are auto-generated by the block producer: `generateResolvePayouts()` creates `SettlePayout` txs with `payoutType: "winnings"` for winners and `"liquidity_return"` for treasury; `generateCancelPayouts()` creates `"refund"` payouts returning costBasis. The `liquidity_return` payouts must be excluded from user payout calculations.
+
+Files changed:
+- packages/api/src/routes/user.ts (new)
+- packages/api/src/index.ts (mounted user routes)
+- packages/api/tests/user.test.ts (new)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 2, Leaderboard (FR-10): GET /leaderboard/alltime
+
+- Created `packages/api/src/routes/leaderboard.ts` — `GET /leaderboard/alltime` endpoint:
+  - JWT auth required
+  - Fetches node state once for all balances, markets, and pools (avoids N individual balance calls)
+  - For each user in SQLite: looks up balance from state, fetches share positions via `getShares()`, computes estimated value for open positions using AMM `calculatePrices()`
+  - `totalWpm = balance + positionValue` (both rounded to 2 decimals)
+  - Sorts descending by `totalWpm`, tiebreaks by `walletAddress` ascending (lexicographic)
+  - Assigns 1-indexed ranks
+  - Returns `{ rankings: [{ rank, userId, name, walletAddress, balance, positionValue, totalWpm }] }`
+- Added `getAllUsers()` helper to `packages/api/src/db/queries.ts` — bulk fetch all users ordered by `created_at` ascending
+- Mounted leaderboard routes in `packages/api/src/index.ts`
+- Created `packages/api/tests/leaderboard.test.ts` — 7 integration tests covering:
+  - Rankings sorted by totalWpm descending (3 users with different balances)
+  - 1-indexed rank assignment
+  - Response fields correct (rank, userId, name, walletAddress, balance, positionValue, totalWpm)
+  - User with positions has totalWpm = balance + positionValue
+  - User without positions has positionValue = 0
+  - Rankings are deterministic (same order from different requesters)
+  - Rejects request without auth → 401
+
+Files changed:
+- packages/api/src/routes/leaderboard.ts (new)
+- packages/api/src/db/queries.ts (added getAllUsers)
+- packages/api/src/index.ts (mounted leaderboard routes)
+- packages/api/tests/leaderboard.test.ts (new)
+- PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 2, Leaderboard (FR-10): GET /leaderboard/weekly
+
+- Added `GET /leaderboard/weekly` endpoint to `packages/api/src/routes/leaderboard.ts`
+  - Defines week as Mon 00:00:00.000 UTC → Sun 23:59:59.999 UTC
+  - Computes `weeklyPnl = currentTotalWpm - weekStartTotalWpm` for each user
+  - `weekStartTotalWpm` derived by replaying all blocks before Monday boundary using `StateSnapshot` class
+  - `currentTotalWpm` computed same as alltime (balance + estimated open position values)
+  - Sorts by `weeklyPnl` descending, tiebreaks by `walletAddress` ascending, 1-indexed ranks
+  - Returns `{ rankings: [...], weekStart }` with weekStart as UTC ms timestamp
+- Added `StateSnapshot` class — lightweight chain state replay that mirrors `ChainState.applyTransaction` logic
+  - Tracks balances, pools (AMMPool), share positions, and market statuses
+  - Handles all 9 transaction types identically to node's `ChainState`
+  - Accepts `treasuryAddress` in constructor (derived from genesis block's first tx sender)
+  - Cleans up pools and share positions on market settlement (same as ChainState.applyBlock)
+- Added `getWeekStartTimestamp(now?)` helper — computes Monday 00:00 UTC for any date
+- Added `fetchAllBlocks(node)` helper — paginates through node's `GET /internal/blocks` (50 per batch)
+- Exported `getWeekStartTimestamp` and `StateSnapshot` for testing
+- Created `packages/api/tests/leaderboard-weekly.test.ts` — 17 tests covering:
+  - Weekly rankings sorted by weeklyPnl descending (all users positive when all activity is this week)
+  - Correct response fields (rank, userId, name, walletAddress, currentTotalWpm, weekStartTotalWpm, weeklyPnl)
+  - weekStart timestamp is Monday 00:00 UTC (validated day/hour/minute/second)
+  - weeklyPnl = currentTotalWpm when all chain activity happened this week (weekStartTotalWpm = 0)
+  - User with bet has weeklyPnl reflecting position value
+  - Transfer between users is zero-sum in rankings
+  - 1-indexed rank assignment
+  - Rankings are deterministic across different requesters
+  - Rejects missing auth → UNAUTHORIZED (401)
+  - getWeekStartTimestamp: Wednesday → Monday, Monday → same Monday, Sunday → previous Monday, Saturday → previous Monday
+  - getWeekStartTimestamp: month boundary crossing, year boundary crossing
+  - StateSnapshot: replays blocks to produce correct balances
+  - StateSnapshot: stops at boundary block to give historical state
+
+Files changed:
+- packages/api/src/routes/leaderboard.ts (added weekly endpoint, StateSnapshot class, helper functions)
+- packages/api/tests/leaderboard-weekly.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 3, Token Distribution (FR-12): POST /admin/distribute
+
+- Created `packages/api/src/routes/admin.ts` — admin route with `POST /admin/distribute` endpoint
+  - Admin auth via `authMiddleware` + `adminMiddleware` chain on `/admin/*` paths
+  - Validates amount (>0, ≤2 decimals) via shared `validateAmount()` helper
+  - Validates recipient is a non-empty string
+  - Validates reason is one of `["signup_airdrop", "referral_reward", "manual"]` (excludes "genesis" which is node-internal only)
+  - Forwards to node `POST /internal/distribute` which handles PoA signing and mempool submission
+  - Maps node errors: `INSUFFICIENT_BALANCE` → 400, `NODE_UNAVAILABLE` → 503
+  - Returns 202 with `{ txId, recipient, amount, reason, status: "accepted" }`
+  - Uses dynamic `getNodeUrl()` for test isolation
+- Mounted admin routes in `packages/api/src/index.ts` via `app.route("/", admin)`
+- Created `packages/api/tests/admin-distribute.test.ts` — 12 integration tests covering:
+  - Valid distribute succeeds with 202 and correct response shape
+  - Treasury decreases and recipient increases after block production
+  - Accepts all 3 valid reasons (signup_airdrop, referral_reward, manual)
+  - Rejects invalid reason (400)
+  - Rejects genesis reason — admin cannot use it (400)
+  - Rejects missing reason (400)
+  - Rejects invalid amount with 3+ decimal places (400)
+  - Rejects zero amount (400)
+  - Rejects missing recipient (404)
+  - User JWT on admin route → FORBIDDEN (403)
+  - Missing auth → UNAUTHORIZED (401)
+
+Files changed:
+- packages/api/src/routes/admin.ts (new)
+- packages/api/src/index.ts (mounted admin routes)
+- packages/api/tests/admin-distribute.test.ts (new)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 3, Invite Code Management (FR-13): Full implementation
+
+- Added 3 endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/invite-codes`: validates `count` (1-100 integer), `maxUses` (positive integer), optional `referrer` (validated as existing wallet via `findUserByWallet`); generates `count` unique 8-char uppercase alphanumeric codes using `crypto.getRandomValues`; stores each with `use_count=0`, `active=1`, `created_by="admin"`; returns `{ codes: [...] }` (201)
+  - `GET /admin/invite-codes`: lists all codes with full metadata (camelCase response fields, `active` as boolean); sorted by `created_at` descending
+  - `DELETE /admin/invite-codes/:code`: soft-deletes by setting `active=0`; returns 404 if code doesn't exist; returns "Already deactivated" message if already inactive; keeps record in database
+- Added 5 query helpers to `packages/api/src/db/queries.ts`: `insertInviteCode`, `getAllInviteCodes`, `findInviteCode` (find regardless of active status), `deactivateInviteCode` (returns boolean for whether a row was actually changed)
+- Created `packages/api/tests/admin-invite-codes.test.ts` — 17 tests covering:
+  - Generates correct number of codes (count=3)
+  - Codes are unique 8-char uppercase alphanumeric (regex validated)
+  - Codes stored in DB with correct metadata (maxUses, use_count=0, active=1, created_by, null referrer)
+  - Accepts optional referrer as existing wallet address
+  - Rejects referrer with unknown wallet → RECIPIENT_NOT_FOUND (404)
+  - Rejects invalid count (0) → 400
+  - Rejects invalid maxUses (0) → 400
+  - Rejects user JWT → FORBIDDEN (403)
+  - Rejects missing auth → UNAUTHORIZED (401)
+  - GET lists all codes with full camelCase metadata and boolean active
+  - GET rejects user JWT → FORBIDDEN (403)
+  - DELETE deactivates code (sets active=false in DB)
+  - Deactivated code not returned by findActiveInviteCode
+  - DELETE already inactive code returns "Already deactivated"
+  - DELETE nonexistent code → 404
+  - DELETE rejects user JWT → FORBIDDEN (403)
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 invite code endpoints + generateCode helper)
+- packages/api/src/db/queries.ts (added 5 query helpers)
+- packages/api/tests/admin-invite-codes.test.ts (new)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, Market Operations (FR-14): Full implementation
+
+- Added 3 admin market operation endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/markets/:marketId/cancel`: validates market exists and is open, constructs `CancelMarketTx` signed by oracle private key, submits to node; requires `reason` in body; returns 202 with `{ txId, marketId, status }`
+  - `POST /admin/markets/:marketId/resolve`: validates market exists and is open, validates `winningOutcome` ("A"/"B") and `finalScore` (non-empty string), constructs `ResolveMarketTx` signed by oracle with `timestamp = Math.max(Date.now(), market.eventStartTime)` to satisfy validation rule, submits to node; returns 202 with `{ txId, marketId, winningOutcome, status }`
+  - `POST /admin/markets/:marketId/seed`: validates market exists and is open, fetches all blocks to check for PlaceBet/SellShares trades on the market → rejects with `MARKET_HAS_TRADES` (400) if trades exist; otherwise cancels existing market (CancelMarketTx) and creates a new market (CreateMarketTx) with new `marketId`, same sport/teams/outcomes/eventStartTime, new `seedAmount`, new `externalEventId` (derived from original + `-reseed-{uuid}` suffix); returns 202 with `{ cancelTxId, createTxId, oldMarketId, newMarketId, seedAmount, status }`
+- Added helper functions: `getOraclePrivateKey()`, `getOraclePublicKey()` (read from env), `fetchAllBlocks(node)` (paginated block fetching)
+- All 3 endpoints use oracle key for signing (loaded from `ORACLE_PRIVATE_KEY` and `ORACLE_PUBLIC_KEY` env vars)
+- Created `packages/api/tests/admin-markets.test.ts` — 24 integration tests covering:
+  - Cancel: succeeds with 202, market status changes to cancelled after block, rejects already-resolved (400), rejects already-cancelled (400), rejects nonexistent market (404), rejects missing reason (400), rejects user JWT (403), rejects no auth (401)
+  - Resolve: succeeds with 202, market has correct outcome/score after block, rejects already-resolved (400), rejects invalid outcome (400), rejects missing finalScore (400), rejects nonexistent market (404), rejects user JWT (403), rejects no auth (401)
+  - Seed: succeeds with 202 and returns both txIds + new marketId, old market cancelled + new market created after block with same params, rejects when market has trades (MARKET_HAS_TRADES 400), rejects invalid seedAmount (400), rejects zero seedAmount (400), rejects nonexistent market (404), rejects user JWT (403), rejects no auth (401)
+
+Gotchas:
+- ResolveMarket validation requires `tx.timestamp >= market.eventStartTime` — use `Math.max(Date.now(), market.eventStartTime)` to satisfy this. However, mempool rejects timestamps >5 min in the future (MAX_TIMESTAMP_DRIFT_MS), so markets with `eventStartTime` far in the future cannot be resolved until eventStartTime is within 5 minutes of current time.
+- Seed override creates a new market with a new `externalEventId` because the `externalEventIds` map in chain state is never cleaned up on cancel — the old externalEventId mapping persists. Using `{originalExternalEventId}-reseed-{shortUuid}` avoids the `DUPLICATE_EVENT` validation error.
+- Both cancel and create txs for seed are submitted to mempool simultaneously. The cancel tx is validated against current state (market open ✓). The create tx is validated independently with a new marketId/externalEventId. Both are processed in the next block, with cancel applied first (earlier in mempool).
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 market operation endpoints, oracle key helpers, fetchAllBlocks)
+- packages/api/tests/admin-markets.test.ts (new)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, System Monitoring (FR-15): Full implementation
+
+- Added 3 system monitoring endpoints to `packages/api/src/routes/admin.ts`:
+  - `GET /admin/treasury`: derives treasury address from genesis block (first tx sender = PoA), fetches current balance from node state, scans all blocks to compute aggregates: `totalDistributed` (sum of all Distribute tx amounts), `totalSeeded` (sum of all CreateMarket seedAmounts), `totalReclaimed` (sum of SettlePayout with `payoutType: "liquidity_return"` to treasury address); returns `{ treasuryAddress, balance, totalDistributed, totalSeeded, totalReclaimed }` with all values rounded to 2 decimal places
+  - `GET /admin/users`: fetches all users from SQLite via `getAllUsers()`, enriches each with current balance from node state; returns `{ users: [{ userId, name, email, walletAddress, role, balance, createdAt }] }`
+  - `GET /admin/health`: proxies node `GET /internal/health`, augments with API uptime (`process.uptime()`), `apiVersion` from package.json ("0.0.1"), `connectedSSEClients` count from SSE relay (gracefully handles uninitialized relay); returns `"degraded"` status when node is unreachable, `"ok"` otherwise; includes node `blockHeight`, `mempoolSize`, `uptimeMs` when reachable
+- All 3 endpoints protected by `authMiddleware` + `adminMiddleware` chain
+- Imported `getAllUsers` from queries and `getRelay` from SSE relay module
+- Created `packages/api/tests/admin-monitoring.test.ts` — 16 tests covering:
+  - Treasury: returns balance and aggregates with correct types, totalDistributed includes all Distribute tx amounts, totalSeeded includes CreateMarket seedAmounts, totalReclaimed includes liquidity_return payouts, aggregates consistent with actual node state balance, rejects user JWT (403), rejects no auth (401)
+  - Users: returns all users with balances, entries have correct fields, balances match node state (user1: 99500 after 100K - 500 bet, user2: 50000), rejects user JWT (403), rejects no auth (401)
+  - Health: returns ok status with node info when reachable, reflects node block height (≥3), rejects user JWT (403), rejects no auth (401)
+
+Gotchas:
+- Treasury address is derived from genesis block's first transaction sender (PoA/treasury key), not hardcoded — the API discovers it at request time via `node.getBlock(0)`
+- `getRelay()` throws if SSE relay not initialized — wrapped in try/catch to default to 0 connected clients for the health endpoint
+- `process.uptime()` returns seconds, multiplied by 1000 for milliseconds to match the health endpoint convention
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 3 system monitoring endpoints, imported getAllUsers + getRelay)
+- packages/api/tests/admin-monitoring.test.ts (new)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-09 — Phase 3, Oracle Triggers (FR-16): Full implementation
+
+- Added 2 oracle trigger proxy endpoints to `packages/api/src/routes/admin.ts`:
+  - `POST /admin/oracle/ingest`: proxies to oracle server `POST /trigger/ingest` via `fetch` with `AbortSignal.timeout(30_000)`; forwards both success and error responses transparently; returns `NODE_UNAVAILABLE` (503) when oracle is unreachable
+  - `POST /admin/oracle/resolve`: proxies to oracle server `POST /trigger/resolve` via `fetch` with `AbortSignal.timeout(30_000)`; same error handling pattern
+- Oracle URL configurable via `ORACLE_URL` env var (default `http://wpm-oracle:3001`)
+- Uses dynamic `getOracleUrl()` function for test isolation (same pattern as NODE_URL)
+- Both endpoints protected by `authMiddleware` + `adminMiddleware` chain
+- Created `packages/api/tests/admin-oracle.test.ts` — 10 tests covering:
+  - Ingest: successful forward (200 with oracle response), error forward (400 with oracle error), oracle unreachable → NODE_UNAVAILABLE (503), user JWT → FORBIDDEN (403), missing auth → UNAUTHORIZED (401)
+  - Resolve: successful forward (200), error forward (500), oracle unreachable → NODE_UNAVAILABLE (503), user JWT → FORBIDDEN (403), missing auth → UNAUTHORIZED (401)
+- Tests use `Bun.serve` with port 0 for mock oracle server with mutable response fixtures
+
+Gotchas:
+- `Bun.serve` with `port: 0` requires sandbox bypass for port binding in tests
+- Mock oracle uses mutable `mockIngestResponse`/`mockResolveResponse` variables that tests can override before each request
+
+Files changed:
+- packages/api/src/routes/admin.ts (added 2 oracle trigger endpoints, getOracleUrl helper)
+- packages/api/tests/admin-oracle.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
+
+## 2026-03-09 — Phase 4, Oracle Inbound Interface: Full implementation
+
+- Created `packages/api/src/routes/oracle.ts` — two endpoints for oracle-to-API communication:
+  - `POST /oracle/transaction`: validates pre-signed oracle transactions before forwarding to node
+    - Loads `ORACLE_PUBLIC_KEY` from env dynamically via `getOraclePublicKey()`
+    - Validates `tx.sender === oraclePublicKey` to ensure only oracle transactions are accepted
+    - Verifies cryptographic signature using `verify()` from `@wpm/shared/crypto` against `JSON.stringify({ ...tx, signature: undefined })`
+    - Rejects: wrong sender (401), invalid/tampered signature (401), missing signature (401), invalid JSON (400)
+    - On valid signature, forwards tx to node `POST /internal/transaction` → returns 202 with `{ txId, status: "accepted" }`
+    - Maps node errors: 503 → NODE_UNAVAILABLE, others → INTERNAL_ERROR
+  - `GET /oracle/markets`: proxies node state with optional status filtering
+    - Fetches full node state via `getState()`
+    - Supports `?status=` query param with comma-separated values (e.g., `open,resolved,cancelled`)
+    - Returns all markets when no filter specified
+    - Silently ignores invalid status values (only accepts `open`, `resolved`, `cancelled`)
+    - Returns `{ markets: [...] }` with market objects from node state
+- Mounted oracle routes in `packages/api/src/index.ts` via `app.route("/", oracle)`
+- No auth middleware (JWT) on oracle routes — authentication is via cryptographic signature verification on the transaction itself
+- Created `packages/api/tests/oracle.test.ts` — 16 integration tests covering:
+  - POST /oracle/transaction:
+    - Valid oracle-signed CreateMarket tx → 202 accepted with txId
+    - Tx actually submitted to node and processed after block production (market exists in chain state)
+    - Wrong sender (non-oracle key) → UNAUTHORIZED (401)
+    - Tampered data after signing → UNAUTHORIZED (401) "Invalid oracle signature"
+    - Correct sender but wrong private key → UNAUTHORIZED (401)
+    - Missing signature field → UNAUTHORIZED (401)
+    - Invalid JSON body → INVALID_AMOUNT (400)
+    - Missing sender field → UNAUTHORIZED (401)
+  - GET /oracle/markets:
+    - No filter → returns all markets (≥3)
+    - status=open → only open markets
+    - status=resolved → only resolved markets
+    - status=cancelled → only cancelled markets
+    - Comma-separated status=open,resolved → both statuses
+    - All three statuses → all markets
+    - Invalid status value → empty array
+    - Mixed valid/invalid status values → only valid matches
+
+Files changed:
+- packages/api/src/routes/oracle.ts (new)
+- packages/api/src/index.ts (mounted oracle routes)
+- packages/api/tests/oracle.test.ts (new)
+- PLAN.md (marked 3 tasks complete)
+
+## 2026-03-09 — Phase 5, SSE Event Transformation: Event-type mapping
+
+- Enriched `packages/api/src/sse/relay.ts` with full event-type mapping from node events to client events:
+  - `trade:executed` → `price:update` + `bet:placed` + `balance:update`
+    - `price:update`: prices from node event + computed multipliers (1/price), totalVolume placeholder (0, task 2)
+    - `bet:placed`: enriched with userId/userName from SQLite via `findUserByWallet()`
+    - `balance:update`: fetches current balance from node `GET /internal/balance/:addr`
+  - `market:created` → `market:created` (pass through)
+  - `market:resolved` → `market:resolved` (immediate) + `payout:received` + `balance:update` + `leaderboard:update` (deferred to block:new)
+    - Buffers resolved market IDs in `pendingSettlementMarketIds`
+    - On `block:new`: fetches block from node, scans for SettlePayout txs (excluding `liquidity_return`), emits `payout:received` per payout, `balance:update` per affected address, and `leaderboard:update` with full rankings
+  - `market:cancelled` → `market:cancelled` (pass through, also buffers for payout enrichment on block:new)
+  - `block:new` → `block:new` with field rename: `index` → `blockIndex`, `txCount` → `transactionCount`
+- Event processing pipeline is now async — `processNodeEvent()` parses JSON, delegates to `transformEvent()`, broadcasts each resulting `ClientEvent`
+- Added `computeLeaderboard()` private method — reuses logic from leaderboard route (fetch state, compute balance + position values, sort, rank)
+- Added `getNodeClient()` private method — creates node client from stored nodeUrl
+- Split broadcast into `broadcastClientEvent(event, data)` (JSON.stringify) and `broadcastRaw(event, data)` (passthrough for unparseable events)
+- Updated `packages/api/tests/tracer-sse.test.ts` — test now verifies transformed events:
+  - Checks for `price:update`, `bet:placed`, `balance:update`, `block:new` (with `blockIndex`/`transactionCount`)
+  - Verifies `trade:executed` is NOT present in output (raw node events are transformed)
+  - Waits for `block:new` (last event in sequence) instead of `trade:executed`
+
+Gotchas:
+- `payout:received` and `leaderboard:update` events are deferred to `block:new` processing because SettlePayout transactions are auto-generated by the block producer and don't have their own node-level events. The block must be fetched from the node API to discover payout details.
+- `market:cancelled` also generates refund payouts (SettlePayout with `payoutType: "refund"`), so it uses the same buffering pattern as `market:resolved`.
+- The event processing pipeline is sequential within a block's events (trade events processed before block:new), which ensures the pending settlement buffer is populated before the block:new handler processes it.
+
+Files changed:
+- packages/api/src/sse/relay.ts (rewrote with event transformation layer)
+- packages/api/tests/tracer-sse.test.ts (updated to verify transformed events)
+- PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 5, SSE Event Transformation: Volume computation for price:update
+
+- Added `computeMarketVolume(marketId)` private method to `SSERelay` class
+  - Fetches all blocks from node via paginated `getBlocks()` (100 per batch)
+  - Sums `PlaceBet.amount` + `SellShares.shareAmount` for the specified marketId
+  - Returns `round2(volume)` for consistent 2-decimal precision
+  - Same volume computation pattern used in `GET /markets` route
+- Updated `transformTradeExecuted()` to call `computeMarketVolume()` before emitting `price:update`
+  - Replaces `totalVolume: 0` placeholder with actual computed volume
+  - Wrapped in try/catch — defaults to 0 if node unavailable
+- Updated `packages/api/tests/tracer-sse.test.ts` to verify `totalVolume` in `price:update` event
+  - Parses SSE event data and asserts `totalVolume === 50` (from the 50 WPM PlaceBet tx)
+
+Files changed:
+- packages/api/src/sse/relay.ts (added computeMarketVolume method, updated transformTradeExecuted)
+- packages/api/tests/tracer-sse.test.ts (added totalVolume assertion)
+- PLAN.md (marked task complete)
+
+## 2026-03-09 — Phase 5, SSE Event Transformation: Last-Event-ID reconnection + tests
+
+- Implemented `Last-Event-ID` reconnection in `packages/api/src/sse/relay.ts`:
+  - Added `id:` field to `block:new` SSE events using the block index — enables EventSource `Last-Event-ID` tracking
+  - Added `replayForClient(controller, fromBlockIndex)` method — fetches blocks from the node via paginated `GET /internal/blocks?from=N`, reconstructs client events from each block's transactions, and sends them to the reconnecting client's stream controller
+  - Added `eventsFromBlock(block)` private method — reconstructs the full set of client events from a block: `market:created` (CreateMarket), `price:update` + `bet:placed` (PlaceBet/SellShares), `market:resolved`/`market:cancelled` (ResolveMarket/CancelMarket), `payout:received` (SettlePayout excluding `liquidity_return`), and `block:new` with `id` field
+  - Added `sendToClient(controller, event, data, id?)` private method — targeted event delivery to a single client (vs broadcast to all)
+  - Modified `addClient(userId, lastEventId?)` to accept optional `lastEventId` parameter — when provided, replays missed blocks BEFORE registering the client for live broadcasts (ensures ordering: replay → live events)
+  - Updated `broadcastClientEvent()` to support optional `id` parameter for SSE event ID field
+- Updated `packages/api/src/routes/events.ts`:
+  - Reads `Last-Event-ID` from request header (automatic EventSource reconnect) or `lastEventId` query param (explicit reconnect)
+  - Passes to `relay.addClient(userId, lastEventId)`
+- Created `packages/api/tests/sse-reconnect.test.ts` — 9 integration tests covering:
+  - Live block:new events include `id` field with block index
+  - Reconnection with `Last-Event-ID=0` replays blocks from index 1 onward (correct block:new id)
+  - Reconnection replays `market:created` events from missed blocks (correct marketId, sport, teams)
+  - Reconnection replays `price:update` + `bet:placed` events from missed blocks (volume > 0, user enrichment)
+  - `lastEventId` query param works identically to `Last-Event-ID` header
+  - Reconnection at current block replays nothing (no block:new events emitted)
+  - Multiple blocks replayed in ascending order (block indices strictly increasing)
+  - Each replayed `block:new` event has `id` matching its `blockIndex`
+  - Non-block:new events in replay do not have `id` field
+
+Gotchas:
+- `addClient()` uses `this` alias (`relay = this`) because ReadableStream's `start()` callback needs non-arrow function for proper `controller` parameter binding, but also needs relay instance access
+- Replay runs before registering client for live broadcasts to prevent out-of-order events. There's a small window between replay completion and live registration where events could theoretically be missed, but this is negligible in practice.
+- `eventsFromBlock()` uses current state prices (not historical per-trade intermediate prices) for `price:update` events during replay — acceptable since the goal is to bring the client up to date
+- `sharesReceived` in replayed `bet:placed` events is 0 since AMM intermediate state isn't preserved in block history
+
+Files changed:
+- packages/api/src/sse/relay.ts (added replay methods, id field on block:new, updated addClient/broadcast)
+- packages/api/src/routes/events.ts (read Last-Event-ID header + lastEventId query param)
+- packages/api/tests/sse-reconnect.test.ts (new — 9 integration tests)
+- PLAN.md (marked 2 tasks complete)
+
+## 2026-03-09 — Phase 5, Rate Limiting (NFR-4): Full implementation
+
+- Created `packages/api/src/middleware/rate-limit.ts` — in-memory sliding window rate limiter:
+  - `createRateLimiter(config)` factory returns a Hono middleware with an attached `store` for testing
+  - Sliding window algorithm: tracks request timestamps per key, filters expired entries, rejects when count ≥ limit
+  - Returns HTTP 429 with `Retry-After` header (seconds until oldest request in window expires) and `{ error: { code: "RATE_LIMITED", message: "Too many requests" } }` body
+  - Periodic cleanup interval (60s) removes stale keys from store; timer is `unref()`ed to not keep process alive
+  - `keyFn` supports both sync and async key extraction — returns `null` to skip rate limiting
+  - `ipKey(c)` helper: extracts client IP from `x-forwarded-for` (first entry) → `x-real-ip` → `"unknown"`
+  - `userIdFromJwt(c)` helper: extracts `sub` claim from Bearer JWT in Authorization header; returns `null` on missing/invalid token (rate limiting skipped, auth middleware handles the 401 separately)
+  - `resetAllStores()` for test isolation
+- Pre-configured rate limiters:
+  - `authRateLimit`: 10 requests/min per IP (keyed by IP) — for `/auth/*` endpoints
+  - `adminRateLimit`: 120 requests/min per IP — for `/admin/*` endpoints
+  - `userRateLimit`: 60 requests/min per userId (keyed by JWT sub claim) — for `/wallet/*`, `/markets/*`, `/user/*`, `/leaderboard/*`
+  - SSE 1-concurrent-per-user: already enforced by `SSERelay.addClient()` which closes prior connections
+- Applied rate limiters in `packages/api/src/index.ts` via `app.use()` path patterns before route mounts
+- Created `packages/api/tests/rate-limit.test.ts` — 17 tests covering:
+  - Allows requests within limit (3 of 3 succeed)
+  - Rejects requests exceeding limit with 429 + RATE_LIMITED error body
+  - Includes Retry-After header on 429 (> 0, ≤ 60)
+  - Different keys are rate limited independently (userA, userB, userC)
+  - Window expires and requests are allowed again (100ms window, 150ms wait)
+  - Null key skips rate limiting (5 requests all succeed)
+  - Supports async keyFn
+  - Store tracks timestamps correctly (count matches request count)
+  - Stale timestamps filtered on new request after window expiry
+  - ipKey: extracts from x-forwarded-for, takes first from comma-separated list, falls back to x-real-ip
+  - userIdFromJwt: extracts userId from valid Bearer token, returns null for missing header, returns null for invalid token, different users independent
+  - resetAllStores clears all stores
+
+Gotchas:
+- User rate limiter extracts userId directly from the JWT in the Authorization header (via `verifyJwt`), not from `c.get("user")`, because the rate limiter middleware runs at the `app.use()` level before auth middleware in the sub-routers. This adds a fast HMAC-SHA256 verification but avoids coupling to middleware ordering.
+- SSE `/events/*` endpoint uses `?token=` query param for auth, not Authorization header, so the `userIdFromJwt` key extractor returns null and rate limiting is skipped. The 1-concurrent limit is handled by the relay.
+- Oracle endpoints (`/oracle/*`) are not rate limited — they are machine-to-machine with cryptographic signature authentication.
+
+Files changed:
+- packages/api/src/middleware/rate-limit.ts (new)
+- packages/api/src/index.ts (added rate limiter imports + app.use() path patterns)
+- packages/api/tests/rate-limit.test.ts (new — 17 tests)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Input Validation & CORS: Full implementation
+
+- Added CORS middleware to Hono app in `packages/api/src/index.ts`:
+  - Uses `hono/cors` with `CORS_ORIGIN` env var (default `https://wpm.example.com`)
+  - Allows GET, POST, DELETE, OPTIONS methods
+  - Allows Content-Type and Authorization headers
+  - Credentials enabled for cookie-based refresh tokens
+- Added request body size limit of 64 KB via `hono/body-limit`:
+  - Returns 413 with `VALIDATION_ERROR` code when exceeded
+- Added `X-Request-Id` generation middleware:
+  - Uses `crypto.randomUUID()` per request
+  - Sets `requestId` on Hono context for downstream logging
+  - Sets `X-Request-Id` response header
+  - Added `AppEnv` type with `Variables: { requestId: string }` for typed context
+- Added strict body validation via `validateExtraFields()` in `packages/api/src/validation.ts`:
+  - Applied to all POST endpoints across trading, auth, wallet, and admin routes
+  - Returns `VALIDATION_ERROR` (400) with descriptive message listing unknown fields
+- Created `packages/api/tests/input-validation.test.ts` — 25 tests covering:
+  - validateExtraFields: exact fields, subset, empty body, extra fields, multiple extra, no allowed fields
+  - CORS: Access-Control-Allow-Origin header, credentials, OPTIONS preflight, disallowed origin
+  - Body size limit: under 64 KB accepted, over 64 KB → 413
+  - X-Request-Id: UUID format, unique per request, accessible on context
+  - Strict body validation integration: trading (buy/preview, sell/preview), auth (register/begin, admin/login), wallet (transfer), admin (distribute)
+  - Middleware integration: X-Request-Id + CORS headers present on responses
+- Updated `packages/api/src/errors.ts` — added `VALIDATION_ERROR` code (already present in catalog, confirmed 20 error codes total)
+
+Files changed:
+- packages/api/src/index.ts (added CORS, body limit, X-Request-Id middleware)
+- packages/api/src/validation.ts (added validateExtraFields helper)
+- packages/api/src/errors.ts (confirmed VALIDATION_ERROR in catalog)
+- packages/api/src/routes/trading.ts (applied validateExtraFields to buy/preview, sell/preview, buy, sell)
+- packages/api/src/routes/auth.ts (applied validateExtraFields to register/begin, register/complete, login/complete, admin/login)
+- packages/api/src/routes/wallet.ts (applied validateExtraFields to transfer)
+- packages/api/src/routes/admin.ts (applied validateExtraFields to distribute, invite-codes, cancel, resolve, seed)
+- packages/api/tests/input-validation.test.ts (new — 25 tests)
+- packages/api/tests/errors.test.ts (updated expected count to 20 codes)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Structured Logging: Full implementation
+
+- Created `packages/api/src/logger.ts` — structured JSON logger module:
+  - `info(message, fields?)`, `warn(message, fields?)`, `error(message, fields?)` — log at different levels
+  - `audit(action, fields?)` — audit logging with `audit: true` flag and automatic sensitive field sanitization
+  - `sanitize(obj)` — recursively redacts sensitive keys (password, privateKey, token, apiKey, secret, wallet_private_key_enc, WALLET_ENCRYPTION_KEY, ADMIN_API_KEY, ORACLE_PRIVATE_KEY, credential, attestation, assertion, signature, etc.) to `[REDACTED]`
+  - Uses `Bun.write(Bun.stdout, ...)` with `TextEncoder` for zero-copy output
+  - Outputs newline-delimited JSON (one JSON object per line)
+  - Each log entry includes: `timestamp` (ISO 8601), `level`, `message`, plus any additional fields
+- Added request/response logging middleware to `packages/api/src/index.ts`:
+  - Logs on completion with `method`, `path`, `statusCode`, `durationMs`, `requestId`, and `userId` (if authenticated)
+  - Uses `warn` level for 5xx responses, `info` for all others
+  - Replaced `console.log` startup message with structured `info()` call
+- Added audit logging to all admin actions in `packages/api/src/routes/admin.ts`:
+  - `admin.distribute` — logs admin identity, recipient, amount, reason, txId
+  - `admin.invite-codes.create` — logs admin, count, maxUses, referrer
+  - `admin.invite-codes.delete` — logs admin, code
+  - `admin.market.cancel` — logs admin, marketId, reason, txId
+  - `admin.market.resolve` — logs admin, marketId, winningOutcome, finalScore, txId
+  - `admin.market.seed` — logs admin, old/new marketId, seedAmount, txIds
+  - `admin.oracle.ingest` — logs admin identity
+  - `admin.oracle.resolve` — logs admin identity
+  - All audit fields are sanitized before logging (sensitive values → `[REDACTED]`)
+- Created `packages/api/tests/logger.test.ts` — 18 tests covering:
+  - sanitize: redacts sensitive keys, nested objects, arrays, handles null/undefined/primitives, depth limiting, all known sensitive keys, passes non-sensitive keys
+  - log functions: info/warn/error produce correct level, ISO timestamp, additional fields, newline-delimited JSON
+  - audit: produces log with audit flag, sanitizes sensitive fields, works without fields
+  - request/response logging: logs method/path/status/duration/requestId, 500 responses use warn level
+
+Files changed:
+- packages/api/src/logger.ts (new)
+- packages/api/src/index.ts (added logging middleware, structured startup log)
+- packages/api/src/routes/admin.ts (added audit logging to all 8 admin action endpoints)
+- packages/api/tests/logger.test.ts (new — 18 tests)
+- PLAN.md (marked 4 tasks complete)
+
+## 2026-03-10 — Phase 5, Graceful Shutdown: Full implementation
+
+- Added SIGTERM/SIGINT signal handlers to `packages/api/src/index.ts`
+- `shutdown()` function executes in order: `server.stop()` to drain in-flight HTTP requests, `getRelay().close()` to disconnect all SSE clients and abort node connection, `closeDb()` to close the SQLite database, then `process.exit(0)`
+- SSE relay close is wrapped in try/catch — gracefully handles case where relay was never initialized (e.g., if server is shutting down before SSE connection was established)
+- Structured log messages emitted at shutdown start and completion for observability
+
+Files changed:
+- packages/api/src/index.ts (added signal handlers, imported getRelay + closeDb)
+- PLAN.md (marked task complete)
