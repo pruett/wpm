@@ -6,7 +6,7 @@
   "scripts": {
     "build": "echo 'TODO: configure web build'",
     "dev": "echo 'TODO: configure web dev server'",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@wpm/shared": "workspace:*"

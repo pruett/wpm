@@ -25,3 +25,4 @@ nginx/certs/
 
 # opensrc - source code for packages
 opensrc/
+!.claude/skills/opensrc/
