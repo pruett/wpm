@@ -51,7 +51,11 @@ export const makeRouter = Effect.gen(function* () {
         tx.signature = sign(serializeTx(tx as Record<string, unknown>), userKeys.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
-      }),
+      }).pipe(
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
     ),
 
     HttpRouter.get(

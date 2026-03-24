@@ -36,6 +36,7 @@ export const produceBlock = Effect.gen(function* () {
 
   const txs = yield* mempool.drain(100);
   if (txs.length === 0) return;
+  yield* Effect.logInfo(`Producing block with ${txs.length} transaction(s)`);
 
   const state = yield* chainState.get;
   const prevHash =

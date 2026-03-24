@@ -35,10 +35,12 @@ const program = Effect.gen(function* () {
 
   // Block producer — runs every 5 seconds
   yield* produceBlock.pipe(
-    Effect.catchAll((e) => Effect.logError("Block production error", e)),
+    Effect.tap(() => Effect.logDebug("Block production tick")),
+    Effect.catchAll((e) => Effect.logError(`Block production error: ${e}`)),
     Effect.repeat(Schedule.fixed("5 seconds")),
     Effect.forkScoped,
   );
+  yield* Effect.logInfo("Block producer started");
 
   const router = yield* makeRouter;
   yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
