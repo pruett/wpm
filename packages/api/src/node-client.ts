@@ -26,7 +26,7 @@ export class NodeClient extends Context.Tag("NodeClient")<
     Effect.gen(function* () {
       const baseClient = yield* HttpClient.HttpClient;
       const client = baseClient.pipe(
-        HttpClient.mapRequest(HttpClientRequest.prependUrl("http://localhost:4000")),
+        HttpClient.mapRequest(HttpClientRequest.prependUrl("http://localhost:4100")),
       );
       return {
         submitTransaction: (tx) =>

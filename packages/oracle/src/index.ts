@@ -15,14 +15,14 @@ const program = Effect.gen(function* () {
 
   // Wait for node
   yield* client
-    .get("http://localhost:4000/internal/health")
+    .get("http://localhost:4100/internal/health")
     .pipe(
       Effect.retry(Schedule.fixed("1 second").pipe(Schedule.intersect(Schedule.recurs(30)))),
       Effect.scoped,
     );
 
   // Check if market exists
-  const res = yield* client.get("http://localhost:4000/internal/markets").pipe(Effect.scoped);
+  const res = yield* client.get("http://localhost:4100/internal/markets").pipe(Effect.scoped);
   const markets = (yield* res.json) as any[];
   if (markets.some((m: any) => m.market.id === MARKET.id)) {
     yield* Effect.logInfo("Market already exists, idling");
@@ -30,7 +30,7 @@ const program = Effect.gen(function* () {
   }
 
   // Create market — node handles signing and treasury funding
-  yield* HttpClientRequest.post("http://localhost:4000/internal/create-market").pipe(
+  yield* HttpClientRequest.post("http://localhost:4100/internal/create-market").pipe(
     HttpClientRequest.bodyUnsafeJson(MARKET),
     client.execute,
     Effect.scoped,

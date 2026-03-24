@@ -11,19 +11,11 @@ import { createGenesisBlock } from "./genesis.js";
 import { makeRouter } from "./router.js";
 import { produceBlock } from "./producer.js";
 
-const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4000 });
+const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4100 });
 
 const BaseServices = Layer.mergeAll(ChainState.Live, EventBus.Live, Persistence.Live, Keys.Live);
 
 const ServicesLive = Mempool.Live.pipe(Layer.provideMerge(BaseServices));
-
-const ProducerLive = Layer.scopedDiscard(
-  produceBlock.pipe(
-    Effect.catchAll((e) => Effect.logError("Block production error", e)),
-    Effect.repeat(Schedule.fixed("5 seconds")),
-    Effect.forkScoped,
-  ),
-);
 
 const program = Effect.gen(function* () {
   const persistence = yield* Persistence;
@@ -41,12 +33,19 @@ const program = Effect.gen(function* () {
     yield* Effect.logInfo(`Replayed ${blocks.length} blocks`);
   }
 
+  // Block producer — runs every 5 seconds
+  yield* produceBlock.pipe(
+    Effect.catchAll((e) => Effect.logError("Block production error", e)),
+    Effect.repeat(Schedule.fixed("5 seconds")),
+    Effect.forkScoped,
+  );
+
   const router = yield* makeRouter;
   yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
-  yield* Effect.logInfo("Node server listening on port 4000");
+  yield* Effect.logInfo("Node server listening on port 4100");
   yield* Effect.never;
 });
 
-const MainLive = ServicesLive.pipe(Layer.provideMerge(ProducerLive), Layer.provideMerge(HttpLive));
+const MainLive = ServicesLive.pipe(Layer.provideMerge(HttpLive));
 
-NodeRuntime.runMain(program.pipe(Effect.provide(MainLive)));
+NodeRuntime.runMain(program.pipe(Effect.scoped, Effect.provide(MainLive)));
