@@ -1,39 +1,30 @@
-import { randomUUID } from "node:crypto";
-import { sha256, sign } from "@wpm/shared";
-import type { Block, DistributeTx } from "@wpm/shared";
+import type { Block, Transaction } from "@wpm/shared";
+import { sha256, sign, serializeTx } from "@wpm/shared";
 
-const GENESIS_SUPPLY = 10_000_000;
+const INITIAL_SUPPLY = 10_000_000;
 
-export function createGenesisBlock(poaPublicKey: string, poaPrivateKey: string): Block {
-  const timestamp = Date.now();
-  const treasuryAddress = poaPublicKey;
-
-  const distributeTx: DistributeTx = {
-    id: randomUUID(),
+export function createGenesisBlock(keys: { poaPublicKey: string; poaPrivateKey: string }): Block {
+  const tx: Transaction = {
     type: "Distribute",
-    timestamp,
-    sender: treasuryAddress,
-    recipient: treasuryAddress,
-    amount: GENESIS_SUPPLY,
-    reason: "genesis",
+    to: keys.poaPublicKey,
+    amount: INITIAL_SUPPLY,
+    memo: "genesis",
     signature: "",
+    timestamp: new Date().toISOString(),
   };
-
-  const txSignData = JSON.stringify({ ...distributeTx, signature: undefined });
-  distributeTx.signature = sign(txSignData, poaPrivateKey);
+  tx.signature = sign(serializeTx(tx as Record<string, unknown>), keys.poaPrivateKey);
 
   const block: Block = {
     index: 0,
-    timestamp,
-    transactions: [distributeTx],
-    previousHash: "0",
+    timestamp: new Date().toISOString(),
+    transactions: [tx],
+    previousHash: "0".repeat(64),
     hash: "",
     signature: "",
+    signer: keys.poaPublicKey,
   };
-
-  const hashData = JSON.stringify({ ...block, hash: undefined, signature: undefined });
-  block.hash = sha256(hashData);
-  block.signature = sign(block.hash, poaPrivateKey);
+  block.hash = sha256(JSON.stringify({ ...block, hash: "", signature: "" }));
+  block.signature = sign(block.hash, keys.poaPrivateKey);
 
   return block;
 }

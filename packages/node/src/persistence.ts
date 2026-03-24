@@ -1,83 +1,42 @@
-import { readFileSync, appendFileSync, existsSync } from "node:fs";
-import { sha256, verify } from "@wpm/shared";
+import { Context, Effect, Layer, Ref } from "effect";
 import type { Block } from "@wpm/shared";
-import { ChainState } from "./state.js";
-import { logger } from "./logger.js";
+import { PersistenceError } from "./errors.js";
+import { readFileSync, appendFileSync, existsSync } from "node:fs";
 
-const DEFAULT_CHAIN_FILE = "/data/chain.jsonl";
-
-export function getChainFilePath(): string {
-  return process.env.CHAIN_FILE ?? DEFAULT_CHAIN_FILE;
-}
-
-export function appendBlock(block: Block, filePath?: string): void {
-  const path = filePath ?? getChainFilePath();
-  appendFileSync(path, JSON.stringify(block) + "\n");
-}
-
-export function replayChain(poaPublicKey: string, filePath?: string): ChainState {
-  const path = filePath ?? getChainFilePath();
-
-  if (!existsSync(path)) {
-    return new ChainState(poaPublicKey);
+export class Persistence extends Context.Tag("Persistence")<
+  Persistence,
+  {
+    readonly appendBlock: (block: Block) => Effect.Effect<void, PersistenceError>;
+    readonly loadChain: Effect.Effect<Block[], PersistenceError>;
   }
-
-  const content = readFileSync(path, "utf-8").trimEnd();
-  if (content.length === 0) {
-    return new ChainState(poaPublicKey);
-  }
-
-  const state = new ChainState(poaPublicKey);
-  const lines = content.split("\n");
-  const startMs = Date.now();
-
-  for (let i = 0; i < lines.length; i++) {
-    let block: Block;
-    try {
-      block = JSON.parse(lines[i]) as Block;
-    } catch {
-      throw new Error(`Invalid JSON at block index ${i}`);
-    }
-
-    validateBlockIntegrity(block, i, state);
-    state.applyBlock(block);
-  }
-
-  const durationMs = Date.now() - startMs;
-  logger.info("chain replayed", { blocks: lines.length, durationMs });
-  logger.metrics.blockHeight = lines.length;
-
-  return state;
-}
-
-function validateBlockIntegrity(block: Block, expectedIndex: number, state: ChainState): void {
-  if (block.index !== expectedIndex) {
-    throw new Error(
-      `Block index mismatch at position ${expectedIndex}: expected ${expectedIndex}, got ${block.index}`,
-    );
-  }
-
-  const expectedPreviousHash = expectedIndex === 0 ? "0" : state.chain[expectedIndex - 1].hash;
-
-  if (block.previousHash !== expectedPreviousHash) {
-    throw new Error(
-      `Invalid previousHash at block ${expectedIndex}: expected ${expectedPreviousHash}, got ${block.previousHash}`,
-    );
-  }
-
-  const hashData = JSON.stringify({
-    ...block,
-    hash: undefined,
-    signature: undefined,
+>() {
+  static Live = Layer.succeed(this, {
+    appendBlock: (block) =>
+      Effect.try({
+        try: () => appendFileSync("./data/chain.jsonl", JSON.stringify(block) + "\n"),
+        catch: (e) => new PersistenceError({ message: `${e}` }),
+      }),
+    loadChain: Effect.try({
+      try: () => {
+        if (!existsSync("./data/chain.jsonl")) return [];
+        return readFileSync("./data/chain.jsonl", "utf-8")
+          .trimEnd()
+          .split("\n")
+          .filter(Boolean)
+          .map((l) => JSON.parse(l));
+      },
+      catch: (e) => new PersistenceError({ message: `${e}` }),
+    }),
   });
-  const computedHash = sha256(hashData);
-  if (block.hash !== computedHash) {
-    throw new Error(
-      `Invalid hash at block ${expectedIndex}: expected ${computedHash}, got ${block.hash}`,
-    );
-  }
 
-  if (!verify(block.hash, block.signature, state.treasuryAddress)) {
-    throw new Error(`Invalid signature at block ${expectedIndex}`);
-  }
+  static Test = Layer.effect(
+    this,
+    Effect.gen(function* () {
+      const ref = yield* Ref.make<Block[]>([]);
+      return {
+        appendBlock: (block: Block) => Ref.update(ref, (bs) => [...bs, block]),
+        loadChain: Ref.get(ref),
+      };
+    }),
+  );
 }

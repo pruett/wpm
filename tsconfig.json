@@ -13,5 +13,6 @@
     "sourceMap": true,
     "outDir": "dist",
     "types": ["node"]
-  }
+  },
+  "exclude": ["opensrc"]
 }

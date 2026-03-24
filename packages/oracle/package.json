@@ -10,7 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@wpm/shared": "workspace:*"
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-node": "^0.106.0",
+    "@wpm/shared": "workspace:*",
+    "effect": "^3.21.0"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

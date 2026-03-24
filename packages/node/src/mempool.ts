@@ -1,108 +1,33 @@
+import { Context, Effect, Layer, Ref } from "effect";
 import type { Transaction } from "@wpm/shared";
+import { ChainState } from "./chain-state.js";
+import { Keys } from "./keys.js";
+import { ValidationError } from "./errors.js";
 import { validateTransaction } from "./validation.js";
-import type { ChainState } from "./state.js";
-import { logger } from "./logger.js";
 
-type MempoolError = {
-  code: string;
-  message: string;
-};
-
-type MempoolResult = { accepted: true } | { accepted: false; error: MempoolError };
-
-const MAX_TIMESTAMP_DRIFT_MS = 300_000;
-const MAX_CAPACITY = 1_000;
-
-export class Mempool {
-  private readonly queue: Transaction[] = [];
-  private readonly pendingIds: Set<string> = new Set();
-  private readonly oraclePublicKey?: string;
-
-  constructor(oraclePublicKey?: string) {
-    this.oraclePublicKey = oraclePublicKey;
+export class Mempool extends Context.Tag("Mempool")<
+  Mempool,
+  {
+    readonly add: (tx: Transaction) => Effect.Effect<void, ValidationError>;
+    readonly drain: (max: number) => Effect.Effect<Transaction[]>;
   }
+>() {
+  static Live = Layer.effect(
+    this,
+    Effect.gen(function* () {
+      const chainState = yield* ChainState;
+      const keys = yield* Keys;
+      const ref = yield* Ref.make<Transaction[]>([]);
 
-  private checkCapacity(): MempoolResult | null {
-    if (this.queue.length >= MAX_CAPACITY) {
       return {
-        accepted: false,
-        error: {
-          code: "MEMPOOL_FULL",
-          message: `Mempool is at capacity (${MAX_CAPACITY} pending transactions)`,
-        },
+        add: (tx) =>
+          Effect.gen(function* () {
+            const state = yield* chainState.get;
+            yield* validateTransaction(tx, state, keys);
+            yield* Ref.update(ref, (q) => [...q, tx]);
+          }),
+        drain: (max) => Ref.modify(ref, (q) => [q.slice(0, max), q.slice(max)]),
       };
-    }
-    return null;
-  }
-
-  add(tx: Transaction, state: ChainState): MempoolResult {
-    const full = this.checkCapacity();
-    if (full) return full;
-
-    const drift = Math.abs(tx.timestamp - Date.now());
-    if (drift > MAX_TIMESTAMP_DRIFT_MS) {
-      return {
-        accepted: false,
-        error: {
-          code: "TIMESTAMP_OUT_OF_RANGE",
-          message: `Transaction timestamp is ${drift}ms from wall-clock time (max ${MAX_TIMESTAMP_DRIFT_MS}ms)`,
-        },
-      };
-    }
-
-    if (this.pendingIds.has(tx.id)) {
-      return {
-        accepted: false,
-        error: {
-          code: "DUPLICATE_TX",
-          message: `Transaction ${tx.id} is already in the mempool`,
-        },
-      };
-    }
-
-    const validation = validateTransaction(tx, state, this.oraclePublicKey);
-    if (!validation.valid) {
-      logger.metrics.txRejected++;
-      logger.debug("tx rejected", { txId: tx.id, type: tx.type, code: validation.error.code });
-      return { accepted: false, error: validation.error };
-    }
-
-    this.queue.push(tx);
-    this.pendingIds.add(tx.id);
-    logger.metrics.txValidated++;
-    logger.metrics.mempoolSize = this.queue.length;
-    logger.debug("tx accepted", { txId: tx.id, type: tx.type });
-    return { accepted: true };
-  }
-
-  addDirect(tx: Transaction): MempoolResult {
-    const full = this.checkCapacity();
-    if (full) return full;
-
-    if (this.pendingIds.has(tx.id)) {
-      return {
-        accepted: false,
-        error: {
-          code: "DUPLICATE_TX",
-          message: `Transaction ${tx.id} is already in the mempool`,
-        },
-      };
-    }
-
-    this.queue.push(tx);
-    this.pendingIds.add(tx.id);
-    return { accepted: true };
-  }
-
-  drain(max: number): Transaction[] {
-    const taken = this.queue.splice(0, max);
-    for (const tx of taken) {
-      this.pendingIds.delete(tx.id);
-    }
-    return taken;
-  }
-
-  get size(): number {
-    return this.queue.length;
-  }
+    }),
+  );
 }

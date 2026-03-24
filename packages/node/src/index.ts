@@ -1,67 +1,52 @@
-import { loadKeys } from "./keys.js";
-import { replayChain, appendBlock, getChainFilePath } from "./persistence.js";
-import { createGenesisBlock } from "./genesis.js";
+import { HttpServer } from "@effect/platform";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { Effect, Layer, Schedule } from "effect";
+import { createServer } from "node:http";
+import { ChainState } from "./chain-state.js";
+import { EventBus } from "./event-bus.js";
+import { Persistence } from "./persistence.js";
 import { Mempool } from "./mempool.js";
-import { startProducer } from "./producer.js";
-import { startApi } from "./api.js";
-import { EventBus } from "./events.js";
-import { logger } from "./logger.js";
+import { Keys } from "./keys.js";
+import { createGenesisBlock } from "./genesis.js";
+import { makeRouter } from "./router.js";
+import { produceBlock } from "./producer.js";
 
-const PORT = Number(process.env.PORT ?? 3001);
-const chainFilePath = getChainFilePath();
+const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4000 });
 
-logger.info("loading keys");
-const keys = loadKeys();
+const BaseServices = Layer.mergeAll(ChainState.Live, EventBus.Live, Persistence.Live, Keys.Live);
 
-logger.info("replaying chain", { chainFile: chainFilePath });
-const state = replayChain(keys.poaPublicKey, chainFilePath);
+const ServicesLive = Mempool.Live.pipe(Layer.provideMerge(BaseServices));
 
-if (state.chain.length === 0) {
-  logger.info("no existing chain — creating genesis block");
-  const genesis = createGenesisBlock(keys.poaPublicKey, keys.poaPrivateKey);
-  appendBlock(genesis, chainFilePath);
-  state.applyBlock(genesis);
-  logger.info("genesis block created", {
-    treasuryBalance: state.getBalance(state.treasuryAddress),
-  });
-} else {
-  logger.info("chain loaded", { blockHeight: state.chain.length });
-}
-
-const mempool = new Mempool(keys.oraclePublicKey);
-const eventBus = new EventBus();
-
-const producer = startProducer(
-  state,
-  mempool,
-  keys.poaPublicKey,
-  keys.poaPrivateKey,
-  chainFilePath,
-  keys.oraclePublicKey,
-  eventBus,
+const ProducerLive = Layer.scopedDiscard(
+  produceBlock.pipe(
+    Effect.catchAll((e) => Effect.logError("Block production error", e)),
+    Effect.repeat(Schedule.fixed("5 seconds")),
+    Effect.forkScoped,
+  ),
 );
 
-const api = startApi(
-  state,
-  mempool,
-  { poaPublicKey: keys.poaPublicKey, poaPrivateKey: keys.poaPrivateKey },
-  PORT,
-  "0.0.0.0",
-  eventBus,
-);
+const program = Effect.gen(function* () {
+  const persistence = yield* Persistence;
+  const chainState = yield* ChainState;
+  const keys = yield* Keys;
 
-logger.info("node started", { port: PORT, blockHeight: state.chain.length });
-logger.metrics.blockHeight = state.chain.length;
+  const blocks = yield* persistence.loadChain;
+  if (blocks.length === 0) {
+    const genesis = createGenesisBlock(keys);
+    yield* persistence.appendBlock(genesis);
+    yield* chainState.applyBlock(genesis);
+    yield* Effect.logInfo("Created genesis block");
+  } else {
+    for (const block of blocks) yield* chainState.applyBlock(block);
+    yield* Effect.logInfo(`Replayed ${blocks.length} blocks`);
+  }
 
-function shutdown() {
-  logger.info("shutting down");
-  producer.stop();
-  eventBus.closeAll();
-  api.close().then(() => {
-    logger.info("shutdown complete");
-    process.exit(0);
-  });
-}
+  const router = yield* makeRouter;
+  yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
+  yield* Effect.logInfo("Node server listening on port 4000");
+  yield* Effect.never;
+});
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+const MainLive = ServicesLive.pipe(Layer.provideMerge(ProducerLive), Layer.provideMerge(HttpLive));
+
+NodeRuntime.runMain(program.pipe(Effect.provide(MainLive)));
