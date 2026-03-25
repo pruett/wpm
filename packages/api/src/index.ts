@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { NodeClient } from "./node-client.js";
 import { UserKeys } from "./user-keys.js";
 import { makeRouter } from "./router.js";
-import { addressOf } from "@wpm/shared";
+import { addressOf, SIGNUP_AIRDROP } from "@wpm/shared";
 
 const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4101 });
 
@@ -26,9 +26,9 @@ const program = Effect.gen(function* () {
   // Fund user wallet if needed
   const balance = yield* nodeClient.getBalance(addressOf(userKeys.publicKey));
   if (balance === 0) {
-    yield* nodeClient.distribute(userKeys.publicKey, 100_000, "api_user_fund");
+    yield* nodeClient.distribute(userKeys.publicKey, SIGNUP_AIRDROP, "api_user_fund");
     yield* Effect.logInfo(
-      `Funded user ${addressOf(userKeys.publicKey).slice(0, 12)}... with 100,000 WPM`,
+      `Funded user ${addressOf(userKeys.publicKey).slice(0, 12)}... with ${SIGNUP_AIRDROP.toLocaleString()} WPM`,
     );
   }
 

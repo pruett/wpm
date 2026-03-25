@@ -1,7 +1,5 @@
 import type { Block, Transaction } from "@wpm/shared";
-import { sha256, sign, serializeTx } from "@wpm/shared";
-
-const INITIAL_SUPPLY = 10_000_000;
+import { sha256, sign, serializeTx, INITIAL_SUPPLY } from "@wpm/shared";
 
 export function createGenesisBlock(keys: { poaPublicKey: string; poaPrivateKey: string }): Block {
   const tx: Transaction = {

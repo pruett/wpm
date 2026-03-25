@@ -35,6 +35,27 @@ function makeStatefulMock() {
   });
 }
 
+function makeResolvedMock() {
+  const pool = { marketId: "m1", sharesA: 900, sharesB: 1100, k: 1_000_000, liquidity: 1100 };
+  const market = {
+    id: "m1",
+    name: "Chiefs vs Eagles",
+    outcomes: ["Chiefs", "Eagles"] as [string, string],
+    closesAt: "2026-04-01T00:00:00Z",
+    status: "resolved" as const,
+    result: "A" as const,
+  };
+  return Layer.succeed(NodeClient, {
+    submitTransaction: () => Effect.void,
+    distribute: () => Effect.void,
+    getMarkets: Effect.succeed([{ market, pool }]),
+    getMarket: () => Effect.succeed({ market, pool }),
+    getBalance: () => Effect.succeed(100_000),
+    health: Effect.succeed(true),
+    eventStream: Effect.succeed(Stream.empty),
+  });
+}
+
 describe("API", () => {
   it.scoped("enrichment and bet flow: prices, multipliers, bet, odds shift", () =>
     Effect.gen(function* () {
@@ -78,6 +99,29 @@ describe("API", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(makeStatefulMock(), UserKeys.Live).pipe(
+          Layer.provideMerge(NodeHttpServer.layerTest),
+        ),
+      ),
+    ),
+  );
+
+  it.scoped("resolved market enrichment: terminal prices 1.0/0.0", () =>
+    Effect.gen(function* () {
+      const router = yield* makeRouter;
+      yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
+      const client = yield* HttpClient.HttpClient;
+
+      const res = yield* client.get("/api/markets");
+      const markets = (yield* res.json) as any[];
+      expect(markets).toHaveLength(1);
+      const m = markets[0];
+      expect(m.status).toBe("resolved");
+      expect(m.result).toBe("A");
+      expect(m.priceA).toBe(1.0);
+      expect(m.priceB).toBe(0.0);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(makeResolvedMock(), UserKeys.Live).pipe(
           Layer.provideMerge(NodeHttpServer.layerTest),
         ),
       ),

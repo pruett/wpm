@@ -1,6 +1,6 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
-import { calculatePrices, sign, serializeTx } from "@wpm/shared";
+import { calculateOdds, sign, serializeTx } from "@wpm/shared";
 import type { MarketWithOdds, PriceUpdateEvent } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
 import { UserKeys } from "./user-keys.js";
@@ -21,15 +21,20 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const raw = yield* nodeClient.getMarkets;
         const enriched: MarketWithOdds[] = raw.map(({ market, pool }) => {
-          const { priceA, priceB } = calculatePrices(pool);
-          return {
-            ...market,
-            priceA,
-            priceB,
-            multiplierA: 1 / priceA,
-            multiplierB: 1 / priceB,
-            pool,
-          };
+          if (market.status === "resolved") {
+            const winA = market.result === "A" ? 1.0 : 0.0;
+            const winB = market.result === "B" ? 1.0 : 0.0;
+            return {
+              ...market,
+              priceA: winA,
+              priceB: winB,
+              multiplierA: winA > 0 ? 1 / winA : 0,
+              multiplierB: winB > 0 ? 1 / winB : 0,
+              pool,
+            };
+          }
+          const odds = calculateOdds(pool);
+          return { ...market, ...odds, pool };
         });
         return yield* HttpServerResponse.json(enriched);
       }),
@@ -64,14 +69,16 @@ export const makeRouter = Effect.gen(function* () {
         const stream = yield* nodeClient.eventStream;
         const transformed = stream.pipe(
           Stream.map((event) => {
-            const { priceA, priceB } = calculatePrices(event.pool);
+            if (event.type === "market:resolved") {
+              return new TextEncoder().encode(
+                `event: market:resolved\ndata: ${JSON.stringify(event)}\n\n`,
+              );
+            }
+            const odds = calculateOdds(event.pool);
             const update: PriceUpdateEvent = {
               type: "price:update",
               marketId: event.marketId,
-              priceA,
-              priceB,
-              multiplierA: 1 / priceA,
-              multiplierB: 1 / priceB,
+              ...odds,
             };
             return new TextEncoder().encode(
               `event: price:update\ndata: ${JSON.stringify(update)}\n\n`,

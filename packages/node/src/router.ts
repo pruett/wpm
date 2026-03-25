@@ -21,6 +21,10 @@ const CreateMarketBody = Schema.Struct({
   closesAt: Schema.String,
   seedAmount: Schema.Number,
 });
+const ResolveMarketBody = Schema.Struct({
+  id: Schema.String,
+  result: Schema.Union(Schema.Literal("A"), Schema.Literal("B")),
+});
 
 function makeSystemTx(
   fields: Record<string, unknown>,
@@ -119,6 +123,63 @@ export const makeRouter = Effect.gen(function* () {
           keys,
         );
         yield* mempool.add(tx);
+        return yield* HttpServerResponse.json({ accepted: true });
+      }).pipe(
+        Effect.catchTag("ValidationError", (e) =>
+          HttpServerResponse.json({ error: { code: e.code, message: e.message } }, { status: 400 }),
+        ),
+      ),
+    ),
+
+    HttpRouter.post(
+      "/internal/resolve-market",
+      Effect.gen(function* () {
+        const body = yield* HttpServerRequest.schemaBodyJson(ResolveMarketBody);
+
+        // 1. ResolveMarket tx
+        const resolveTx = makeSystemTx(
+          { type: "ResolveMarket", marketId: body.id, result: body.result },
+          keys,
+        );
+        yield* mempool.add(resolveTx);
+
+        // 2. SettlePayout per winning position
+        const positions = yield* chainState.getPositionsByMarket(body.id);
+        const winningPositions = positions.filter((p) => p.outcome === body.result);
+        let totalPayouts = 0;
+        for (const pos of winningPositions) {
+          const payoutTx = makeSystemTx(
+            {
+              type: "SettlePayout",
+              marketId: body.id,
+              to: pos.owner,
+              shares: pos.shares,
+              amount: pos.shares,
+            },
+            keys,
+          );
+          yield* mempool.add(payoutTx);
+          totalPayouts += pos.shares;
+        }
+
+        // 3. Treasury reclaim via Distribute
+        const pool = yield* chainState.getPool(body.id);
+        if (pool) {
+          const reclaim = pool.liquidity - totalPayouts;
+          if (reclaim > 0) {
+            const reclaimTx = makeSystemTx(
+              {
+                type: "Distribute",
+                to: keys.poaPublicKey,
+                amount: reclaim,
+                memo: `pool_reclaim:${body.id}`,
+              },
+              keys,
+            );
+            yield* mempool.add(reclaimTx);
+          }
+        }
+
         return yield* HttpServerResponse.json({ accepted: true });
       }).pipe(
         Effect.catchTag("ValidationError", (e) =>
