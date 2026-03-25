@@ -42,3 +42,13 @@ export function calculatePrices(pool: AMMPool): { priceA: number; priceB: number
     priceB: pool.sharesA / total,
   };
 }
+
+export function calculateOdds(pool: AMMPool): {
+  priceA: number;
+  priceB: number;
+  multiplierA: number;
+  multiplierB: number;
+} {
+  const { priceA, priceB } = calculatePrices(pool);
+  return { priceA, priceB, multiplierA: 1 / priceA, multiplierB: 1 / priceB };
+}

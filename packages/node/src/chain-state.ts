@@ -66,6 +66,17 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
         });
         break;
       }
+
+      case "ResolveMarket": {
+        const market = markets.get(tx.marketId)!;
+        markets.set(tx.marketId, { ...market, status: "resolved", result: tx.result });
+        break;
+      }
+
+      case "SettlePayout": {
+        balances.set(tx.to, (balances.get(tx.to) ?? 0) + tx.amount);
+        break;
+      }
     }
   }
 
@@ -81,6 +92,7 @@ export class ChainState extends Context.Tag("ChainState")<
     readonly getMarkets: Effect.Effect<Array<{ market: Market; pool: AMMPool }>>;
     readonly getPool: (marketId: string) => Effect.Effect<AMMPool | undefined>;
     readonly getPositions: (owner: string) => Effect.Effect<SharePosition[]>;
+    readonly getPositionsByMarket: (marketId: string) => Effect.Effect<SharePosition[]>;
     readonly applyBlock: (block: Block) => Effect.Effect<void>;
   }
 >() {
@@ -99,6 +111,10 @@ export class ChainState extends Context.Tag("ChainState")<
         getPositions: (owner) =>
           Effect.map(Ref.get(ref), (s) =>
             Array.from(s.positions.values()).filter((p) => p.owner === owner),
+          ),
+        getPositionsByMarket: (marketId) =>
+          Effect.map(Ref.get(ref), (s) =>
+            Array.from(s.positions.values()).filter((p) => p.marketId === marketId),
           ),
         applyBlock: (block) => Ref.update(ref, (state) => applyBlockPure(state, block)),
       };

@@ -36,6 +36,15 @@ const program = Effect.gen(function* () {
     Effect.scoped,
   );
   yield* Effect.logInfo(`Created market: ${MARKET.name}`);
+
+  // Simulate game result after a delay (tracer bullet: hardcoded resolution)
+  yield* Effect.sleep("10 seconds");
+  yield* HttpClientRequest.post("http://localhost:4100/internal/resolve-market").pipe(
+    HttpClientRequest.bodyUnsafeJson({ id: MARKET.id, result: "A" }),
+    client.execute,
+    Effect.scoped,
+  );
+  yield* Effect.logInfo(`Resolved market: ${MARKET.name} → Chiefs win`);
   yield* Effect.never; // idle
 });
 

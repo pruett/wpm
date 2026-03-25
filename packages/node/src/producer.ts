@@ -52,5 +52,12 @@ export const produceBlock = Effect.gen(function* () {
       const pool = yield* chainState.getPool(tx.marketId);
       if (pool) yield* eventBus.publish({ type: "trade:executed", marketId: tx.marketId, pool });
     }
+    if (tx.type === "ResolveMarket") {
+      yield* eventBus.publish({
+        type: "market:resolved",
+        marketId: tx.marketId,
+        result: tx.result,
+      });
+    }
   }
 });

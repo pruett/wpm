@@ -11,6 +11,28 @@ export function validateTransaction(
 ): Effect.Effect<void, ValidationError> {
   return Effect.gen(function* () {
     if (tx.type === "Distribute") return;
+    if (tx.type === "SettlePayout") return;
+
+    if (tx.type === "ResolveMarket") {
+      const market = state.markets.get(tx.marketId);
+      if (!market) {
+        return yield* Effect.fail(
+          new ValidationError({
+            code: "MARKET_NOT_FOUND",
+            message: `Market ${tx.marketId} not found`,
+          }),
+        );
+      }
+      if (market.status !== "open") {
+        return yield* Effect.fail(
+          new ValidationError({
+            code: "MARKET_NOT_OPEN",
+            message: "Market is not open for resolution",
+          }),
+        );
+      }
+      return;
+    }
 
     if (tx.type === "CreateMarket") {
       if (state.markets.has(tx.id)) {

@@ -13,6 +13,7 @@ import { makeRouter } from "../src/router.js";
 export const testKeys = {
   node: generateKeyPair(),
   user: generateKeyPair(),
+  user2: generateKeyPair(),
 };
 
 const KeysTest = Layer.succeed(Keys, {

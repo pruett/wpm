@@ -25,6 +25,22 @@ export type Transaction =
       submitter: string;
       signature: string;
       timestamp: string;
+    }
+  | {
+      type: "ResolveMarket";
+      marketId: string;
+      result: "A" | "B";
+      signature: string;
+      timestamp: string;
+    }
+  | {
+      type: "SettlePayout";
+      marketId: string;
+      to: string;
+      shares: number;
+      amount: number;
+      signature: string;
+      timestamp: string;
     };
 
 export type Block = {
@@ -75,6 +91,14 @@ export type TradeExecutedEvent = {
   marketId: string;
   pool: AMMPool;
 };
+
+export type MarketResolvedEvent = {
+  type: "market:resolved";
+  marketId: string;
+  result: "A" | "B";
+};
+
+export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent;
 
 export type PriceUpdateEvent = {
   type: "price:update";

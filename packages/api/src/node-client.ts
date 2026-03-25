@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
-import type { Transaction, Market, AMMPool, TradeExecutedEvent } from "@wpm/shared";
+import type { Transaction, Market, AMMPool, NodeEvent } from "@wpm/shared";
 import { NodeClientError } from "./errors.js";
 
 export class NodeClient extends Context.Tag("NodeClient")<
@@ -18,7 +18,7 @@ export class NodeClient extends Context.Tag("NodeClient")<
     ) => Effect.Effect<{ market: Market; pool: AMMPool } | null, NodeClientError>;
     readonly getBalance: (address: string) => Effect.Effect<number, NodeClientError>;
     readonly health: Effect.Effect<boolean>;
-    readonly eventStream: Effect.Effect<Stream.Stream<TradeExecutedEvent>, NodeClientError>;
+    readonly eventStream: Effect.Effect<Stream.Stream<NodeEvent>, NodeClientError>;
   }
 >() {
   static Live = Layer.effect(
