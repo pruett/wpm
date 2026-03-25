@@ -35,6 +35,32 @@ export function calculateBuy(
   return { shares: totalShares, newPool };
 }
 
+export function calculateSell(
+  pool: AMMPool,
+  outcome: "A" | "B",
+  sharesToSell: number,
+): { wpmReturned: number; newPool: AMMPool } {
+  const [target, other] =
+    outcome === "A" ? [pool.sharesA, pool.sharesB] : [pool.sharesB, pool.sharesA];
+
+  // Buy uses mint+swap: shares = amount + swapOut. The sell reverses this
+  // via a quadratic derived from (Q - y)(P - y) = k, where P = target + sharesToSell,
+  // Q = other, and y = wpmReturned.
+  const P = target + sharesToSell;
+  const Q = other;
+  const wpmReturned = (P + Q - Math.sqrt((P - Q) ** 2 + 4 * pool.k)) / 2;
+
+  const newPool: AMMPool = {
+    marketId: pool.marketId,
+    sharesA: outcome === "A" ? P - wpmReturned : Q - wpmReturned,
+    sharesB: outcome === "A" ? Q - wpmReturned : P - wpmReturned,
+    k: pool.k,
+    liquidity: pool.liquidity - wpmReturned,
+  };
+
+  return { wpmReturned, newPool };
+}
+
 export function calculatePrices(pool: AMMPool): { priceA: number; priceB: number } {
   const total = pool.sharesA + pool.sharesB;
   return {

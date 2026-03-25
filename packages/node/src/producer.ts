@@ -48,7 +48,7 @@ export const produceBlock = Effect.gen(function* () {
   yield* chainState.applyBlock(block);
 
   for (const tx of txs) {
-    if (tx.type === "PlaceBet") {
+    if (tx.type === "PlaceBet" || tx.type === "SellShares") {
       const pool = yield* chainState.getPool(tx.marketId);
       if (pool) yield* eventBus.publish({ type: "trade:executed", marketId: tx.marketId, pool });
     }
@@ -57,13 +57,6 @@ export const produceBlock = Effect.gen(function* () {
         type: "market:resolved",
         marketId: tx.marketId,
         result: tx.result,
-      });
-    }
-    if (tx.type === "CancelMarket") {
-      yield* eventBus.publish({
-        type: "market:cancelled",
-        marketId: tx.marketId,
-        reason: tx.reason,
       });
     }
   }

@@ -7,26 +7,6 @@ import { NodeClient } from "../src/node-client.js";
 import { UserKeys } from "../src/user-keys.js";
 import { makeRouter } from "../src/router.js";
 
-const MockNodeClientWithCancelSSE = Layer.succeed(NodeClient, {
-  submitTransaction: () => Effect.void,
-  distribute: () => Effect.void,
-  getMarkets: Effect.succeed([]),
-  getMarket: () => Effect.succeed(null),
-  getBalance: () => Effect.succeed(0),
-  health: Effect.succeed(true),
-  eventStream: Effect.succeed(
-    Stream.make({
-      type: "market:cancelled" as const,
-      marketId: "m1",
-      reason: "game_postponed",
-    }),
-  ),
-});
-
-const CancelSSETestLayer = Layer.mergeAll(MockNodeClientWithCancelSSE, UserKeys.Live).pipe(
-  Layer.provideMerge(NodeHttpServer.layerTest),
-);
-
 const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
   submitTransaction: () => Effect.void,
   distribute: () => Effect.void,
@@ -48,31 +28,6 @@ const SSETestLayer = Layer.mergeAll(MockNodeClientWithSSE, UserKeys.Live).pipe(
 );
 
 describe("API SSE Relay", () => {
-  it.scoped("relays market:cancelled event", () =>
-    Effect.gen(function* () {
-      const router = yield* makeRouter;
-      yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
-      const client = yield* HttpClient.HttpClient;
-
-      const res = yield* client.get("/events/stream");
-      const text = yield* res.text;
-
-      const events = text
-        .split("\n\n")
-        .filter((block) => block.includes("data: "))
-        .map((block) => {
-          const dataLine = block.split("\n").find((l) => l.startsWith("data: "))!;
-          return JSON.parse(dataLine.slice(6));
-        });
-
-      expect(events).toHaveLength(1);
-      const event = events[0];
-      expect(event.type).toBe("market:cancelled");
-      expect(event.marketId).toBe("m1");
-      expect(event.reason).toBe("game_postponed");
-    }).pipe(Effect.provide(CancelSSETestLayer)),
-  );
-
   it.scoped("transforms trade:executed into price:update with enriched fields", () =>
     Effect.gen(function* () {
       const router = yield* makeRouter;

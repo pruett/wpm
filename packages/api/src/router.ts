@@ -11,6 +11,12 @@ const BetBody = Schema.Struct({
   amount: Schema.Number,
 });
 
+const SellBody = Schema.Struct({
+  marketId: Schema.String,
+  outcome: Schema.Union(Schema.Literal("A"), Schema.Literal("B")),
+  shares: Schema.Number,
+});
+
 export const makeRouter = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
   const userKeys = yield* UserKeys;
@@ -21,16 +27,6 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const raw = yield* nodeClient.getMarkets;
         const enriched: MarketWithOdds[] = raw.map(({ market, pool }) => {
-          if (market.status === "cancelled") {
-            return {
-              ...market,
-              priceA: 0,
-              priceB: 0,
-              multiplierA: 0,
-              multiplierB: 0,
-              pool,
-            };
-          }
           if (market.status === "resolved") {
             const winA = market.result === "A" ? 1.0 : 0.0;
             const winB = market.result === "B" ? 1.0 : 0.0;
@@ -73,15 +69,38 @@ export const makeRouter = Effect.gen(function* () {
       ),
     ),
 
+    HttpRouter.post(
+      "/api/sell",
+      Effect.gen(function* () {
+        const body = yield* HttpServerRequest.schemaBodyJson(SellBody);
+        const tx = {
+          type: "SellShares" as const,
+          marketId: body.marketId,
+          outcome: body.outcome,
+          shares: body.shares,
+          submitter: userKeys.publicKey,
+          timestamp: new Date().toISOString(),
+          signature: "",
+        };
+        tx.signature = sign(serializeTx(tx as Record<string, unknown>), userKeys.privateKey);
+        yield* nodeClient.submitTransaction(tx);
+        return yield* HttpServerResponse.json({ success: true });
+      }).pipe(
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
+    ),
+
     HttpRouter.get(
       "/events/stream",
       Effect.gen(function* () {
         const stream = yield* nodeClient.eventStream;
         const transformed = stream.pipe(
           Stream.map((event) => {
-            if (event.type !== "trade:executed") {
+            if (event.type === "market:resolved") {
               return new TextEncoder().encode(
-                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
+                `event: market:resolved\ndata: ${JSON.stringify(event)}\n\n`,
               );
             }
             const odds = calculateOdds(event.pool);

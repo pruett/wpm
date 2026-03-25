@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { initializePool, calculateBuy, calculatePrices } from "../src/amm/index.js";
+import { initializePool, calculateBuy, calculateSell, calculatePrices } from "../src/amm/index.js";
 
 describe("AMM", () => {
   test("full CPMM lifecycle: buy, prices, and invariants", () => {
@@ -45,5 +45,51 @@ describe("AMM", () => {
       expect(pr.priceA + pr.priceB).toBeCloseTo(1.0, 10);
       expect(p.sharesA * p.sharesB).toBeCloseTo(pool.k, 4);
     }
+  });
+
+  test("calculateSell: returns correct WPM and preserves k", () => {
+    const pool = initializePool("market-1", 1000);
+
+    // Buy 100 WPM of A first to create shares
+    const { shares, newPool: poolAfterBuy } = calculateBuy(pool, "A", 100);
+
+    // Sell half the shares back
+    const halfShares = shares / 2;
+    const { wpmReturned, newPool: poolAfterSell } = calculateSell(poolAfterBuy, "A", halfShares);
+
+    // WPM returned is positive
+    expect(wpmReturned).toBeGreaterThan(0);
+
+    // Constant product preserved
+    expect(poolAfterSell.sharesA * poolAfterSell.sharesB).toBeCloseTo(pool.k, 4);
+
+    // Prices sum to 1.0
+    const prices = calculatePrices(poolAfterSell);
+    expect(prices.priceA + prices.priceB).toBeCloseTo(1.0, 10);
+
+    // Prices shifted back toward 50/50 (but not all the way — only sold half)
+    expect(prices.priceA).toBeGreaterThan(0.5);
+    expect(prices.priceA).toBeLessThan(calculatePrices(poolAfterBuy).priceA);
+  });
+
+  test("full buy-sell round trip: AMM is reversible", () => {
+    const pool = initializePool("market-1", 1000);
+
+    // Buy 100 WPM of A
+    const { shares, newPool: poolAfterBuy } = calculateBuy(pool, "A", 100);
+
+    // Sell ALL shares back
+    const { wpmReturned, newPool: poolAfterSell } = calculateSell(poolAfterBuy, "A", shares);
+
+    // Full roundtrip returns exactly what was put in (no fees in this AMM)
+    expect(wpmReturned).toBeCloseTo(100, 6);
+
+    // Pool returns to original state
+    expect(poolAfterSell.sharesA).toBeCloseTo(pool.sharesA, 6);
+    expect(poolAfterSell.sharesB).toBeCloseTo(pool.sharesB, 6);
+    expect(poolAfterSell.liquidity).toBeCloseTo(pool.liquidity, 6);
+
+    // k preserved
+    expect(poolAfterSell.sharesA * poolAfterSell.sharesB).toBeCloseTo(pool.k, 4);
   });
 });

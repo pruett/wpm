@@ -3,160 +3,10 @@ import { it } from "@effect/vitest";
 import { Effect, Fiber, Stream, Chunk } from "effect";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { NodeTestLayer, serveNodeForTest, testKeys, produceBlock } from "./helpers.js";
-import { sign, serializeTx, calculatePrices, addressOf } from "@wpm/shared";
+import { sign, serializeTx, calculatePrices, initializePool, addressOf } from "@wpm/shared";
 import { EventBus } from "../src/event-bus.js";
 
 describe("Node", () => {
-  it.scoped("resolve market: status transitions to resolved with result", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-
-      // -- Setup: fund user, create market, place bet --
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-resolve-1",
-          name: "Chiefs vs Eagles",
-          outcomes: ["Chiefs", "Eagles"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Place a bet so there's a position
-      const betTx = {
-        type: "PlaceBet" as const,
-        marketId: "market-resolve-1",
-        outcome: "A" as const,
-        amount: 100,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(betTx),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // -- Action: resolve market to outcome A --
-      const resolveRes = yield* HttpClientRequest.post("/internal/resolve-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-resolve-1", result: "A" }),
-        client.execute,
-      );
-      expect(resolveRes.status).toBe(200);
-      yield* produceBlock;
-
-      // -- Assert: market status is resolved with result A --
-      const mktRes = yield* client.get("/internal/market/market-resolve-1");
-      const { market } = (yield* mktRes.json) as { market: any; pool: any };
-      expect(market.status).toBe("resolved");
-      expect(market.result).toBe("A");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("settle payout: winners credited, treasury reclaims remainder", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-
-      // -- Setup: fund user, create market (seed 1000), bet 100 on A --
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-settle-1",
-          name: "Chiefs vs Eagles",
-          outcomes: ["Chiefs", "Eagles"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      const betTx = {
-        type: "PlaceBet" as const,
-        marketId: "market-settle-1",
-        outcome: "A" as const,
-        amount: 100,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(betTx),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Capture balances and position before resolution
-      const userAddr = addressOf(testKeys.user.publicKey);
-      const treasuryAddr = addressOf(testKeys.node.publicKey);
-
-      const preUserRes = yield* client.get(`/internal/balance/${userAddr}`);
-      const { balance: preUserBalance } = (yield* preUserRes.json) as { balance: number };
-
-      const preTreasuryRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: preTreasuryBalance } = (yield* preTreasuryRes.json) as { balance: number };
-
-      const posRes = yield* client.get(`/internal/positions/${userAddr}`);
-      const positions = (yield* posRes.json) as Array<{ shares: number }>;
-      const userShares = positions[0].shares;
-
-      // Get pool liquidity before resolution
-      const poolRes = yield* client.get("/internal/market/market-settle-1");
-      const { pool } = (yield* poolRes.json) as { market: any; pool: any };
-      const poolLiquidity = pool.liquidity;
-
-      // -- Action: resolve to A --
-      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-settle-1", result: "A" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // -- Assert: user credited by shares amount --
-      const postUserRes = yield* client.get(`/internal/balance/${userAddr}`);
-      const { balance: postUserBalance } = (yield* postUserRes.json) as { balance: number };
-      expect(postUserBalance).toBe(preUserBalance + userShares);
-
-      // -- Assert: treasury reclaimed remainder --
-      const postTreasuryRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: postTreasuryBalance } = (yield* postTreasuryRes.json) as { balance: number };
-      const expectedReclaim = poolLiquidity - userShares;
-      expect(postTreasuryBalance).toBe(preTreasuryBalance + expectedReclaim);
-
-      // -- Assert: market is resolved --
-      const mktRes = yield* client.get("/internal/market/market-settle-1");
-      const { market } = (yield* mktRes.json) as { market: any; pool: any };
-      expect(market.status).toBe("resolved");
-      expect(market.result).toBe("A");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
   it.scoped("multi-user resolution: winners paid, losers zeroed, WPM conserved", () =>
     Effect.gen(function* () {
       yield* serveNodeForTest;
@@ -331,512 +181,6 @@ describe("Node", () => {
     }).pipe(Effect.provide(NodeTestLayer)),
   );
 
-  it.scoped("market:resolved event emitted on resolution", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const eventBus = yield* EventBus;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-event-1",
-          name: "Event Test",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Subscribe before resolution
-      const stream = yield* eventBus.subscribe;
-      const eventFiber = yield* stream.pipe(Stream.take(1), Stream.runCollect, Effect.fork);
-      yield* Effect.yieldNow();
-
-      // Resolve market
-      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-event-1", result: "A" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Assert: market:resolved event received
-      const events = Chunk.toArray(yield* Fiber.join(eventFiber));
-      expect(events).toHaveLength(1);
-      expect(events[0].type).toBe("market:resolved");
-      expect((events[0] as any).marketId).toBe("market-event-1");
-      expect((events[0] as any).result).toBe("A");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  // ── Cancel Market Tests ──────────────────────────────────────────
-
-  it.scoped("cancel market: all users refunded their cost basis", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const user1Addr = addressOf(testKeys.user.publicKey);
-      const user2Addr = addressOf(testKeys.user2.publicKey);
-
-      // Fund both users
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user1",
-        }),
-        client.execute,
-      );
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user2.publicKey,
-          amount: 100_000,
-          reason: "fund_user2",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Create market
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-1",
-          name: "Postponed Game",
-          outcomes: ["Home", "Away"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // User1 bets 100 on A, User2 bets 200 on B
-      const bet1 = {
-        type: "PlaceBet" as const,
-        marketId: "market-cancel-1",
-        outcome: "A" as const,
-        amount: 100,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(bet1),
-        client.execute,
-      );
-
-      const bet2 = {
-        type: "PlaceBet" as const,
-        marketId: "market-cancel-1",
-        outcome: "B" as const,
-        amount: 200,
-        submitter: testKeys.user2.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      bet2.signature = sign(serializeTx(bet2), testKeys.user2.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(bet2),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Capture pre-cancel balances
-      const preUser1Res = yield* client.get(`/internal/balance/${user1Addr}`);
-      const { balance: preUser1 } = (yield* preUser1Res.json) as { balance: number };
-      const preUser2Res = yield* client.get(`/internal/balance/${user2Addr}`);
-      const { balance: preUser2 } = (yield* preUser2Res.json) as { balance: number };
-
-      // Cancel market
-      const cancelRes = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-1", reason: "game_postponed" }),
-        client.execute,
-      );
-      expect(cancelRes.status).toBe(200);
-      yield* produceBlock;
-
-      // Assert: users refunded their cost basis (not share value)
-      const postUser1Res = yield* client.get(`/internal/balance/${user1Addr}`);
-      const { balance: postUser1 } = (yield* postUser1Res.json) as { balance: number };
-      expect(postUser1).toBe(preUser1 + 100); // cost basis, not shares
-
-      const postUser2Res = yield* client.get(`/internal/balance/${user2Addr}`);
-      const { balance: postUser2 } = (yield* postUser2Res.json) as { balance: number };
-      expect(postUser2).toBe(preUser2 + 200); // cost basis, not shares
-
-      // Assert: market status is cancelled
-      const mktRes = yield* client.get("/internal/market/market-cancel-1");
-      const { market } = (yield* mktRes.json) as { market: any };
-      expect(market.status).toBe("cancelled");
-      expect(market.result).toBeUndefined();
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cancel market: treasury reclaims seed", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const treasuryAddr = addressOf(testKeys.node.publicKey);
-
-      // Fund user and create market
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-seed",
-          name: "Seed Reclaim Test",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Place a bet
-      const betTx = {
-        type: "PlaceBet" as const,
-        marketId: "market-cancel-seed",
-        outcome: "A" as const,
-        amount: 100,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(betTx),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Capture treasury balance before cancel
-      const preRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: preTreasury } = (yield* preRes.json) as { balance: number };
-
-      // Cancel market
-      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-seed", reason: "game_postponed" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Assert: treasury reclaimed seed amount (1000), not total liquidity
-      const postRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: postTreasury } = (yield* postRes.json) as { balance: number };
-      expect(postTreasury).toBe(preTreasury + 1000);
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cancel market: economic invariant — total refunds + seed = pool liquidity", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const treasuryAddr = addressOf(testKeys.node.publicKey);
-      const user1Addr = addressOf(testKeys.user.publicKey);
-      const user2Addr = addressOf(testKeys.user2.publicKey);
-
-      // Fund both users
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user1",
-        }),
-        client.execute,
-      );
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user2.publicKey,
-          amount: 100_000,
-          reason: "fund_user2",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Create market
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-invariant",
-          name: "Invariant Test",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Multiple bets at different amounts
-      const bet1 = {
-        type: "PlaceBet" as const,
-        marketId: "market-invariant",
-        outcome: "A" as const,
-        amount: 150,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(bet1),
-        client.execute,
-      );
-
-      const bet2 = {
-        type: "PlaceBet" as const,
-        marketId: "market-invariant",
-        outcome: "B" as const,
-        amount: 300,
-        submitter: testKeys.user2.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      bet2.signature = sign(serializeTx(bet2), testKeys.user2.privateKey);
-      yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(bet2),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Get pool liquidity before cancel
-      const poolRes = yield* client.get("/internal/market/market-invariant");
-      const { pool } = (yield* poolRes.json) as { market: any; pool: any };
-      const poolLiquidity = pool.liquidity;
-
-      // Total minted supply: 10M (genesis) + 100K + 100K = 10,200,000
-      const totalMinted = 10_000_000 + 100_000 + 100_000;
-
-      // Cancel market
-      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-invariant", reason: "tie" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Assert: all balance increases sum to pool liquidity
-      const u1Res = yield* client.get(`/internal/balance/${user1Addr}`);
-      const { balance: u1Balance } = (yield* u1Res.json) as { balance: number };
-      const u2Res = yield* client.get(`/internal/balance/${user2Addr}`);
-      const { balance: u2Balance } = (yield* u2Res.json) as { balance: number };
-      const tRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: tBalance } = (yield* tRes.json) as { balance: number };
-
-      // Global conservation: all WPM accounted for
-      const totalAfter = tBalance + u1Balance + u2Balance;
-      expect(totalAfter).toBe(totalMinted);
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cancel market with no bets: treasury reclaims full seed", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const treasuryAddr = addressOf(testKeys.node.publicKey);
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-nobets",
-          name: "No Bets Cancel",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      const preRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: preTreasury } = (yield* preRes.json) as { balance: number };
-
-      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-nobets", reason: "game_cancelled" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      const postRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
-      const { balance: postTreasury } = (yield* postRes.json) as { balance: number };
-      expect(postTreasury).toBe(preTreasury + 1000);
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cancel rejected: market already resolved", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-resolved",
-          name: "Already Resolved",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Resolve first
-      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-resolved", result: "A" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Attempt cancel
-      const res = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-resolved", reason: "too_late" }),
-        client.execute,
-      );
-      expect(res.status).toBe(400);
-      const body = (yield* res.json) as { error: { code: string } };
-      expect(body.error.code).toBe("MARKET_NOT_OPEN");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cancel rejected: market already cancelled", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-double-cancel",
-          name: "Double Cancel",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // First cancel succeeds
-      const res1 = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-double-cancel", reason: "postponed" }),
-        client.execute,
-      );
-      expect(res1.status).toBe(200);
-      yield* produceBlock;
-
-      // Second cancel rejected
-      const res2 = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-double-cancel", reason: "again" }),
-        client.execute,
-      );
-      expect(res2.status).toBe(400);
-      const body = (yield* res2.json) as { error: { code: string } };
-      expect(body.error.code).toBe("MARKET_NOT_OPEN");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("cannot bet on cancelled market", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-
-      yield* HttpClientRequest.post("/internal/distribute").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          recipient: testKeys.user.publicKey,
-          amount: 100_000,
-          reason: "fund_user",
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-bet",
-          name: "Bet After Cancel",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Cancel market
-      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-bet", reason: "postponed" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Attempt to bet
-      const betTx = {
-        type: "PlaceBet" as const,
-        marketId: "market-cancel-bet",
-        outcome: "A" as const,
-        amount: 100,
-        submitter: testKeys.user.publicKey,
-        timestamp: new Date().toISOString(),
-        signature: "",
-      };
-      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
-      const res = yield* HttpClientRequest.post("/internal/transaction").pipe(
-        HttpClientRequest.bodyUnsafeJson(betTx),
-        client.execute,
-      );
-      expect(res.status).toBe(400);
-      const body = (yield* res.json) as { error: { code: string } };
-      expect(body.error.code).toBe("MARKET_CLOSED");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
-  it.scoped("market:cancelled event emitted on cancellation", () =>
-    Effect.gen(function* () {
-      yield* serveNodeForTest;
-      const client = yield* HttpClient.HttpClient;
-      const eventBus = yield* EventBus;
-
-      yield* HttpClientRequest.post("/internal/create-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({
-          id: "market-cancel-event",
-          name: "Event Cancel Test",
-          outcomes: ["A", "B"],
-          closesAt: new Date(Date.now() + 86400000).toISOString(),
-          seedAmount: 1000,
-        }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Subscribe before cancel
-      const stream = yield* eventBus.subscribe;
-      const eventFiber = yield* stream.pipe(Stream.take(1), Stream.runCollect, Effect.fork);
-      yield* Effect.yieldNow();
-
-      // Cancel market
-      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
-        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-event", reason: "game_postponed" }),
-        client.execute,
-      );
-      yield* produceBlock;
-
-      // Assert: market:cancelled event received
-      const events = Chunk.toArray(yield* Fiber.join(eventFiber));
-      expect(events).toHaveLength(1);
-      expect(events[0].type).toBe("market:cancelled");
-      expect((events[0] as any).marketId).toBe("market-cancel-event");
-      expect((events[0] as any).reason).toBe("game_postponed");
-    }).pipe(Effect.provide(NodeTestLayer)),
-  );
-
   it.scoped("full flow: genesis → fund → market → bet → SSE", () =>
     Effect.gen(function* () {
       yield* serveNodeForTest;
@@ -931,6 +275,468 @@ describe("Node", () => {
       expect(events[0].type).toBe("trade:executed");
       expect(events[0].marketId).toBe("market-1");
       expect(events[0].pool.sharesA).not.toBe(events[0].pool.sharesB);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("sell shares: user receives WPM, position reduced, pool shifts back", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const userAddr = addressOf(testKeys.user.publicKey);
+
+      // -- Setup: fund user, create market, buy shares --
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-sell-1",
+          name: "Sell Test",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const betTx = {
+        type: "PlaceBet" as const,
+        marketId: "market-sell-1",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(betTx),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Capture post-buy state
+      const postBuyBalRes = yield* client.get(`/internal/balance/${userAddr}`);
+      const { balance: postBuyBalance } = (yield* postBuyBalRes.json) as { balance: number };
+
+      const postBuyPosRes = yield* client.get(`/internal/positions/${userAddr}`);
+      const postBuyPositions = (yield* postBuyPosRes.json) as Array<{ shares: number }>;
+      const totalShares = postBuyPositions[0].shares;
+
+      const postBuyMktRes = yield* client.get("/internal/market/market-sell-1");
+      const { pool: postBuyPool } = (yield* postBuyMktRes.json) as { market: any; pool: any };
+      const kBefore = postBuyPool.sharesA * postBuyPool.sharesB;
+
+      // -- Action: sell half the shares --
+      const halfShares = totalShares / 2;
+      const sellTx = {
+        type: "SellShares" as const,
+        marketId: "market-sell-1",
+        outcome: "A" as const,
+        shares: halfShares,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      sellTx.signature = sign(serializeTx(sellTx), testKeys.user.privateKey);
+      const sellRes = yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(sellTx),
+        client.execute,
+      );
+      expect(sellRes.status).toBe(200);
+      yield* produceBlock;
+
+      // -- Assert: balance increased --
+      const postSellBalRes = yield* client.get(`/internal/balance/${userAddr}`);
+      const { balance: postSellBalance } = (yield* postSellBalRes.json) as { balance: number };
+      expect(postSellBalance).toBeGreaterThan(postBuyBalance);
+
+      // -- Assert: position shares reduced by half --
+      const postSellPosRes = yield* client.get(`/internal/positions/${userAddr}`);
+      const postSellPositions = (yield* postSellPosRes.json) as Array<{ shares: number }>;
+      expect(postSellPositions[0].shares).toBeCloseTo(totalShares - halfShares, 6);
+
+      // -- Assert: pool prices shifted back toward 50/50 but not all the way --
+      const postSellMktRes = yield* client.get("/internal/market/market-sell-1");
+      const { pool: postSellPool } = (yield* postSellMktRes.json) as { market: any; pool: any };
+      const pricesAfterSell = calculatePrices(postSellPool);
+      expect(pricesAfterSell.priceA).toBeGreaterThan(0.5);
+      expect(pricesAfterSell.priceA).toBeLessThan(calculatePrices(postBuyPool).priceA);
+
+      // -- Assert: constant product k preserved --
+      const kAfter = postSellPool.sharesA * postSellPool.sharesB;
+      expect(kAfter).toBeCloseTo(kBefore, 2);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("sell rejected: insufficient shares", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const userAddr = addressOf(testKeys.user.publicKey);
+
+      // -- Setup --
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-sell-insuf",
+          name: "Insufficient",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const betTx = {
+        type: "PlaceBet" as const,
+        marketId: "market-sell-insuf",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(betTx),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // -- Action: try to sell 300 shares (more than owned) --
+      const sellTx = {
+        type: "SellShares" as const,
+        marketId: "market-sell-insuf",
+        outcome: "A" as const,
+        shares: 300,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      sellTx.signature = sign(serializeTx(sellTx), testKeys.user.privateKey);
+      const sellRes = yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(sellTx),
+        client.execute,
+      );
+      expect(sellRes.status).toBe(400);
+      const body = (yield* sellRes.json) as { error: { code: string } };
+      expect(body.error.code).toBe("INSUFFICIENT_SHARES");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("sell rejected: market not open", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+
+      // -- Setup: fund, create, bet, resolve --
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-sell-closed",
+          name: "Closed Market",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const betTx = {
+        type: "PlaceBet" as const,
+        marketId: "market-sell-closed",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(betTx),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Resolve market
+      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-sell-closed", result: "A" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // -- Action: try to sell after resolution --
+      const sellTx = {
+        type: "SellShares" as const,
+        marketId: "market-sell-closed",
+        outcome: "A" as const,
+        shares: 10,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      sellTx.signature = sign(serializeTx(sellTx), testKeys.user.privateKey);
+      const sellRes = yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(sellTx),
+        client.execute,
+      );
+      expect(sellRes.status).toBe(400);
+      const body = (yield* sellRes.json) as { error: { code: string } };
+      expect(body.error.code).toBe("MARKET_CLOSED");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("buy-sell-buy sequence: AMM invariants hold across mixed trades", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const userAddr = addressOf(testKeys.user.publicKey);
+
+      // -- Setup --
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-mixed",
+          name: "Mixed Trades",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const initialPool = initializePool("market-mixed", 1000);
+      const k = initialPool.k;
+
+      // -- Buy A --
+      const bet1 = {
+        type: "PlaceBet" as const,
+        marketId: "market-mixed",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet1),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Check invariants after buy A
+      const mkt1Res = yield* client.get("/internal/market/market-mixed");
+      const { pool: pool1 } = (yield* mkt1Res.json) as { market: any; pool: any };
+      const prices1 = calculatePrices(pool1);
+      expect(prices1.priceA + prices1.priceB).toBeCloseTo(1.0, 10);
+      expect(pool1.sharesA * pool1.sharesB).toBeCloseTo(k, 2);
+
+      // -- Sell half of A --
+      const pos1Res = yield* client.get(`/internal/positions/${userAddr}`);
+      const pos1 = (yield* pos1Res.json) as Array<{ shares: number; outcome: string }>;
+      const aShares = pos1.find((p) => p.outcome === "A")!.shares;
+
+      const sell1 = {
+        type: "SellShares" as const,
+        marketId: "market-mixed",
+        outcome: "A" as const,
+        shares: aShares / 2,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      sell1.signature = sign(serializeTx(sell1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(sell1),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Check invariants after sell
+      const mkt2Res = yield* client.get("/internal/market/market-mixed");
+      const { pool: pool2 } = (yield* mkt2Res.json) as { market: any; pool: any };
+      const prices2 = calculatePrices(pool2);
+      expect(prices2.priceA + prices2.priceB).toBeCloseTo(1.0, 10);
+      expect(pool2.sharesA * pool2.sharesB).toBeCloseTo(k, 2);
+
+      // -- Buy B --
+      const bet2 = {
+        type: "PlaceBet" as const,
+        marketId: "market-mixed",
+        outcome: "B" as const,
+        amount: 50,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet2.signature = sign(serializeTx(bet2), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet2),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Check invariants after buy B
+      const mkt3Res = yield* client.get("/internal/market/market-mixed");
+      const { pool: pool3 } = (yield* mkt3Res.json) as { market: any; pool: any };
+      const prices3 = calculatePrices(pool3);
+      expect(prices3.priceA + prices3.priceB).toBeCloseTo(1.0, 10);
+      expect(pool3.sharesA * pool3.sharesB).toBeCloseTo(k, 2);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("multi-user buy-sell-resolve: WPM conservation", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const treasuryAddr = addressOf(testKeys.node.publicKey);
+      const user1Addr = addressOf(testKeys.user.publicKey);
+      const user2Addr = addressOf(testKeys.user2.publicKey);
+
+      // -- Fund both users --
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user1",
+        }),
+        client.execute,
+      );
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user2.publicKey,
+          amount: 100_000,
+          reason: "fund_user2",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // -- Create market --
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-conserve",
+          name: "Conservation",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // User1 buys A
+      const bet1 = {
+        type: "PlaceBet" as const,
+        marketId: "market-conserve",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet1),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // User2 buys B
+      const bet2 = {
+        type: "PlaceBet" as const,
+        marketId: "market-conserve",
+        outcome: "B" as const,
+        amount: 200,
+        submitter: testKeys.user2.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet2.signature = sign(serializeTx(bet2), testKeys.user2.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet2),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // User1 sells half of A
+      const pos1Res = yield* client.get(`/internal/positions/${user1Addr}`);
+      const pos1 = (yield* pos1Res.json) as Array<{ shares: number }>;
+      const halfA = pos1[0].shares / 2;
+
+      const sell1 = {
+        type: "SellShares" as const,
+        marketId: "market-conserve",
+        outcome: "A" as const,
+        shares: halfA,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      sell1.signature = sign(serializeTx(sell1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(sell1),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Resolve to B
+      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-conserve", result: "B" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // -- Assert: total WPM conserved --
+      const totalMinted = 10_000_000 + 100_000 + 100_000;
+      const u1Res = yield* client.get(`/internal/balance/${user1Addr}`);
+      const { balance: u1Balance } = (yield* u1Res.json) as { balance: number };
+      const u2Res = yield* client.get(`/internal/balance/${user2Addr}`);
+      const { balance: u2Balance } = (yield* u2Res.json) as { balance: number };
+      const tRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: tBalance } = (yield* tRes.json) as { balance: number };
+
+      expect(tBalance + u1Balance + u2Balance).toBeCloseTo(totalMinted, 0);
     }).pipe(Effect.provide(NodeTestLayer)),
   );
 });

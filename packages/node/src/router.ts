@@ -25,10 +25,6 @@ const ResolveMarketBody = Schema.Struct({
   id: Schema.String,
   result: Schema.Union(Schema.Literal("A"), Schema.Literal("B")),
 });
-const CancelMarketBody = Schema.Struct({
-  id: Schema.String,
-  reason: Schema.String,
-});
 
 function makeSystemTx(
   fields: Record<string, unknown>,
@@ -177,60 +173,6 @@ export const makeRouter = Effect.gen(function* () {
                 to: keys.poaPublicKey,
                 amount: reclaim,
                 memo: `pool_reclaim:${body.id}`,
-              },
-              keys,
-            );
-            yield* mempool.add(reclaimTx);
-          }
-        }
-
-        return yield* HttpServerResponse.json({ accepted: true });
-      }).pipe(
-        Effect.catchTag("ValidationError", (e) =>
-          HttpServerResponse.json({ error: { code: e.code, message: e.message } }, { status: 400 }),
-        ),
-      ),
-    ),
-
-    HttpRouter.post(
-      "/internal/cancel-market",
-      Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(CancelMarketBody);
-
-        // 1. CancelMarket tx
-        const cancelTx = makeSystemTx(
-          { type: "CancelMarket", marketId: body.id, reason: body.reason },
-          keys,
-        );
-        yield* mempool.add(cancelTx);
-
-        // 2. Refund per position (amount = costBasis)
-        const positions = yield* chainState.getPositionsByMarket(body.id);
-        for (const pos of positions) {
-          const refundTx = makeSystemTx(
-            {
-              type: "SettlePayout",
-              marketId: body.id,
-              to: pos.owner,
-              shares: pos.shares,
-              amount: pos.costBasis,
-            },
-            keys,
-          );
-          yield* mempool.add(refundTx);
-        }
-
-        // 3. Treasury reclaims seed amount (liquidity - sum of all cost bases)
-        const pool = yield* chainState.getPool(body.id);
-        if (pool) {
-          const seedAmount = pool.liquidity - positions.reduce((sum, p) => sum + p.costBasis, 0);
-          if (seedAmount > 0) {
-            const reclaimTx = makeSystemTx(
-              {
-                type: "Distribute",
-                to: keys.poaPublicKey,
-                amount: seedAmount,
-                memo: `cancel_seed_reclaim:${body.id}`,
               },
               keys,
             );

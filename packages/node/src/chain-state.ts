@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Ref } from "effect";
 import type { Block, Market, AMMPool, SharePosition } from "@wpm/shared";
-import { initializePool, calculateBuy, addressOf } from "@wpm/shared";
+import { initializePool, calculateBuy, calculateSell, addressOf } from "@wpm/shared";
 
 export interface ChainStateData {
   readonly chain: Block[];
@@ -8,6 +8,10 @@ export interface ChainStateData {
   readonly markets: Map<string, Market>;
   readonly pools: Map<string, AMMPool>;
   readonly positions: Map<string, SharePosition>;
+}
+
+function positionKey(owner: string, marketId: string, outcome: string): string {
+  return `${owner}:${marketId}:${outcome}`;
 }
 
 function emptyState(): ChainStateData {
@@ -55,7 +59,7 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
         pools.set(tx.marketId, newPool);
         const submitterAddr = addressOf(tx.submitter);
         balances.set(submitterAddr, (balances.get(submitterAddr) ?? 0) - tx.amount);
-        const posKey = `${submitterAddr}:${tx.marketId}:${tx.outcome}`;
+        const posKey = positionKey(submitterAddr, tx.marketId, tx.outcome);
         const existing = positions.get(posKey);
         positions.set(posKey, {
           owner: submitterAddr,
@@ -73,14 +77,30 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
         break;
       }
 
-      case "SettlePayout": {
-        balances.set(tx.to, (balances.get(tx.to) ?? 0) + tx.amount);
+      case "SellShares": {
+        const pool = pools.get(tx.marketId)!;
+        const { wpmReturned, newPool } = calculateSell(pool, tx.outcome, tx.shares);
+        pools.set(tx.marketId, newPool);
+        const sellerAddr = addressOf(tx.submitter);
+        balances.set(sellerAddr, (balances.get(sellerAddr) ?? 0) + wpmReturned);
+        const posKey = positionKey(sellerAddr, tx.marketId, tx.outcome);
+        const existing = positions.get(posKey)!;
+        const remaining = existing.shares - tx.shares;
+        if (remaining === 0) {
+          positions.delete(posKey);
+        } else {
+          const proportionalCostBasis = (tx.shares / existing.shares) * existing.costBasis;
+          positions.set(posKey, {
+            ...existing,
+            shares: remaining,
+            costBasis: existing.costBasis - proportionalCostBasis,
+          });
+        }
         break;
       }
 
-      case "CancelMarket": {
-        const market = markets.get(tx.marketId)!;
-        markets.set(tx.marketId, { ...market, status: "cancelled" });
+      case "SettlePayout": {
+        balances.set(tx.to, (balances.get(tx.to) ?? 0) + tx.amount);
         break;
       }
     }

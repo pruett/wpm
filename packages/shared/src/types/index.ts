@@ -43,9 +43,11 @@ export type Transaction =
       timestamp: string;
     }
   | {
-      type: "CancelMarket";
+      type: "SellShares";
       marketId: string;
-      reason: string;
+      outcome: "A" | "B";
+      shares: number;
+      submitter: string;
       signature: string;
       timestamp: string;
     };
@@ -105,13 +107,7 @@ export type MarketResolvedEvent = {
   result: "A" | "B";
 };
 
-export type MarketCancelledEvent = {
-  type: "market:cancelled";
-  marketId: string;
-  reason: string;
-};
-
-export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent | MarketCancelledEvent;
+export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent;
 
 export type PriceUpdateEvent = {
   type: "price:update";

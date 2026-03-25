@@ -6,7 +6,7 @@ import { NodeHttpServer } from "@effect/platform-node";
 import { NodeClient } from "../src/node-client.js";
 import { UserKeys } from "../src/user-keys.js";
 import { makeRouter } from "../src/router.js";
-import { calculateBuy } from "@wpm/shared";
+import { calculateBuy, calculateSell } from "@wpm/shared";
 import { Stream } from "effect";
 
 function makeStatefulMock() {
@@ -25,30 +25,13 @@ function makeStatefulMock() {
         if (tx.type === "PlaceBet") {
           pool = calculateBuy(pool, tx.outcome, tx.amount).newPool;
         }
+        if (tx.type === "SellShares") {
+          pool = calculateSell(pool, tx.outcome, tx.shares).newPool;
+        }
       }),
     distribute: () => Effect.void,
     getMarkets: Effect.sync(() => [{ market, pool }]),
     getMarket: () => Effect.sync(() => ({ market, pool })),
-    getBalance: () => Effect.succeed(100_000),
-    health: Effect.succeed(true),
-    eventStream: Effect.succeed(Stream.empty),
-  });
-}
-
-function makeCancelledMock() {
-  const pool = { marketId: "m1", sharesA: 900, sharesB: 1100, k: 1_000_000, liquidity: 1100 };
-  const market = {
-    id: "m1",
-    name: "Postponed Game",
-    outcomes: ["Home", "Away"] as [string, string],
-    closesAt: "2026-04-01T00:00:00Z",
-    status: "cancelled" as const,
-  };
-  return Layer.succeed(NodeClient, {
-    submitTransaction: () => Effect.void,
-    distribute: () => Effect.void,
-    getMarkets: Effect.succeed([{ market, pool }]),
-    getMarket: () => Effect.succeed({ market, pool }),
     getBalance: () => Effect.succeed(100_000),
     health: Effect.succeed(true),
     eventStream: Effect.succeed(Stream.empty),
@@ -125,24 +108,43 @@ describe("API", () => {
     ),
   );
 
-  it.scoped("cancelled market enrichment: prices zeroed, status visible", () =>
+  it.scoped("sell via API: signs tx and submits, odds shift back", () =>
     Effect.gen(function* () {
       const router = yield* makeRouter;
       yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
       const client = yield* HttpClient.HttpClient;
 
-      const res = yield* client.get("/api/markets");
-      const markets = (yield* res.json) as any[];
-      expect(markets).toHaveLength(1);
-      const m = markets[0];
-      expect(m.status).toBe("cancelled");
-      expect(m.priceA).toBe(0);
-      expect(m.priceB).toBe(0);
-      expect(m.multiplierA).toBe(0);
-      expect(m.multiplierB).toBe(0);
+      // Buy first to shift prices
+      yield* HttpClientRequest.post("/api/bet").pipe(
+        HttpClientRequest.bodyUnsafeJson({ marketId: "m1", outcome: "A", amount: 100 }),
+        client.execute,
+      );
+
+      // Note prices after buy
+      const res1 = yield* client.get("/api/markets");
+      const m1 = ((yield* res1.json) as any[])[0];
+      expect(m1.priceA).toBeGreaterThan(0.5);
+
+      // -- POST /api/sell: sell shares back --
+      const sellRes = yield* HttpClientRequest.post("/api/sell").pipe(
+        HttpClientRequest.bodyUnsafeJson({ marketId: "m1", outcome: "A", shares: 50 }),
+        client.execute,
+      );
+      expect(sellRes.status).toBe(200);
+      const sellBody = (yield* sellRes.json) as { success: boolean };
+      expect(sellBody.success).toBe(true);
+
+      // -- GET /api/markets: prices shifted back after sell --
+      const res2 = yield* client.get("/api/markets");
+      const m2 = ((yield* res2.json) as any[])[0];
+      expect(m2.priceA).toBeLessThan(m1.priceA);
+
+      // Invariant still holds
+      expect(m2.multiplierA).toBeCloseTo(1 / m2.priceA, 6);
+      expect(m2.multiplierB).toBeCloseTo(1 / m2.priceB, 6);
     }).pipe(
       Effect.provide(
-        Layer.mergeAll(makeCancelledMock(), UserKeys.Live).pipe(
+        Layer.mergeAll(makeStatefulMock(), UserKeys.Live).pipe(
           Layer.provideMerge(NodeHttpServer.layerTest),
         ),
       ),
