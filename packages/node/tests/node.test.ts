@@ -370,6 +370,473 @@ describe("Node", () => {
     }).pipe(Effect.provide(NodeTestLayer)),
   );
 
+  // ── Cancel Market Tests ──────────────────────────────────────────
+
+  it.scoped("cancel market: all users refunded their cost basis", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const user1Addr = addressOf(testKeys.user.publicKey);
+      const user2Addr = addressOf(testKeys.user2.publicKey);
+
+      // Fund both users
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user1",
+        }),
+        client.execute,
+      );
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user2.publicKey,
+          amount: 100_000,
+          reason: "fund_user2",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Create market
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-1",
+          name: "Postponed Game",
+          outcomes: ["Home", "Away"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // User1 bets 100 on A, User2 bets 200 on B
+      const bet1 = {
+        type: "PlaceBet" as const,
+        marketId: "market-cancel-1",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet1),
+        client.execute,
+      );
+
+      const bet2 = {
+        type: "PlaceBet" as const,
+        marketId: "market-cancel-1",
+        outcome: "B" as const,
+        amount: 200,
+        submitter: testKeys.user2.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet2.signature = sign(serializeTx(bet2), testKeys.user2.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet2),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Capture pre-cancel balances
+      const preUser1Res = yield* client.get(`/internal/balance/${user1Addr}`);
+      const { balance: preUser1 } = (yield* preUser1Res.json) as { balance: number };
+      const preUser2Res = yield* client.get(`/internal/balance/${user2Addr}`);
+      const { balance: preUser2 } = (yield* preUser2Res.json) as { balance: number };
+
+      // Cancel market
+      const cancelRes = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-1", reason: "game_postponed" }),
+        client.execute,
+      );
+      expect(cancelRes.status).toBe(200);
+      yield* produceBlock;
+
+      // Assert: users refunded their cost basis (not share value)
+      const postUser1Res = yield* client.get(`/internal/balance/${user1Addr}`);
+      const { balance: postUser1 } = (yield* postUser1Res.json) as { balance: number };
+      expect(postUser1).toBe(preUser1 + 100); // cost basis, not shares
+
+      const postUser2Res = yield* client.get(`/internal/balance/${user2Addr}`);
+      const { balance: postUser2 } = (yield* postUser2Res.json) as { balance: number };
+      expect(postUser2).toBe(preUser2 + 200); // cost basis, not shares
+
+      // Assert: market status is cancelled
+      const mktRes = yield* client.get("/internal/market/market-cancel-1");
+      const { market } = (yield* mktRes.json) as { market: any };
+      expect(market.status).toBe("cancelled");
+      expect(market.result).toBeUndefined();
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cancel market: treasury reclaims seed", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const treasuryAddr = addressOf(testKeys.node.publicKey);
+
+      // Fund user and create market
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-seed",
+          name: "Seed Reclaim Test",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Place a bet
+      const betTx = {
+        type: "PlaceBet" as const,
+        marketId: "market-cancel-seed",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(betTx),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Capture treasury balance before cancel
+      const preRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: preTreasury } = (yield* preRes.json) as { balance: number };
+
+      // Cancel market
+      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-seed", reason: "game_postponed" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Assert: treasury reclaimed seed amount (1000), not total liquidity
+      const postRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: postTreasury } = (yield* postRes.json) as { balance: number };
+      expect(postTreasury).toBe(preTreasury + 1000);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cancel market: economic invariant — total refunds + seed = pool liquidity", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const treasuryAddr = addressOf(testKeys.node.publicKey);
+      const user1Addr = addressOf(testKeys.user.publicKey);
+      const user2Addr = addressOf(testKeys.user2.publicKey);
+
+      // Fund both users
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user1",
+        }),
+        client.execute,
+      );
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user2.publicKey,
+          amount: 100_000,
+          reason: "fund_user2",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Create market
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-invariant",
+          name: "Invariant Test",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Multiple bets at different amounts
+      const bet1 = {
+        type: "PlaceBet" as const,
+        marketId: "market-invariant",
+        outcome: "A" as const,
+        amount: 150,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet1.signature = sign(serializeTx(bet1), testKeys.user.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet1),
+        client.execute,
+      );
+
+      const bet2 = {
+        type: "PlaceBet" as const,
+        marketId: "market-invariant",
+        outcome: "B" as const,
+        amount: 300,
+        submitter: testKeys.user2.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      bet2.signature = sign(serializeTx(bet2), testKeys.user2.privateKey);
+      yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(bet2),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Get pool liquidity before cancel
+      const poolRes = yield* client.get("/internal/market/market-invariant");
+      const { pool } = (yield* poolRes.json) as { market: any; pool: any };
+      const poolLiquidity = pool.liquidity;
+
+      // Total minted supply: 10M (genesis) + 100K + 100K = 10,200,000
+      const totalMinted = 10_000_000 + 100_000 + 100_000;
+
+      // Cancel market
+      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-invariant", reason: "tie" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Assert: all balance increases sum to pool liquidity
+      const u1Res = yield* client.get(`/internal/balance/${user1Addr}`);
+      const { balance: u1Balance } = (yield* u1Res.json) as { balance: number };
+      const u2Res = yield* client.get(`/internal/balance/${user2Addr}`);
+      const { balance: u2Balance } = (yield* u2Res.json) as { balance: number };
+      const tRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: tBalance } = (yield* tRes.json) as { balance: number };
+
+      // Global conservation: all WPM accounted for
+      const totalAfter = tBalance + u1Balance + u2Balance;
+      expect(totalAfter).toBe(totalMinted);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cancel market with no bets: treasury reclaims full seed", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const treasuryAddr = addressOf(testKeys.node.publicKey);
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-nobets",
+          name: "No Bets Cancel",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const preRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: preTreasury } = (yield* preRes.json) as { balance: number };
+
+      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-nobets", reason: "game_cancelled" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      const postRes = yield* client.get(`/internal/balance/${treasuryAddr}`);
+      const { balance: postTreasury } = (yield* postRes.json) as { balance: number };
+      expect(postTreasury).toBe(preTreasury + 1000);
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cancel rejected: market already resolved", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-resolved",
+          name: "Already Resolved",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Resolve first
+      yield* HttpClientRequest.post("/internal/resolve-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-resolved", result: "A" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Attempt cancel
+      const res = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-resolved", reason: "too_late" }),
+        client.execute,
+      );
+      expect(res.status).toBe(400);
+      const body = (yield* res.json) as { error: { code: string } };
+      expect(body.error.code).toBe("MARKET_NOT_OPEN");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cancel rejected: market already cancelled", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-double-cancel",
+          name: "Double Cancel",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // First cancel succeeds
+      const res1 = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-double-cancel", reason: "postponed" }),
+        client.execute,
+      );
+      expect(res1.status).toBe(200);
+      yield* produceBlock;
+
+      // Second cancel rejected
+      const res2 = yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-double-cancel", reason: "again" }),
+        client.execute,
+      );
+      expect(res2.status).toBe(400);
+      const body = (yield* res2.json) as { error: { code: string } };
+      expect(body.error.code).toBe("MARKET_NOT_OPEN");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("cannot bet on cancelled market", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+
+      yield* HttpClientRequest.post("/internal/distribute").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          recipient: testKeys.user.publicKey,
+          amount: 100_000,
+          reason: "fund_user",
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-bet",
+          name: "Bet After Cancel",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Cancel market
+      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-bet", reason: "postponed" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Attempt to bet
+      const betTx = {
+        type: "PlaceBet" as const,
+        marketId: "market-cancel-bet",
+        outcome: "A" as const,
+        amount: 100,
+        submitter: testKeys.user.publicKey,
+        timestamp: new Date().toISOString(),
+        signature: "",
+      };
+      betTx.signature = sign(serializeTx(betTx), testKeys.user.privateKey);
+      const res = yield* HttpClientRequest.post("/internal/transaction").pipe(
+        HttpClientRequest.bodyUnsafeJson(betTx),
+        client.execute,
+      );
+      expect(res.status).toBe(400);
+      const body = (yield* res.json) as { error: { code: string } };
+      expect(body.error.code).toBe("MARKET_CLOSED");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
+  it.scoped("market:cancelled event emitted on cancellation", () =>
+    Effect.gen(function* () {
+      yield* serveNodeForTest;
+      const client = yield* HttpClient.HttpClient;
+      const eventBus = yield* EventBus;
+
+      yield* HttpClientRequest.post("/internal/create-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({
+          id: "market-cancel-event",
+          name: "Event Cancel Test",
+          outcomes: ["A", "B"],
+          closesAt: new Date(Date.now() + 86400000).toISOString(),
+          seedAmount: 1000,
+        }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Subscribe before cancel
+      const stream = yield* eventBus.subscribe;
+      const eventFiber = yield* stream.pipe(Stream.take(1), Stream.runCollect, Effect.fork);
+      yield* Effect.yieldNow();
+
+      // Cancel market
+      yield* HttpClientRequest.post("/internal/cancel-market").pipe(
+        HttpClientRequest.bodyUnsafeJson({ id: "market-cancel-event", reason: "game_postponed" }),
+        client.execute,
+      );
+      yield* produceBlock;
+
+      // Assert: market:cancelled event received
+      const events = Chunk.toArray(yield* Fiber.join(eventFiber));
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe("market:cancelled");
+      expect((events[0] as any).marketId).toBe("market-cancel-event");
+      expect((events[0] as any).reason).toBe("game_postponed");
+    }).pipe(Effect.provide(NodeTestLayer)),
+  );
+
   it.scoped("full flow: genesis → fund → market → bet → SSE", () =>
     Effect.gen(function* () {
       yield* serveNodeForTest;

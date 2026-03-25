@@ -41,6 +41,13 @@ export type Transaction =
       amount: number;
       signature: string;
       timestamp: string;
+    }
+  | {
+      type: "CancelMarket";
+      marketId: string;
+      reason: string;
+      signature: string;
+      timestamp: string;
     };
 
 export type Block = {
@@ -98,7 +105,13 @@ export type MarketResolvedEvent = {
   result: "A" | "B";
 };
 
-export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent;
+export type MarketCancelledEvent = {
+  type: "market:cancelled";
+  marketId: string;
+  reason: string;
+};
+
+export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent | MarketCancelledEvent;
 
 export type PriceUpdateEvent = {
   type: "price:update";

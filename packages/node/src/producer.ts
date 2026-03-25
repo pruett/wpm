@@ -59,5 +59,12 @@ export const produceBlock = Effect.gen(function* () {
         result: tx.result,
       });
     }
+    if (tx.type === "CancelMarket") {
+      yield* eventBus.publish({
+        type: "market:cancelled",
+        marketId: tx.marketId,
+        reason: tx.reason,
+      });
+    }
   }
 });

@@ -77,6 +77,12 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
         balances.set(tx.to, (balances.get(tx.to) ?? 0) + tx.amount);
         break;
       }
+
+      case "CancelMarket": {
+        const market = markets.get(tx.marketId)!;
+        markets.set(tx.marketId, { ...market, status: "cancelled" });
+        break;
+      }
     }
   }
 

@@ -21,6 +21,16 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const raw = yield* nodeClient.getMarkets;
         const enriched: MarketWithOdds[] = raw.map(({ market, pool }) => {
+          if (market.status === "cancelled") {
+            return {
+              ...market,
+              priceA: 0,
+              priceB: 0,
+              multiplierA: 0,
+              multiplierB: 0,
+              pool,
+            };
+          }
           if (market.status === "resolved") {
             const winA = market.result === "A" ? 1.0 : 0.0;
             const winB = market.result === "B" ? 1.0 : 0.0;
@@ -69,9 +79,9 @@ export const makeRouter = Effect.gen(function* () {
         const stream = yield* nodeClient.eventStream;
         const transformed = stream.pipe(
           Stream.map((event) => {
-            if (event.type === "market:resolved") {
+            if (event.type !== "trade:executed") {
               return new TextEncoder().encode(
-                `event: market:resolved\ndata: ${JSON.stringify(event)}\n\n`,
+                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
               );
             }
             const odds = calculateOdds(event.pool);
