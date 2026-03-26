@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:code.claude.com)"
+    ]
+  },
+  "enabledPlugins": {
+    "svelte@svelte": true
+  },
+  "extraKnownMarketplaces": {
+    "svelte": {
+      "source": {
+        "source": "github",
+        "repo": "sveltejs/ai-tools"
+      }
+    }
+  }
+}
