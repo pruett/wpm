@@ -5,9 +5,9 @@ import { createServer } from "node:http";
 import { NodeClient } from "./node-client.js";
 import { UserKeys } from "./user-keys.js";
 import { makeRouter } from "./router.js";
-import { addressOf, SIGNUP_AIRDROP } from "@wpm/shared";
+import { addressOf, SIGNUP_AIRDROP, API_PORT } from "@wpm/shared";
 
-const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4101 });
+const HttpLive = NodeHttpServer.layer(() => createServer(), { port: API_PORT });
 
 const ServicesLive = Layer.mergeAll(NodeClient.Live, UserKeys.Live).pipe(
   Layer.provide(NodeHttpClient.layer),
@@ -34,7 +34,7 @@ const program = Effect.gen(function* () {
 
   const router = yield* makeRouter;
   yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
-  yield* Effect.logInfo("API server listening on port 4101");
+  yield* Effect.logInfo(`API server listening on port ${API_PORT}`);
   yield* Effect.never;
 });
 

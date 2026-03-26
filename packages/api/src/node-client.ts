@@ -1,6 +1,12 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
-import type { Transaction, Market, AMMPool, NodeEvent } from "@wpm/shared";
+import {
+  NODE_INTERNAL_URL,
+  type Transaction,
+  type Market,
+  type AMMPool,
+  type NodeEvent,
+} from "@wpm/shared";
 import { NodeClientError } from "./errors.js";
 
 export class NodeClient extends Context.Tag("NodeClient")<
@@ -26,7 +32,7 @@ export class NodeClient extends Context.Tag("NodeClient")<
     Effect.gen(function* () {
       const baseClient = yield* HttpClient.HttpClient;
       const client = baseClient.pipe(
-        HttpClient.mapRequest(HttpClientRequest.prependUrl("http://localhost:4100")),
+        HttpClient.mapRequest(HttpClientRequest.prependUrl(NODE_INTERNAL_URL)),
       );
       return {
         submitTransaction: (tx) =>

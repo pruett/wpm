@@ -2,6 +2,7 @@ import { HttpServer } from "@effect/platform";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer, Schedule } from "effect";
 import { createServer } from "node:http";
+import { NODE_PORT } from "@wpm/shared";
 import { ChainState } from "./chain-state.js";
 import { EventBus } from "./event-bus.js";
 import { Persistence } from "./persistence.js";
@@ -11,7 +12,7 @@ import { createGenesisBlock } from "./genesis.js";
 import { makeRouter } from "./router.js";
 import { produceBlock } from "./producer.js";
 
-const HttpLive = NodeHttpServer.layer(() => createServer(), { port: 4100 });
+const HttpLive = NodeHttpServer.layer(() => createServer(), { port: NODE_PORT });
 
 const BaseServices = Layer.mergeAll(ChainState.Live, EventBus.Live, Persistence.Live, Keys.Live);
 
@@ -44,7 +45,7 @@ const program = Effect.gen(function* () {
 
   const router = yield* makeRouter;
   yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);
-  yield* Effect.logInfo("Node server listening on port 4100");
+  yield* Effect.logInfo(`Node server listening on port ${NODE_PORT}`);
   yield* Effect.never;
 });
 
