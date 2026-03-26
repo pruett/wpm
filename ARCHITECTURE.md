@@ -67,7 +67,7 @@ Separate process responsible for bridging real-world sports data onto the chain.
 
 ### Web App
 
-User-facing Progressive Web App (PWA). Mobile-first responsive design. Displays:
+User-facing Progressive Web App (PWA). Built with SvelteKit + Tailwind CSS v4. Mobile-first responsive design. Displays:
 
 - Live markets with real-time odds (probability % and payout multiplier)
 - User's active bets and share positions

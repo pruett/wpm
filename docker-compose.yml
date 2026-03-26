@@ -40,7 +40,7 @@ services:
     depends_on:
       - wpm-api
     environment:
-      - API_URL=http://wpm-api:3000
+      - NODE_URL=http://wpm-node:4000
       - ORACLE_KEY_PATH=/keys/oracle.pem
       - ENABLED_SPORTS=NFL
       - INGEST_CRON=0 6 * * *

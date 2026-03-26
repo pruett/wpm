@@ -3,6 +3,12 @@ dist/
 .turbo/
 *.tsbuildinfo
 
+# SvelteKit
+.svelte-kit/
+build/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
 # Environment
 .env
 .env.local

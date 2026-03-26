@@ -9,5 +9,5 @@ COPY packages/web packages/web
 RUN bunx turbo build --filter=@wpm/web
 
 FROM nginx:alpine
-COPY --from=builder /app/packages/web/dist /usr/share/nginx/html
+COPY --from=builder /app/packages/web/build /usr/share/nginx/html
 EXPOSE 80
