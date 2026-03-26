@@ -3,34 +3,24 @@ import { NodeHttpServer, NodeHttpClient, NodeRuntime } from "@effect/platform-no
 import { Effect, Layer, Schedule } from "effect";
 import { createServer } from "node:http";
 import { NodeClient } from "./node-client.js";
-import { UserKeys } from "./user-keys.js";
+import { UserStore } from "./user-store.js";
 import { makeRouter } from "./router.js";
-import { addressOf, SIGNUP_AIRDROP, API_PORT } from "@wpm/shared";
+import { API_PORT } from "@wpm/shared";
 
 const HttpLive = NodeHttpServer.layer(() => createServer(), { port: API_PORT });
 
-const ServicesLive = Layer.mergeAll(NodeClient.Live, UserKeys.Live).pipe(
+const ServicesLive = Layer.mergeAll(NodeClient.Live, UserStore.Live("users.json")).pipe(
   Layer.provide(NodeHttpClient.layer),
 );
 
 const program = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
-  const userKeys = yield* UserKeys;
 
   // Wait for node to be healthy
   yield* nodeClient.health.pipe(
     Effect.flatMap((ok) => (ok ? Effect.void : Effect.fail("not ready"))),
     Effect.retry(Schedule.fixed("1 second").pipe(Schedule.intersect(Schedule.recurs(30)))),
   );
-
-  // Fund user wallet if needed
-  const balance = yield* nodeClient.getBalance(addressOf(userKeys.publicKey));
-  if (balance === 0) {
-    yield* nodeClient.distribute(userKeys.publicKey, SIGNUP_AIRDROP, "api_user_fund");
-    yield* Effect.logInfo(
-      `Funded user ${addressOf(userKeys.publicKey).slice(0, 12)}... with ${SIGNUP_AIRDROP.toLocaleString()} WPM`,
-    );
-  }
 
   const router = yield* makeRouter;
   yield* router.pipe(HttpServer.serveEffect(), Effect.forkScoped);

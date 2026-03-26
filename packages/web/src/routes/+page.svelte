@@ -1,5 +1,11 @@
 <script lang="ts">
-	import MarketList from "../components/MarketList.svelte";
+	import { auth } from "$lib/stores/auth.svelte.js";
+	import RegisterForm from "../components/register-form.svelte";
+	import MarketList from "../components/market-list.svelte";
 </script>
 
-<MarketList />
+{#if auth.isLoggedIn}
+	<MarketList />
+{:else}
+	<RegisterForm />
+{/if}

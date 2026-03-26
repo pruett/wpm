@@ -1,9 +1,10 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
-import { calculateOdds, sign, serializeTx } from "@wpm/shared";
-import type { MarketWithOdds, PriceUpdateEvent } from "@wpm/shared";
+import { calculateOdds, sign, serializeTx, addressOf, SIGNUP_AIRDROP } from "@wpm/shared";
+import type { MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
-import { UserKeys } from "./user-keys.js";
+import { UserStore } from "./user-store.js";
+import { authenticated, catchAuth } from "./auth.js";
 
 const BetBody = Schema.Struct({
   marketId: Schema.String,
@@ -17,11 +18,29 @@ const SellBody = Schema.Struct({
   shares: Schema.Number,
 });
 
+const RegisterBody = Schema.Struct({
+  name: Schema.String,
+});
+
 export const makeRouter = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
-  const userKeys = yield* UserKeys;
+  const userStore = yield* UserStore;
 
   return HttpRouter.empty.pipe(
+    HttpRouter.get(
+      "/api/health",
+      Effect.gen(function* () {
+        const nodeOk = yield* nodeClient.health;
+        return yield* HttpServerResponse.json(
+          {
+            status: nodeOk ? "ok" : "degraded",
+            node: nodeOk,
+          },
+          { status: nodeOk ? 200 : 503 },
+        );
+      }),
+    ),
+
     HttpRouter.get(
       "/api/markets",
       Effect.gen(function* () {
@@ -47,22 +66,71 @@ export const makeRouter = Effect.gen(function* () {
     ),
 
     HttpRouter.post(
+      "/api/register",
+      Effect.gen(function* () {
+        const body = yield* HttpServerRequest.schemaBodyJson(RegisterBody);
+        const user = userStore.register(body.name);
+        yield* nodeClient.distribute(user.publicKey, SIGNUP_AIRDROP, "signup_airdrop");
+        const balance = yield* nodeClient.getBalance(user.address);
+        return yield* HttpServerResponse.json({
+          token: user.token,
+          address: user.address,
+          balance,
+        });
+      }).pipe(
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
+    ),
+
+    HttpRouter.get(
+      "/api/balance",
+      Effect.gen(function* () {
+        const user = yield* authenticated;
+        const balance = yield* nodeClient.getBalance(user.address);
+        return yield* HttpServerResponse.json({ balance });
+      }).pipe(
+        catchAuth,
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
+    ),
+
+    HttpRouter.get(
+      "/api/positions",
+      Effect.gen(function* () {
+        const user = yield* authenticated;
+        const positions: SharePosition[] = yield* nodeClient.getPositions(user.address);
+        return yield* HttpServerResponse.json(positions);
+      }).pipe(
+        catchAuth,
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
+    ),
+
+    HttpRouter.post(
       "/api/bet",
       Effect.gen(function* () {
+        const user = yield* authenticated;
         const body = yield* HttpServerRequest.schemaBodyJson(BetBody);
         const tx = {
           type: "PlaceBet" as const,
           marketId: body.marketId,
           outcome: body.outcome,
           amount: body.amount,
-          submitter: userKeys.publicKey,
+          submitter: user.publicKey,
           timestamp: new Date().toISOString(),
           signature: "",
         };
-        tx.signature = sign(serializeTx(tx as Record<string, unknown>), userKeys.privateKey);
+        tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
       }).pipe(
+        catchAuth,
         Effect.catchTag("NodeClientError", (e) =>
           HttpServerResponse.json({ error: e.message }, { status: 502 }),
         ),
@@ -72,20 +140,22 @@ export const makeRouter = Effect.gen(function* () {
     HttpRouter.post(
       "/api/sell",
       Effect.gen(function* () {
+        const user = yield* authenticated;
         const body = yield* HttpServerRequest.schemaBodyJson(SellBody);
         const tx = {
           type: "SellShares" as const,
           marketId: body.marketId,
           outcome: body.outcome,
           shares: body.shares,
-          submitter: userKeys.publicKey,
+          submitter: user.publicKey,
           timestamp: new Date().toISOString(),
           signature: "",
         };
-        tx.signature = sign(serializeTx(tx as Record<string, unknown>), userKeys.privateKey);
+        tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
       }).pipe(
+        catchAuth,
         Effect.catchTag("NodeClientError", (e) =>
           HttpServerResponse.json({ error: e.message }, { status: 502 }),
         ),

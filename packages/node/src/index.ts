@@ -34,11 +34,11 @@ const program = Effect.gen(function* () {
     yield* Effect.logInfo(`Replayed ${blocks.length} blocks`);
   }
 
-  // Block producer — runs every 5 seconds
+  // Block producer — runs every 1 second
   yield* produceBlock.pipe(
     Effect.tap(() => Effect.logDebug("Block production tick")),
     Effect.catchAll((e) => Effect.logError(`Block production error: ${e}`)),
-    Effect.repeat(Schedule.fixed("5 seconds")),
+    Effect.repeat(Schedule.fixed("1 second")),
     Effect.forkScoped,
   );
   yield* Effect.logInfo("Block producer started");

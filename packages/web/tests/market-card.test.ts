@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import type { MarketWithOdds } from "@wpm/shared";
-import MarketCard from "../src/components/MarketCard.svelte";
+import MarketCard from "../src/components/market-card.svelte";
 
 const baseMarket: MarketWithOdds = {
   id: "market-1",

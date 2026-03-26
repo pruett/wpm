@@ -4,7 +4,7 @@ import { Effect, Layer, Stream } from "effect";
 import { HttpClient, HttpServer } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { NodeClient } from "../src/node-client.js";
-import { UserKeys } from "../src/user-keys.js";
+import { UserStore } from "../src/user-store.js";
 import { makeRouter } from "../src/router.js";
 
 const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
@@ -13,6 +13,7 @@ const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
   getMarkets: Effect.succeed([]),
   getMarket: () => Effect.succeed(null),
   getBalance: () => Effect.succeed(0),
+  getPositions: () => Effect.succeed([]),
   health: Effect.succeed(true),
   eventStream: Effect.succeed(
     Stream.make({
@@ -23,7 +24,7 @@ const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
   ),
 });
 
-const SSETestLayer = Layer.mergeAll(MockNodeClientWithSSE, UserKeys.Live).pipe(
+const SSETestLayer = Layer.mergeAll(MockNodeClientWithSSE, UserStore.Live()).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
 );
 

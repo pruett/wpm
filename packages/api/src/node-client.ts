@@ -6,6 +6,7 @@ import {
   type Market,
   type AMMPool,
   type NodeEvent,
+  type SharePosition,
 } from "@wpm/shared";
 import { NodeClientError } from "./errors.js";
 
@@ -23,6 +24,7 @@ export class NodeClient extends Context.Tag("NodeClient")<
       id: string,
     ) => Effect.Effect<{ market: Market; pool: AMMPool } | null, NodeClientError>;
     readonly getBalance: (address: string) => Effect.Effect<number, NodeClientError>;
+    readonly getPositions: (address: string) => Effect.Effect<SharePosition[], NodeClientError>;
     readonly health: Effect.Effect<boolean>;
     readonly eventStream: Effect.Effect<Stream.Stream<NodeEvent>, NodeClientError>;
   }
@@ -69,6 +71,12 @@ export class NodeClient extends Context.Tag("NodeClient")<
             Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
             Effect.scoped,
           ),
+        getPositions: (address) =>
+          client.get(`/internal/positions/${address}`).pipe(
+            Effect.flatMap((res) => res.json),
+            Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+            Effect.scoped,
+          ) as Effect.Effect<SharePosition[], NodeClientError>,
         health: client.get("/internal/health").pipe(
           Effect.as(true),
           Effect.catchAll(() => Effect.succeed(false)),
