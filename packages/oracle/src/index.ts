@@ -1,8 +1,25 @@
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer, Schedule } from "effect";
 import { NflAdapter } from "./adapters/nfl.js";
+import { GolfAdapter } from "./adapters/golf.js";
 import { NodeClient } from "./node-client.js";
 import { ingest } from "./ingest.js";
+import { golfIngest } from "./golf-ingest.js";
+
+const runIngestCycle = Effect.all([
+  ingest.pipe(
+    Effect.tap((r) =>
+      Effect.logInfo(`NFL ingest done — ${r.created} created, ${r.skipped} skipped`),
+    ),
+    Effect.catchAll((e) => Effect.logError(`NFL ingest failed: ${e}`)),
+  ),
+  golfIngest.pipe(
+    Effect.tap((r) =>
+      Effect.logInfo(`Golf ingest done — ${r.created} created, ${r.skipped} skipped`),
+    ),
+    Effect.catchAll((e) => Effect.logError(`Golf ingest failed: ${e}`)),
+  ),
+]);
 
 const program = Effect.gen(function* () {
   const node = yield* NodeClient;
@@ -14,19 +31,11 @@ const program = Effect.gen(function* () {
   );
   yield* Effect.logInfo("Node is healthy");
 
-  // Run ingest every 2 hours
-  yield* ingest.pipe(
-    Effect.tap((result) =>
-      Effect.logInfo(
-        `Oracle ingest done — ${result.created} markets created, ${result.skipped} skipped`,
-      ),
-    ),
-    Effect.catchAll((e) => Effect.logError(`Ingest failed: ${e}`)),
-    Effect.repeat(Schedule.fixed("2 hours")),
-  );
+  // Run all adapter ingests every 2 hours
+  yield* runIngestCycle.pipe(Effect.repeat(Schedule.fixed("2 hours")));
 });
 
-const ServicesLive = Layer.mergeAll(NflAdapter.Live, NodeClient.Live).pipe(
+const ServicesLive = Layer.mergeAll(NflAdapter.Live, GolfAdapter.Live, NodeClient.Live).pipe(
   Layer.provide(NodeHttpClient.layer),
 );
 
