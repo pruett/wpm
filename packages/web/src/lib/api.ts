@@ -9,9 +9,7 @@ export async function fetchMarkets(): Promise<MarketWithOdds[]> {
   return res.json();
 }
 
-export async function register(
-  name: string,
-): Promise<{ token: string; address: string; balance: number }> {
+export async function register(name: string): Promise<{ token: string; address: string }> {
   const res = await fetch("/api/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,13 +26,6 @@ function authHeaders(): HeadersInit {
   return auth.token ? { Authorization: `Bearer ${auth.token}` } : {};
 }
 
-export async function fetchBalance(): Promise<number> {
-  const res = await fetch("/api/balance", { headers: authHeaders() });
-  if (!res.ok) throw new Error(`Failed to fetch balance: ${res.status}`);
-  const body = await res.json();
-  return body.balance;
-}
-
 export async function fetchPositions(): Promise<SharePosition[]> {
   const res = await fetch("/api/positions", { headers: authHeaders() });
   if (!res.ok) throw new Error(`Failed to fetch positions: ${res.status}`);
@@ -46,7 +37,6 @@ export async function placeBet(
   outcome: "A" | "B",
   amount: number,
 ): Promise<void> {
-  const balanceBefore = await fetchBalance();
   const res = await fetch("/api/bet", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -55,16 +45,5 @@ export async function placeBet(
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Bet failed: ${res.status}`);
-  }
-  // Wait for the block to be mined (balance will change once tx is applied)
-  await waitForBalanceChange(balanceBefore);
-}
-
-async function waitForBalanceChange(previousBalance: number, maxWait = 12000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < maxWait) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const current = await fetchBalance().catch(() => previousBalance);
-    if (current !== previousBalance) return;
   }
 }

@@ -1,8 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "WebFetch(domain:code.claude.com)"
-    ]
+    "allow": ["WebFetch(domain:code.claude.com)"]
   },
   "enabledPlugins": {
     "svelte@svelte": true

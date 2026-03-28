@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from "$app/navigation";
 	import { register } from "$lib/api.js";
 	import { auth } from "$lib/stores/auth.svelte.js";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -17,6 +18,7 @@
 		try {
 			const result = await register(name.trim());
 			auth.login(result.token, result.address);
+			goto("/");
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Registration failed";
 		} finally {
@@ -33,12 +35,7 @@
 		</Card.Header>
 		<Card.Content>
 			<form onsubmit={handleSubmit} class="flex flex-col gap-4">
-				<Input
-					placeholder="Your name"
-					bind:value={name}
-					disabled={submitting}
-					required
-				/>
+				<Input placeholder="Your name" bind:value={name} disabled={submitting} required />
 				{#if error}
 					<p class="text-sm text-destructive">{error}</p>
 				{/if}
@@ -47,5 +44,10 @@
 				</Button>
 			</form>
 		</Card.Content>
+		<Card.Footer class="justify-center">
+			<p class="text-sm text-muted-foreground">
+				Already have an account? <a href="/login" class="text-foreground underline">Log in</a>
+			</p>
+		</Card.Footer>
 	</Card.Root>
 </div>

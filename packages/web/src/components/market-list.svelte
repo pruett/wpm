@@ -2,7 +2,6 @@
 	import type { SharePosition } from "@wpm/shared";
 	import { fetchMarkets, fetchPositions } from "$lib/api.js";
 	import { auth } from "$lib/stores/auth.svelte.js";
-	import { balance } from "$lib/stores/balance.svelte.js";
 	import { createMarketStream } from "$lib/stores/market-stream.svelte.js";
 	import MarketCard from "./market-card.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
@@ -21,9 +20,7 @@
 	}
 
 	function refreshAfterBet() {
-		// placeBet() already waited for the block to mine, so data is fresh
 		loadPositions();
-		balance.refresh();
 		fetchMarkets()
 			.then((markets) => stream.setMarkets(markets))
 			.catch(() => {});

@@ -1,6 +1,6 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
-import { calculateOdds, sign, serializeTx, addressOf, SIGNUP_AIRDROP } from "@wpm/shared";
+import { calculateOdds, sign, serializeTx, SIGNUP_AIRDROP } from "@wpm/shared";
 import type { MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
 import { UserStore } from "./user-store.js";
@@ -171,6 +171,11 @@ export const makeRouter = Effect.gen(function* () {
             if (event.type === "market:resolved") {
               return new TextEncoder().encode(
                 `event: market:resolved\ndata: ${JSON.stringify(event)}\n\n`,
+              );
+            }
+            if (event.type === "balance:update") {
+              return new TextEncoder().encode(
+                `event: balance:update\ndata: ${JSON.stringify(event)}\n\n`,
               );
             }
             const odds = calculateOdds(event.pool);

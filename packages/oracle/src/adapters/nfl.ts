@@ -5,7 +5,7 @@ import { OracleError } from "../errors.js";
 
 const ESPN_NFL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
 const ESPN_NFL_INGEST_URL = `${ESPN_NFL}/scoreboard`;
-const ESPN_NFL_RESOLUTION_URL = (eventId: string) => `${ESPN_NFL}/summary?event=${eventId}`;
+const _ESPN_NFL_RESOLUTION_URL = (eventId: string) => `${ESPN_NFL}/summary?event=${eventId}`;
 
 const STATUS_MAP: Record<string, GameStatus> = {
   STATUS_SCHEDULED: "scheduled",

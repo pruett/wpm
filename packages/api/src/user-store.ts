@@ -1,5 +1,5 @@
-import { Context, Effect, Layer } from "effect";
-import { generateKeyPair, addressOf } from "@wpm/shared";
+import { Context, Layer } from "effect";
+import { generateKeyPair } from "@wpm/shared";
 import { readFileSync, writeFileSync } from "node:fs";
 
 export type StoredUser = {

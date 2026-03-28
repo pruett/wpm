@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MarketWithOdds, PriceUpdateEvent, MarketResolvedEvent } from "@wpm/shared";
 
 // Mock EventSource before importing the module

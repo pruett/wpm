@@ -107,7 +107,13 @@ export type MarketResolvedEvent = {
   result: "A" | "B";
 };
 
-export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent;
+export type BalanceUpdateEvent = {
+  type: "balance:update";
+  address: string;
+  balance: number;
+};
+
+export type NodeEvent = TradeExecutedEvent | MarketResolvedEvent | BalanceUpdateEvent;
 
 export type PriceUpdateEvent = {
   type: "price:update";

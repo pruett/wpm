@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MarketWithOdds } from "@wpm/shared";
-import { fetchMarkets, register, fetchBalance, fetchPositions, placeBet } from "$lib/api.js";
+import { fetchMarkets, register, placeBet } from "$lib/api.js";
 
 const mockMarket: MarketWithOdds = {
   id: "market-1",
@@ -93,25 +93,6 @@ describe("register", () => {
     );
 
     await expect(register("")).rejects.toThrow("Name required");
-  });
-});
-
-describe("fetchBalance", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("returns balance number", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ balance: 99000 }),
-      }),
-    );
-
-    const balance = await fetchBalance();
-    expect(balance).toBe(99000);
   });
 });
 

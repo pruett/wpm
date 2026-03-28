@@ -1,6 +1,3 @@
-import { fetchBalance } from "$lib/api.js";
-import { auth } from "./auth.svelte.js";
-
 let _balance = $state<number | null>(null);
 
 export const balance = {
@@ -12,12 +9,7 @@ export const balance = {
     _balance = val;
   },
 
-  async refresh() {
-    if (!auth.isLoggedIn) return;
-    try {
-      _balance = await fetchBalance();
-    } catch {
-      // ignore
-    }
+  reset() {
+    _balance = null;
   },
 };

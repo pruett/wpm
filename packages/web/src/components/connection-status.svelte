@@ -4,30 +4,36 @@
 	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import XIcon from "@lucide/svelte/icons/x";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 
 	$effect(() => {
 		connection.start();
 		return () => connection.stop();
 	});
 
-	let connected = $derived(connection.status === "connected");
+	let status = $derived(connection.status);
 </script>
 
 <Tooltip.Root>
 	<Tooltip.Trigger>
-		{#if connected}
+		{#if status === "connected"}
 			<Badge variant="secondary" class="gap-1 bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20">
 				<CheckIcon class="size-3" />
 				Connected
 			</Badge>
+		{:else if status === "degraded"}
+			<Badge variant="secondary" class="gap-1 bg-amber-500/10 text-amber-500 dark:bg-amber-500/20">
+				<TriangleAlertIcon class="size-3" />
+				Degraded
+			</Badge>
 		{:else}
-			<Badge variant="destructive">
+			<Badge variant="destructive" class="gap-1">
 				<XIcon class="size-3" />
-				Not Connected
+				Disconnected
 			</Badge>
 		{/if}
 	</Tooltip.Trigger>
 	<Tooltip.Content>
-		{connected ? "API and node are reachable" : "Unable to reach backend services"}
+		{connection.detail}
 	</Tooltip.Content>
 </Tooltip.Root>

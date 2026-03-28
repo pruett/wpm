@@ -10,6 +10,21 @@ import {
 } from "@wpm/shared";
 import { NodeClientError } from "./errors.js";
 
+function parseSSE(chunk: string): NodeEvent[] {
+  const events: NodeEvent[] = [];
+  for (const block of chunk.split("\n\n")) {
+    const dataLine = block.split("\n").find((l) => l.startsWith("data: "));
+    if (dataLine) {
+      try {
+        events.push(JSON.parse(dataLine.slice(6)));
+      } catch {
+        // skip malformed
+      }
+    }
+  }
+  return events;
+}
+
 export class NodeClient extends Context.Tag("NodeClient")<
   NodeClient,
   {
@@ -82,7 +97,16 @@ export class NodeClient extends Context.Tag("NodeClient")<
           Effect.catchAll(() => Effect.succeed(false)),
           Effect.scoped,
         ),
-        eventStream: Effect.succeed(Stream.empty),
+        eventStream: client.get("/internal/events").pipe(
+          Effect.map((res) => {
+            const decoder = new TextDecoder();
+            return res.stream.pipe(
+              Stream.mapConcat((chunk) => parseSSE(decoder.decode(chunk, { stream: true }))),
+              Stream.catchAll(() => Stream.empty),
+            );
+          }),
+          Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+        ),
       };
     }),
   );

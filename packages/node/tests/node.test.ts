@@ -381,7 +381,7 @@ describe("Node", () => {
     Effect.gen(function* () {
       yield* serveNodeForTest;
       const client = yield* HttpClient.HttpClient;
-      const userAddr = addressOf(testKeys.user.publicKey);
+      const _userAddr = addressOf(testKeys.user.publicKey);
 
       // -- Setup --
       yield* HttpClientRequest.post("/internal/distribute").pipe(
