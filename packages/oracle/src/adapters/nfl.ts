@@ -4,7 +4,7 @@ import type { Game, GameStatus } from "../types.js";
 import { OracleError } from "../errors.js";
 
 const ESPN_NFL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
-const ESPN_NFL_INGEST_URL = `${ESPN_NFL}/scoreboard`;
+export const ESPN_NFL_SCOREBOARD_URL = `${ESPN_NFL}/scoreboard`;
 const _ESPN_NFL_RESOLUTION_URL = (eventId: string) => `${ESPN_NFL}/summary?event=${eventId}`;
 
 const STATUS_MAP: Record<string, GameStatus> = {
@@ -73,7 +73,7 @@ export class NflAdapter extends Context.Tag("NflAdapter")<
     Effect.gen(function* () {
       const baseClient = yield* HttpClient.HttpClient;
       return {
-        getUpcomingGames: HttpClientRequest.get(ESPN_NFL_INGEST_URL).pipe(
+        getUpcomingGames: HttpClientRequest.get(ESPN_NFL_SCOREBOARD_URL).pipe(
           baseClient.execute,
           Effect.flatMap((res) => {
             if (res.status !== 200) {

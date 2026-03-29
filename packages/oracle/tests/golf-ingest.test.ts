@@ -141,10 +141,7 @@ describe("Golf Ingest", () => {
       expect(result.skipped).toBe(0);
     }).pipe(
       Effect.provide(
-        Layer.merge(
-          makeFakeGolf([makeTournament({ competitors: [] })]),
-          makeFakeNode(),
-        ),
+        Layer.merge(makeFakeGolf([makeTournament({ competitors: [] })]), makeFakeNode()),
       ),
     ),
   );

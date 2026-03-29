@@ -3,9 +3,12 @@ import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { OracleError } from "../errors.js";
 
 const ESPN_GOLF_PGA = "https://site.api.espn.com/apis/site/v2/sports/golf/pga";
-const ESPN_GOLF_PGA_SCOREBOARD_URL = `${ESPN_GOLF_PGA}/scoreboard`;
-const ESPN_GOLF_PGA_RANKINGS_URL =
-  "https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/rankings";
+
+export const ESPN_GOLF_SCOREBOARD_URL = `${ESPN_GOLF_PGA}/scoreboard`;
+
+/** Build OWGR (Official World Golf Ranking) URL for a given season year. */
+export const espnGolfOwgrUrl = (year: number) =>
+  `https://sports.core.api.espn.com/v2/sports/golf/leagues/all/seasons/${year}/rankings/1`;
 
 /** Only create markets for the top N world-ranked golfers per tournament. */
 export const MAX_COMPETITORS = 10;
@@ -65,37 +68,48 @@ export type EspnGolfScoreboardResponse = typeof EspnGolfScoreboardResponse.Type;
 
 // --- Rankings schemas ---
 
-const EspnRankingEntry = Schema.Struct({
-  athlete: Schema.Struct({
-    id: Schema.String,
-  }),
+// OWGR ranking type: returns weekly date snapshots as $ref links
+export const EspnGolfOwgrResponse = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  type: Schema.String,
+  rankings: Schema.NonEmptyArray(Schema.Struct({ $ref: Schema.String })),
 });
 
-const EspnRanking = Schema.Struct({
-  // ESPN returns multiple ranking types; we use the first (OWGR)
-  ranks: Schema.Array(EspnRankingEntry),
+export type EspnGolfOwgrResponse = typeof EspnGolfOwgrResponse.Type;
+
+// Weekly ranks: individual rank entries with athlete $ref links
+const EspnRankEntry = Schema.Struct({
+  current: Schema.Number,
+  athlete: Schema.Struct({ $ref: Schema.String }),
 });
 
-export const EspnGolfRankingsResponse = Schema.Struct({
-  rankings: Schema.NonEmptyArray(EspnRanking),
+export const EspnGolfRanksResponse = Schema.Struct({
+  ranks: Schema.NonEmptyArray(EspnRankEntry),
 });
 
-export type EspnGolfRankingsResponse = typeof EspnGolfRankingsResponse.Type;
+export type EspnGolfRanksResponse = typeof EspnGolfRanksResponse.Type;
 
 // --- Decoders ---
 
 const decodeScoreboard = Schema.decodeUnknown(EspnGolfScoreboardResponse);
-const decodeRankings = Schema.decodeUnknown(EspnGolfRankingsResponse);
+const decodeOwgr = Schema.decodeUnknown(EspnGolfOwgrResponse);
+const decodeRanks = Schema.decodeUnknown(EspnGolfRanksResponse);
+
+const ATHLETE_ID_RE = /\/athletes\/(\d+)/;
 
 /**
  * Build a set of athlete IDs ordered by world ranking (OWGR).
  * Returns a Map<athleteId, rank> for O(1) lookup.
+ * Extracts athlete IDs from $ref URLs in each rank entry.
  */
-export function buildRankingIndex(data: EspnGolfRankingsResponse): Map<string, number> {
+export function buildRankingIndex(data: EspnGolfRanksResponse): Map<string, number> {
   const index = new Map<string, number>();
-  const ranks = data.rankings[0].ranks;
-  for (let i = 0; i < ranks.length; i++) {
-    index.set(ranks[i].athlete.id, i + 1);
+  for (const entry of data.ranks) {
+    const match = entry.athlete.$ref.match(ATHLETE_ID_RE);
+    if (match) {
+      index.set(match[1], entry.current);
+    }
   }
   return index;
 }
@@ -103,12 +117,16 @@ export function buildRankingIndex(data: EspnGolfRankingsResponse): Map<string, n
 /**
  * Filter and sort competitors by world ranking, keeping only the top N.
  * Unranked players are excluded — if fewer than N are ranked, return all ranked.
+ * When no ranking data is available, returns the first N in scoreboard order.
  */
 export function topRankedCompetitors(
   competitors: Competitor[],
   rankings: Map<string, number>,
   limit: number,
 ): Competitor[] {
+  if (rankings.size === 0) {
+    return competitors.slice(0, limit);
+  }
   return competitors
     .filter((c) => rankings.has(c.espnId))
     .sort((a, b) => rankings.get(a.espnId)! - rankings.get(b.espnId)!)
@@ -168,8 +186,9 @@ export class GolfAdapter extends Context.Tag("GolfAdapter")<
 
       return {
         getUpcomingTournaments: Effect.gen(function* () {
-          const [scoreboardData, rankingsData] = yield* Effect.all([
-            fetchJson(ESPN_GOLF_PGA_SCOREBOARD_URL, "scoreboard").pipe(
+          // Fetch scoreboard and OWGR ranking type in parallel
+          const [scoreboardData, owgrData] = yield* Effect.all([
+            fetchJson(ESPN_GOLF_SCOREBOARD_URL, "scoreboard").pipe(
               Effect.flatMap((data) =>
                 decodeScoreboard(data).pipe(
                   Effect.mapError(
@@ -181,13 +200,13 @@ export class GolfAdapter extends Context.Tag("GolfAdapter")<
                 ),
               ),
             ),
-            fetchJson(ESPN_GOLF_PGA_RANKINGS_URL, "rankings").pipe(
+            fetchJson(espnGolfOwgrUrl(new Date().getFullYear()), "OWGR").pipe(
               Effect.flatMap((data) =>
-                decodeRankings(data).pipe(
+                decodeOwgr(data).pipe(
                   Effect.mapError(
                     (e) =>
                       new OracleError({
-                        message: `ESPN Golf rankings validation failed: ${e.message}`,
+                        message: `ESPN Golf OWGR validation failed: ${e.message}`,
                       }),
                   ),
                 ),
@@ -195,7 +214,26 @@ export class GolfAdapter extends Context.Tag("GolfAdapter")<
             ),
           ]);
 
-          const rankings = buildRankingIndex(rankingsData);
+          // Follow the first (most recent) date ref to get actual ranks
+          const latestDateRef = owgrData.rankings[0].$ref;
+          const ranksUrl = latestDateRef.includes("?")
+            ? `${latestDateRef}&limit=500`
+            : `${latestDateRef}?limit=500`;
+
+          const ranksData = yield* fetchJson(ranksUrl, "ranks").pipe(
+            Effect.flatMap((data) =>
+              decodeRanks(data).pipe(
+                Effect.mapError(
+                  (e) =>
+                    new OracleError({
+                      message: `ESPN Golf ranks validation failed: ${e.message}`,
+                    }),
+                ),
+              ),
+            ),
+          );
+
+          const rankings = buildRankingIndex(ranksData);
           return parseEspnGolfResponse(scoreboardData, rankings);
         }),
       };

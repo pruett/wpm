@@ -6,7 +6,7 @@ import {
   parseEspnGolfResponse,
   buildRankingIndex,
   EspnGolfScoreboardResponse,
-  EspnGolfRankingsResponse,
+  EspnGolfRanksResponse,
   GolfAdapter,
   MAX_COMPETITORS,
 } from "../src/adapters/golf.js";
@@ -34,13 +34,19 @@ const makeEvent = (overrides: Record<string, any> = {}) => ({
   ...overrides,
 });
 
+const makeOwgrResponse = () => ({
+  id: "1",
+  name: "World Rankings",
+  type: "WORLDRANK",
+  rankings: [{ $ref: "http://espn.test/rankings/1/dates/20260322" }],
+});
+
 // Only ranks golfers 1–15, leaving "9999" unranked
-const makeRankings = () => ({
-  rankings: [
-    {
-      ranks: Array.from({ length: 15 }, (_, i) => ({ athlete: { id: `${i + 1}` } })),
-    },
-  ],
+const makeRanksResponse = () => ({
+  ranks: Array.from({ length: 15 }, (_, i) => ({
+    current: i + 1,
+    athlete: { $ref: `http://espn.test/athletes/${i + 1}` },
+  })),
 });
 
 function makeHttpLayer(routes: Record<string, { status: number; body: unknown }>) {
@@ -67,45 +73,45 @@ function makeHttpLayer(routes: Record<string, { status: number; body: unknown }>
 
 const validRoutes = {
   scoreboard: { status: 200, body: { events: [makeEvent()] } },
-  rankings: { status: 200, body: makeRankings() },
+  // More specific pattern first so /dates/ matches before /rankings/
+  "/dates/": { status: 200, body: makeRanksResponse() },
+  "/rankings/": { status: 200, body: makeOwgrResponse() },
 };
 
 describe("Golf Adapter", () => {
-  effectIt.effect(
-    "parses scoreboard and returns top-ranked competitors",
-    () =>
-      Effect.gen(function* () {
-        const scoreboard = Schema.decodeUnknownSync(EspnGolfScoreboardResponse)({
-          events: [
-            makeEvent(),
-            makeEvent({
-              id: "401580338",
-              name: "PGA Championship",
-              status: { type: { name: "STATUS_FINAL" } },
-            }),
-          ],
-        });
-        const rankings = buildRankingIndex(
-          Schema.decodeUnknownSync(EspnGolfRankingsResponse)(makeRankings()),
-        );
-        const tournaments = parseEspnGolfResponse(scoreboard, rankings);
+  effectIt.effect("parses scoreboard and returns top-ranked competitors", () =>
+    Effect.sync(() => {
+      const scoreboard = Schema.decodeUnknownSync(EspnGolfScoreboardResponse)({
+        events: [
+          makeEvent(),
+          makeEvent({
+            id: "401580338",
+            name: "PGA Championship",
+            status: { type: { name: "STATUS_FINAL" } },
+          }),
+        ],
+      });
+      const rankings = buildRankingIndex(
+        Schema.decodeUnknownSync(EspnGolfRanksResponse)(makeRanksResponse()),
+      );
+      const tournaments = parseEspnGolfResponse(scoreboard, rankings);
 
-        // Parses both events
-        expect(tournaments).toHaveLength(2);
+      // Parses both events
+      expect(tournaments).toHaveLength(2);
 
-        // Caps at MAX_COMPETITORS, excludes unranked, sorts by rank
-        const masters = tournaments[0];
-        expect(masters.espnId).toBe("401580337");
-        expect(masters.name).toBe("The Masters");
-        expect(masters.status).toBe("scheduled");
-        expect(masters.competitors).toHaveLength(MAX_COMPETITORS);
-        expect(masters.competitors[0]).toEqual({ espnId: "1", name: "Golfer 1" });
-        expect(masters.competitors[9]).toEqual({ espnId: "10", name: "Golfer 10" });
-        expect(masters.competitors.find((c) => c.name === "Unranked Amateur")).toBeUndefined();
+      // Caps at MAX_COMPETITORS, excludes unranked, sorts by rank
+      const masters = tournaments[0];
+      expect(masters.espnId).toBe("401580337");
+      expect(masters.name).toBe("The Masters");
+      expect(masters.status).toBe("scheduled");
+      expect(masters.competitors).toHaveLength(MAX_COMPETITORS);
+      expect(masters.competitors[0]).toEqual({ espnId: "1", name: "Golfer 1" });
+      expect(masters.competitors[9]).toEqual({ espnId: "10", name: "Golfer 10" });
+      expect(masters.competitors.find((c) => c.name === "Unranked Amateur")).toBeUndefined();
 
-        // Maps status correctly
-        expect(tournaments[1].status).toBe("completed");
-      }),
+      // Maps status correctly
+      expect(tournaments[1].status).toBe("completed");
+    }),
   );
 
   effectIt.effect("succeeds with valid HTTP responses", () =>
@@ -132,7 +138,8 @@ describe("Golf Adapter", () => {
       Effect.provide(
         makeHttpLayer({
           scoreboard: { status: 500, body: {} },
-          rankings: { status: 200, body: makeRankings() },
+          "/dates/": { status: 200, body: makeRanksResponse() },
+          "/rankings/": { status: 200, body: makeOwgrResponse() },
         }),
       ),
     ),
@@ -149,7 +156,8 @@ describe("Golf Adapter", () => {
       Effect.provide(
         makeHttpLayer({
           scoreboard: { status: 200, body: { wrong: "shape" } },
-          rankings: { status: 200, body: makeRankings() },
+          "/dates/": { status: 200, body: makeRanksResponse() },
+          "/rankings/": { status: 200, body: makeOwgrResponse() },
         }),
       ),
     ),
