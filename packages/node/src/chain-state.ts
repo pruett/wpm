@@ -47,7 +47,7 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
           closesAt: tx.closesAt,
           status: "open",
         });
-        pools.set(tx.id, initializePool(tx.id, tx.seedAmount));
+        pools.set(tx.id, initializePool(tx.id, tx.seedAmount, tx.initialProbabilityA));
         const signerAddr = addressOf(block.signer);
         balances.set(signerAddr, (balances.get(signerAddr) ?? 0) - tx.seedAmount);
         break;

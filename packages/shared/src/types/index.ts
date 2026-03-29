@@ -14,6 +14,7 @@ export type Transaction =
       outcomes: [string, string];
       closesAt: string;
       seedAmount: number;
+      initialProbabilityA?: number;
       signature: string;
       timestamp: string;
     }

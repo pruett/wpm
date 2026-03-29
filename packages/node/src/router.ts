@@ -20,6 +20,7 @@ const CreateMarketBody = Schema.Struct({
   outcomes: Schema.Tuple(Schema.String, Schema.String),
   closesAt: Schema.String,
   seedAmount: Schema.Number,
+  initialProbabilityA: Schema.optional(Schema.Number),
 });
 const ResolveMarketBody = Schema.Struct({
   id: Schema.String,
@@ -119,6 +120,7 @@ export const makeRouter = Effect.gen(function* () {
             outcomes: body.outcomes,
             closesAt: body.closesAt,
             seedAmount: body.seedAmount,
+            initialProbabilityA: body.initialProbabilityA,
           },
           keys,
         );

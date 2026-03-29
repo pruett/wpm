@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { NflAdapter } from "./adapters/nfl.js";
+import { NflAdapter, moneylineToFairProbability } from "./adapters/nfl.js";
 import { NodeClient } from "./node-client.js";
 import { OracleError } from "./errors.js";
 
@@ -25,12 +25,19 @@ export const ingest = Effect.gen(function* () {
       continue;
     }
 
+    let initialProbabilityA: number | undefined;
+    if (game.awayMoneyline !== undefined && game.homeMoneyline !== undefined) {
+      const { awayProb } = moneylineToFairProbability(game.awayMoneyline, game.homeMoneyline);
+      initialProbabilityA = awayProb;
+    }
+
     yield* node.createMarket({
       id: marketId,
       name: game.name,
       outcomes: [game.awayTeam, game.homeTeam],
       closesAt: game.startTime,
       seedAmount: SEED_AMOUNT,
+      initialProbabilityA,
     });
     created++;
   }
