@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'GIT_AUTHOR_NAME=Kevin Pruett\nGIT_AUTHOR_EMAIL=Pruett.kevin@gmail.com\nGIT_COMMITTER_NAME=Kevin Pruett\nGIT_COMMITTER_EMAIL=Pruett.kevin@gmail.com' >> \"$CLAUDE_ENV_FILE\""
+            "command": "echo 'GIT_AUTHOR_NAME=Kevin Pruett\nGIT_AUTHOR_EMAIL=pruett.kevin@gmail.com\nGIT_COMMITTER_NAME=Kevin Pruett\nGIT_COMMITTER_EMAIL=pruett.kevin@gmail.com' >> \"$CLAUDE_ENV_FILE\""
           }
         ]
       }
