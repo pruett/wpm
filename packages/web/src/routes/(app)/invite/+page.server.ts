@@ -1,6 +1,6 @@
 import { fail } from "@sveltejs/kit";
-import { Resend } from "resend";
 import { createInviteCode, listInviteCodes } from "$lib/server/invite-store.js";
+import { EMAIL_FROM, getResend } from "$lib/server/email.js";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals }) => {
@@ -10,6 +10,7 @@ export const load: PageServerLoad = ({ locals }) => {
 
 export const actions = {
   default: async ({ request, locals, url }) => {
+    const user = locals.user!;
     const data = await request.formData();
     const email = data.get("email")?.toString().trim();
 
@@ -17,16 +18,15 @@ export const actions = {
       return fail(400, { error: "Email is required" });
     }
 
-    const code = createInviteCode(locals.user!.email, email);
+    const code = createInviteCode(user.email, email);
     const signupUrl = `${url.origin}/signup?code=${code}`;
 
     if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "WPM <noreply@example.com>",
+      await getResend().emails.send({
+        from: EMAIL_FROM,
         to: email,
-        subject: `${locals.user!.name} invited you to WPM`,
-        html: `<p>${locals.user!.name} invited you to join WPM, a prediction market for friends.</p><p><a href="${signupUrl}">Click here to join</a></p>`,
+        subject: `${user.name} invited you to WPM`,
+        html: `<p>${user.name} invited you to join WPM, a prediction market for friends.</p><p><a href="${signupUrl}">Click here to join</a></p>`,
       });
     }
 

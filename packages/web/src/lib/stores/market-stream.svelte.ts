@@ -59,7 +59,6 @@ export function createMarketStream() {
       eventSource.addEventListener("market:resolved", onMarketResolved);
       eventSource.addEventListener("balance:update", onBalanceUpdate);
 
-      // Fetch initial balance (proxy handles auth via session cookie)
       fetch("/api/balance")
         .then((res) => (res.ok ? res.json() : null))
         .then((body) => {

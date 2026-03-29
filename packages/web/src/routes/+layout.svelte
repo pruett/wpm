@@ -2,10 +2,10 @@
 	import "../app.css";
 	import { goto } from "$app/navigation";
 	import { authClient } from "$lib/auth-client.js";
+	import { session } from "$lib/stores/auth.svelte.js";
 	import Balance from "../components/balance.svelte";
 	import ConnectionStatus from "../components/connection-status.svelte";
 
-	const session = authClient.useSession();
 	let { children } = $props();
 
 	async function logout() {

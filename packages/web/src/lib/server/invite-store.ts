@@ -11,6 +11,17 @@ db.exec(`
   )
 `);
 
+const insertStmt = db.prepare(
+  `INSERT INTO invite_code (code, created_by, invited_email, created_at) VALUES (?, ?, ?, ?)`,
+);
+const validateStmt = db.prepare(`SELECT code FROM invite_code WHERE code = ? AND used_by IS NULL`);
+const consumeStmt = db.prepare(
+  `UPDATE invite_code SET used_by = ?, used_at = ? WHERE code = ? AND used_by IS NULL`,
+);
+const listStmt = db.prepare(
+  `SELECT code, invited_email as invitedEmail, used_by as usedBy, created_at as createdAt FROM invite_code WHERE created_by = ?`,
+);
+
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "WPM-";
@@ -22,33 +33,23 @@ function generateCode(): string {
 
 export function createInviteCode(createdBy: string, invitedEmail: string): string {
   const code = generateCode();
-  db.prepare(
-    `INSERT INTO invite_code (code, created_by, invited_email, created_at) VALUES (?, ?, ?, ?)`,
-  ).run(code, createdBy, invitedEmail, new Date().toISOString());
+  insertStmt.run(code, createdBy, invitedEmail, new Date().toISOString());
   return code;
 }
 
 export function validateInviteCode(code: string): boolean {
-  const row = db
-    .prepare(`SELECT code FROM invite_code WHERE code = ? AND used_by IS NULL`)
-    .get(code) as { code: string } | undefined;
-  return !!row;
+  return !!validateStmt.get(code);
 }
 
-export function consumeInviteCode(code: string, email: string): void {
-  db.prepare(
-    `UPDATE invite_code SET used_by = ?, used_at = ? WHERE code = ? AND used_by IS NULL`,
-  ).run(email, new Date().toISOString(), code);
+export function consumeInviteCode(code: string, email: string): boolean {
+  const result = consumeStmt.run(email, new Date().toISOString(), code);
+  return result.changes === 1;
 }
 
 export function listInviteCodes(
   createdBy: string,
 ): { code: string; invitedEmail: string; usedBy: string | null; createdAt: string }[] {
-  return db
-    .prepare(
-      `SELECT code, invited_email as invitedEmail, used_by as usedBy, created_at as createdAt FROM invite_code WHERE created_by = ?`,
-    )
-    .all(createdBy) as {
+  return listStmt.all(createdBy) as {
     code: string;
     invitedEmail: string;
     usedBy: string | null;
