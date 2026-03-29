@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { SharePosition } from "@wpm/shared";
 	import { fetchMarkets, fetchPositions } from "$lib/api.js";
-	import { auth } from "$lib/stores/auth.svelte.js";
 	import { createMarketStream } from "$lib/stores/market-stream.svelte.js";
 	import MarketCard from "./market-card.svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
@@ -13,7 +12,6 @@
 	const stream = createMarketStream();
 
 	function loadPositions() {
-		if (!auth.isLoggedIn) return;
 		fetchPositions()
 			.then((p) => (positions = p))
 			.catch(() => {});

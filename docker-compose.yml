@@ -58,6 +58,16 @@ services:
       context: .
       dockerfile: packages/web/Dockerfile
     restart: unless-stopped
+    environment:
+      - PORT=4102
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RP_ID=${RP_ID}
+      - ORIGIN=${ORIGIN}
+      - EFFECT_API_URL=http://wpm-api:3000
+    volumes:
+      - auth-data:/app/data
     networks:
       - wpm-net
 
@@ -79,6 +89,7 @@ services:
 volumes:
   chain-data:
   keys:
+  auth-data:
 
 networks:
   wpm-net:

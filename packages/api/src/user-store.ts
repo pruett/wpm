@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 export type StoredUser = {
   id: string;
   name: string;
+  email: string;
   publicKey: string;
   privateKey: string;
   token: string;
@@ -14,15 +15,17 @@ export type StoredUser = {
 export class UserStore extends Context.Tag("UserStore")<
   UserStore,
   {
-    readonly register: (name: string) => StoredUser;
+    readonly register: (name: string, email: string) => StoredUser;
     readonly getByToken: (token: string) => StoredUser | undefined;
     readonly getById: (id: string) => StoredUser | undefined;
+    readonly getByEmail: (email: string) => StoredUser | undefined;
   }
 >() {
   static Live = (filePath?: string) =>
     Layer.sync(this, () => {
       const users = new Map<string, StoredUser>();
       const tokenIndex = new Map<string, string>(); // token → userId
+      const emailIndex = new Map<string, string>(); // email → userId
 
       // Restore from file if it exists
       if (filePath) {
@@ -31,6 +34,7 @@ export class UserStore extends Context.Tag("UserStore")<
           for (const u of data) {
             users.set(u.id, u);
             tokenIndex.set(u.token, u.id);
+            if (u.email) emailIndex.set(u.email, u.id);
           }
         } catch {
           // File doesn't exist or is invalid — start fresh
@@ -47,13 +51,20 @@ export class UserStore extends Context.Tag("UserStore")<
       }
 
       return {
-        register(name: string): StoredUser {
+        register(name: string, email: string): StoredUser {
+          // Idempotent: return existing user if email already registered
+          const existingId = emailIndex.get(email);
+          if (existingId) {
+            return users.get(existingId)!;
+          }
+
           const id = crypto.randomUUID();
           const token = crypto.randomUUID();
           const keys = generateKeyPair();
           const user: StoredUser = {
             id,
             name,
+            email,
             publicKey: keys.publicKey,
             privateKey: keys.privateKey,
             token,
@@ -61,6 +72,7 @@ export class UserStore extends Context.Tag("UserStore")<
           };
           users.set(id, user);
           tokenIndex.set(token, id);
+          emailIndex.set(email, id);
           persist();
           return user;
         },
@@ -70,6 +82,10 @@ export class UserStore extends Context.Tag("UserStore")<
         },
         getById(id: string): StoredUser | undefined {
           return users.get(id);
+        },
+        getByEmail(email: string): StoredUser | undefined {
+          const id = emailIndex.get(email);
+          return id ? users.get(id) : undefined;
         },
       };
     });

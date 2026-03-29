@@ -20,6 +20,10 @@ vite.config.ts.timestamp-*
 # Chain data
 chain.jsonl
 
+# Auth data (runtime)
+packages/api/users.json
+packages/web/data/
+
 # Nginx certs
 nginx/certs/
 
