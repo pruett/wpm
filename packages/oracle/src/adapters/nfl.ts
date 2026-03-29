@@ -113,19 +113,20 @@ export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
 export function extractOdds(
   data: EspnNflOddsResponse,
 ): { awayMoneyline: number; homeMoneyline: number } | undefined {
-  const espnBet = data.items.find(
-    (item) => (item as Record<string, any>).provider?.id === ESPN_BET_PROVIDER_ID,
-  );
-  if (!espnBet) return undefined;
-  try {
-    const decoded = decodeOddsItem(espnBet);
-    return {
-      awayMoneyline: decoded.awayTeamOdds.moneyLine,
-      homeMoneyline: decoded.homeTeamOdds.moneyLine,
-    };
-  } catch {
-    return undefined;
+  for (const item of data.items) {
+    try {
+      const decoded = decodeOddsItem(item);
+      if (decoded.provider.id === ESPN_BET_PROVIDER_ID) {
+        return {
+          awayMoneyline: decoded.awayTeamOdds.moneyLine,
+          homeMoneyline: decoded.homeTeamOdds.moneyLine,
+        };
+      }
+    } catch {
+      continue;
+    }
   }
+  return undefined;
 }
 
 // --- Adapter ---
@@ -147,13 +148,15 @@ export class NflAdapter extends Context.Tag("NflAdapter")<
           Effect.flatMap((res) => {
             if (res.status !== 200) {
               return Effect.fail(
-                new OracleError({ message: `ESPN API returned HTTP ${res.status}` }),
+                new OracleError({ message: `ESPN ${label} returned HTTP ${res.status}` }),
               );
             }
             return res.json;
           }),
           Effect.mapError((e) =>
-            e instanceof OracleError ? e : new OracleError({ message: `ESPN fetch failed: ${e}` }),
+            e instanceof OracleError
+              ? e
+              : new OracleError({ message: `ESPN ${label} fetch failed: ${e}` }),
           ),
           Effect.scoped,
         );
@@ -193,9 +196,11 @@ export class NflAdapter extends Context.Tag("NflAdapter")<
 
           const gamesWithOdds = yield* Effect.all(
             games.map((game) =>
-              fetchOdds(game.espnId).pipe(
-                Effect.map((odds) => (odds ? { ...game, ...odds } : game)),
-              ),
+              game.status === "scheduled"
+                ? fetchOdds(game.espnId).pipe(
+                    Effect.map((odds) => (odds ? { ...game, ...odds } : game)),
+                  )
+                : Effect.succeed(game),
             ),
             { concurrency: 5 },
           );

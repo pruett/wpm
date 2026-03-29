@@ -1,6 +1,5 @@
 import { Effect } from "effect";
-import { NflAdapter } from "./adapters/nfl.js";
-import { moneylineToFairProbability } from "./adapters/nfl.js";
+import { NflAdapter, moneylineToFairProbability } from "./adapters/nfl.js";
 import { NodeClient } from "./node-client.js";
 import { OracleError } from "./errors.js";
 
