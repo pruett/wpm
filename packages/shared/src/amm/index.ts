@@ -1,11 +1,19 @@
 import type { AMMPool } from "../types/index.js";
 
-export function initializePool(marketId: string, seedAmount: number): AMMPool {
+export function initializePool(
+  marketId: string,
+  seedAmount: number,
+  initialProbabilityA?: number,
+): AMMPool {
+  const probA = initialProbabilityA ?? 0.5;
+  const total = 2 * seedAmount;
+  const sharesA = total * (1 - probA);
+  const sharesB = total * probA;
   return {
     marketId,
-    sharesA: seedAmount,
-    sharesB: seedAmount,
-    k: seedAmount * seedAmount,
+    sharesA,
+    sharesB,
+    k: sharesA * sharesB,
     liquidity: seedAmount,
   };
 }

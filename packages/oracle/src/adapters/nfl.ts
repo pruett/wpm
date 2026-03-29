@@ -5,7 +5,11 @@ import { OracleError } from "../errors.js";
 
 const ESPN_NFL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
 export const ESPN_NFL_SCOREBOARD_URL = `${ESPN_NFL}/scoreboard`;
-const _ESPN_NFL_RESOLUTION_URL = (eventId: string) => `${ESPN_NFL}/summary?event=${eventId}`;
+
+export const espnNflOddsUrl = (eventId: string) =>
+  `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${eventId}/competitions/${eventId}/odds`;
+
+const ESPN_BET_PROVIDER_ID = "58";
 
 const STATUS_MAP: Record<string, GameStatus> = {
   STATUS_SCHEDULED: "scheduled",
@@ -14,7 +18,29 @@ const STATUS_MAP: Record<string, GameStatus> = {
   STATUS_POSTPONED: "postponed",
 };
 
-// Narrow schema: only the fields we extract from ESPN's scoreboard response
+// --- Moneyline conversion ---
+
+export function moneylineToImpliedProbability(moneyline: number): number {
+  return moneyline < 0
+    ? Math.abs(moneyline) / (Math.abs(moneyline) + 100)
+    : 100 / (moneyline + 100);
+}
+
+export function moneylineToFairProbability(
+  awayML: number,
+  homeML: number,
+): { awayProb: number; homeProb: number } {
+  const awayImplied = moneylineToImpliedProbability(awayML);
+  const homeImplied = moneylineToImpliedProbability(homeML);
+  const total = awayImplied + homeImplied;
+  return {
+    awayProb: awayImplied / total,
+    homeProb: homeImplied / total,
+  };
+}
+
+// --- Scoreboard schemas ---
+
 const EspnNflCompetitor = Schema.Struct({
   homeAway: Schema.String,
   team: Schema.Struct({
@@ -43,7 +69,29 @@ export const EspnNflScoreboardResponse = Schema.Struct({
 
 export type EspnNflScoreboardResponse = typeof EspnNflScoreboardResponse.Type;
 
-const decodeResponse = Schema.decodeUnknown(EspnNflScoreboardResponse);
+// --- Odds schemas ---
+
+export const EspnNflOddsItem = Schema.Struct({
+  provider: Schema.Struct({ id: Schema.String }),
+  awayTeamOdds: Schema.Struct({ moneyLine: Schema.Number }),
+  homeTeamOdds: Schema.Struct({ moneyLine: Schema.Number }),
+});
+
+export type EspnNflOddsItem = typeof EspnNflOddsItem.Type;
+
+export const EspnNflOddsResponse = Schema.Struct({
+  items: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+});
+
+export type EspnNflOddsResponse = typeof EspnNflOddsResponse.Type;
+
+// --- Decoders ---
+
+const decodeScoreboard = Schema.decodeUnknown(EspnNflScoreboardResponse);
+const decodeOddsResponse = Schema.decodeUnknown(EspnNflOddsResponse);
+const decodeOddsItem = Schema.decodeUnknownSync(EspnNflOddsItem);
+
+// --- Parsing ---
 
 export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
   return data.events.map((event) => {
@@ -62,6 +110,26 @@ export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
   });
 }
 
+export function extractOdds(
+  data: EspnNflOddsResponse,
+): { awayMoneyline: number; homeMoneyline: number } | undefined {
+  const espnBet = data.items.find(
+    (item) => (item as Record<string, any>).provider?.id === ESPN_BET_PROVIDER_ID,
+  );
+  if (!espnBet) return undefined;
+  try {
+    const decoded = decodeOddsItem(espnBet);
+    return {
+      awayMoneyline: decoded.awayTeamOdds.moneyLine,
+      homeMoneyline: decoded.homeTeamOdds.moneyLine,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+// --- Adapter ---
+
 export class NflAdapter extends Context.Tag("NflAdapter")<
   NflAdapter,
   {
@@ -72,35 +140,68 @@ export class NflAdapter extends Context.Tag("NflAdapter")<
     this,
     Effect.gen(function* () {
       const baseClient = yield* HttpClient.HttpClient;
-      return {
-        getUpcomingGames: HttpClientRequest.get(ESPN_NFL_SCOREBOARD_URL).pipe(
+
+      const fetchJson = (url: string, label: string) =>
+        HttpClientRequest.get(url).pipe(
           baseClient.execute,
           Effect.flatMap((res) => {
             if (res.status !== 200) {
               return Effect.fail(
-                new OracleError({
-                  message: `ESPN API returned HTTP ${res.status}`,
-                }),
+                new OracleError({ message: `ESPN API returned HTTP ${res.status}` }),
               );
             }
             return res.json;
           }),
-          Effect.flatMap((data) =>
-            decodeResponse(data).pipe(
-              Effect.mapError(
-                (e) =>
-                  new OracleError({
-                    message: `ESPN response validation failed: ${e.message}`,
-                  }),
-              ),
-            ),
-          ),
-          Effect.map(parseEspnNflResponse),
           Effect.mapError((e) =>
             e instanceof OracleError ? e : new OracleError({ message: `ESPN fetch failed: ${e}` }),
           ),
           Effect.scoped,
-        ),
+        );
+
+      const fetchOdds = (eventId: string) =>
+        fetchJson(espnNflOddsUrl(eventId), `odds/${eventId}`).pipe(
+          Effect.flatMap((data) =>
+            decodeOddsResponse(data).pipe(
+              Effect.mapError(
+                (e) =>
+                  new OracleError({
+                    message: `ESPN odds validation failed: ${e.message}`,
+                  }),
+              ),
+            ),
+          ),
+          Effect.map(extractOdds),
+          Effect.catchAll(() => Effect.succeed(undefined)),
+        );
+
+      return {
+        getUpcomingGames: Effect.gen(function* () {
+          const scoreboardData = yield* fetchJson(ESPN_NFL_SCOREBOARD_URL, "scoreboard").pipe(
+            Effect.flatMap((data) =>
+              decodeScoreboard(data).pipe(
+                Effect.mapError(
+                  (e) =>
+                    new OracleError({
+                      message: `ESPN response validation failed: ${e.message}`,
+                    }),
+                ),
+              ),
+            ),
+          );
+
+          const games = parseEspnNflResponse(scoreboardData);
+
+          const gamesWithOdds = yield* Effect.all(
+            games.map((game) =>
+              fetchOdds(game.espnId).pipe(
+                Effect.map((odds) => (odds ? { ...game, ...odds } : game)),
+              ),
+            ),
+            { concurrency: 5 },
+          );
+
+          return gamesWithOdds;
+        }),
       };
     }),
   );
