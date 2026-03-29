@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { authClient } from "$lib/auth-client.js";
+	import { session } from "$lib/stores/auth.svelte.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { onMount } from "svelte";
@@ -10,12 +11,6 @@
 	let addingPasskey = $state(false);
 
 	onMount(async () => {
-		// better-auth handles the magic link verification via the URL token.
-		// By the time this page renders, the session cookie should already be set
-		// by better-auth's callback handler. Verify we have a session.
-		const session = authClient.useSession();
-
-		// Give better-auth a moment to process the callback
 		await new Promise((r) => setTimeout(r, 500));
 
 		const current = session.get();
