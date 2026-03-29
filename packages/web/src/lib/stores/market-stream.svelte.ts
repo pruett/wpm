@@ -4,11 +4,11 @@ import type {
   MarketResolvedEvent,
   BalanceUpdateEvent,
 } from "@wpm/shared";
-import { auth } from "./auth.svelte.js";
 import { balance } from "./balance.svelte.js";
 
 export function createMarketStream() {
   let _markets = $state<MarketWithOdds[]>([]);
+  let _address = $state<string | null>(null);
   let eventSource: EventSource | null = null;
 
   function onPriceUpdate(event: MessageEvent) {
@@ -35,7 +35,7 @@ export function createMarketStream() {
 
   function onBalanceUpdate(event: MessageEvent) {
     const data: BalanceUpdateEvent = JSON.parse(event.data);
-    if (data.address === auth.address) {
+    if (_address && data.address === _address) {
       balance.set(data.balance);
     }
   }
@@ -43,6 +43,10 @@ export function createMarketStream() {
   return {
     get markets() {
       return _markets;
+    },
+
+    get address() {
+      return _address;
     },
 
     setMarkets(markets: MarketWithOdds[]) {
@@ -55,17 +59,14 @@ export function createMarketStream() {
       eventSource.addEventListener("market:resolved", onMarketResolved);
       eventSource.addEventListener("balance:update", onBalanceUpdate);
 
-      // Fetch initial balance for returning users (one-time, not polling)
-      if (auth.isLoggedIn) {
-        fetch("/api/balance", {
-          headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+      // Fetch initial balance (proxy handles auth via session cookie)
+      fetch("/api/balance")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((body) => {
+          if (body?.balance != null) balance.set(body.balance);
+          if (body?.address) _address = body.address;
         })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((body) => {
-            if (body?.balance != null) balance.set(body.balance);
-          })
-          .catch(() => {});
-      }
+        .catch(() => {});
     },
 
     disconnect() {

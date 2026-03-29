@@ -89,9 +89,9 @@ function testLayer(mock: Layer.Layer<NodeClient>) {
 }
 
 /** Helper: register a user and return { token, address, balance } */
-function registerUser(client: HttpClient.HttpClient, name: string) {
+function registerUser(client: HttpClient.HttpClient, name: string, email?: string) {
   return HttpClientRequest.post("/api/register").pipe(
-    HttpClientRequest.bodyUnsafeJson({ name }),
+    HttpClientRequest.bodyUnsafeJson({ name, email: email ?? `${name.toLowerCase()}@test.com` }),
     client.execute,
     Effect.flatMap((res) => res.json),
   ) as Effect.Effect<{ token: string; address: string; balance: number }>;

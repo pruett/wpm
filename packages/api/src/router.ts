@@ -20,6 +20,7 @@ const SellBody = Schema.Struct({
 
 const RegisterBody = Schema.Struct({
   name: Schema.String,
+  email: Schema.String,
 });
 
 export const makeRouter = Effect.gen(function* () {
@@ -69,7 +70,16 @@ export const makeRouter = Effect.gen(function* () {
       "/api/register",
       Effect.gen(function* () {
         const body = yield* HttpServerRequest.schemaBodyJson(RegisterBody);
-        const user = userStore.register(body.name);
+        const existing = userStore.getByEmail(body.email);
+        if (existing) {
+          const balance = yield* nodeClient.getBalance(existing.address);
+          return yield* HttpServerResponse.json({
+            token: existing.token,
+            address: existing.address,
+            balance,
+          });
+        }
+        const user = userStore.register(body.name, body.email);
         yield* nodeClient.distribute(user.publicKey, SIGNUP_AIRDROP, "signup_airdrop");
         const balance = yield* nodeClient.getBalance(user.address);
         return yield* HttpServerResponse.json({
@@ -89,7 +99,7 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const user = yield* authenticated;
         const balance = yield* nodeClient.getBalance(user.address);
-        return yield* HttpServerResponse.json({ balance });
+        return yield* HttpServerResponse.json({ balance, address: user.address });
       }).pipe(
         catchAuth,
         Effect.catchTag("NodeClientError", (e) =>

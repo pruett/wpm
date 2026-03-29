@@ -1,9 +1,17 @@
 <script lang="ts">
 	import "../app.css";
-	import { auth } from "$lib/stores/auth.svelte.js";
+	import { goto } from "$app/navigation";
+	import { authClient } from "$lib/auth-client.js";
 	import Balance from "../components/balance.svelte";
 	import ConnectionStatus from "../components/connection-status.svelte";
+
+	const session = authClient.useSession();
 	let { children } = $props();
+
+	async function logout() {
+		await authClient.signOut();
+		goto("/login");
+	}
 </script>
 
 <div class="min-h-screen bg-background">
@@ -11,8 +19,14 @@
 		<div class="mx-auto flex max-w-2xl items-center justify-between">
 			<h1 class="text-lg font-semibold text-foreground">WPM</h1>
 			<div class="flex items-center gap-3">
-				{#if auth.isLoggedIn}
+				{#if $session?.data?.user}
 					<Balance />
+					<button
+						onclick={logout}
+						class="text-sm text-muted-foreground hover:text-foreground"
+					>
+						Logout
+					</button>
 				{/if}
 				<ConnectionStatus />
 			</div>
