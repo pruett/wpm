@@ -1,4 +1,4 @@
-import { EFFECT_API_URL } from "./config.js";
+import { API_URL } from "@wpm/shared";
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const walletCache = new Map<string, { token: string; address: string; expiresAt: number }>();
@@ -10,7 +10,7 @@ export async function getWalletToken(
   const cached = walletCache.get(email);
   if (cached && cached.expiresAt > Date.now()) return cached;
 
-  const res = await fetch(`${EFFECT_API_URL}/api/register`, {
+  const res = await fetch(`${API_URL}/api/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email }),

@@ -1,5 +1,5 @@
 import { error, type RequestEvent } from "@sveltejs/kit";
-import { EFFECT_API_URL } from "./config.js";
+import { API_URL } from "@wpm/shared";
 import { getWalletToken } from "./wallet.js";
 
 export async function proxyToApi(
@@ -25,7 +25,7 @@ export async function proxyToApi(
     init.body = await event.request.text();
   }
 
-  const res = await fetch(`${EFFECT_API_URL}${path}`, init);
+  const res = await fetch(`${API_URL}${path}`, init);
   return new Response(res.body, {
     status: res.status,
     headers: { "Content-Type": "application/json" },

@@ -46,6 +46,14 @@ export const makeRouter = Effect.gen(function* () {
     HttpRouter.get("/internal/health", HttpServerResponse.json({ status: "ok" })),
 
     HttpRouter.get(
+      "/internal/blocks",
+      Effect.gen(function* () {
+        const state = yield* chainState.get;
+        return yield* HttpServerResponse.json(state.chain);
+      }),
+    ),
+
+    HttpRouter.get(
       "/internal/balance/:address",
       Effect.gen(function* () {
         const { address } = yield* HttpRouter.schemaPathParams(AddressParams);

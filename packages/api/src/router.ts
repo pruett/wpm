@@ -1,7 +1,7 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 import { calculateOdds, sign, serializeTx, SIGNUP_AIRDROP } from "@wpm/shared";
-import type { MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
+import type { Block, MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
 import { UserStore } from "./user-store.js";
 import { authenticated, catchAuth } from "./auth.js";
@@ -40,6 +40,18 @@ export const makeRouter = Effect.gen(function* () {
           { status: nodeOk ? 200 : 503 },
         );
       }),
+    ),
+
+    HttpRouter.get(
+      "/api/blocks",
+      Effect.gen(function* () {
+        const blocks: Block[] = yield* nodeClient.getBlocks;
+        return yield* HttpServerResponse.json(blocks);
+      }).pipe(
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
     ),
 
     HttpRouter.get(

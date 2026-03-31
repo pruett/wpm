@@ -13,3 +13,6 @@ export const API_PORT = Number(globalThis.process?.env?.API_PORT) || 4101;
 /** Base URL for the blockchain node's internal API. Override with NODE_URL env var. */
 export const NODE_INTERNAL_URL =
   globalThis.process?.env?.NODE_URL || `http://localhost:${NODE_PORT}`;
+
+/** Base URL for the Effect API server. Override with API_URL env var. */
+export const API_URL = globalThis.process?.env?.API_URL || `http://localhost:${API_PORT}`;

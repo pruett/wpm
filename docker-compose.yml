@@ -65,7 +65,7 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RP_ID=${RP_ID}
       - ORIGIN=${ORIGIN}
-      - EFFECT_API_URL=http://wpm-api:3000
+      - API_URL=http://wpm-api:3000
     volumes:
       - auth-data:/app/data
     networks:

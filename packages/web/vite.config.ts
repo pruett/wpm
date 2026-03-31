@@ -4,7 +4,7 @@ import { svelteTesting } from "@testing-library/svelte/vite";
 import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, ".", "");
+  const env = { ...loadEnv(mode, "../..", ""), ...loadEnv(mode, ".", "") };
   // Expose env vars to server-side process.env (for better-auth)
   for (const [key, value] of Object.entries(env)) {
     process.env[key] ??= value;
@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
     plugins: [tailwindcss(), sveltekit(), svelteTesting()],
     server: {
       proxy: {
+        "/api/blocks": "http://localhost:4101",
         "/api/markets": "http://localhost:4101",
         "/api/health": "http://localhost:4101",
         "/api/register": "http://localhost:4101",

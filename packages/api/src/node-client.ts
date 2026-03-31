@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Stream } from "effect";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 import {
   NODE_INTERNAL_URL,
+  type Block,
   type Transaction,
   type Market,
   type AMMPool,
@@ -40,6 +41,7 @@ export class NodeClient extends Context.Tag("NodeClient")<
     ) => Effect.Effect<{ market: Market; pool: AMMPool } | null, NodeClientError>;
     readonly getBalance: (address: string) => Effect.Effect<number, NodeClientError>;
     readonly getPositions: (address: string) => Effect.Effect<SharePosition[], NodeClientError>;
+    readonly getBlocks: Effect.Effect<Block[], NodeClientError>;
     readonly health: Effect.Effect<boolean>;
     readonly eventStream: Effect.Effect<Stream.Stream<NodeEvent>, NodeClientError>;
   }
@@ -92,6 +94,11 @@ export class NodeClient extends Context.Tag("NodeClient")<
             Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
             Effect.scoped,
           ) as Effect.Effect<SharePosition[], NodeClientError>,
+        getBlocks: client.get("/internal/blocks").pipe(
+          Effect.flatMap((res) => res.json),
+          Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+          Effect.scoped,
+        ) as Effect.Effect<Block[], NodeClientError>,
         health: client.get("/internal/health").pipe(
           Effect.as(true),
           Effect.catchAll(() => Effect.succeed(false)),

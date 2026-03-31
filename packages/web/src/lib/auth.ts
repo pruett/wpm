@@ -25,6 +25,11 @@ export const auth = betterAuth({
           }
         }
 
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[Magic Link] ${email}: ${url}`);
+          return;
+        }
+
         const result = await getResend().emails.send({
           from: EMAIL_FROM,
           to: email,
