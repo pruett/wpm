@@ -2,9 +2,11 @@ import { NodeHttpClient, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer, Schedule } from "effect";
 import { NflAdapter } from "./adapters/nfl.js";
 import { GolfAdapter } from "./adapters/golf.js";
+import { MlbAdapter } from "./adapters/mlb.js";
 import { NodeClient } from "./node-client.js";
 import { ingest } from "./ingest.js";
 import { golfIngest } from "./golf-ingest.js";
+import { mlbIngest } from "./mlb-ingest.js";
 
 const runIngestCycle = Effect.all([
   ingest.pipe(
@@ -18,6 +20,12 @@ const runIngestCycle = Effect.all([
       Effect.logInfo(`Golf ingest done — ${r.created} created, ${r.skipped} skipped`),
     ),
     Effect.catchAll((e) => Effect.logError(`Golf ingest failed: ${e}`)),
+  ),
+  mlbIngest.pipe(
+    Effect.tap((r) =>
+      Effect.logInfo(`MLB ingest done — ${r.created} created, ${r.skipped} skipped`),
+    ),
+    Effect.catchAll((e) => Effect.logError(`MLB ingest failed: ${e}`)),
   ),
 ]);
 
@@ -35,8 +43,11 @@ const program = Effect.gen(function* () {
   yield* runIngestCycle.pipe(Effect.repeat(Schedule.fixed("2 hours")));
 });
 
-const ServicesLive = Layer.mergeAll(NflAdapter.Live, GolfAdapter.Live, NodeClient.Live).pipe(
-  Layer.provide(NodeHttpClient.layer),
-);
+const ServicesLive = Layer.mergeAll(
+  NflAdapter.Live,
+  GolfAdapter.Live,
+  MlbAdapter.Live,
+  NodeClient.Live,
+).pipe(Layer.provide(NodeHttpClient.layer));
 
 NodeRuntime.runMain(program.pipe(Effect.provide(ServicesLive)));
