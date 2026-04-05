@@ -7,7 +7,7 @@
     "build": "vite build",
     "dev": "mkdir -p data && tsx src/lib/server/migrate.ts && vite dev",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.5.6",
