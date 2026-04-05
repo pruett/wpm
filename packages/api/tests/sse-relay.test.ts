@@ -14,6 +14,10 @@ const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
   getMarket: () => Effect.succeed(null),
   getBalance: () => Effect.succeed(0),
   getPositions: () => Effect.succeed([]),
+  getPositionsByMarket: () => Effect.succeed([]),
+  getAllPositions: Effect.succeed([]),
+  getAllBalances: Effect.succeed([]),
+  getBlocks: Effect.succeed([]),
   health: Effect.succeed(true),
   eventStream: Effect.succeed(
     Stream.make({

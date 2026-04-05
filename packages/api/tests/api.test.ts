@@ -57,6 +57,11 @@ function makeStatefulMock() {
     getBalance: (address) => Effect.sync(() => balances.get(address) ?? 0),
     getPositions: (address) =>
       Effect.sync(() => [...positions.values()].filter((p) => p.owner === address)),
+    getPositionsByMarket: (marketId) =>
+      Effect.sync(() => [...positions.values()].filter((p) => p.marketId === marketId)),
+    getAllPositions: Effect.sync(() => [...positions.values()]),
+    getAllBalances: Effect.succeed([]),
+    getBlocks: Effect.succeed([]),
     health: Effect.succeed(true),
     eventStream: Effect.succeed(Stream.empty),
   });
@@ -79,6 +84,10 @@ function makeResolvedMock() {
     getMarket: () => Effect.succeed({ market, pool }),
     getBalance: () => Effect.succeed(100_000),
     getPositions: () => Effect.succeed([]),
+    getPositionsByMarket: () => Effect.succeed([]),
+    getAllPositions: Effect.succeed([]),
+    getAllBalances: Effect.succeed([]),
+    getBlocks: Effect.succeed([]),
     health: Effect.succeed(true),
     eventStream: Effect.succeed(Stream.empty),
   });
@@ -275,7 +284,7 @@ describe("API", () => {
 
       // -- GET /api/markets: enrichment with prices and multipliers --
       const res1 = yield* client.get("/api/markets");
-      const markets1 = (yield* res1.json) as any[];
+      const markets1 = ((yield* res1.json) as any).markets as any[];
       expect(markets1).toHaveLength(1);
       const m1 = markets1[0];
       expect(m1.priceA).toBeCloseTo(0.5);
@@ -300,7 +309,7 @@ describe("API", () => {
 
       // -- GET /api/markets: odds shifted after bet --
       const res2 = yield* client.get("/api/markets");
-      const m2 = ((yield* res2.json) as any[])[0];
+      const m2 = ((yield* res2.json) as any).markets[0];
       expect(m2.priceA).toBeGreaterThan(0.5);
       expect(m2.priceB).toBeLessThan(0.5);
 
@@ -323,7 +332,7 @@ describe("API", () => {
 
       // Note prices after buy
       const res1 = yield* client.get("/api/markets");
-      const m1 = ((yield* res1.json) as any[])[0];
+      const m1 = ((yield* res1.json) as any).markets[0];
       expect(m1.priceA).toBeGreaterThan(0.5);
 
       // -- POST /api/sell: sell shares back (now needs auth) --
@@ -338,7 +347,7 @@ describe("API", () => {
 
       // -- GET /api/markets: prices shifted back after sell --
       const res2 = yield* client.get("/api/markets");
-      const m2 = ((yield* res2.json) as any[])[0];
+      const m2 = ((yield* res2.json) as any).markets[0];
       expect(m2.priceA).toBeLessThan(m1.priceA);
 
       // Invariant still holds
@@ -354,7 +363,7 @@ describe("API", () => {
       const client = yield* HttpClient.HttpClient;
 
       const res = yield* client.get("/api/markets");
-      const markets = (yield* res.json) as any[];
+      const markets = ((yield* res.json) as any).markets as any[];
       expect(markets).toHaveLength(1);
       const m = markets[0];
       expect(m.status).toBe("resolved");
