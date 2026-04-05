@@ -11,7 +11,8 @@ COPY packages/web/package.json packages/web/
 RUN bun install --frozen-lockfile
 COPY packages/shared packages/shared
 COPY packages/web packages/web
-RUN cd packages/shared && npx tsc && cd ../web && npx vite build
+ENV PATH="/app/node_modules/.bin:$PATH"
+RUN cd packages/shared && tsc && cd ../web && vite build
 
 FROM node:22-alpine
 WORKDIR /app
