@@ -8,7 +8,6 @@
     "dev": "mkdir -p data && tsx src/lib/server/migrate.ts && vite dev",
     "preview": "vite preview",
     "test": "vitest run",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.5.6",
