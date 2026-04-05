@@ -19,6 +19,8 @@ export class UserStore extends Context.Tag("UserStore")<
     readonly getByToken: (token: string) => StoredUser | undefined;
     readonly getById: (id: string) => StoredUser | undefined;
     readonly getByEmail: (email: string) => StoredUser | undefined;
+    readonly getByAddress: (address: string) => StoredUser | undefined;
+    readonly getAllUsers: () => StoredUser[];
   }
 >() {
   static Live = (filePath?: string) =>
@@ -86,6 +88,12 @@ export class UserStore extends Context.Tag("UserStore")<
         getByEmail(email: string): StoredUser | undefined {
           const id = emailIndex.get(email);
           return id ? users.get(id) : undefined;
+        },
+        getByAddress(address: string): StoredUser | undefined {
+          return Array.from(users.values()).find((u) => u.address === address);
+        },
+        getAllUsers(): StoredUser[] {
+          return Array.from(users.values());
         },
       };
     });

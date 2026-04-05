@@ -15,8 +15,10 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api/blocks": "http://localhost:4101",
+        "/api/categories": "http://localhost:4101",
         "/api/markets": "http://localhost:4101",
         "/api/health": "http://localhost:4101",
+        "/api/leaderboard": "http://localhost:4101",
         "/api/register": "http://localhost:4101",
         "/events": "http://localhost:4101",
       },

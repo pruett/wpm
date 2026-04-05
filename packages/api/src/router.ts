@@ -1,10 +1,17 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 import { calculateOdds, sign, serializeTx, SIGNUP_AIRDROP } from "@wpm/shared";
-import type { Block, MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
+import type {
+  Block,
+  LeaderboardEntry,
+  MarketWithOdds,
+  PriceUpdateEvent,
+  SharePosition,
+} from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
 import { UserStore } from "./user-store.js";
 import { authenticated, catchAuth } from "./auth.js";
+import { makeCatalogRoutes } from "./catalog-routes.js";
 
 const BetBody = Schema.Struct({
   marketId: Schema.String,
@@ -26,8 +33,9 @@ const RegisterBody = Schema.Struct({
 export const makeRouter = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
   const userStore = yield* UserStore;
+  const catalogRoutes = yield* makeCatalogRoutes;
 
-  return HttpRouter.empty.pipe(
+  const coreRoutes = HttpRouter.empty.pipe(
     HttpRouter.get(
       "/api/health",
       Effect.gen(function* () {
@@ -54,30 +62,6 @@ export const makeRouter = Effect.gen(function* () {
       ),
     ),
 
-    HttpRouter.get(
-      "/api/markets",
-      Effect.gen(function* () {
-        const raw = yield* nodeClient.getMarkets;
-        const enriched: MarketWithOdds[] = raw.map(({ market, pool }) => {
-          if (market.status === "resolved") {
-            const winA = market.result === "A" ? 1.0 : 0.0;
-            const winB = market.result === "B" ? 1.0 : 0.0;
-            return {
-              ...market,
-              priceA: winA,
-              priceB: winB,
-              multiplierA: winA > 0 ? 1 / winA : 0,
-              multiplierB: winB > 0 ? 1 / winB : 0,
-              pool,
-            };
-          }
-          const odds = calculateOdds(pool);
-          return { ...market, ...odds, pool };
-        });
-        return yield* HttpServerResponse.json(enriched);
-      }),
-    ),
-
     HttpRouter.post(
       "/api/register",
       Effect.gen(function* () {
@@ -99,6 +83,26 @@ export const makeRouter = Effect.gen(function* () {
           address: user.address,
           balance,
         });
+      }).pipe(
+        Effect.catchTag("NodeClientError", (e) =>
+          HttpServerResponse.json({ error: e.message }, { status: 502 }),
+        ),
+      ),
+    ),
+
+    HttpRouter.get(
+      "/api/leaderboard",
+      Effect.gen(function* () {
+        const allBalances = yield* nodeClient.getAllBalances;
+        const entries: LeaderboardEntry[] = allBalances
+          .map(({ address, balance }) => {
+            const user = userStore.getByAddress(address);
+            if (!user) return null;
+            return { name: user.name, address, balance };
+          })
+          .filter((e): e is LeaderboardEntry => e !== null)
+          .sort((a, b) => b.balance - a.balance);
+        return yield* HttpServerResponse.json(entries);
       }).pipe(
         Effect.catchTag("NodeClientError", (e) =>
           HttpServerResponse.json({ error: e.message }, { status: 502 }),
@@ -218,4 +222,6 @@ export const makeRouter = Effect.gen(function* () {
       }),
     ),
   );
+
+  return HttpRouter.concat(coreRoutes, catalogRoutes);
 });

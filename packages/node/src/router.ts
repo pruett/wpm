@@ -63,6 +63,14 @@ export const makeRouter = Effect.gen(function* () {
     ),
 
     HttpRouter.get(
+      "/internal/balances",
+      Effect.gen(function* () {
+        const balances = yield* chainState.getAllBalances;
+        return yield* HttpServerResponse.json(balances);
+      }),
+    ),
+
+    HttpRouter.get(
       "/internal/markets",
       Effect.gen(function* () {
         const markets = yield* chainState.getMarkets;
@@ -86,6 +94,23 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const { address } = yield* HttpRouter.schemaPathParams(AddressParams);
         const positions = yield* chainState.getPositions(address);
+        return yield* HttpServerResponse.json(positions);
+      }),
+    ),
+
+    HttpRouter.get(
+      "/internal/positions/market/:id",
+      Effect.gen(function* () {
+        const { id } = yield* HttpRouter.schemaPathParams(IdParams);
+        const positions = yield* chainState.getPositionsByMarket(id);
+        return yield* HttpServerResponse.json(positions);
+      }),
+    ),
+
+    HttpRouter.get(
+      "/internal/positions",
+      Effect.gen(function* () {
+        const positions = yield* chainState.getAllPositions;
         return yield* HttpServerResponse.json(positions);
       }),
     ),

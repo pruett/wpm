@@ -94,6 +94,15 @@ export type MarketWithOdds = Market & {
   multiplierA: number;
   multiplierB: number;
   pool: AMMPool;
+  bettorCount: number;
+};
+
+export type MarketBettor = {
+  name: string;
+  address: string;
+  outcome: "A" | "B";
+  shares: number;
+  costBasis: number;
 };
 
 export type TradeExecutedEvent = {
@@ -123,4 +132,23 @@ export type PriceUpdateEvent = {
   priceB: number;
   multiplierA: number;
   multiplierB: number;
+};
+
+export type CategoryInfo = {
+  slug: string;
+  name: string;
+  sport: string;
+  logo: string;
+  marketCount: number;
+};
+
+export type MarketsResponse = {
+  active: string[];
+  markets: MarketWithOdds[];
+};
+
+export type LeaderboardEntry = {
+  name: string;
+  address: string;
+  balance: number;
 };

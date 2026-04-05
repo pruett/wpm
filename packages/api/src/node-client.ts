@@ -41,6 +41,14 @@ export class NodeClient extends Context.Tag("NodeClient")<
     ) => Effect.Effect<{ market: Market; pool: AMMPool } | null, NodeClientError>;
     readonly getBalance: (address: string) => Effect.Effect<number, NodeClientError>;
     readonly getPositions: (address: string) => Effect.Effect<SharePosition[], NodeClientError>;
+    readonly getPositionsByMarket: (
+      marketId: string,
+    ) => Effect.Effect<SharePosition[], NodeClientError>;
+    readonly getAllPositions: Effect.Effect<SharePosition[], NodeClientError>;
+    readonly getAllBalances: Effect.Effect<
+      Array<{ address: string; balance: number }>,
+      NodeClientError
+    >;
     readonly getBlocks: Effect.Effect<Block[], NodeClientError>;
     readonly health: Effect.Effect<boolean>;
     readonly eventStream: Effect.Effect<Stream.Stream<NodeEvent>, NodeClientError>;
@@ -94,6 +102,22 @@ export class NodeClient extends Context.Tag("NodeClient")<
             Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
             Effect.scoped,
           ) as Effect.Effect<SharePosition[], NodeClientError>,
+        getPositionsByMarket: (marketId) =>
+          client.get(`/internal/positions/market/${marketId}`).pipe(
+            Effect.flatMap((res) => res.json),
+            Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+            Effect.scoped,
+          ) as Effect.Effect<SharePosition[], NodeClientError>,
+        getAllPositions: client.get("/internal/positions").pipe(
+          Effect.flatMap((res) => res.json),
+          Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+          Effect.scoped,
+        ) as Effect.Effect<SharePosition[], NodeClientError>,
+        getAllBalances: client.get("/internal/balances").pipe(
+          Effect.flatMap((res) => res.json),
+          Effect.mapError((e) => new NodeClientError({ message: `${e}` })),
+          Effect.scoped,
+        ) as Effect.Effect<Array<{ address: string; balance: number }>, NodeClientError>,
         getBlocks: client.get("/internal/blocks").pipe(
           Effect.flatMap((res) => res.json),
           Effect.mapError((e) => new NodeClientError({ message: `${e}` })),

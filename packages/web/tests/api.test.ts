@@ -26,8 +26,8 @@ describe("fetchMarkets", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns typed MarketWithOdds[] from API", async () => {
-    const mockResponse = [mockMarket];
+  it("returns MarketsResponse from API", async () => {
+    const mockResponse = { active: ["market-1"], markets: [mockMarket] };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -36,11 +36,12 @@ describe("fetchMarkets", () => {
       }),
     );
 
-    const markets = await fetchMarkets();
+    const result = await fetchMarkets();
 
-    expect(markets).toEqual(mockResponse);
-    expect(markets[0].priceA).toBe(0.55);
-    expect(markets[0].pool.k).toBe(24750000);
+    expect(result).toEqual(mockResponse);
+    expect(result.markets[0].priceA).toBe(0.55);
+    expect(result.markets[0].pool.k).toBe(24750000);
+    expect(result.active).toContain("market-1");
     expect(fetch).toHaveBeenCalledWith("/api/markets");
   });
 

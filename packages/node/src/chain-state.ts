@@ -119,6 +119,8 @@ export class ChainState extends Context.Tag("ChainState")<
     readonly getPool: (marketId: string) => Effect.Effect<AMMPool | undefined>;
     readonly getPositions: (owner: string) => Effect.Effect<SharePosition[]>;
     readonly getPositionsByMarket: (marketId: string) => Effect.Effect<SharePosition[]>;
+    readonly getAllPositions: Effect.Effect<SharePosition[]>;
+    readonly getAllBalances: Effect.Effect<Array<{ address: string; balance: number }>>;
     readonly applyBlock: (block: Block) => Effect.Effect<void>;
   }
 >() {
@@ -142,6 +144,10 @@ export class ChainState extends Context.Tag("ChainState")<
           Effect.map(Ref.get(ref), (s) =>
             Array.from(s.positions.values()).filter((p) => p.marketId === marketId),
           ),
+        getAllPositions: Effect.map(Ref.get(ref), (s) => Array.from(s.positions.values())),
+        getAllBalances: Effect.map(Ref.get(ref), (s) =>
+          Array.from(s.balances.entries()).map(([address, balance]) => ({ address, balance })),
+        ),
         applyBlock: (block) => Ref.update(ref, (state) => applyBlockPure(state, block)),
       };
     }),

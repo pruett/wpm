@@ -5,6 +5,7 @@
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import { cn } from "$lib/utils.js";
 	import BetForm from "./bet-form.svelte";
+	import BettorsModal from "./bettors-modal.svelte";
 
 	let {
 		market,
@@ -17,6 +18,7 @@
 	} = $props();
 
 	let selectedOutcome = $state<"A" | "B" | null>(null);
+	let bettorsOpen = $state(false);
 
 	const statusConfig = {
 		open: { variant: "default" as const, label: "Live" },
@@ -51,7 +53,18 @@
 
 <Card.Root>
 	<Card.Header class="flex flex-row items-start justify-between gap-4">
-		<Card.Title class="text-base">{market.name}</Card.Title>
+		<div class="flex flex-col gap-1">
+			<Card.Title class="text-base">{market.name}</Card.Title>
+			{#if market.bettorCount > 0}
+				<button
+					type="button"
+					class="text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
+					onclick={() => (bettorsOpen = true)}
+				>
+					{market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"}
+				</button>
+			{/if}
+		</div>
 		<Card.Action>
 			<Badge variant={status.variant}>{status.label}</Badge>
 		</Card.Action>
@@ -113,3 +126,5 @@
 		{/if}
 	</Card.Content>
 </Card.Root>
+
+<BettorsModal {market} bind:open={bettorsOpen} />
