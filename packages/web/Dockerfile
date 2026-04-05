@@ -1,20 +1,21 @@
 FROM node:22-slim AS build
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 make g++ && \
-    rm -rf /var/lib/apt/lists/* && \
-    npm install -g bun
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-COPY package.json bun.lock turbo.json tsconfig.json ./
+COPY package.json turbo.json tsconfig.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/web/package.json packages/web/
-RUN bun install
+# Replace bun workspace protocol with npm-compatible syntax
+RUN sed -i 's/"workspace:\*"/"*"/g' packages/*/package.json && npm install
 
+# Remove package-level node_modules (npm workspace artifacts) before copying source
+RUN rm -rf packages/*/node_modules
 COPY packages/shared packages/shared
 COPY packages/web packages/web
-# Build with Node.js — better-sqlite3 is unsupported in bun runtime
-RUN cd packages/shared && node_modules/.bin/tsc && \
-    cd ../web && node_modules/.bin/vite build
+RUN ./node_modules/.bin/tsc -p packages/shared/tsconfig.json && \
+    cd packages/web && ../../node_modules/.bin/vite build
 
 # Install production deps with native modules compiled for Alpine
 FROM node:22-alpine AS deps
@@ -34,6 +35,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules node_modules
 COPY --from=build /app/packages/web/build build
 COPY --from=build /app/packages/web/package.json .
-USER node
+RUN mkdir -p data
 EXPOSE 4102
 CMD ["node", "build"]
