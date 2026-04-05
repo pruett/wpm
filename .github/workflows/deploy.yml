@@ -6,6 +6,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  DO_NOT_TRACK: 1
+  TURBO_TELEMETRY_DISABLED: 1
 
 jobs:
   test:
