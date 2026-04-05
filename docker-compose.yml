@@ -1,21 +1,22 @@
 services:
   wpm-node:
+    image: ghcr.io/pruett/wpm-node:latest
     build:
       context: .
       dockerfile: packages/node/Dockerfile
     restart: unless-stopped
     volumes:
-      - chain-data:/data
-      - keys:/keys
+      - chain-data:/app/data
+      - keys:/app/data/keys
     environment:
       - NODE_PORT=4000
-      - CHAIN_FILE=/data/chain.jsonl
-      - SIGNER_KEY_PATH=/keys/signer.pem
-      - ORACLE_PUBLIC_KEY_PATH=/keys/oracle.pub
+      - CHAIN_FILE=/app/data/chain.jsonl
+      - KEYS_DIR=/app/data/keys
     networks:
       - wpm-net
 
   wpm-api:
+    image: ghcr.io/pruett/wpm-api:latest
     build:
       context: .
       dockerfile: packages/api/Dockerfile
@@ -25,47 +26,41 @@ services:
     environment:
       - API_PORT=3000
       - NODE_URL=http://wpm-node:4000
-      - JWT_SECRET=${JWT_SECRET}
-      - TREASURY_KEY_PATH=/keys/signer.pem
-    volumes:
-      - keys:/keys
     networks:
       - wpm-net
 
   wpm-oracle:
+    image: ghcr.io/pruett/wpm-oracle:latest
     build:
       context: .
       dockerfile: packages/oracle/Dockerfile
     restart: unless-stopped
     depends_on:
-      - wpm-api
+      - wpm-node
     environment:
       - NODE_URL=http://wpm-node:4000
-      - ORACLE_KEY_PATH=/keys/oracle.pem
-      - ENABLED_SPORTS=NFL
-      - INGEST_CRON=0 6 * * *
-      - RESOLVE_CRON=*/30 12-24 * * *
-      - LOOKAHEAD_DAYS=14
-      - DEFAULT_SEED_AMOUNT=1000
-      - TZ=America/New_York
-    volumes:
-      - keys:/keys
+      - TZ=${TZ:-America/New_York}
     networks:
       - wpm-net
 
   wpm-web:
+    image: ghcr.io/pruett/wpm-web:latest
     build:
       context: .
       dockerfile: packages/web/Dockerfile
     restart: unless-stopped
+    depends_on:
+      - wpm-api
     environment:
       - PORT=4102
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - RP_ID=${RP_ID}
-      - ORIGIN=${ORIGIN}
       - API_URL=http://wpm-api:3000
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://${DOMAIN}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM:-WPM <noreply@wpm.cash>}
+      - RP_ID=${DOMAIN}
+      - ORIGIN=https://${DOMAIN}
+      - NODE_ENV=production
     volumes:
       - auth-data:/app/data
     networks:
@@ -78,8 +73,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - wpm-api
       - wpm-web

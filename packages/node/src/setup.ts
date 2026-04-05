@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { generateKeyPairSync } from "node:crypto";
 
-const KEYS_DIR = "./data/keys";
+const KEYS_DIR = process.env.KEYS_DIR || "./data/keys";
 const PUB_PATH = `${KEYS_DIR}/node.pub`;
 const PEM_PATH = `${KEYS_DIR}/node.pem`;
 

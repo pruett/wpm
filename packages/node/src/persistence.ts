@@ -3,6 +3,8 @@ import type { Block } from "@wpm/shared";
 import { PersistenceError } from "./errors.js";
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 
+const CHAIN_FILE = process.env.CHAIN_FILE || "./data/chain.jsonl";
+
 export class Persistence extends Context.Tag("Persistence")<
   Persistence,
   {
@@ -13,13 +15,13 @@ export class Persistence extends Context.Tag("Persistence")<
   static Live = Layer.succeed(this, {
     appendBlock: (block) =>
       Effect.try({
-        try: () => appendFileSync("./data/chain.jsonl", JSON.stringify(block) + "\n"),
+        try: () => appendFileSync(CHAIN_FILE, JSON.stringify(block) + "\n"),
         catch: (e) => new PersistenceError({ message: `${e}` }),
       }),
     loadChain: Effect.try({
       try: () => {
-        if (!existsSync("./data/chain.jsonl")) return [];
-        return readFileSync("./data/chain.jsonl", "utf-8")
+        if (!existsSync(CHAIN_FILE)) return [];
+        return readFileSync(CHAIN_FILE, "utf-8")
           .trimEnd()
           .split("\n")
           .filter(Boolean)
