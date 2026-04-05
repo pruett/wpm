@@ -10,7 +10,7 @@ import type {
 } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
 import { UserStore } from "./user-store.js";
-import { authenticated, catchAuth } from "./auth.js";
+import { authenticated, catchErrors } from "./auth.js";
 import { makeCatalogRoutes } from "./catalog-routes.js";
 
 const BetBody = Schema.Struct({
@@ -55,11 +55,7 @@ export const makeRouter = Effect.gen(function* () {
       Effect.gen(function* () {
         const blocks: Block[] = yield* nodeClient.getBlocks;
         return yield* HttpServerResponse.json(blocks);
-      }).pipe(
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.post(
@@ -83,11 +79,7 @@ export const makeRouter = Effect.gen(function* () {
           address: user.address,
           balance,
         });
-      }).pipe(
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.get(
@@ -103,11 +95,7 @@ export const makeRouter = Effect.gen(function* () {
           .filter((e): e is LeaderboardEntry => e !== null)
           .sort((a, b) => b.balance - a.balance);
         return yield* HttpServerResponse.json(entries);
-      }).pipe(
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.get(
@@ -116,12 +104,7 @@ export const makeRouter = Effect.gen(function* () {
         const user = yield* authenticated;
         const balance = yield* nodeClient.getBalance(user.address);
         return yield* HttpServerResponse.json({ balance, address: user.address });
-      }).pipe(
-        catchAuth,
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.get(
@@ -130,12 +113,7 @@ export const makeRouter = Effect.gen(function* () {
         const user = yield* authenticated;
         const positions: SharePosition[] = yield* nodeClient.getPositions(user.address);
         return yield* HttpServerResponse.json(positions);
-      }).pipe(
-        catchAuth,
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.post(
@@ -155,12 +133,7 @@ export const makeRouter = Effect.gen(function* () {
         tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
-      }).pipe(
-        catchAuth,
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.post(
@@ -180,12 +153,7 @@ export const makeRouter = Effect.gen(function* () {
         tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
-      }).pipe(
-        catchAuth,
-        Effect.catchTag("NodeClientError", (e) =>
-          HttpServerResponse.json({ error: e.message }, { status: 502 }),
-        ),
-      ),
+      }).pipe(catchErrors),
     ),
 
     HttpRouter.get(

@@ -26,7 +26,22 @@ export const authenticated: Effect.Effect<
   return user;
 });
 
-/** Catch AuthError and return 401 JSON response. */
-export const catchAuth = Effect.catchTag("AuthError", (e: AuthError) =>
-  HttpServerResponse.json({ error: e.message }, { status: 401 }),
-);
+/** Catch AuthError and return 401 JSON. Catch NodeClientError and return 502 JSON. */
+export const catchErrors = <A, R>(
+  self: Effect.Effect<A, unknown, R>,
+): Effect.Effect<
+  A | import("@effect/platform").HttpServerResponse.HttpServerResponse,
+  import("@effect/platform").HttpBody.HttpBodyError,
+  R
+> =>
+  self.pipe(
+    Effect.catchAll((e: any) => {
+      if (e?._tag === "AuthError") {
+        return HttpServerResponse.json({ error: e.message }, { status: 401 });
+      }
+      if (e?._tag === "NodeClientError") {
+        return HttpServerResponse.json({ error: e.message }, { status: 502 });
+      }
+      return HttpServerResponse.json({ error: "Internal error" }, { status: 500 });
+    }),
+  );
