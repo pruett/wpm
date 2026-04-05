@@ -1,0 +1,10 @@
+node_modules
+**/dist
+**/build
+.git
+.env
+*.md
+.turbo
+.svelte-kit
+.vscode
+opensrc

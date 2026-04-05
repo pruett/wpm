@@ -37,7 +37,7 @@ jobs:
           docker compose build
           docker compose push
 
-      - name: Copy files to VPS
+      - name: Copy compose + nginx config to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -54,8 +54,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/wpm
-
-            # Write .env from secrets
             cat > .env <<'ENVEOF'
             DOMAIN=${{ secrets.DOMAIN }}
             TZ=America/New_York
@@ -63,10 +61,6 @@ jobs:
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             EMAIL_FROM=WPM <noreply@wpm.cash>
             ENVEOF
-
-            # Authenticate with ghcr.io
             echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u pruett --password-stdin
-
-            # Pull and restart
             docker compose pull
             docker compose up -d --remove-orphans
