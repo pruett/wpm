@@ -6,7 +6,7 @@ COPY packages/node/package.json packages/node/
 COPY packages/api/package.json packages/api/
 COPY packages/oracle/package.json packages/oracle/
 COPY packages/web/package.json packages/web/
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --ignore-scripts
 COPY packages/shared packages/shared
 COPY packages/api packages/api
 RUN bunx turbo build --filter=@wpm/api
