@@ -174,7 +174,10 @@ export class GolfAdapter extends Context.Tag("GolfAdapter")<
                 new OracleError({ message: `ESPN Golf ${label} returned HTTP ${res.status}` }),
               );
             }
-            return res.json;
+            return Effect.mapError(
+              res.json,
+              (e) => new OracleError({ message: `ESPN Golf ${label} JSON parse failed: ${e}` }),
+            );
           }),
           Effect.mapError((e) =>
             e instanceof OracleError

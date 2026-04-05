@@ -130,7 +130,10 @@ export class MlbAdapter extends Context.Tag("MlbAdapter")<
                 new OracleError({ message: `ESPN ${label} returned HTTP ${res.status}` }),
               );
             }
-            return res.json;
+            return Effect.mapError(
+              res.json,
+              (e) => new OracleError({ message: `ESPN ${label} JSON parse failed: ${e}` }),
+            );
           }),
           Effect.mapError((e) =>
             e instanceof OracleError
