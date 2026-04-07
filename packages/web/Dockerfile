@@ -14,7 +14,8 @@ RUN sed -i 's/"workspace:\*"/"*"/g' packages/*/package.json && npm install
 RUN rm -rf packages/*/node_modules
 COPY packages/shared packages/shared
 COPY packages/web packages/web
-RUN ./node_modules/.bin/tsc -p packages/shared/tsconfig.json && \
+RUN mkdir -p packages/web/data && \
+    ./node_modules/.bin/tsc -p packages/shared/tsconfig.json && \
     cd packages/web && ../../node_modules/.bin/vite build
 
 # Install production deps with native modules compiled for Alpine
@@ -35,6 +36,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules node_modules
 COPY --from=build /app/packages/web/build build
 COPY --from=build /app/packages/web/package.json .
+COPY --from=build /app/packages/web/migrations migrations
+COPY --from=build /app/packages/web/entrypoint.js .
 RUN mkdir -p data
 EXPOSE 4102
-CMD ["node", "build"]
+CMD ["node", "entrypoint.js"]
