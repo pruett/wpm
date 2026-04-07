@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { balance } from "$lib/stores/balance.svelte.js";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 </script>
 
 {#if balance.value !== null}
@@ -7,5 +8,5 @@
 		{balance.value.toLocaleString()} WPM
 	</span>
 {:else}
-	<span class="text-sm text-muted-foreground">Loading...</span>
+	<Skeleton class="h-4 w-20" />
 {/if}

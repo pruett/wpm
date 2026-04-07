@@ -2,6 +2,7 @@
 	import type { MarketWithOdds, MarketBettor } from "@wpm/shared";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import { fetchMarketBettors } from "$lib/api.js";
 
 	let {
@@ -48,8 +49,44 @@
 		</Dialog.Header>
 
 		{#if loading}
-			<div class="flex items-center justify-center py-8">
-				<span class="text-sm text-muted-foreground">Loading...</span>
+			<div class="flex flex-col gap-4">
+				<div class="flex flex-col gap-2">
+					<Skeleton class="h-4 w-24" />
+					<div class="flex items-center justify-between py-1">
+						<div class="flex flex-col gap-0.5">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+						<Skeleton class="h-4 w-40" />
+					</div>
+					<div class="flex items-center justify-between py-1">
+						<div class="flex flex-col gap-0.5">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+						<Skeleton class="h-4 w-40" />
+					</div>
+				</div>
+
+				<Separator />
+
+				<div class="flex flex-col gap-2">
+					<Skeleton class="h-4 w-24" />
+					<div class="flex items-center justify-between py-1">
+						<div class="flex flex-col gap-0.5">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+						<Skeleton class="h-4 w-40" />
+					</div>
+					<div class="flex items-center justify-between py-1">
+						<div class="flex flex-col gap-0.5">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+						<Skeleton class="h-4 w-40" />
+					</div>
+				</div>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-4">

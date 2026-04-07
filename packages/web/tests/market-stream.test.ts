@@ -32,7 +32,7 @@ class MockEventSource {
 
 vi.stubGlobal("EventSource", MockEventSource);
 
-const { createMarketStream } = await import("$lib/stores/market-stream.svelte.js");
+const { marketStream } = await import("$lib/stores/market-stream.svelte.js");
 
 const mockMarket: MarketWithOdds = {
   id: "market-1",
@@ -53,13 +53,14 @@ const mockMarket: MarketWithOdds = {
   },
 };
 
-describe("createMarketStream", () => {
+describe("marketStream", () => {
   beforeEach(() => {
     MockEventSource.instances = [];
+    marketStream.setMarkets([]);
   });
 
   it("connects to the SSE endpoint", () => {
-    const stream = createMarketStream();
+    const stream = marketStream;
     stream.connect();
 
     expect(MockEventSource.instances).toHaveLength(1);
@@ -69,7 +70,7 @@ describe("createMarketStream", () => {
   });
 
   it("applies price:update events to markets", () => {
-    const stream = createMarketStream();
+    const stream = marketStream;
     stream.setMarkets([mockMarket]);
     stream.connect();
 
@@ -95,7 +96,7 @@ describe("createMarketStream", () => {
   });
 
   it("applies market:resolved events", () => {
-    const stream = createMarketStream();
+    const stream = marketStream;
     stream.setMarkets([mockMarket]);
     stream.connect();
 
@@ -116,7 +117,7 @@ describe("createMarketStream", () => {
   });
 
   it("ignores events for unknown market IDs", () => {
-    const stream = createMarketStream();
+    const stream = marketStream;
     stream.setMarkets([mockMarket]);
     stream.connect();
 
@@ -139,7 +140,7 @@ describe("createMarketStream", () => {
   });
 
   it("closes EventSource on disconnect", () => {
-    const stream = createMarketStream();
+    const stream = marketStream;
     stream.connect();
 
     const es = MockEventSource.instances[0];

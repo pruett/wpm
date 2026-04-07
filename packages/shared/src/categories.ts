@@ -7,14 +7,14 @@ export type MarketCategory = {
 };
 
 export const MARKET_CATEGORIES: readonly MarketCategory[] = [
-  { slug: "nfl", name: "NFL", sport: "Football", prefix: "nfl-", logo: "/logos/nfl.svg" },
-  { slug: "mlb", name: "MLB", sport: "Baseball", prefix: "mlb-", logo: "/logos/mlb.svg" },
+  { slug: "nfl", name: "NFL", sport: "Football", prefix: "nfl-", logo: "/logos/nfl.png" },
+  { slug: "mlb", name: "MLB", sport: "Baseball", prefix: "mlb-", logo: "/logos/mlb.png" },
   {
     slug: "golf-pga",
     name: "PGA Golf",
     sport: "Golf",
     prefix: "golf-pga-",
-    logo: "/logos/pga.svg",
+    logo: "/logos/pga.png",
   },
 ] as const;
 
