@@ -10,6 +10,7 @@ export type CreateMarketParams = {
   readonly closesAt: string;
   readonly seedAmount: number;
   readonly initialProbabilityA?: number;
+  readonly logos?: [string, string];
 };
 
 export class NodeClient extends Context.Tag("oracle/NodeClient")<

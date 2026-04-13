@@ -13,6 +13,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     name: "New York Yankees vs Los Angeles Dodgers",
     homeTeam: "Los Angeles Dodgers",
     awayTeam: "New York Yankees",
+    homeLogo: "https://a.espn.com/i/teamlogos/mlb/500/lad.png",
+    awayLogo: "https://a.espn.com/i/teamlogos/mlb/500/nyy.png",
     startTime: "2026-04-01T20:10Z",
     status: "scheduled",
     ...overrides,

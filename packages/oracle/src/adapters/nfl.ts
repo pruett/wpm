@@ -45,6 +45,7 @@ const EspnNflCompetitor = Schema.Struct({
   homeAway: Schema.String,
   team: Schema.Struct({
     displayName: Schema.String,
+    logo: Schema.optionalWith(Schema.String, { default: () => "" }),
   }),
 });
 
@@ -104,6 +105,8 @@ export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
       name: `${away?.team.displayName ?? "Unknown"} vs ${home?.team.displayName ?? "Unknown"}`,
       homeTeam: home?.team.displayName ?? "Unknown",
       awayTeam: away?.team.displayName ?? "Unknown",
+      homeLogo: home?.team.logo ?? "",
+      awayLogo: away?.team.logo ?? "",
       startTime: event.date,
       status: STATUS_MAP[statusName] ?? "scheduled",
     };

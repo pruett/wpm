@@ -11,7 +11,7 @@ import type {
   SharePosition,
 } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
-import { UserStore } from "./user-store.js";
+import { WalletKeystore } from "./wallet-keystore.js";
 
 const IdParams = Schema.Struct({ id: Schema.String });
 const SlugParams = Schema.Struct({ slug: Schema.String });
@@ -43,7 +43,7 @@ function enrichMarkets(
 
 export const makeCatalogRoutes = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
-  const userStore = yield* UserStore;
+  const keystore = yield* WalletKeystore;
 
   function groupPositionsByMarket(positions: SharePosition[]): Map<string, SharePosition[]> {
     const map = new Map<string, SharePosition[]>();
@@ -57,9 +57,9 @@ export const makeCatalogRoutes = Effect.gen(function* () {
 
   function resolveBettors(positions: SharePosition[]): MarketBettor[] {
     return positions.map((p) => {
-      const user = userStore.getByAddress(p.owner);
+      const wallet = keystore.getByAddress(p.owner);
       return {
-        name: user?.name ?? p.owner.slice(0, 8),
+        name: wallet?.userId ?? p.owner.slice(0, 8),
         address: p.owner,
         outcome: p.outcome,
         shares: p.shares,

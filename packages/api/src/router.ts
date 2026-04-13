@@ -1,15 +1,9 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 import { calculateOdds, sign, serializeTx, SIGNUP_AIRDROP } from "@wpm/shared";
-import type {
-  Block,
-  LeaderboardEntry,
-  MarketWithOdds,
-  PriceUpdateEvent,
-  SharePosition,
-} from "@wpm/shared";
+import type { Block, MarketWithOdds, PriceUpdateEvent, SharePosition } from "@wpm/shared";
 import { NodeClient } from "./node-client.js";
-import { UserStore } from "./user-store.js";
+import { WalletKeystore } from "./wallet-keystore.js";
 import { authenticated, catchErrors } from "./auth.js";
 import { makeCatalogRoutes } from "./catalog-routes.js";
 
@@ -26,13 +20,12 @@ const SellBody = Schema.Struct({
 });
 
 const RegisterBody = Schema.Struct({
-  name: Schema.String,
-  email: Schema.String,
+  userId: Schema.String,
 });
 
 export const makeRouter = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
-  const userStore = yield* UserStore;
+  const keystore = yield* WalletKeystore;
   const catalogRoutes = yield* makeCatalogRoutes;
 
   const coreRoutes = HttpRouter.empty.pipe(
@@ -62,7 +55,7 @@ export const makeRouter = Effect.gen(function* () {
       "/api/register",
       Effect.gen(function* () {
         const body = yield* HttpServerRequest.schemaBodyJson(RegisterBody);
-        const existing = userStore.getByEmail(body.email);
+        const existing = keystore.getById(body.userId);
         if (existing) {
           const balance = yield* nodeClient.getBalance(existing.address);
           return yield* HttpServerResponse.json({
@@ -71,12 +64,12 @@ export const makeRouter = Effect.gen(function* () {
             balance,
           });
         }
-        const user = userStore.register(body.name, body.email);
-        yield* nodeClient.distribute(user.publicKey, SIGNUP_AIRDROP, "signup_airdrop");
-        const balance = yield* nodeClient.getBalance(user.address);
+        const wallet = keystore.register(body.userId);
+        yield* nodeClient.distribute(wallet.publicKey, SIGNUP_AIRDROP, "signup_airdrop");
+        const balance = yield* nodeClient.getBalance(wallet.address);
         return yield* HttpServerResponse.json({
-          token: user.token,
-          address: user.address,
+          token: wallet.token,
+          address: wallet.address,
           balance,
         });
       }).pipe(catchErrors),
@@ -86,13 +79,13 @@ export const makeRouter = Effect.gen(function* () {
       "/api/leaderboard",
       Effect.gen(function* () {
         const allBalances = yield* nodeClient.getAllBalances;
-        const entries: LeaderboardEntry[] = allBalances
+        const entries = allBalances
           .map(({ address, balance }) => {
-            const user = userStore.getByAddress(address);
-            if (!user) return null;
-            return { name: user.name, address, balance };
+            const wallet = keystore.getByAddress(address);
+            if (!wallet) return null;
+            return { userId: wallet.userId, address, balance };
           })
-          .filter((e): e is LeaderboardEntry => e !== null)
+          .filter((e): e is { userId: string; address: string; balance: number } => e !== null)
           .sort((a, b) => b.balance - a.balance);
         return yield* HttpServerResponse.json(entries);
       }).pipe(catchErrors),
@@ -101,17 +94,17 @@ export const makeRouter = Effect.gen(function* () {
     HttpRouter.get(
       "/api/balance",
       Effect.gen(function* () {
-        const user = yield* authenticated;
-        const balance = yield* nodeClient.getBalance(user.address);
-        return yield* HttpServerResponse.json({ balance, address: user.address });
+        const wallet = yield* authenticated;
+        const balance = yield* nodeClient.getBalance(wallet.address);
+        return yield* HttpServerResponse.json({ balance, address: wallet.address });
       }).pipe(catchErrors),
     ),
 
     HttpRouter.get(
       "/api/positions",
       Effect.gen(function* () {
-        const user = yield* authenticated;
-        const positions: SharePosition[] = yield* nodeClient.getPositions(user.address);
+        const wallet = yield* authenticated;
+        const positions: SharePosition[] = yield* nodeClient.getPositions(wallet.address);
         return yield* HttpServerResponse.json(positions);
       }).pipe(catchErrors),
     ),
@@ -119,18 +112,18 @@ export const makeRouter = Effect.gen(function* () {
     HttpRouter.post(
       "/api/bet",
       Effect.gen(function* () {
-        const user = yield* authenticated;
+        const wallet = yield* authenticated;
         const body = yield* HttpServerRequest.schemaBodyJson(BetBody);
         const tx = {
           type: "PlaceBet" as const,
           marketId: body.marketId,
           outcome: body.outcome,
           amount: body.amount,
-          submitter: user.publicKey,
+          submitter: wallet.publicKey,
           timestamp: new Date().toISOString(),
           signature: "",
         };
-        tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
+        tx.signature = sign(serializeTx(tx as Record<string, unknown>), wallet.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
       }).pipe(catchErrors),
@@ -139,18 +132,18 @@ export const makeRouter = Effect.gen(function* () {
     HttpRouter.post(
       "/api/sell",
       Effect.gen(function* () {
-        const user = yield* authenticated;
+        const wallet = yield* authenticated;
         const body = yield* HttpServerRequest.schemaBodyJson(SellBody);
         const tx = {
           type: "SellShares" as const,
           marketId: body.marketId,
           outcome: body.outcome,
           shares: body.shares,
-          submitter: user.publicKey,
+          submitter: wallet.publicKey,
           timestamp: new Date().toISOString(),
           signature: "",
         };
-        tx.signature = sign(serializeTx(tx as Record<string, unknown>), user.privateKey);
+        tx.signature = sign(serializeTx(tx as Record<string, unknown>), wallet.privateKey);
         yield* nodeClient.submitTransaction(tx);
         return yield* HttpServerResponse.json({ success: true });
       }).pipe(catchErrors),

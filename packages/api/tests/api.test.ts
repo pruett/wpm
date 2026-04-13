@@ -4,7 +4,7 @@ import { Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest, HttpServer } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { NodeClient } from "../src/node-client.js";
-import { UserStore } from "../src/user-store.js";
+import { WalletKeystore } from "../src/wallet-keystore.js";
 import { makeRouter } from "../src/router.js";
 import { calculateBuy, calculateSell, addressOf, SIGNUP_AIRDROP } from "@wpm/shared";
 import type { SharePosition } from "@wpm/shared";
@@ -94,13 +94,15 @@ function makeResolvedMock() {
 }
 
 function testLayer(mock: Layer.Layer<NodeClient>) {
-  return Layer.mergeAll(mock, UserStore.Live()).pipe(Layer.provideMerge(NodeHttpServer.layerTest));
+  return Layer.mergeAll(mock, WalletKeystore.Live()).pipe(
+    Layer.provideMerge(NodeHttpServer.layerTest),
+  );
 }
 
-/** Helper: register a user and return { token, address, balance } */
-function registerUser(client: HttpClient.HttpClient, name: string, email?: string) {
+/** Helper: register a wallet and return { token, address, balance } */
+function registerUser(client: HttpClient.HttpClient, userId: string) {
   return HttpClientRequest.post("/api/register").pipe(
-    HttpClientRequest.bodyUnsafeJson({ name, email: email ?? `${name.toLowerCase()}@test.com` }),
+    HttpClientRequest.bodyUnsafeJson({ userId }),
     client.execute,
     Effect.flatMap((res) => res.json),
   ) as Effect.Effect<{ token: string; address: string; balance: number }>;

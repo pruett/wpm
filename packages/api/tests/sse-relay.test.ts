@@ -4,7 +4,7 @@ import { Effect, Layer, Stream } from "effect";
 import { HttpClient, HttpServer } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { NodeClient } from "../src/node-client.js";
-import { UserStore } from "../src/user-store.js";
+import { WalletKeystore } from "../src/wallet-keystore.js";
 import { makeRouter } from "../src/router.js";
 
 const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
@@ -28,7 +28,7 @@ const MockNodeClientWithSSE = Layer.succeed(NodeClient, {
   ),
 });
 
-const SSETestLayer = Layer.mergeAll(MockNodeClientWithSSE, UserStore.Live()).pipe(
+const SSETestLayer = Layer.mergeAll(MockNodeClientWithSSE, WalletKeystore.Live()).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
 );
 

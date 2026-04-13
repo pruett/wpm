@@ -15,6 +15,7 @@ export type Transaction =
       closesAt: string;
       seedAmount: number;
       initialProbabilityA?: number;
+      logos?: [string, string];
       signature: string;
       timestamp: string;
     }
@@ -67,6 +68,7 @@ export type Market = {
   id: string;
   name: string;
   outcomes: [string, string];
+  logos?: [string, string];
   closesAt: string;
   status: "open" | "closed" | "resolved" | "cancelled";
   result?: "A" | "B";
@@ -95,6 +97,7 @@ export type MarketWithOdds = Market & {
   multiplierB: number;
   pool: AMMPool;
   bettorCount: number;
+  leagueLogo?: string;
 };
 
 export type MarketBettor = {

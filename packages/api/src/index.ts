@@ -3,15 +3,16 @@ import { NodeHttpServer, NodeHttpClient, NodeRuntime } from "@effect/platform-no
 import { Effect, Layer, Schedule } from "effect";
 import { createServer } from "node:http";
 import { NodeClient } from "./node-client.js";
-import { UserStore } from "./user-store.js";
+import { WalletKeystore } from "./wallet-keystore.js";
 import { makeRouter } from "./router.js";
 import { API_PORT } from "@wpm/shared";
 
 const HttpLive = NodeHttpServer.layer(() => createServer(), { port: API_PORT });
 
-const ServicesLive = Layer.mergeAll(NodeClient.Live, UserStore.Live("users.json")).pipe(
-  Layer.provide(NodeHttpClient.layer),
-);
+const ServicesLive = Layer.mergeAll(
+  NodeClient.Live,
+  WalletKeystore.Live("wallet-keystore.json"),
+).pipe(Layer.provide(NodeHttpClient.layer));
 
 const program = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;

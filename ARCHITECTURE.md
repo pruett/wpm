@@ -65,6 +65,20 @@ Separate process responsible for bridging real-world sports data onto the chain.
 - **Resolve** — Runs every 30 minutes from 12:00 PM to 1:00 AM ET. Checks completed games, fetches final scores, and submits resolution transactions.
 - **Adapters** — Per-sport modules that know how to query ESPN and normalize responses. NFL at launch; architecture supports adding NBA, NHL, MLB, golf, tennis via new adapters.
 
+### Web App Database
+
+- **Engine:** better-sqlite3
+- **File:** `packages/web/data/wpm.db`
+- **Migrations:** `packages/web/migrations/*.sql`
+- **Init:** `packages/web/src/lib/server/db.ts`, `packages/web/src/lib/server/migrate.ts`
+
+Stores **auth and invite data only** — no market or blockchain data:
+
+- `user`, `session`, `account`, `passkey`, `verification` — Better Auth framework tables
+- `invite_code` — invite tracking
+
+All market data, bets, balances, and AMM pool state live on-chain via the API server.
+
 ### Web App
 
 User-facing Progressive Web App (PWA). Built with SvelteKit + Tailwind CSS v4. Mobile-first responsive design. Displays:

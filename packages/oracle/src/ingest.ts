@@ -31,6 +31,9 @@ export const ingest = Effect.gen(function* () {
       initialProbabilityA = awayProb;
     }
 
+    const logos: [string, string] | undefined =
+      game.awayLogo && game.homeLogo ? [game.awayLogo, game.homeLogo] : undefined;
+
     yield* node.createMarket({
       id: marketId,
       name: game.name,
@@ -38,6 +41,7 @@ export const ingest = Effect.gen(function* () {
       closesAt: game.startTime,
       seedAmount: SEED_AMOUNT,
       initialProbabilityA,
+      logos,
     });
     created++;
   }

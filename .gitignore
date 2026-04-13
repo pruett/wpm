@@ -22,6 +22,7 @@ chain.jsonl
 
 # Auth data (runtime)
 packages/api/users.json
+packages/api/wallet-keystore.json
 packages/web/data/
 
 # Nginx certs
