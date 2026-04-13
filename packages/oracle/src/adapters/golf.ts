@@ -6,18 +6,16 @@ const ESPN_GOLF_PGA = "https://site.api.espn.com/apis/site/v2/sports/golf/pga";
 
 export const ESPN_GOLF_SCOREBOARD_URL = `${ESPN_GOLF_PGA}/scoreboard`;
 
-/** Build OWGR (Official World Golf Ranking) URL for a given season year. */
-export const espnGolfOwgrUrl = (year: number) =>
-  `https://sports.core.api.espn.com/v2/sports/golf/leagues/all/seasons/${year}/rankings/1`;
-
-/** Only create markets for the top N world-ranked golfers per tournament. */
-export const MAX_COMPETITORS = 10;
+/** Only create markets for the top N leaderboard competitors per tournament. */
+export const MAX_COMPETITORS = 15;
 
 type TournamentStatus = "scheduled" | "in_progress" | "completed" | "postponed";
 
 export type Competitor = {
   readonly espnId: string;
   readonly name: string;
+  readonly position: number;
+  readonly score: string;
 };
 
 export type Tournament = {
@@ -25,6 +23,7 @@ export type Tournament = {
   readonly name: string;
   readonly startTime: string;
   readonly status: TournamentStatus;
+  readonly round: number;
   readonly competitors: Competitor[];
 };
 
@@ -39,6 +38,8 @@ const STATUS_MAP: Record<string, TournamentStatus> = {
 
 const EspnGolfCompetitor = Schema.Struct({
   id: Schema.String,
+  order: Schema.Number,
+  score: Schema.String,
   athlete: Schema.Struct({
     displayName: Schema.String,
   }),
@@ -55,6 +56,9 @@ const EspnGolfEvent = Schema.Struct({
   }),
   competitions: Schema.NonEmptyArray(
     Schema.Struct({
+      status: Schema.Struct({
+        period: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+      }),
       competitors: Schema.Array(EspnGolfCompetitor),
     }),
   ),
@@ -66,90 +70,46 @@ export const EspnGolfScoreboardResponse = Schema.Struct({
 
 export type EspnGolfScoreboardResponse = typeof EspnGolfScoreboardResponse.Type;
 
-// --- Rankings schemas ---
-
-// OWGR ranking type: returns weekly date snapshots as $ref links
-export const EspnGolfOwgrResponse = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  type: Schema.String,
-  rankings: Schema.NonEmptyArray(Schema.Struct({ $ref: Schema.String })),
-});
-
-export type EspnGolfOwgrResponse = typeof EspnGolfOwgrResponse.Type;
-
-// Weekly ranks: individual rank entries with athlete $ref links
-const EspnRankEntry = Schema.Struct({
-  current: Schema.Number,
-  athlete: Schema.Struct({ $ref: Schema.String }),
-});
-
-export const EspnGolfRanksResponse = Schema.Struct({
-  ranks: Schema.NonEmptyArray(EspnRankEntry),
-});
-
-export type EspnGolfRanksResponse = typeof EspnGolfRanksResponse.Type;
-
 // --- Decoders ---
 
 const decodeScoreboard = Schema.decodeUnknown(EspnGolfScoreboardResponse);
-const decodeOwgr = Schema.decodeUnknown(EspnGolfOwgrResponse);
-const decodeRanks = Schema.decodeUnknown(EspnGolfRanksResponse);
-
-const ATHLETE_ID_RE = /\/athletes\/(\d+)/;
 
 /**
- * Build a set of athlete IDs ordered by world ranking (OWGR).
- * Returns a Map<athleteId, rank> for O(1) lookup.
- * Extracts athlete IDs from $ref URLs in each rank entry.
+ * Parse a golf score string into a numeric value.
+ * "-11" → -11, "E" → 0, "+3" → 3. Returns NaN for unparseable values.
  */
-export function buildRankingIndex(data: EspnGolfRanksResponse): Map<string, number> {
-  const index = new Map<string, number>();
-  for (const entry of data.ranks) {
-    const match = entry.athlete.$ref.match(ATHLETE_ID_RE);
-    if (match) {
-      index.set(match[1], entry.current);
-    }
-  }
-  return index;
+export function parseScore(score: string): number {
+  const trimmed = score.trim();
+  if (trimmed === "E") return 0;
+  if (trimmed === "") return NaN;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 /**
- * Filter and sort competitors by world ranking, keeping only the top N.
- * Unranked players are excluded — if fewer than N are ranked, return all ranked.
- * When no ranking data is available, returns the first N in scoreboard order.
+ * Sort competitors by leaderboard position and return the top N.
  */
-export function topRankedCompetitors(
-  competitors: Competitor[],
-  rankings: Map<string, number>,
-  limit: number,
-): Competitor[] {
-  if (rankings.size === 0) {
-    return competitors.slice(0, limit);
-  }
-  return competitors
-    .filter((c) => rankings.has(c.espnId))
-    .sort((a, b) => rankings.get(a.espnId)! - rankings.get(b.espnId)!)
-    .slice(0, limit);
+export function topLeaderboardCompetitors(competitors: Competitor[], limit: number): Competitor[] {
+  return [...competitors].sort((a, b) => a.position - b.position).slice(0, limit);
 }
 
-export function parseEspnGolfResponse(
-  data: EspnGolfScoreboardResponse,
-  rankings: Map<string, number>,
-): Tournament[] {
+export function parseEspnGolfResponse(data: EspnGolfScoreboardResponse): Tournament[] {
   return data.events.map((event) => {
     const competition = event.competitions[0];
     const statusName = event.status.type.name;
-    const allCompetitors = competition.competitors.map((c) => ({
+    const allCompetitors: Competitor[] = competition.competitors.map((c) => ({
       espnId: c.id,
       name: c.athlete.displayName,
+      position: c.order,
+      score: c.score,
     }));
     return {
       espnId: event.id,
       name: event.name,
       startTime: event.date,
       status: STATUS_MAP[statusName] ?? "scheduled",
-      competitors: topRankedCompetitors(allCompetitors, rankings, MAX_COMPETITORS),
+      round: competition.status.period,
+      competitors: topLeaderboardCompetitors(allCompetitors, MAX_COMPETITORS),
     };
   });
 }
@@ -189,55 +149,20 @@ export class GolfAdapter extends Context.Tag("GolfAdapter")<
 
       return {
         getUpcomingTournaments: Effect.gen(function* () {
-          // Fetch scoreboard and OWGR ranking type in parallel
-          const [scoreboardData, owgrData] = yield* Effect.all([
-            fetchJson(ESPN_GOLF_SCOREBOARD_URL, "scoreboard").pipe(
-              Effect.flatMap((data) =>
-                decodeScoreboard(data).pipe(
-                  Effect.mapError(
-                    (e) =>
-                      new OracleError({
-                        message: `ESPN Golf scoreboard validation failed: ${e.message}`,
-                      }),
-                  ),
-                ),
-              ),
-            ),
-            fetchJson(espnGolfOwgrUrl(new Date().getFullYear()), "OWGR").pipe(
-              Effect.flatMap((data) =>
-                decodeOwgr(data).pipe(
-                  Effect.mapError(
-                    (e) =>
-                      new OracleError({
-                        message: `ESPN Golf OWGR validation failed: ${e.message}`,
-                      }),
-                  ),
-                ),
-              ),
-            ),
-          ]);
-
-          // Follow the first (most recent) date ref to get actual ranks
-          const latestDateRef = owgrData.rankings[0].$ref;
-          const ranksUrl = latestDateRef.includes("?")
-            ? `${latestDateRef}&limit=500`
-            : `${latestDateRef}?limit=500`;
-
-          const ranksData = yield* fetchJson(ranksUrl, "ranks").pipe(
+          const scoreboardData = yield* fetchJson(ESPN_GOLF_SCOREBOARD_URL, "scoreboard").pipe(
             Effect.flatMap((data) =>
-              decodeRanks(data).pipe(
+              decodeScoreboard(data).pipe(
                 Effect.mapError(
                   (e) =>
                     new OracleError({
-                      message: `ESPN Golf ranks validation failed: ${e.message}`,
+                      message: `ESPN Golf scoreboard validation failed: ${e.message}`,
                     }),
                 ),
               ),
             ),
           );
 
-          const rankings = buildRankingIndex(ranksData);
-          return parseEspnGolfResponse(scoreboardData, rankings);
+          return parseEspnGolfResponse(scoreboardData);
         }),
       };
     }),
