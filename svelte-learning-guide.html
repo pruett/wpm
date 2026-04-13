@@ -1,0 +1,1664 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Svelte 5 + SvelteKit for React Developers</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css"
+    />
+    <style>
+      :root {
+        --bg: #0b0d12;
+        --bg-soft: #11141c;
+        --bg-card: #141824;
+        --bg-code: #0f1219;
+        --border: #222838;
+        --text: #e6e8ef;
+        --text-dim: #8b92a5;
+        --text-faint: #5a6073;
+        --accent: #ff5a1f; /* svelte orange-ish */
+        --accent-2: #61dafb; /* react blue */
+        --green: #7ee787;
+        --yellow: #e3b341;
+        --purple: #c792ea;
+        --pink: #ff7b72;
+        --blue: #79c0ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      code {
+        font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+
+      /* Sidebar */
+      aside {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: 1px solid var(--border);
+        background: var(--bg-soft);
+        padding: 20px 16px;
+      }
+      aside h1 {
+        font-size: 15px;
+        margin: 0 0 4px 0;
+        letter-spacing: 0.2px;
+      }
+      aside .sub {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-bottom: 16px;
+      }
+      .search {
+        width: 100%;
+        padding: 8px 10px;
+        background: var(--bg-card);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 14px;
+        outline: none;
+      }
+      .search:focus {
+        border-color: var(--accent);
+      }
+      nav ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      nav .group {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-faint);
+        margin: 14px 0 6px 4px;
+      }
+      nav li a {
+        display: block;
+        padding: 5px 8px;
+        border-radius: 5px;
+        color: var(--text-dim);
+        font-size: 13px;
+        border-left: 2px solid transparent;
+      }
+      nav li a:hover {
+        background: var(--bg-card);
+        color: var(--text);
+        text-decoration: none;
+      }
+      nav li a.active {
+        background: var(--bg-card);
+        color: var(--text);
+        border-left-color: var(--accent);
+      }
+
+      /* Main */
+      main {
+        padding: 32px 40px 120px 40px;
+        max-width: 1280px;
+      }
+      header.intro {
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      header.intro h1 {
+        font-size: 28px;
+        margin: 0 0 8px 0;
+        background: linear-gradient(90deg, var(--accent-2), var(--accent));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      header.intro p {
+        color: var(--text-dim);
+        max-width: 720px;
+        margin: 4px 0;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 12px;
+      }
+      .legend span::before {
+        content: "";
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      .legend .react::before {
+        background: var(--accent-2);
+      }
+      .legend .svelte::before {
+        background: var(--accent);
+      }
+
+      section.topic {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 22px 24px;
+        margin-bottom: 22px;
+        scroll-margin-top: 20px;
+      }
+      section.topic h2 {
+        font-size: 19px;
+        margin: 0 0 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      section.topic h2 .num {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-weight: 400;
+        background: var(--bg-code);
+        padding: 2px 7px;
+        border-radius: 10px;
+      }
+      section.topic .concept {
+        color: var(--text-dim);
+        font-size: 14px;
+        margin: 0 0 14px 0;
+      }
+      section.topic .concept strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 1024px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          position: static;
+          height: auto;
+        }
+        .compare {
+          grid-template-columns: 1fr;
+        }
+        main {
+          padding: 20px;
+        }
+      }
+
+      .panel {
+        background: var(--bg-code);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .panel .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 12px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+      }
+      .panel.react .head {
+        color: var(--accent-2);
+      }
+      .panel.svelte .head {
+        color: var(--accent);
+      }
+      .panel .head .file {
+        color: var(--text-faint);
+        text-transform: none;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0;
+      }
+      .copy {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 2px 8px;
+        font-size: 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .copy:hover {
+        color: var(--text);
+        border-color: var(--text-dim);
+      }
+      .panel pre,
+      .panel pre[class*="language-"] {
+        margin: 0;
+        padding: 14px 16px;
+        overflow-x: auto;
+        background: var(--bg-code);
+        font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.55;
+        color: var(--text);
+        flex: 1;
+        white-space: pre;
+        tab-size: 2;
+        text-shadow: none;
+        border-radius: 0;
+      }
+      .panel code,
+      .panel code[class*="language-"] {
+        background: transparent;
+        font-family: inherit;
+        font-size: inherit;
+        color: inherit;
+        text-shadow: none;
+      }
+      /* Prism Tomorrow overrides — tune to our palette */
+      .panel .token.comment,
+      .panel .token.prolog,
+      .panel .token.doctype,
+      .panel .token.cdata {
+        color: var(--text-faint);
+        font-style: italic;
+      }
+      .panel .token.punctuation {
+        color: var(--text-dim);
+      }
+      .panel .token.property,
+      .panel .token.tag,
+      .panel .token.constant,
+      .panel .token.symbol,
+      .panel .token.deleted {
+        color: var(--pink);
+      }
+      .panel .token.boolean,
+      .panel .token.number {
+        color: var(--yellow);
+      }
+      .panel .token.selector,
+      .panel .token.attr-name,
+      .panel .token.string,
+      .panel .token.char,
+      .panel .token.builtin,
+      .panel .token.inserted {
+        color: var(--green);
+      }
+      .panel .token.operator,
+      .panel .token.entity,
+      .panel .token.url,
+      .panel .language-css .token.string,
+      .panel .style .token.string {
+        color: var(--text);
+      }
+      .panel .token.atrule,
+      .panel .token.attr-value,
+      .panel .token.keyword {
+        color: var(--pink);
+      }
+      .panel .token.function,
+      .panel .token.class-name {
+        color: var(--blue);
+      }
+      .panel .token.regex,
+      .panel .token.important,
+      .panel .token.variable {
+        color: var(--purple);
+      }
+
+      .note {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--bg-code);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .note strong {
+        color: var(--text);
+      }
+      .note code {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: var(--text);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Topic category tag */
+      .cat {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+      .cat.svelte {
+        background: rgba(255, 90, 31, 0.14);
+        color: var(--accent);
+      }
+      .cat.kit {
+        background: rgba(97, 218, 251, 0.12);
+        color: var(--accent-2);
+      }
+
+      /* Progress bar */
+      .progress {
+        position: fixed;
+        top: 0;
+        left: 260px;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-2), var(--accent));
+        transform-origin: left;
+        transform: scaleX(0);
+        z-index: 10;
+      }
+      @media (max-width: 1024px) {
+        .progress {
+          left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress" id="progress"></div>
+    <div class="layout">
+      <aside>
+        <h1>Svelte 5 for React Devs</h1>
+        <div class="sub">Side-by-side patterns & best practices</div>
+        <input type="text" class="search" id="search" placeholder="Filter topics…" />
+        <nav id="nav"></nav>
+      </aside>
+
+      <main>
+        <header class="intro">
+          <h1>React &rarr; Svelte 5 &amp; Next.js 16 &rarr; SvelteKit</h1>
+          <p>
+            Bite-sized comparisons between idioms you already know and their Svelte equivalents.
+            Code on the left is what you'd write in React / Next.js 16. On the right is the
+            idiomatic Svelte 5 / SvelteKit version using runes.
+          </p>
+          <div class="legend">
+            <span class="react">React / Next.js 16</span>
+            <span class="svelte">Svelte 5 / SvelteKit</span>
+          </div>
+        </header>
+
+        <div id="topics"></div>
+      </main>
+    </div>
+
+    <script>
+      /* ==============================================================
+   TOPIC DATA
+   Each topic: { id, title, cat, concept, react, svelte, note, file }
+   ============================================================== */
+      const topics = [
+        // ───────── Svelte core ─────────
+        {
+          id: "state",
+          title: "State",
+          cat: "svelte",
+          concept:
+            "Svelte 5 uses <strong>runes</strong> like <code>$state</code> instead of hooks. State is a plain variable — mutate it directly, no setter. No tuples, no state batching quirks, and nested objects/arrays are deeply reactive via Proxies.",
+          rfile: "Counter.jsx",
+          sfile: "Counter.svelte",
+          react: `import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Clicked {count} times
+    </button>
+  );
+}`,
+          svelte: `<script>
+  let count = $state(0);
+<\/script>
+
+<button onclick={() => count++}>
+  Clicked {count} times
+</button>`,
+        },
+
+        {
+          id: "state-objects",
+          title: "State: objects & arrays",
+          cat: "svelte",
+          concept:
+            "React requires new references on every update. Svelte's <code>$state</code> proxies objects and arrays so you can mutate in place — <code>push</code>, <code>user.age++</code>, etc. all trigger reactivity.",
+          rfile: "Form.jsx",
+          sfile: "Form.svelte",
+          react: `const [user, setUser] = useState({ name: 'Ada', age: 36 });
+const [items, setItems] = useState([]);
+
+// must produce new references
+setUser({ ...user, age: user.age + 1 });
+setItems([...items, newItem]);
+setItems(items.filter(i => i.id !== id));`,
+          svelte: `let user = $state({ name: 'Ada', age: 36 });
+let items = $state([]);
+
+// just mutate — reactivity is deep
+user.age++;
+items.push(newItem);
+items.splice(items.findIndex(i => i.id === id), 1);`,
+        },
+
+        {
+          id: "derived",
+          title: "Derived state",
+          cat: "svelte",
+          concept:
+            "Svelte has no <code>useMemo</code> — use <code>$derived(expr)</code> for expressions and <code>$derived.by(() => …)</code> for multi-statement logic. There's no dependency array; dependencies are tracked automatically.",
+          rfile: "Cart.jsx",
+          sfile: "Cart.svelte",
+          react: `const [items, setItems] = useState([]);
+
+const total = useMemo(
+  () => items.reduce((sum, i) => sum + i.price, 0),
+  [items]
+);
+
+const summary = useMemo(() => {
+  const taxable = items.filter(i => i.taxable);
+  return { taxable, count: taxable.length };
+}, [items]);`,
+          svelte: `let items = $state([]);
+
+let total = $derived(
+  items.reduce((sum, i) => sum + i.price, 0)
+);
+
+let summary = $derived.by(() => {
+  const taxable = items.filter(i => i.taxable);
+  return { taxable, count: taxable.length };
+});`,
+        },
+
+        {
+          id: "effects",
+          title: "Side effects",
+          cat: "svelte",
+          concept:
+            "<code>$effect</code> replaces <code>useEffect</code>. It runs after the DOM updates, auto-tracks any reactive value it reads, and its cleanup function is returned the same way. No dependency arrays, no stale closures.",
+          rfile: "Clock.jsx",
+          sfile: "Clock.svelte",
+          react: `const [count, setCount] = useState(0);
+
+useEffect(() => {
+  const id = setInterval(
+    () => setCount(c => c + 1),
+    1000
+  );
+  return () => clearInterval(id);
+}, []); // mount only
+
+useEffect(() => {
+  document.title = \`Count: \${count}\`;
+}, [count]); // re-run when count changes`,
+          svelte: `let count = $state(0);
+
+$effect(() => {
+  const id = setInterval(() => count++, 1000);
+  return () => clearInterval(id);
+});
+
+$effect(() => {
+  document.title = \`Count: \${count}\`;
+  // count is auto-tracked — no deps array
+});`,
+          note: "Rule of thumb: if you're reaching for <code>$effect</code> to sync one piece of state to another, use <code>$derived</code> instead. Effects are for DOM, timers, subscriptions, analytics — not data flow.",
+        },
+
+        {
+          id: "props",
+          title: "Component props",
+          cat: "svelte",
+          concept:
+            "Props are destructured from <code>$props()</code>. Defaults, renaming, and rest props work just like destructuring objects. TypeScript types go right on the destructure.",
+          rfile: "Greeting.tsx",
+          sfile: "Greeting.svelte",
+          react: `type Props = {
+  name: string;
+  age?: number;
+};
+
+function Greeting({ name, age = 18 }: Props) {
+  return <h1>{name} is {age}</h1>;
+}`,
+          svelte: `<script lang="ts">
+  let {
+    name,
+    age = 18
+  }: { name: string; age?: number } = $props();
+<\/script>
+
+<h1>{name} is {age}</h1>`,
+        },
+
+        {
+          id: "callbacks",
+          title: "Callback props (events)",
+          cat: "svelte",
+          concept:
+            "Forget <code>createEventDispatcher</code>. In Svelte 5 you just pass callback props — same mental model as React. Convention is <code>onFoo</code>.",
+          rfile: "Button.jsx",
+          sfile: "Button.svelte",
+          react: `// child
+function IconButton({ onClick, label }) {
+  return <button onClick={onClick}>{label}</button>;
+}
+
+// parent
+<IconButton label="Save" onClick={() => save()} />`,
+          svelte: `<!-- child -->
+<script>
+  let { onclick, label } = $props();
+<\/script>
+<button {onclick}>{label}</button>
+
+<!-- parent -->
+<IconButton label="Save" onclick={() => save()} />`,
+        },
+
+        {
+          id: "bindings",
+          title: "Two-way binding (no React equivalent)",
+          cat: "svelte",
+          concept:
+            "Svelte has built-in two-way binding via <code>bind:</code>. No more <code>value + onChange</code> boilerplate for every form field. Components can also expose bindable props via <code>$bindable()</code>.",
+          rfile: "NameForm.jsx",
+          sfile: "NameForm.svelte",
+          react: `const [name, setName] = useState('');
+const [agree, setAgree] = useState(false);
+
+<input
+  value={name}
+  onChange={e => setName(e.target.value)}
+/>
+<input
+  type="checkbox"
+  checked={agree}
+  onChange={e => setAgree(e.target.checked)}
+/>`,
+          svelte: `<script>
+  let name = $state('');
+  let agree = $state(false);
+<\/script>
+
+<input bind:value={name} />
+<input type="checkbox" bind:checked={agree} />`,
+        },
+
+        {
+          id: "refs",
+          title: "Refs / DOM access",
+          cat: "svelte",
+          concept:
+            "<code>bind:this</code> is Svelte's <code>useRef</code>. The variable is assigned the element once it's mounted. Use <code>$effect</code> to run code after it's wired up.",
+          rfile: "Autofocus.jsx",
+          sfile: "Autofocus.svelte",
+          react: `const inputRef = useRef(null);
+
+useEffect(() => {
+  inputRef.current?.focus();
+}, []);
+
+<input ref={inputRef} />`,
+          svelte: `<script>
+  let input;
+
+  $effect(() => {
+    input?.focus();
+  });
+<\/script>
+
+<input bind:this={input} />`,
+        },
+
+        {
+          id: "conditional-lists",
+          title: "Conditionals & lists",
+          cat: "svelte",
+          concept:
+            "Svelte uses block syntax (<code>{#if}</code>, <code>{#each}</code>) instead of JSX expressions. Lists take a keyed <code>(item.id)</code> syntax that's impossible to forget.",
+          rfile: "Todos.jsx",
+          sfile: "Todos.svelte",
+          react: `{items.length === 0 ? (
+  <p>Empty</p>
+) : (
+  <ul>
+    {items.map(item => (
+      <li key={item.id}>{item.text}</li>
+    ))}
+  </ul>
+)}`,
+          svelte: `{#if items.length === 0}
+  <p>Empty</p>
+{:else}
+  <ul>
+    {#each items as item (item.id)}
+      <li>{item.text}</li>
+    {/each}
+  </ul>
+{/if}`,
+        },
+
+        {
+          id: "classes",
+          title: "Conditional classes & styles",
+          cat: "svelte",
+          concept:
+            "Svelte's <code>class</code> attribute accepts the same shape as <code>clsx</code>: strings, objects, arrays. <code>class:foo={bool}</code> is a sugar shorthand.",
+          rfile: "Button.jsx",
+          sfile: "Button.svelte",
+          react: `import clsx from 'clsx';
+
+<button
+  className={clsx('btn', {
+    active: isActive,
+    disabled: !enabled,
+  })}
+/>`,
+          svelte: `<button
+  class={['btn', {
+    active: isActive,
+    disabled: !enabled,
+  }]}
+/>
+
+<!-- shorthand -->
+<button class="btn" class:active={isActive} />`,
+        },
+
+        {
+          id: "composition",
+          title: "Component composition (children)",
+          cat: "svelte",
+          concept:
+            "<code>children</code> is still a prop, but it's a <strong>snippet</strong> you render with <code>{@render children()}</code>. Snippets are Svelte's replacement for slots — they're typed, can take arguments, and compose like functions.",
+          rfile: "Card.jsx",
+          sfile: "Card.svelte",
+          react: `function Card({ title, children }) {
+  return (
+    <div className="card">
+      <h2>{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+<Card title="Hello">
+  <p>Body content</p>
+</Card>`,
+          svelte: `<!-- Card.svelte -->
+<script>
+  let { title, children } = $props();
+<\/script>
+
+<div class="card">
+  <h2>{title}</h2>
+  {@render children()}
+</div>
+
+<!-- usage -->
+<Card title="Hello">
+  <p>Body content</p>
+</Card>`,
+        },
+
+        {
+          id: "snippets",
+          title: "Named slots → snippets",
+          cat: "svelte",
+          concept:
+            "Passing multiple named pieces of UI: in React you pass React nodes as props. In Svelte you define named snippets with <code>{#snippet}</code> — they can even take parameters, like render props.",
+          rfile: "Layout.jsx",
+          sfile: "Layout.svelte",
+          react: `function Layout({ header, footer, children }) {
+  return (
+    <>
+      {header}
+      <main>{children}</main>
+      {footer}
+    </>
+  );
+}
+
+<Layout
+  header={<Nav />}
+  footer={<Footer />}
+>
+  Main content
+</Layout>`,
+          svelte: `<!-- Layout.svelte -->
+<script>
+  let { header, footer, children } = $props();
+<\/script>
+
+{@render header()}
+<main>{@render children()}</main>
+{@render footer()}
+
+<!-- usage -->
+<Layout>
+  {#snippet header()}<Nav />{/snippet}
+  {#snippet footer()}<Footer />{/snippet}
+  Main content
+</Layout>`,
+          note: "Snippets can accept arguments: <code>{#snippet row(item)}</code> … <code>{@render row(user)}</code>. This is how you build table/list components with render-prop style APIs.",
+        },
+
+        {
+          id: "context",
+          title: "Context (avoiding prop drilling)",
+          cat: "svelte",
+          concept:
+            "<code>setContext</code> / <code>getContext</code> are the equivalent of <code>createContext</code> / <code>useContext</code>. Called during component initialization. To make context <em>reactive</em>, put a <code>$state</code> object in it.",
+          rfile: "theme.jsx",
+          sfile: "theme.svelte",
+          react: `const ThemeContext = createContext();
+
+function App() {
+  const [theme, setTheme] = useState('dark');
+  return (
+    <ThemeContext value={{ theme, setTheme }}>
+      <Toolbar />
+    </ThemeContext>
+  );
+}
+
+function Toolbar() {
+  const { theme } = useContext(ThemeContext);
+  return <div className={theme} />;
+}`,
+          svelte: `<!-- App.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  const theme = $state({ value: 'dark' });
+  setContext('theme', theme);
+<\/script>
+<Toolbar />
+
+<!-- Toolbar.svelte -->
+<script>
+  import { getContext } from 'svelte';
+  const theme = getContext('theme');
+<\/script>
+<div class={theme.value} />`,
+        },
+
+        {
+          id: "global-state",
+          title: "Global / shared state",
+          cat: "svelte",
+          concept:
+            "No Zustand, Redux, or Jotai needed. Export <code>$state</code> from a <code>.svelte.ts</code> module and import it anywhere. Mutations flow through the proxy — automatic reactivity.",
+          rfile: "useCounter.ts",
+          sfile: "counter.svelte.ts",
+          react: `// zustand store
+import { create } from 'zustand';
+
+export const useCounter = create((set) => ({
+  count: 0,
+  inc: () => set((s) => ({ count: s.count + 1 })),
+}));
+
+// in component
+const { count, inc } = useCounter();`,
+          svelte: `// counter.svelte.ts
+export const counter = $state({ count: 0 });
+export function inc() {
+  counter.count++;
+}
+
+// in component
+<script>
+  import { counter, inc } from '$lib/counter.svelte';
+<\/script>
+<button onclick={inc}>{counter.count}</button>`,
+          note: "Use <code>.svelte.ts</code> / <code>.svelte.js</code> file extensions to enable runes outside of components. These are the Svelte equivalent of a Zustand store or a custom hook module.",
+        },
+
+        {
+          id: "data-fetch-client",
+          title: "Client-side data fetching",
+          cat: "svelte",
+          concept:
+            "For one-off client fetches, use an <code>$effect</code> with <code>AbortController</code>, or Svelte's <code>{#await}</code> block which renders promise states declaratively. In SvelteKit, prefer <code>load</code> functions or remote functions — see below.",
+          rfile: "User.jsx",
+          sfile: "User.svelte",
+          react: `function User({ id }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(\`/api/user/\${id}\`, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(setUser);
+    return () => ctrl.abort();
+  }, [id]);
+
+  if (!user) return <Spinner />;
+  return <h1>{user.name}</h1>;
+}`,
+          svelte: `<script>
+  let { id } = $props();
+  let promise = $derived(
+    fetch(\`/api/user/\${id}\`).then(r => r.json())
+  );
+<\/script>
+
+{#await promise}
+  <Spinner />
+{:then user}
+  <h1>{user.name}</h1>
+{:catch err}
+  <p>Failed: {err.message}</p>
+{/await}`,
+        },
+
+        {
+          id: "lifecycle",
+          title: "Lifecycle",
+          cat: "svelte",
+          concept:
+            "<code>onMount</code> still exists for the rare case you need guaranteed mount-only logic. Most of the time <code>$effect</code> is all you need — it also runs once after mount and cleanup is just the returned function.",
+          rfile: "Chat.jsx",
+          sfile: "Chat.svelte",
+          react: `useEffect(() => {
+  const ws = new WebSocket(url);
+  ws.onmessage = (e) => addMessage(e.data);
+  return () => ws.close();
+}, [url]);`,
+          svelte: `<script>
+  import { onMount } from 'svelte';
+
+  // option A: effect (re-runs if url changes)
+  $effect(() => {
+    const ws = new WebSocket(url);
+    ws.onmessage = (e) => addMessage(e.data);
+    return () => ws.close();
+  });
+
+  // option B: onMount (strictly once)
+  onMount(() => {
+    /* mount-only */
+  });
+<\/script>`,
+        },
+
+        {
+          id: "transitions",
+          title: "Transitions & animations (bonus)",
+          cat: "svelte",
+          concept:
+            "Svelte ships with transitions and animations built-in. No framer-motion needed for most cases. <code>transition:</code>, <code>in:</code>, <code>out:</code>, and <code>animate:</code> directives do the work.",
+          rfile: "Fade.jsx",
+          sfile: "Fade.svelte",
+          react: `// needs framer-motion / react-spring
+import { AnimatePresence, motion } from 'framer-motion';
+
+<AnimatePresence>
+  {show && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      Hello
+    </motion.div>
+  )}
+</AnimatePresence>`,
+          svelte: `<script>
+  import { fade, fly } from 'svelte/transition';
+  let show = $state(true);
+<\/script>
+
+{#if show}
+  <div transition:fade>Hello</div>
+{/if}
+
+<!-- enter != exit -->
+{#if show}
+  <div in:fly={{ y: 20 }} out:fade>Hi</div>
+{/if}`,
+        },
+
+        // ───────── SvelteKit ─────────
+        {
+          id: "routing",
+          title: "File-based routing",
+          cat: "kit",
+          concept:
+            "SvelteKit uses <code>src/routes/</code> (not <code>app/</code>). Pages are <code>+page.svelte</code>, dynamic segments use <code>[param]</code>. The <code>+</code> prefix distinguishes framework files from ordinary components.",
+          rfile: "Next.js 16",
+          sfile: "SvelteKit",
+          react: `app/
+├── page.tsx                 → /
+├── about/
+│   └── page.tsx             → /about
+├── blog/
+│   └── [slug]/
+│       └── page.tsx         → /blog/:slug
+└── (marketing)/             (group)
+    └── pricing/page.tsx     → /pricing`,
+          svelte: `src/routes/
+├── +page.svelte             → /
+├── about/
+│   └── +page.svelte         → /about
+├── blog/
+│   └── [slug]/
+│       └── +page.svelte     → /blog/:slug
+└── (marketing)/             (group)
+    └── pricing/+page.svelte → /pricing`,
+        },
+
+        {
+          id: "layouts",
+          title: "Layouts",
+          cat: "kit",
+          concept:
+            "<code>+layout.svelte</code> is the equivalent of <code>layout.tsx</code>. It wraps every page below it in the tree. Children are rendered via <code>{@render children()}</code>.",
+          rfile: "app/layout.tsx",
+          sfile: "+layout.svelte",
+          react: `// app/layout.tsx
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Nav />
+        {children}
+        <Footer />
+      </body>
+    </html>
+  );
+}`,
+          svelte: `<!-- src/routes/+layout.svelte -->
+<script>
+  let { children } = $props();
+<\/script>
+
+<Nav />
+{@render children()}
+<Footer />`,
+        },
+
+        {
+          id: "server-data",
+          title: "Server data loading",
+          cat: "kit",
+          concept:
+            "Next.js 16 fetches data directly in async server components. SvelteKit does it in <code>+page.server.ts</code>'s <code>load</code> function, returning data that flows into the page as the <code>data</code> prop.",
+          rfile: "app/posts/page.tsx",
+          sfile: "posts/+page.{server.ts,svelte}",
+          react: `// app/posts/page.tsx (server component)
+import { db } from '@/lib/db';
+
+export default async function Posts() {
+  const posts = await db.post.findMany();
+  return (
+    <ul>
+      {posts.map(p => <li key={p.id}>{p.title}</li>)}
+    </ul>
+  );
+}`,
+          svelte: `// src/routes/posts/+page.server.ts
+import { db } from '$lib/db';
+
+export async function load() {
+  const posts = await db.post.findMany();
+  return { posts };
+}
+
+<!-- src/routes/posts/+page.svelte -->
+<script>
+  let { data } = $props();
+<\/script>
+<ul>
+  {#each data.posts as p}<li>{p.title}</li>{/each}
+</ul>`,
+          note: "Files matter: <code>+page.server.ts</code> runs on the server only (safe for DB, secrets). <code>+page.ts</code> runs on both server and client (for public fetches that can hydrate). Pick based on what the code needs to touch.",
+        },
+
+        {
+          id: "dynamic-params",
+          title: "Dynamic route params",
+          cat: "kit",
+          concept:
+            "Next.js 16 made <code>params</code> a Promise. SvelteKit gives you <code>params</code> synchronously on the <code>load</code> event. Both are typed from the folder structure.",
+          rfile: "app/blog/[slug]/page.tsx",
+          sfile: "blog/[slug]/+page.server.ts",
+          react: `// Next.js 16 — params is async now
+type Props = { params: Promise<{ slug: string }> };
+
+export default async function Post({ params }: Props) {
+  const { slug } = await params;
+  const post = await db.post.findUnique({
+    where: { slug }
+  });
+  return <article>{post.title}</article>;
+}`,
+          svelte: `// src/routes/blog/[slug]/+page.server.ts
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ params }) => {
+  const post = await db.post.findUnique({
+    where: { slug: params.slug }
+  });
+  return { post };
+};`,
+        },
+
+        {
+          id: "actions-mutations",
+          title: "Server actions / mutations",
+          cat: "kit",
+          concept:
+            "Next.js's <code>'use server'</code> actions become SvelteKit <strong>form actions</strong> in <code>+page.server.ts</code>. HTML forms work without JS; progressive enhancement happens automatically.",
+          rfile: "app/todos/page.tsx",
+          sfile: "todos/+page.{server.ts,svelte}",
+          react: `// app/todos/page.tsx
+import { revalidatePath } from 'next/cache';
+
+async function addTodo(formData: FormData) {
+  'use server';
+  const text = formData.get('text') as string;
+  await db.todo.create({ data: { text } });
+  revalidatePath('/todos');
+}
+
+export default function Page() {
+  return (
+    <form action={addTodo}>
+      <input name="text" />
+      <button>Add</button>
+    </form>
+  );
+}`,
+          svelte: `// src/routes/todos/+page.server.ts
+import type { Actions } from './$types';
+
+export const actions: Actions = {
+  add: async ({ request }) => {
+    const data = await request.formData();
+    await db.todo.create({
+      data: { text: data.get('text') as string }
+    });
+  },
+};
+
+<!-- +page.svelte -->
+<form method="POST" action="?/add">
+  <input name="text" />
+  <button>Add</button>
+</form>`,
+        },
+
+        {
+          id: "remote-functions",
+          title: "Remote functions (SvelteKit's killer feature)",
+          cat: "kit",
+          concept:
+            "<code>*.remote.ts</code> files let you define typed, server-only functions that you <em>call directly</em> from components. Think of it as tRPC + React Server Actions in one — with caching, refresh, and optimistic updates built in.",
+          rfile: "Next.js (server actions)",
+          sfile: "*.remote.ts",
+          react: `// app/actions.ts
+'use server';
+import { revalidateTag } from 'next/cache';
+
+export async function getPosts() {
+  return db.post.findMany();
+}
+
+export async function addPost(title: string) {
+  await db.post.create({ data: { title } });
+  revalidateTag('posts');
+}
+
+// client component
+'use client';
+import { addPost } from './actions';`,
+          svelte: `// src/routes/posts.remote.ts
+import { query, form } from '$app/server';
+import { db } from '$lib/db';
+
+export const getPosts = query(async () => {
+  return db.post.findMany();
+});
+
+export const addPost = form(async (data) => {
+  await db.post.create({
+    data: { title: data.get('title') as string }
+  });
+  await getPosts.refresh(); // auto-invalidation
+});
+
+<!-- component -->
+<script>
+  import { getPosts, addPost } from './posts.remote';
+  const posts = getPosts();
+<\/script>
+
+{#each await posts as p}{p.title}{/each}
+
+<form {...addPost}>
+  <input name="title" />
+</form>`,
+          note: "Remote functions are the modern SvelteKit data-flow pattern. They eliminate most of the split between <code>+page.server.ts</code>, <code>+server.ts</code>, and client fetches by giving you one typed function that works on both sides.",
+        },
+
+        {
+          id: "api-routes",
+          title: "API routes / route handlers",
+          cat: "kit",
+          concept:
+            "Next.js <code>route.ts</code> files map to SvelteKit <code>+server.ts</code>. Same Web standard <code>Request</code> / <code>Response</code> API on both sides.",
+          rfile: "app/api/posts/route.ts",
+          sfile: "api/posts/+server.ts",
+          react: `// app/api/posts/route.ts
+import { db } from '@/lib/db';
+
+export async function GET() {
+  const posts = await db.post.findMany();
+  return Response.json(posts);
+}
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const post = await db.post.create({ data: body });
+  return Response.json(post, { status: 201 });
+}`,
+          svelte: `// src/routes/api/posts/+server.ts
+import { json } from '@sveltejs/kit';
+import { db } from '$lib/db';
+
+export async function GET() {
+  const posts = await db.post.findMany();
+  return json(posts);
+}
+
+export async function POST({ request }) {
+  const body = await request.json();
+  const post = await db.post.create({ data: body });
+  return json(post, { status: 201 });
+}`,
+        },
+
+        {
+          id: "navigation",
+          title: "Navigation",
+          cat: "kit",
+          concept:
+            "SvelteKit has no <code>&lt;Link&gt;</code> component — plain <code>&lt;a href&gt;</code> tags are auto-intercepted for client-side navigation. Programmatic navigation uses <code>goto</code> from <code>$app/navigation</code>.",
+          rfile: "Next.js",
+          sfile: "SvelteKit",
+          react: `import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+<Link href="/about" prefetch>About</Link>
+
+const router = useRouter();
+router.push('/dashboard');
+router.replace('/login');`,
+          svelte: `<a href="/about">About</a>
+
+<!-- control preloading -->
+<a href="/about" data-sveltekit-preload-data="hover">
+  About
+</a>
+
+<script>
+  import { goto } from '$app/navigation';
+  goto('/dashboard');
+  goto('/login', { replaceState: true });
+<\/script>`,
+        },
+
+        {
+          id: "loading-error",
+          title: "Loading & error states",
+          cat: "kit",
+          concept:
+            "Next.js uses <code>loading.tsx</code> / <code>error.tsx</code> files. SvelteKit has <code>+error.svelte</code> for route errors and <code>&lt;svelte:boundary&gt;</code> for fine-grained component-level boundaries.",
+          rfile: "app/posts/",
+          sfile: "src/routes/posts/",
+          react: `posts/
+├── page.tsx
+├── loading.tsx    // Suspense fallback
+└── error.tsx      // error boundary ('use client')
+
+// error.tsx
+'use client';
+export default function Error({ error, reset }) {
+  return <>
+    <p>{error.message}</p>
+    <button onClick={reset}>Retry</button>
+  </>;
+}`,
+          svelte: `posts/
+├── +page.svelte
+├── +page.server.ts
+└── +error.svelte  // route-level error page
+
+<!-- +error.svelte -->
+<script>
+  import { page } from '$app/state';
+<\/script>
+<p>{page.error?.message}</p>
+
+<!-- component-level -->
+<svelte:boundary onerror={(e, reset) => log(e)}>
+  <RiskyComponent />
+  {#snippet failed(error, reset)}
+    <button onclick={reset}>Retry</button>
+  {/snippet}
+</svelte:boundary>`,
+        },
+
+        {
+          id: "metadata",
+          title: "Metadata / head tags",
+          cat: "kit",
+          concept:
+            "Next.js exports a <code>metadata</code> object or <code>generateMetadata</code> function. SvelteKit uses the declarative <code>&lt;svelte:head&gt;</code> component right in your template.",
+          rfile: "app/blog/[slug]/page.tsx",
+          sfile: "blog/[slug]/+page.svelte",
+          react: `// static
+export const metadata = {
+  title: 'Blog',
+  description: 'My blog',
+};
+
+// dynamic
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+  return {
+    title: post.title,
+    openGraph: { images: [post.cover] },
+  };
+}`,
+          svelte: `<script>
+  let { data } = $props();
+<\/script>
+
+<svelte:head>
+  <title>{data.post.title}</title>
+  <meta name="description" content={data.post.excerpt} />
+  <meta property="og:image" content={data.post.cover} />
+</svelte:head>
+
+<article>{data.post.body}</article>`,
+        },
+
+        {
+          id: "caching",
+          title: "Caching patterns",
+          cat: "kit",
+          concept:
+            "Next.js 16's <code>'use cache'</code> directive, <code>cacheTag</code>, and <code>cacheLife</code> wrap any function. SvelteKit uses HTTP cache headers via <code>setHeaders</code> in load functions — and remote functions have built-in client caches with <code>refresh()</code> for invalidation.",
+          rfile: "Next.js 16",
+          sfile: "SvelteKit",
+          react: `// function-level cache
+import { cacheTag, cacheLife } from 'next/cache';
+
+async function getPosts() {
+  'use cache';
+  cacheTag('posts');
+  cacheLife('hours');
+  return db.post.findMany();
+}
+
+// invalidate after mutation
+import { revalidateTag } from 'next/cache';
+revalidateTag('posts');`,
+          svelte: `// HTTP caching from load
+export async function load({ setHeaders }) {
+  const posts = await db.post.findMany();
+  setHeaders({
+    'cache-control': 'public, max-age=3600, s-maxage=3600'
+  });
+  return { posts };
+}
+
+// remote function caching (client-side)
+import { query } from '$app/server';
+
+export const getPosts = query(async () => {
+  return db.post.findMany();
+});
+// invalidate:
+await getPosts.refresh();`,
+          note: "The mental model differs: Next.js 16 pushes you toward server-side data cache by default. SvelteKit leans on HTTP caching for load functions and reactive client caches for remote functions — more transparent, fewer footguns.",
+        },
+
+        {
+          id: "hooks-middleware",
+          title: "Middleware / hooks",
+          cat: "kit",
+          concept:
+            "Next.js's <code>middleware.ts</code> runs on the edge before any request hits a route. SvelteKit's <code>src/hooks.server.ts</code> does the same job with a <code>handle</code> function that wraps every request.",
+          rfile: "middleware.ts",
+          sfile: "hooks.server.ts",
+          react: `// middleware.ts
+import { NextResponse } from 'next/server';
+
+export function middleware(req) {
+  const token = req.cookies.get('token');
+  if (!token && req.nextUrl.pathname.startsWith('/admin')) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+}
+
+export const config = { matcher: '/admin/:path*' };`,
+          svelte: `// src/hooks.server.ts
+import { redirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit';
+
+export const handle: Handle = async ({ event, resolve }) => {
+  const token = event.cookies.get('token');
+
+  if (!token && event.url.pathname.startsWith('/admin')) {
+    throw redirect(303, '/login');
+  }
+
+  event.locals.user = await getUser(token);
+  return resolve(event);
+};`,
+          note: "<code>event.locals</code> is how SvelteKit passes per-request data (like the current user) down to every load function. Think of it as request-scoped context.",
+        },
+
+        {
+          id: "env",
+          title: "Environment variables",
+          cat: "kit",
+          concept:
+            "Next.js splits public vs server by the <code>NEXT_PUBLIC_</code> prefix. SvelteKit splits by <em>import path</em> — <code>$env/static/private</code> is server-only and the compiler will error if you import it from client code.",
+          rfile: "process.env",
+          sfile: "$env/*",
+          react: `// .env
+DATABASE_URL=postgres://...
+NEXT_PUBLIC_API_URL=https://api.example.com
+
+// server
+process.env.DATABASE_URL
+
+// client (must be prefixed)
+process.env.NEXT_PUBLIC_API_URL`,
+          svelte: `// .env
+DATABASE_URL=postgres://...
+PUBLIC_API_URL=https://api.example.com
+
+// server only (compile error if imported client-side)
+import { DATABASE_URL } from '$env/static/private';
+
+// client-safe
+import { PUBLIC_API_URL } from '$env/static/public';
+
+// runtime (not baked in at build)
+import { env } from '$env/dynamic/private';`,
+        },
+
+        {
+          id: "form-progressive",
+          title: "Progressive enhancement & optimistic UI",
+          cat: "kit",
+          concept:
+            "React 19 gives you <code>useFormStatus</code>, <code>useActionState</code>, and <code>useOptimistic</code>. SvelteKit gives you <code>use:enhance</code> — a tiny action that upgrades any form to fetch + client state without losing the no-JS fallback.",
+          rfile: "React 19",
+          sfile: "SvelteKit",
+          react: `'use client';
+import { useActionState, useOptimistic } from 'react';
+import { useFormStatus } from 'react-dom';
+
+const [state, formAction, pending] = useActionState(addTodo, null);
+const [optimisticTodos, addOptimistic] = useOptimistic(todos);
+
+function Submit() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>Add</button>;
+}
+
+<form action={formAction}>
+  <input name="text" />
+  <Submit />
+</form>`,
+          svelte: `<script>
+  import { enhance } from '$app/forms';
+  let { data, form } = $props();
+  let submitting = $state(false);
+<\/script>
+
+<form method="POST" use:enhance={() => {
+  submitting = true;
+  // optimistic update here
+  return async ({ update }) => {
+    await update();
+    submitting = false;
+  };
+}}>
+  <input name="text" />
+  <button disabled={submitting}>Add</button>
+</form>`,
+          note: "Remote functions go further: <code>form()</code> and <code>command()</code> have built-in <code>.pending</code>, result state, and optimistic overrides. Check the docs for <code>$app/server</code>.",
+        },
+
+        {
+          id: "prerender",
+          title: "Static generation (SSG)",
+          cat: "kit",
+          concept:
+            "Next.js 16 prerenders by default and opts into dynamic via <code>dynamic = 'force-dynamic'</code>. SvelteKit is the inverse: dynamic by default, opt in to prerender via the <code>prerender</code> page option.",
+          rfile: "Next.js",
+          sfile: "SvelteKit",
+          react: `// app/docs/page.tsx
+export const dynamic = 'force-static';
+// or let Next.js infer from data usage
+
+// dynamic params
+export async function generateStaticParams() {
+  const docs = await getDocs();
+  return docs.map(d => ({ slug: d.slug }));
+}`,
+          svelte: `// src/routes/docs/+page.ts (or +page.server.ts)
+export const prerender = true;
+
+// dynamic params
+// src/routes/docs/[slug]/+page.server.ts
+export const prerender = true;
+
+export const entries = async () => {
+  const docs = await getDocs();
+  return docs.map(d => ({ slug: d.slug }));
+};`,
+        },
+      ];
+
+      function escapeHtml(s) {
+        return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+      }
+
+      /* ==============================================================
+   RENDER
+   ============================================================== */
+      const topicsEl = document.getElementById("topics");
+      const navEl = document.getElementById("nav");
+
+      const groups = {
+        svelte: { label: "Svelte 5", items: [] },
+        kit: { label: "SvelteKit vs Next.js 16", items: [] },
+      };
+      topics.forEach((t) => groups[t.cat].items.push(t));
+
+      // nav
+      Object.entries(groups).forEach(([key, g]) => {
+        const h = document.createElement("div");
+        h.className = "group";
+        h.textContent = g.label;
+        navEl.appendChild(h);
+        const ul = document.createElement("ul");
+        g.items.forEach((t) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href="#${t.id}" data-id="${t.id}">${t.title}</a>`;
+          ul.appendChild(li);
+        });
+        navEl.appendChild(ul);
+      });
+
+      // topic cards
+      topics.forEach((t, idx) => {
+        const sec = document.createElement("section");
+        sec.className = "topic";
+        sec.id = t.id;
+        sec.dataset.title = t.title.toLowerCase();
+        sec.dataset.cat = t.cat;
+
+        sec.innerHTML = `
+    <h2>
+      <span class="num">${String(idx + 1).padStart(2, "0")}</span>
+      ${t.title}
+      <span class="cat ${t.cat}">${t.cat === "svelte" ? "Svelte" : "SvelteKit"}</span>
+    </h2>
+    <p class="concept">${t.concept}</p>
+    <div class="compare">
+      <div class="panel react">
+        <div class="head">
+          <span>React${t.cat === "kit" ? " / Next.js 16" : ""}</span>
+          <span class="file">${t.rfile || ""}</span>
+          <button class="copy">Copy</button>
+        </div>
+        <pre class="language-tsx"><code class="language-tsx">${escapeHtml(t.react)}</code></pre>
+      </div>
+      <div class="panel svelte">
+        <div class="head">
+          <span>Svelte 5${t.cat === "kit" ? " / SvelteKit" : ""}</span>
+          <span class="file">${t.sfile || ""}</span>
+          <button class="copy">Copy</button>
+        </div>
+        <pre class="language-svelte"><code class="language-svelte">${escapeHtml(t.svelte)}</code></pre>
+      </div>
+    </div>
+    ${t.note ? `<div class="note"><strong>Note:</strong> ${t.note}</div>` : ""}
+  `;
+
+        // wire up copy buttons (store raw source)
+        const [rBtn, sBtn] = sec.querySelectorAll(".copy");
+        rBtn.addEventListener("click", () => copy(rBtn, t.react));
+        sBtn.addEventListener("click", () => copy(sBtn, t.svelte));
+
+        topicsEl.appendChild(sec);
+      });
+
+      function copy(btn, text) {
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(() => {
+            btn.textContent = orig;
+          }, 1200);
+        });
+      }
+
+      /* Search filter */
+      const search = document.getElementById("search");
+      search.addEventListener("input", () => {
+        const q = search.value.toLowerCase().trim();
+        document.querySelectorAll("section.topic").forEach((s) => {
+          const match =
+            !q || s.dataset.title.includes(q) || s.textContent.toLowerCase().includes(q);
+          s.classList.toggle("hidden", !match);
+        });
+        document.querySelectorAll("nav li a").forEach((a) => {
+          const id = a.dataset.id;
+          const sec = document.getElementById(id);
+          a.parentElement.classList.toggle("hidden", sec.classList.contains("hidden"));
+        });
+      });
+
+      /* Scroll spy + progress bar */
+      const navLinks = Array.from(document.querySelectorAll("nav li a"));
+      const sections = Array.from(document.querySelectorAll("section.topic"));
+      const progressEl = document.getElementById("progress");
+
+      function onScroll() {
+        const scrollTop = window.scrollY;
+        const docH = document.documentElement.scrollHeight - window.innerHeight;
+        progressEl.style.transform = `scaleX(${Math.min(1, scrollTop / docH)})`;
+
+        let active = sections[0]?.id;
+        for (const s of sections) {
+          if (s.getBoundingClientRect().top < 120) active = s.id;
+        }
+        navLinks.forEach((a) => a.classList.toggle("active", a.dataset.id === active));
+      }
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    </script>
+
+    <!-- Prism syntax highlighting (loaded after content so we can highlight once it's ready) -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-clike.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-jsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-tsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prism-svelte@0.5.0/index.js"></script>
+    <script>
+      if (window.Prism) {
+        Prism.highlightAllUnder(document.getElementById("topics"));
+      }
+    </script>
+  </body>
+</html>

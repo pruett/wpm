@@ -1,12 +1,11 @@
-import { fetchCategories, fetchLeaderboard, fetchMarkets } from "$lib/api.js";
+import { fetchLeaderboard, fetchMarkets } from "$lib/api.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ fetch }) => {
-  const [categories, marketsData, leaderboard] = await Promise.all([
-    fetchCategories(fetch),
+  const [marketsData, leaderboard] = await Promise.all([
     fetchMarkets(fetch),
     fetchLeaderboard(fetch),
   ]);
 
-  return { categories, leaderboard, ...marketsData };
+  return { leaderboard, ...marketsData };
 };
