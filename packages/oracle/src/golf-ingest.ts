@@ -94,6 +94,7 @@ export const golfIngest = Effect.gen(function* () {
         closesAt: new Date(Date.now() + BETTING_WINDOW_MS).toISOString(),
         seedAmount: SEED_AMOUNT,
         initialProbabilityA: probabilities.get(competitor.espnId),
+        leagueLogo: tournament.leagueLogo || undefined,
       });
       created++;
     }

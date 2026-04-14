@@ -23,6 +23,10 @@ const RegisterBody = Schema.Struct({
   userId: Schema.String,
 });
 
+const WalletLookupBody = Schema.Struct({
+  userId: Schema.String,
+});
+
 export const makeRouter = Effect.gen(function* () {
   const nodeClient = yield* NodeClient;
   const keystore = yield* WalletKeystore;
@@ -55,17 +59,31 @@ export const makeRouter = Effect.gen(function* () {
       "/api/register",
       Effect.gen(function* () {
         const body = yield* HttpServerRequest.schemaBodyJson(RegisterBody);
-        const existing = keystore.getById(body.userId);
-        if (existing) {
-          const balance = yield* nodeClient.getBalance(existing.address);
-          return yield* HttpServerResponse.json({
-            token: existing.token,
-            address: existing.address,
-            balance,
-          });
+        if (keystore.getById(body.userId)) {
+          return yield* HttpServerResponse.json(
+            { error: "User already registered" },
+            { status: 409 },
+          );
         }
         const wallet = keystore.register(body.userId);
         yield* nodeClient.distribute(wallet.publicKey, SIGNUP_AIRDROP, "signup_airdrop");
+        const balance = yield* nodeClient.getBalance(wallet.address);
+        return yield* HttpServerResponse.json({
+          token: wallet.token,
+          address: wallet.address,
+          balance,
+        });
+      }).pipe(catchErrors),
+    ),
+
+    HttpRouter.post(
+      "/api/wallet",
+      Effect.gen(function* () {
+        const body = yield* HttpServerRequest.schemaBodyJson(WalletLookupBody);
+        const wallet = keystore.getById(body.userId);
+        if (!wallet) {
+          return yield* HttpServerResponse.json({ error: "Wallet not found" }, { status: 404 });
+        }
         const balance = yield* nodeClient.getBalance(wallet.address);
         return yield* HttpServerResponse.json({
           token: wallet.token,
@@ -176,7 +194,17 @@ export const makeRouter = Effect.gen(function* () {
             );
           }),
         );
-        return HttpServerResponse.stream(transformed, {
+        const heartbeat = Stream.tick("20 seconds").pipe(
+          Stream.map(() => new TextEncoder().encode(":ping\n\n")),
+        );
+        // Prepend a comment so Node flushes response headers immediately;
+        // without it EventSource stays in CONNECTING until the first event.
+        // (Node's own heartbeats don't survive parseSSE, so we heartbeat here too.)
+        const sseStream = Stream.concat(
+          Stream.succeed(new TextEncoder().encode(":ok\n\n")),
+          Stream.merge(transformed, heartbeat, { haltStrategy: "left" }),
+        );
+        return HttpServerResponse.stream(sseStream, {
           contentType: "text/event-stream",
           headers: { "Cache-Control": "no-cache", Connection: "keep-alive" },
         });

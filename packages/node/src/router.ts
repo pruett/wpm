@@ -22,6 +22,7 @@ const CreateMarketBody = Schema.Struct({
   seedAmount: Schema.Number,
   initialProbabilityA: Schema.optional(Schema.Number),
   logos: Schema.optional(Schema.Tuple(Schema.String, Schema.String)),
+  leagueLogo: Schema.optional(Schema.String),
 });
 const ResolveMarketBody = Schema.Struct({
   id: Schema.String,
@@ -156,6 +157,7 @@ export const makeRouter = Effect.gen(function* () {
             seedAmount: body.seedAmount,
             initialProbabilityA: body.initialProbabilityA,
             logos: body.logos,
+            leagueLogo: body.leagueLogo,
           },
           keys,
         );
@@ -229,10 +231,19 @@ export const makeRouter = Effect.gen(function* () {
       "/internal/events",
       Effect.gen(function* () {
         const stream = yield* eventBus.subscribe;
-        const sseStream = stream.pipe(
+        const events = stream.pipe(
           Stream.map((event) =>
             new TextEncoder().encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
           ),
+        );
+        const heartbeat = Stream.tick("20 seconds").pipe(
+          Stream.map(() => new TextEncoder().encode(":ping\n\n")),
+        );
+        // Prepend a comment so Node flushes response headers immediately;
+        // without it EventSource stays in CONNECTING until the first event.
+        const sseStream = Stream.concat(
+          Stream.succeed(new TextEncoder().encode(":ok\n\n")),
+          Stream.merge(events, heartbeat, { haltStrategy: "left" }),
         );
         return HttpServerResponse.stream(sseStream, {
           contentType: "text/event-stream",

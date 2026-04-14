@@ -25,6 +25,7 @@ export type Tournament = {
   readonly status: TournamentStatus;
   readonly round: number;
   readonly competitors: Competitor[];
+  readonly leagueLogo: string;
 };
 
 const STATUS_MAP: Record<string, TournamentStatus> = {
@@ -64,7 +65,16 @@ const EspnGolfEvent = Schema.Struct({
   ),
 });
 
+const EspnLeagueLogo = Schema.Struct({
+  href: Schema.String,
+});
+
+const EspnLeague = Schema.Struct({
+  logos: Schema.optionalWith(Schema.Array(EspnLeagueLogo), { default: () => [] }),
+});
+
 export const EspnGolfScoreboardResponse = Schema.Struct({
+  leagues: Schema.optionalWith(Schema.Array(EspnLeague), { default: () => [] }),
   events: Schema.Array(EspnGolfEvent),
 });
 
@@ -94,6 +104,7 @@ export function topLeaderboardCompetitors(competitors: Competitor[], limit: numb
 }
 
 export function parseEspnGolfResponse(data: EspnGolfScoreboardResponse): Tournament[] {
+  const leagueLogo = data.leagues[0]?.logos[0]?.href ?? "";
   return data.events.map((event) => {
     const competition = event.competitions[0];
     const statusName = event.status.type.name;
@@ -110,6 +121,7 @@ export function parseEspnGolfResponse(data: EspnGolfScoreboardResponse): Tournam
       status: STATUS_MAP[statusName] ?? "scheduled",
       round: competition.status.period,
       competitors: topLeaderboardCompetitors(allCompetitors, MAX_COMPETITORS),
+      leagueLogo,
     };
   });
 }

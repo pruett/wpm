@@ -45,6 +45,7 @@ function applyBlockPure(state: ChainStateData, block: Block): ChainStateData {
           name: tx.name,
           outcomes: tx.outcomes,
           logos: tx.logos,
+          leagueLogo: tx.leagueLogo,
           closesAt: tx.closesAt,
           status: "open",
         });

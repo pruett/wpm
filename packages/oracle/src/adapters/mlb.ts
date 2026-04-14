@@ -43,7 +43,16 @@ const EspnMlbEvent = Schema.Struct({
   ),
 });
 
+const EspnLeagueLogo = Schema.Struct({
+  href: Schema.String,
+});
+
+const EspnLeague = Schema.Struct({
+  logos: Schema.optionalWith(Schema.Array(EspnLeagueLogo), { default: () => [] }),
+});
+
 export const EspnMlbScoreboardResponse = Schema.Struct({
+  leagues: Schema.optionalWith(Schema.Array(EspnLeague), { default: () => [] }),
   events: Schema.Array(EspnMlbEvent),
 });
 
@@ -74,6 +83,7 @@ const decodeOddsItem = Schema.decodeUnknownSync(EspnMlbOddsItem);
 // --- Parsing ---
 
 export function parseEspnMlbResponse(data: EspnMlbScoreboardResponse): Game[] {
+  const leagueLogo = data.leagues[0]?.logos[0]?.href ?? "";
   return data.events.map((event) => {
     const competition = event.competitions[0];
     const home = competition.competitors.find((c) => c.homeAway === "home");
@@ -86,6 +96,7 @@ export function parseEspnMlbResponse(data: EspnMlbScoreboardResponse): Game[] {
       awayTeam: away?.team.displayName ?? "Unknown",
       homeLogo: home?.team.logo ?? "",
       awayLogo: away?.team.logo ?? "",
+      leagueLogo,
       startTime: event.date,
       status: STATUS_MAP[statusName] ?? "scheduled",
     };

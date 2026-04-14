@@ -19,6 +19,7 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
       { espnId: "3702", name: "Rory McIlroy", position: 2, score: "-8" },
       { espnId: "10046", name: "Jon Rahm", position: 3, score: "-5" },
     ],
+    leagueLogo: "https://a.espn.com/i/teamlogos/leagues/500/pga.png",
     ...overrides,
   };
 }

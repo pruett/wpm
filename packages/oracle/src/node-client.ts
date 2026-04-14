@@ -11,6 +11,7 @@ export type CreateMarketParams = {
   readonly seedAmount: number;
   readonly initialProbabilityA?: number;
   readonly logos?: [string, string];
+  readonly leagueLogo?: string;
 };
 
 export class NodeClient extends Context.Tag("oracle/NodeClient")<

@@ -16,6 +16,7 @@ export type Transaction =
       seedAmount: number;
       initialProbabilityA?: number;
       logos?: [string, string];
+      leagueLogo?: string;
       signature: string;
       timestamp: string;
     }
@@ -69,6 +70,7 @@ export type Market = {
   name: string;
   outcomes: [string, string];
   logos?: [string, string];
+  leagueLogo?: string;
   closesAt: string;
   status: "open" | "closed" | "resolved" | "cancelled";
   result?: "A" | "B";
@@ -97,7 +99,6 @@ export type MarketWithOdds = Market & {
   multiplierB: number;
   pool: AMMPool;
   bettorCount: number;
-  leagueLogo?: string;
 };
 
 export type MarketBettor = {
@@ -152,6 +153,12 @@ export type MarketsResponse = {
 
 export type LeaderboardEntry = {
   name: string;
+  address: string;
+  balance: number;
+};
+
+export type WalletResponse = {
+  token: string;
   address: string;
   balance: number;
 };

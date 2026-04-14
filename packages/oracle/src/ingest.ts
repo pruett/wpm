@@ -42,6 +42,7 @@ export const ingest = Effect.gen(function* () {
       seedAmount: SEED_AMOUNT,
       initialProbabilityA,
       logos,
+      leagueLogo: game.leagueLogo || undefined,
     });
     created++;
   }

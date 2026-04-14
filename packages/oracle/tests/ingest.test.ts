@@ -15,6 +15,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     awayTeam: "Kansas City Chiefs",
     homeLogo: "https://a.espn.com/i/teamlogos/nfl/500/phi.png",
     awayLogo: "https://a.espn.com/i/teamlogos/nfl/500/kc.png",
+    leagueLogo: "https://a.espn.com/i/teamlogos/leagues/500/nfl.png",
     startTime: "2026-02-08T23:30Z",
     status: "scheduled",
     ...overrides,

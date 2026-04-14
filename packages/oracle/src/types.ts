@@ -7,6 +7,7 @@ export type Game = {
   readonly awayTeam: string;
   readonly homeLogo: string;
   readonly awayLogo: string;
+  readonly leagueLogo: string;
   readonly startTime: string;
   readonly status: GameStatus;
   readonly awayMoneyline?: number;
