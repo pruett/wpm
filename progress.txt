@@ -176,3 +176,16 @@
 - Created `apps/web/src/app/landing.tsx` — server component using shadcn Button (asChild with next/link), centered layout with `min-h-svh`
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/page.tsx`, `apps/web/src/app/landing.tsx` (new), `PLAN.md`
+
+## Phase 1 — Root Routing Gate (continued)
+
+### Task 19: Add isAdmin helper and admin layout guard
+- Added `isAdmin(session)` helper function in `apps/web/src/lib/auth.ts`
+- Reads `ADMIN_EMAILS` env var, splits on comma, trims whitespace, checks if session user's email is in the list
+- Returns `false` if no session or no `ADMIN_EMAILS` configured (fail-closed)
+- Session type is minimal: `{ user: { email: string } } | null` — works with both server-side `auth.api.getSession()` results and client `useSession()` data
+- Created `apps/web/src/app/admin/layout.tsx` — async server component that checks `isAdmin(session)` and calls `notFound()` for non-admins
+- Uses `headers()` from `next/headers` to get the session server-side (same pattern as `page.tsx`)
+- Non-admins (including unauthenticated users) get a 404 — intentionally reveals nothing about the admin route's existence
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/lib/auth.ts`, `apps/web/src/app/admin/layout.tsx` (new), `PLAN.md`

@@ -13,6 +13,12 @@ function getDatabase() {
   return new Database(env("DATABASE_PATH", "data/wpm.db"));
 }
 
+export function isAdmin(session: { user: { email: string } } | null): boolean {
+  if (!session) return false;
+  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
+  return adminEmails.includes(session.user.email);
+}
+
 export const auth = betterAuth({
   baseURL: env("BETTER_AUTH_URL", "http://localhost:4102"),
   secret: env("BETTER_AUTH_SECRET", "dev-secret-change-me-in-production"),
