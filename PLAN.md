@@ -111,8 +111,8 @@
 
 ### Admin shell
 
-- [ ] `app/admin/layout.tsx` — sidebar layout with Overview / Users / Markets / System links
-- [ ] `app/admin/page.tsx` — overview cards (active markets, signups today, chain height)
+- [x] `app/admin/layout.tsx` — sidebar layout with Overview / Users / Markets / System links
+- [x] `app/admin/page.tsx` — overview cards (active markets, signups today, chain height)
 
 ### Admin pages
 
