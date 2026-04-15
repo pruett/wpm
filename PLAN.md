@@ -6,11 +6,13 @@
 ---
 
 ## Phase 0 — Tracer Bullets
+
 > Two thin end-to-end slices that prove distinct architectural seams: (1) SSR + cached read from `wpm-api`, and (2) SSE proxy into a React client subtree.
 
 ### SSR Read Tracer
+
 - [x] Add `"apps/*"` to root `package.json` workspaces; scaffold `apps/web/package.json` as `@wpm/web` with Next 16, React 19, `@wpm/shared: workspace:*`
-- [ ] Create `apps/web/tsconfig.json` (Next conventions, `@/*` path alias) and `apps/web/next.config.ts` with `cacheComponents: true`
+- [x] Create `apps/web/tsconfig.json` (Next conventions, `@/*` path alias) and `apps/web/next.config.ts` with `cacheComponents: true`
 - [ ] Create `apps/web/src/app/layout.tsx` (minimal `<html>/<body>`) and `apps/web/src/app/page.tsx` rendering hardcoded "WPM" landing
 - [ ] Add `apps/web/src/lib/data/markets.ts` with a `'use cache'` `getMarkets()` loader that fetches `http://wpm-api:3000/api/markets`, tagged `markets`, lifetime `minutes`
 - [ ] Render market names from `getMarkets()` in a `<Dashboard />` server component behind a hardcoded `authenticated=true` flag
@@ -18,6 +20,7 @@
 - [ ] Swap `docker-compose.yml` `wpm-web.build.dockerfile` from `packages/web/Dockerfile` to `apps/web/Dockerfile`; verify `docker compose up` serves the cached market list at `:4102`
 
 ### SSE Proxy Tracer
+
 - [ ] Create `apps/web/src/app/api/stream/route.ts` — Node runtime handler that proxies `http://wpm-api:3000/events/stream` with `ReadableStream` piping and `text/event-stream` headers
 - [ ] Create `apps/web/src/lib/realtime/RealtimeProvider.tsx` — client component opening one `EventSource('/api/stream')`, publishing parsed events into React context
 - [ ] Add a throwaway `<LiveTicker />` client component mounted in `<Dashboard />` that renders the last received SSE event payload
@@ -28,6 +31,7 @@
 ## Phase 1 — Authentication
 
 ### Better-auth server setup
+
 - [ ] Create `apps/web/src/lib/auth.ts` — better-auth instance with `better-sqlite3` adapter pointing at `/app/data/wpm.db` (containerized) / `apps/web/data/wpm.db` (local)
 - [ ] Register `@better-auth/passkey` and magic-link plugins with Resend email driver; `RP_ID` + `ORIGIN` from env
 - [ ] Extend schema with `user.walletPublicKey` (nullable TEXT, immutable once set)
@@ -35,6 +39,7 @@
 - [ ] Port magic-link email template from `packages/web` as-is
 
 ### Browser auth client
+
 - [ ] Create `apps/web/src/lib/auth-client.ts` exposing `authClient.signIn.magicLink` and `authClient.passkey.signIn` helpers
 - [ ] Build `(auth)/layout.tsx` route group using shadcn auth block as visual foundation
 - [ ] Implement `/login/page.tsx` — email input + passkey-primary CTA when a passkey is detected, magic-link secondary CTA
@@ -42,11 +47,13 @@
 - [ ] Implement `/auth/verify/page.tsx` — completes magic-link handshake, prompts passkey enrollment, redirects to `/`
 
 ### Root routing gate
+
 - [ ] Update `app/page.tsx` to branch on `auth().session`: render `<Landing />` when null, `<Dashboard />` when authenticated
 - [ ] Add `isAdmin(session)` helper in `lib/auth.ts` using `process.env.ADMIN_EMAILS.split(',')`
 - [ ] Add `app/admin/layout.tsx` guard that 404s non-admins
 
 ### Wallet provisioning (lazy)
+
 - [ ] Create `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` — if `user.walletPublicKey` is null, POST `/api/register { userId }` to `wpm-api`, persist returned `address` to user row
 - [ ] Call `provisionWalletIfNeeded(userId)` from the root layout server path on first authenticated render
 - [ ] Verify airdrop `Distribute` lands on-chain before layout resolves (await the API response)
@@ -56,10 +63,12 @@
 ## Phase 2 — Landing & Dashboard Reads
 
 ### Landing page
+
 - [ ] Build `<Landing />` server component per design brief (techno-brutalist, monochrome, halftone chief portrait hero)
 - [ ] Wire Log in / Create account CTAs to `/login` and `/register`
 
 ### Cached data loaders
+
 - [ ] `lib/data/market.ts` — `getMarket(id)` tagged `market:${id}`, lifetime `minutes`
 - [ ] `lib/data/leaderboard.ts` — `getLeaderboard()` tagged `leaderboard`, lifetime `minutes`
 - [ ] `lib/data/positions.ts` — `getPositions(userId)` tagged `viewer:${userId}`, lifetime `minutes`
@@ -67,6 +76,7 @@
 - [ ] `lib/data/users.ts` — `getUsers()` tagged `users`, lifetime `minutes` (admin-only)
 
 ### Dashboard composition
+
 - [ ] `<Header />` server component (logo + user menu) with `<Suspense>`-wrapped client `<Balance />` subtree subscribed to SSE
 - [ ] `<ScrollingLeaderboard />` — server fetch via `getLeaderboard()`, CSS `@keyframes` marquee, no JS animation
 - [ ] `<Search />` — client component filtering the hydrated markets array on name + outcome names
@@ -78,16 +88,19 @@
 ## Phase 3 — Market Detail & Mutations
 
 ### Intercepting routes
+
 - [ ] Add `app/@modal/default.tsx` returning `null`
 - [ ] Add `app/@modal/(.)market/[id]/page.tsx` — sheet (mobile) / side panel (desktop) wrapper around `<MarketDetail />`
 - [ ] Add `app/market/[id]/page.tsx` — canonical full-screen `<MarketDetail />`
 - [ ] Wire parallel slot `@modal` into `app/layout.tsx`
 
 ### MarketDetail component
+
 - [ ] Build `<MarketDetail id={id} />` — outcome probabilities, pool state, user's position, buy/sell controls
 - [ ] Data sourced from `getMarket(id)` + `getPositions(userId)` (shared with dashboard)
 
 ### Server Actions
+
 - [ ] `app/actions/placeBet.ts` — validates input with Zod, POSTs `/api/bet` to `wpm-api`, then `updateTag('market:${id}')` and `updateTag('viewer:${userId}')`
 - [ ] `app/actions/sellShares.ts` — validates with Zod, POSTs `/api/sell`, same tag invalidation
 - [ ] Wire buy/sell controls in `<MarketDetail />` to the actions; return-value plumbed to toast on success/error
@@ -97,15 +110,18 @@
 ## Phase 4 — Admin Surface
 
 ### Admin shell
+
 - [ ] `app/admin/layout.tsx` — sidebar layout with Overview / Users / Markets / System links
 - [ ] `app/admin/page.tsx` — overview cards (active markets, signups today, chain height)
 
 ### Admin pages
+
 - [ ] `app/admin/users/page.tsx` — table from `getUsers()` with "distribute tokens" action
 - [ ] `app/admin/markets/page.tsx` — list with actions: override seeds, cancel market, manual resolve
 - [ ] `app/admin/system/page.tsx` — chain/oracle health panel, subscribed to elevated-filter SSE events
 
 ### Admin Server Actions
+
 - [ ] `app/actions/admin/distributeTokens.ts` — re-check `isAdmin`, dispatch to `wpm-api` `POST /internal/distribute`, invalidate `users` + `viewer:${target}`
 - [ ] `app/actions/admin/cancelMarket.ts` — re-check `isAdmin`, dispatch, invalidate `markets` + `market:${id}`
 - [ ] `app/actions/admin/resolveMarket.ts` — re-check `isAdmin`, dispatch to `/internal/resolve-market`, invalidate `markets` + `market:${id}` + `leaderboard`
@@ -116,12 +132,14 @@
 ## Phase 5 — Realtime Consumption
 
 ### Hooks
+
 - [ ] `lib/realtime/useMarket.ts` — subscribes to `market.updated` for matching id, merges deltas into server snapshot
 - [ ] `lib/realtime/useBalance.ts` — subscribes to `balance.changed` for current user
 - [ ] Replace placeholder `<LiveTicker />` with real `<LiveOdds marketId={id} />` using `useMarket`
 - [ ] Wire `<Balance />` in `<Header />` to `useBalance`
 
 ### Invalidation audit
+
 - [ ] Verify each Server Action fires `updateTag(...)` for every tag listed in SPEC §9 table
 - [ ] Confirm bets do NOT invalidate `markets` (live odds delivered via SSE overlay instead)
 
@@ -130,14 +148,17 @@
 ## Phase 6 — Build, CI, Cutover
 
 ### Build
+
 - [ ] Finalize `apps/web/Dockerfile` — multi-stage, bun builder → slim Node runtime, preserves `better-sqlite3` native bindings, entry `node apps/web/server.js`
 - [ ] Confirm `apps/web` `dev`/`build`/`start` scripts use `bunx next ...` under Node
 
 ### CI/CD
+
 - [ ] Update `.github/workflows/deploy.yml` so `docker compose build` picks up the new `apps/web/Dockerfile` context; re-push `ghcr.io/pruett/wpm-web:latest`
 - [ ] Confirm `turbo test` still passes with `"test": "echo skipped"` placeholder in `apps/web`
 
 ### Cutover PR
+
 - [ ] Delete `packages/web` entirely (source, Dockerfile, scripts)
 - [ ] Remove `@wpm/web` entry for old workspace; keep new `apps/web` as sole `@wpm/web`
 - [ ] Root `package.json` workspaces stays `["packages/*", "apps/*"]`
@@ -147,6 +168,7 @@
 ---
 
 ## Phase 7 — Follow-ups (deferred)
+
 - [ ] Automated tests (unit + E2E) — scope TBD
 - [ ] Richer magic-link email template
 - [ ] Observability (metrics/tracing)
