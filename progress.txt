@@ -429,3 +429,21 @@
 - Confirmed bets do NOT invalidate `markets` — the initial market list stays cached, SSE overlays live odds on top (per SPEC §9 design decision)
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/app/actions/admin/cancelMarket.ts`, `apps/web/src/app/actions/admin/distributeTokens.ts`, `PLAN.md`
+
+## Phase 6 — Build, CI, Cutover
+
+### Task 38: Finalize apps/web/Dockerfile — bun builder with better-sqlite3 support
+- Rewrote `apps/web/Dockerfile` as a proper multi-stage build with three image references:
+  - **bun stage** (`oven/bun:1-alpine`): source for bun binaries, copied into builder via `COPY --from`
+  - **builder stage** (`node:22-alpine`): installs bun + native build tools (`python3 make g++`), runs `bun install` (native workspace:* resolution — no sed hack), builds with `bunx turbo build --filter=@wpm/web-next`
+  - **runtime stage** (`node:22-alpine`): minimal image with standalone Next.js output, non-root user, data directory for auth-data volume
+- **Key improvements over previous Dockerfile**:
+  - Switched from `npm install` with `sed` workspace:* hack to native `bun install` — deterministic via `bun.lock`
+  - Added `python3 make g++` build tools for `better-sqlite3` native addon compilation
+  - Both builder and runtime use Alpine (musl libc) — native bindings compiled in builder are binary-compatible with runtime, no need for a separate deps recompilation stage (unlike `packages/web/Dockerfile` which builds on slim/glibc and runs on Alpine/musl)
+  - Added `mkdir -p data && chown nextjs:nodejs data` before `USER nextjs` — ensures the auth-data Docker volume initializes with correct ownership for the non-root user
+  - Copies `bun.lock` for deterministic dependency resolution
+  - Removed the `rm -rf packages/*/node_modules apps/*/node_modules` step — unnecessary since `.dockerignore` excludes `node_modules`
+- Docker compose config validates cleanly (`docker compose config --quiet` — env var warnings expected without .env)
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/Dockerfile`, `PLAN.md`
