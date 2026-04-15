@@ -11,11 +11,14 @@
   },
   "dependencies": {
     "@wpm/shared": "workspace:*",
+    "better-auth": "^1.6.3",
+    "better-sqlite3": "^12.9.0",
     "next": "^16.2.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

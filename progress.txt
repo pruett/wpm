@@ -67,3 +67,14 @@
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/app/api/stream/route.ts` (new), `apps/web/src/lib/realtime/RealtimeProvider.tsx` (new), `apps/web/src/app/live-ticker.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
 - Gotcha: Next.js 16 with `cacheComponents: true` disallows route segment config exports (`export const dynamic = ...`). Use `connection()` instead to signal dynamic rendering in route handlers.
+
+## Phase 1 — Authentication
+
+### Task 9: Create better-auth server instance
+- Created `apps/web/src/lib/auth.ts` — better-auth instance with `better-sqlite3` adapter
+- Database path configurable via `DATABASE_PATH` env var, defaults to `data/wpm.db` (works for both local dev and containerized: Docker volume mounts at `/app/data`)
+- `BETTER_AUTH_URL` defaults to `http://localhost:4102` (Next.js dev server port)
+- `BETTER_AUTH_SECRET` for session signing
+- Added `better-auth` (1.6.3), `better-sqlite3` (12.9.0), and `@types/better-sqlite3` as dependencies
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/lib/auth.ts` (new), `apps/web/package.json`, `bun.lock`, `PLAN.md`
