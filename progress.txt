@@ -165,3 +165,14 @@
 - Route group `(auth)` provides the centered card layout; URL path is `/auth/verify` matching the `callbackURL` in both login and register pages
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/(auth)/auth/verify/page.tsx` (new), `PLAN.md`
+
+## Phase 1 — Root Routing Gate
+
+### Task 18: Update app/page.tsx to branch on auth session
+- Replaced hardcoded `const authenticated = true` with real server-side session check using `auth.api.getSession({ headers: await headers() })`
+- Page is now an async server component; uses `headers()` from `next/headers` which also opts the page into dynamic rendering (no separate `connection()` call needed)
+- When no session: renders `<Landing />` component with WPM branding, "Log in" (primary) and "Create account" (outline) CTAs linking to `/login` and `/register`
+- When authenticated: renders existing `<RealtimeProvider>` + `<Dashboard />` + `<LiveTicker />` tree unchanged
+- Created `apps/web/src/app/landing.tsx` — server component using shadcn Button (asChild with next/link), centered layout with `min-h-svh`
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/page.tsx`, `apps/web/src/app/landing.tsx` (new), `PLAN.md`

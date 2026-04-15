@@ -1,19 +1,22 @@
 import { betterAuth } from "better-auth";
 import { magicLink } from "better-auth/plugins";
+import { nextCookies } from "better-auth/next-js";
 import { passkey } from "@better-auth/passkey";
-import Database from "better-sqlite3";
 import { EMAIL_FROM, getResend } from "./email";
 
 function env(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
 
-const db = new Database(env("DATABASE_PATH", "data/wpm.db"));
+function getDatabase() {
+  const Database = require("better-sqlite3");
+  return new Database(env("DATABASE_PATH", "data/wpm.db"));
+}
 
 export const auth = betterAuth({
   baseURL: env("BETTER_AUTH_URL", "http://localhost:4102"),
   secret: env("BETTER_AUTH_SECRET", "dev-secret-change-me-in-production"),
-  database: db,
+  database: getDatabase,
   user: {
     additionalFields: {
       walletPublicKey: {
@@ -49,5 +52,6 @@ export const auth = betterAuth({
       rpName: "WPM",
       origin: env("ORIGIN", "http://localhost:4102"),
     }),
+    nextCookies(),
   ],
 });

@@ -48,7 +48,7 @@
 
 ### Root routing gate
 
-- [ ] Update `app/page.tsx` to branch on `auth().session`: render `<Landing />` when null, `<Dashboard />` when authenticated
+- [x] Update `app/page.tsx` to branch on `auth().session`: render `<Landing />` when null, `<Dashboard />` when authenticated
 - [ ] Add `isAdmin(session)` helper in `lib/auth.ts` using `process.env.ADMIN_EMAILS.split(',')`
 - [ ] Add `app/admin/layout.tsx` guard that 404s non-admins
 

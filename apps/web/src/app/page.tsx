@@ -1,18 +1,18 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { Dashboard } from "./dashboard";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { LiveTicker } from "./live-ticker";
+import { Landing } from "./landing";
 
-const authenticated = true;
+export default async function Home() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export default function Home() {
-  if (!authenticated) {
-    return (
-      <main>
-        <h1>WPM</h1>
-        <p>Wampum Prediction Markets</p>
-      </main>
-    );
+  if (!session) {
+    return <Landing />;
   }
 
   return (
