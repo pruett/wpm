@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRealtime } from "@/lib/realtime/RealtimeProvider";
+import { useMarket } from "@/lib/realtime/useMarket";
 
 type LiveOddsProps = {
   marketId: string;
@@ -11,16 +10,12 @@ type LiveOddsProps = {
 };
 
 export function LiveOdds({ marketId, outcomes, initialPriceA, initialPriceB }: LiveOddsProps) {
-  const [priceA, setPriceA] = useState(initialPriceA);
-  const [priceB, setPriceB] = useState(initialPriceB);
-  const { lastEvent } = useRealtime();
-
-  useEffect(() => {
-    if (lastEvent?.type === "price:update" && lastEvent.marketId === marketId) {
-      setPriceA(lastEvent.priceA);
-      setPriceB(lastEvent.priceB);
-    }
-  }, [lastEvent, marketId]);
+  const { priceA, priceB } = useMarket(marketId, {
+    priceA: initialPriceA,
+    priceB: initialPriceB,
+    multiplierA: 0,
+    multiplierB: 0,
+  });
 
   return (
     <div className="grid grid-cols-2 gap-2">

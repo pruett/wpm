@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { provisionWalletIfNeeded } from "@/lib/wallet/provisionWalletIfNeeded";
 import { Dashboard } from "./dashboard";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
-import { LiveTicker } from "./live-ticker";
 import { Landing } from "./landing";
 import { Header } from "@/components/header";
 import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
@@ -37,7 +36,6 @@ export default async function Home() {
         <Suspense>
           <Portfolio userId={session.user.id} />
         </Suspense>
-        <LiveTicker />
       </main>
     </RealtimeProvider>
   );

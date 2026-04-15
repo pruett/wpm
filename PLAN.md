@@ -133,10 +133,10 @@
 
 ### Hooks
 
-- [ ] `lib/realtime/useMarket.ts` — subscribes to `market.updated` for matching id, merges deltas into server snapshot
-- [ ] `lib/realtime/useBalance.ts` — subscribes to `balance.changed` for current user
-- [ ] Replace placeholder `<LiveTicker />` with real `<LiveOdds marketId={id} />` using `useMarket`
-- [ ] Wire `<Balance />` in `<Header />` to `useBalance`
+- [x] `lib/realtime/useMarket.ts` — subscribes to `market.updated` for matching id, merges deltas into server snapshot
+- [x] `lib/realtime/useBalance.ts` — subscribes to `balance.changed` for current user
+- [x] Replace placeholder `<LiveTicker />` with real `<LiveOdds marketId={id} />` using `useMarket`
+- [x] Wire `<Balance />` in `<Header />` to `useBalance`
 
 ### Invalidation audit
 

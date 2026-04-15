@@ -404,3 +404,15 @@
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/admin/system/page.tsx` (new), `apps/web/src/components/system-event-feed.tsx` (new), `PLAN.md`
 - Note: The event feed opens its own EventSource rather than using `useRealtime()` because admin pages are not wrapped in `<RealtimeProvider>` (which lives in the authenticated dashboard branch of `page.tsx`)
+
+## Phase 5 — Realtime Consumption
+
+### Task 36: Extract useMarket and useBalance hooks, remove LiveTicker placeholder
+- Created `apps/web/src/lib/realtime/useMarket.ts` — reusable hook that subscribes to `price:update` SSE events for a specific market ID, merging live deltas into server-rendered initial prices. Returns `{ priceA, priceB, multiplierA, multiplierB }`
+- Created `apps/web/src/lib/realtime/useBalance.ts` — reusable hook that subscribes to `balance:update` SSE events for a specific wallet address, merging live balance updates into server-rendered initial balance. Returns the current balance number
+- Refactored `apps/web/src/components/live-odds.tsx` — replaced inline `useRealtime()` + `useEffect` + `useState` pattern with `useMarket(marketId, initial)` hook call. Same behavior, cleaner separation
+- Refactored `apps/web/src/components/balance.tsx` — replaced inline `useRealtime()` + `useEffect` + `useState` pattern with `useBalance(address, initialBalance)` hook call. Same behavior, cleaner separation
+- Removed throwaway `<LiveTicker />` debug component from `apps/web/src/app/page.tsx` and deleted `apps/web/src/app/live-ticker.tsx`
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/lib/realtime/useMarket.ts` (new), `apps/web/src/lib/realtime/useBalance.ts` (new), `apps/web/src/components/live-odds.tsx`, `apps/web/src/components/balance.tsx`, `apps/web/src/app/page.tsx`, `apps/web/src/app/live-ticker.tsx` (deleted), `PLAN.md`
+- Pattern: Both hooks follow the same structure — accept initial server-rendered values + a key for filtering SSE events, maintain local state, merge matching events via `useEffect`. This keeps SSE subscription logic in one place per data domain rather than scattered across rendering components

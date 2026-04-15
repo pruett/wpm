@@ -1,17 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRealtime } from "@/lib/realtime/RealtimeProvider";
+import { useBalance } from "@/lib/realtime/useBalance";
 
 export function Balance({ initialBalance, address }: { initialBalance: number; address: string }) {
-  const [balance, setBalance] = useState(initialBalance);
-  const { lastEvent } = useRealtime();
-
-  useEffect(() => {
-    if (lastEvent?.type === "balance:update" && lastEvent.address === address) {
-      setBalance(lastEvent.balance);
-    }
-  }, [lastEvent, address]);
+  const balance = useBalance(address, initialBalance);
 
   return (
     <span className="font-mono text-sm tabular-nums">
