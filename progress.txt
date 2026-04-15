@@ -153,3 +153,15 @@
 - Dropped invite code validation (not in scope per plan)
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/(auth)/register/page.tsx` (new), `PLAN.md`
+
+### Task 17: Implement /auth/verify/page.tsx
+- Created `apps/web/src/app/(auth)/auth/verify/page.tsx` — client component completing the magic-link verification flow
+- Three-stage state machine: `verifying` → `passkey-prompt` → redirect to `/` (or `error` if no session found)
+- **Verifying stage**: reads session via `authClient.useSession()` hook from `better-auth/react`; waits up to 3 seconds for session to appear after magic-link redirect
+- **Passkey prompt stage**: once session is detected, offers passkey enrollment via `authClient.passkey.addPasskey({ name: "WPM Passkey" })` with "Add passkey" primary CTA and "Skip for now" ghost button
+- **Error stage**: if no session after timeout, shows "Verification failed" with "Back to login" link
+- Passkey enrollment errors are silently swallowed (enrollment is optional) — redirects to `/` in the `finally` block regardless of success/failure
+- Mirrors the Svelte verify page (`packages/web/src/routes/auth/verify/+page.svelte`) flow exactly, adapted for React/Next.js (useState, useEffect, useRouter, useSession hook)
+- Route group `(auth)` provides the centered card layout; URL path is `/auth/verify` matching the `callbackURL` in both login and register pages
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/(auth)/auth/verify/page.tsx` (new), `PLAN.md`
