@@ -201,3 +201,11 @@
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` (new), `PLAN.md`
 - Note: The wpm-api `/api/register` endpoint handles the airdrop distribution internally (`nodeClient.distribute`), so the caller just needs to await the response — no separate airdrop step needed
+
+### Task 21: Wire provisionWalletIfNeeded into authenticated page path
+- Updated `apps/web/src/app/page.tsx` — calls `await provisionWalletIfNeeded()` on the authenticated branch before rendering the dashboard
+- Passes `session.user.id` and `session.user.walletPublicKey` from the better-auth session — better-auth's type inference correctly includes `walletPublicKey` from `additionalFields` config (no cast needed)
+- The call is awaited so wallet provisioning (including the on-chain airdrop distribute) completes before the page renders — one-time cost for new users only; returns immediately when wallet already provisioned
+- Covers both plan items: "Call provisionWalletIfNeeded from root layout server path" and "Verify airdrop lands on-chain before layout resolves (await the API response)"
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/page.tsx`, `PLAN.md`

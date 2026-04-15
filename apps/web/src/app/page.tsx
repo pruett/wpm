@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { provisionWalletIfNeeded } from "@/lib/wallet/provisionWalletIfNeeded";
 import { Dashboard } from "./dashboard";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { LiveTicker } from "./live-ticker";
@@ -14,6 +15,11 @@ export default async function Home() {
   if (!session) {
     return <Landing />;
   }
+
+  await provisionWalletIfNeeded({
+    id: session.user.id,
+    walletPublicKey: session.user.walletPublicKey,
+  });
 
   return (
     <RealtimeProvider>
