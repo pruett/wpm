@@ -48,6 +48,7 @@ export async function distributeTokens(input: z.input<typeof DistributeInput>) {
 
   updateTag("users");
   updateTag(`viewer:${userId}`);
+  updateTag("leaderboard");
 
   return { success: true };
 }

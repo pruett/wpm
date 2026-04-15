@@ -416,3 +416,16 @@
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/lib/realtime/useMarket.ts` (new), `apps/web/src/lib/realtime/useBalance.ts` (new), `apps/web/src/components/live-odds.tsx`, `apps/web/src/components/balance.tsx`, `apps/web/src/app/page.tsx`, `apps/web/src/app/live-ticker.tsx` (deleted), `PLAN.md`
 - Pattern: Both hooks follow the same structure — accept initial server-rendered values + a key for filtering SSE events, maintain local state, merge matching events via `useEffect`. This keeps SSE subscription logic in one place per data domain rather than scattered across rendering components
+
+### Task 37: Invalidation audit — verify cache tag coverage per SPEC §9
+
+- Audited all 6 server actions against SPEC §9 cache invalidation table
+- **placeBet**: `market:${id}`, `viewer:${userId}` — correct; does NOT invalidate `markets` ✅ (SSE overlay handles live odds)
+- **sellShares**: `market:${id}`, `viewer:${userId}` — correct; does NOT invalidate `markets` ✅
+- **resolveMarket**: `markets`, `market:${id}`, `leaderboard` — correct ✅
+- **cancelMarket**: was `markets`, `market:${id}` — **added `leaderboard`** (cancellation triggers refunds which change user balances/rankings)
+- **distributeTokens**: was `users`, `viewer:${userId}` — **added `leaderboard`** (distributing tokens changes the balance the leaderboard displays)
+- **overrideSeed**: `market:${id}` — correct ✅
+- Confirmed bets do NOT invalidate `markets` — the initial market list stays cached, SSE overlays live odds on top (per SPEC §9 design decision)
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/app/actions/admin/cancelMarket.ts`, `apps/web/src/app/actions/admin/distributeTokens.ts`, `PLAN.md`

@@ -140,8 +140,8 @@
 
 ### Invalidation audit
 
-- [ ] Verify each Server Action fires `updateTag(...)` for every tag listed in SPEC §9 table
-- [ ] Confirm bets do NOT invalidate `markets` (live odds delivered via SSE overlay instead)
+- [x] Verify each Server Action fires `updateTag(...)` for every tag listed in SPEC §9 table
+- [x] Confirm bets do NOT invalidate `markets` (live odds delivered via SSE overlay instead)
 
 ---
 

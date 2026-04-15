@@ -37,6 +37,7 @@ export async function cancelMarket(input: z.input<typeof CancelMarketInput>) {
 
   updateTag("markets");
   updateTag(`market:${marketId}`);
+  updateTag("leaderboard");
 
   return { success: true };
 }
