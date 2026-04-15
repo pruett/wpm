@@ -357,3 +357,17 @@
 - Sidebar hidden on mobile (`hidden md:block`), header always visible
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/admin/layout.tsx`, `apps/web/src/app/admin/page.tsx` (new), `apps/web/src/components/admin-nav.tsx` (new), `apps/web/src/lib/data/health.ts` (new), `apps/web/src/lib/data/blocks.ts` (new), `PLAN.md`
+
+### Task 33: Admin users page with distribute tokens action
+- Created `apps/web/src/app/admin/users/page.tsx` — server component rendering a users table from `getUsers()` with per-row distribute tokens controls
+- Async `UsersTable` component uses `connection()` for dynamic rendering, fetches users sorted by balance (descending, from leaderboard API)
+- Table columns: rank (#), User ID (truncated), Address (truncated), Balance (formatted with toLocaleString), Distribute (inline form)
+- Empty state: "No users registered yet." card when no users exist
+- `<Suspense>` wrapper with skeleton loading fallback (5 animated pulse rows)
+- Created `apps/web/src/components/distribute-form.tsx` — client component with amount input and "Send" button per user row
+- Uses `useTransition` for non-blocking pending state, inline success/error message display
+- Created `apps/web/src/app/actions/admin/distributeTokens.ts` — `'use server'` action that re-checks `isAdmin(session)`, validates input with Zod v4 (`userId: string`, `amount: number.positive()`), looks up wallet via `/api/wallet`, dispatches to `POST /api/admin/distribute` on wpm-api, invalidates `users` + `viewer:${userId}` cache tags
+- Action follows established pattern from `placeBet.ts`/`sellShares.ts` (auth check, Zod validation, fetch, cache invalidation, `{ success }` / `{ error }` return type)
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/admin/users/page.tsx` (new), `apps/web/src/components/distribute-form.tsx` (new), `apps/web/src/app/actions/admin/distributeTokens.ts` (new), `PLAN.md`
+- Note: The distribute action calls `POST /api/admin/distribute` on wpm-api which doesn't exist yet — will need an API-side route that wraps `nodeClient.distribute()` for the action to work end-to-end
