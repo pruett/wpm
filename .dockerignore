@@ -7,5 +7,6 @@ node_modules
 .turbo
 **/data
 .svelte-kit
+**/.next
 .vscode
 opensrc

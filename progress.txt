@@ -38,3 +38,12 @@
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/app/dashboard.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
 - Gotcha: Next.js 16 with `cacheComponents: true` requires uncached data access (like `connection()`) to be inside a `<Suspense>` boundary, otherwise the build errors with "Uncached data was accessed outside of <Suspense>"
+
+### Task 6: Author apps/web/Dockerfile
+- Created `apps/web/Dockerfile` with two stages: `builder` (node:22-alpine) and runtime (node:22-alpine)
+- Builder stage: copies workspace package.jsons, converts bun `workspace:*` protocol via sed, runs `npm install`, then `turbo build --filter=@wpm/web-next`
+- Runtime stage: copies Next.js standalone output (`.next/standalone`) and static assets (`.next/static`), runs as non-root `nextjs` user
+- Port 4102, `HOSTNAME=0.0.0.0` for container networking
+- Added `**/.next` to `.dockerignore` to prevent local build cache from bloating Docker context
+- Follows existing monorepo Dockerfile patterns (sed workspace protocol, npm install, turbo for build orchestration)
+- Files changed: `apps/web/Dockerfile` (new), `.dockerignore`
