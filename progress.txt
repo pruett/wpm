@@ -265,3 +265,14 @@
 - Updated `apps/web/src/app/page.tsx` — mounted `<ScrollingLeaderboard />` in `<Suspense>` between `<Header>` and `<main>` for full-width ticker effect
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/components/scrolling-leaderboard.tsx` (new), `apps/web/src/app/globals.css`, `apps/web/src/app/page.tsx`, `PLAN.md`
+
+### Task 26: Build Search client component
+- Created `apps/web/src/components/search.tsx` — client component that filters the hydrated markets array
+- Accepts `markets: MarketWithOdds[]` prop from server-rendered `<Dashboard />`
+- Controlled text input (type="search") with `font-mono` styling, `max-w-sm` width constraint
+- Filters on market name and both outcome names (case-insensitive substring match) using `useMemo` for performance
+- Empty state: distinguishes between "no markets match your search" (with query) and "no active markets" (no markets at all)
+- Renders filtered results as a simple list with market name + outcome probabilities (to be replaced by `<MarketList />` + `<MarketCard />` in the next task)
+- Updated `apps/web/src/app/dashboard.tsx` — replaced inline `<ul>` market rendering with `<Search markets={markets} />`; added styled `<h2>` heading with `font-mono uppercase tracking-wider`
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/components/search.tsx` (new), `apps/web/src/app/dashboard.tsx`, `PLAN.md`
