@@ -11,11 +11,12 @@ export const metadata: Metadata = {
   description: "Wampum Prediction Markets",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children, modal }: { children: ReactNode; modal: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         {children}
+        {modal}
       </body>
     </html>
   );

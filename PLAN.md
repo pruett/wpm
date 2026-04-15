@@ -89,10 +89,10 @@
 
 ### Intercepting routes
 
-- [ ] Add `app/@modal/default.tsx` returning `null`
-- [ ] Add `app/@modal/(.)market/[id]/page.tsx` — sheet (mobile) / side panel (desktop) wrapper around `<MarketDetail />`
-- [ ] Add `app/market/[id]/page.tsx` — canonical full-screen `<MarketDetail />`
-- [ ] Wire parallel slot `@modal` into `app/layout.tsx`
+- [x] Add `app/@modal/default.tsx` returning `null`
+- [x] Add `app/@modal/(.)market/[id]/page.tsx` — sheet (mobile) / side panel (desktop) wrapper around `<MarketDetail />`
+- [x] Add `app/market/[id]/page.tsx` — canonical full-screen `<MarketDetail />`
+- [x] Wire parallel slot `@modal` into `app/layout.tsx`
 
 ### MarketDetail component
 

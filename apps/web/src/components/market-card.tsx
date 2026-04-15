@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LiveOdds } from "@/components/live-odds";
 import type { MarketWithOdds } from "@wpm/shared";
@@ -8,25 +9,29 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
   const isClosingSoon = closesAt.getTime() - now.getTime() < 60 * 60 * 1000;
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="font-mono text-sm font-bold leading-snug">{market.name}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1">
-        <LiveOdds
-          marketId={market.id}
-          outcomes={market.outcomes}
-          initialPriceA={market.priceA}
-          initialPriceB={market.priceB}
-        />
-      </CardContent>
-      <CardFooter className="justify-between text-xs text-muted-foreground">
-        <span className="font-mono tabular-nums">
-          {market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"}
-        </span>
-        <span className={isClosingSoon ? "text-destructive" : ""}>{formatCloseTime(closesAt)}</span>
-      </CardFooter>
-    </Card>
+    <Link href={`/market/${market.id}`} className="block">
+      <Card className="flex flex-col transition-colors hover:border-foreground/25">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-mono text-sm font-bold leading-snug">{market.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1">
+          <LiveOdds
+            marketId={market.id}
+            outcomes={market.outcomes}
+            initialPriceA={market.priceA}
+            initialPriceB={market.priceB}
+          />
+        </CardContent>
+        <CardFooter className="justify-between text-xs text-muted-foreground">
+          <span className="font-mono tabular-nums">
+            {market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"}
+          </span>
+          <span className={isClosingSoon ? "text-destructive" : ""}>
+            {formatCloseTime(closesAt)}
+          </span>
+        </CardFooter>
+      </Card>
+    </Link>
   );
 }
 

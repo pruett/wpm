@@ -302,3 +302,24 @@
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/components/portfolio.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
 - Note: P&L is computed server-side from cached market prices; for real-time P&L updates, a future `useMarket` hook (Phase 5) would overlay live prices on the server snapshot
+
+## Phase 3 — Market Detail & Mutations
+
+### Task 29: Intercepting routes for market detail modal
+
+- Created `apps/web/src/app/@modal/default.tsx` — returns `null` (required by Next.js parallel routes to prevent 404 on non-intercepted navigation)
+- Created `apps/web/src/app/@modal/(.)market/[id]/page.tsx` — intercepting route that renders a Sheet side panel wrapping `<MarketDetail />` via composition pattern
+- Page is a server component; `await params` pushed into `<MarketModalContent>` inside a `<Suspense>` boundary to satisfy PPR requirements
+- Uses `<MarketSheet>` client wrapper (composition pattern: server component passes `<MarketDetail>` as children to client Shell, avoiding server-only import issues)
+- Created `apps/web/src/components/market-sheet.tsx` — client component wrapping Sheet (Radix Dialog) from right side, `sm:max-w-lg`, closes via `router.back()`
+- Created `apps/web/src/app/market/[id]/page.tsx` — canonical full-screen market page with back link and `<MarketDetail />` in `<Suspense>`
+- Created `apps/web/src/components/market-detail.tsx` — async server component displaying market name, close status, outcome probabilities (`<LiveOdds />`), pool state (sharesA/B, liquidity, k), and payout multipliers. Will be extended with user positions and buy/sell controls in the next task
+- Created `apps/web/src/components/ui/sheet.tsx` — standard shadcn Sheet component (Radix Dialog, CVA side variants: top/bottom/left/right, overlay with animations)
+- Updated `apps/web/src/app/layout.tsx` — added `modal` parallel slot prop alongside `children`, renders `{modal}` after `{children}`
+- Updated `apps/web/src/components/market-card.tsx` — wrapped Card in `<Link href={/market/${id}}>` to enable intercepting route navigation; added hover border transition
+- Updated `apps/web/src/app/globals.css` — added `@import "tw-animate-css"` for Sheet slide-in/out and fade animations
+- Added dependencies: `@radix-ui/react-dialog` (Sheet primitive), `tw-animate-css` (Tailwind v4-compatible animation utilities)
+- TypeScript type check passes cleanly; `next build` compiles successfully (prerender failure on `/` is the known `better-sqlite3` native binding issue from Task 12, not related to this change)
+- Files changed: `apps/web/src/app/@modal/default.tsx` (new), `apps/web/src/app/@modal/(.)market/[id]/page.tsx` (new), `apps/web/src/app/market/[id]/page.tsx` (new), `apps/web/src/components/market-sheet.tsx` (new), `apps/web/src/components/market-detail.tsx` (new), `apps/web/src/components/ui/sheet.tsx` (new), `apps/web/src/app/layout.tsx`, `apps/web/src/components/market-card.tsx`, `apps/web/src/app/globals.css`, `apps/web/package.json`, `bun.lock`, `PLAN.md`
+- Gotcha: In Next.js 16 with `cacheComponents: true`, `await params` counts as uncached dynamic access and must be inside a `<Suspense>` boundary. Push the await into an inner async component (`MarketModalContent`) rather than awaiting in the page function directly
+- Gotcha: Server components (using `cacheTag`, `connection()`, etc.) cannot be directly imported from client components. Use the composition pattern: the server component page renders a client Shell component and passes the server component as `children`
