@@ -239,3 +239,15 @@
 - Files changed: `apps/web/src/lib/data/market.ts` (new), `apps/web/src/lib/data/leaderboard.ts` (new), `apps/web/src/lib/data/balance.ts` (new), `apps/web/src/lib/data/positions.ts` (new), `apps/web/src/lib/data/users.ts` (new), `PLAN.md`
 - Note: `getBalance` uses `/api/wallet` POST directly rather than the auth token → `/api/balance` flow because `/api/wallet` already returns balance in its response, saving a network round-trip
 - Note: `getUsers` piggybacks on `/api/leaderboard` since no dedicated users API endpoint exists; the response shape (`{userId, address, balance}`) is sufficient for the admin users table
+
+## Phase 2 — Dashboard Composition
+
+### Task 24: Build Header server component with Balance and UserMenu
+- Created `apps/web/src/components/header.tsx` — server component rendering logo (WPM link) + user menu in a `border-b` header bar with `max-w-screen-xl` constraint
+- Contains async `BalanceLoader` server component (calls `connection()` + `getBalance(userId)`) wrapped in `<Suspense>` with "---" placeholder fallback
+- Created `apps/web/src/components/balance.tsx` — client component receiving `initialBalance` and `address` props from server; subscribes to `balance:update` SSE events via `useRealtime()` hook, filters by matching `address`, and live-updates balance state
+- Renders balance as `{balance.toLocaleString()} WPM` with `font-mono tabular-nums` for stable number width
+- Created `apps/web/src/components/user-menu.tsx` — client component with user name display (hidden on mobile) and "Sign out" ghost button calling `authClient.signOut()` then `router.push("/")` + `router.refresh()`
+- Updated `apps/web/src/app/page.tsx` — added `<Header user={...} />` above `<main>` in the authenticated branch; added layout styling (`mx-auto max-w-screen-xl px-4 py-6`) to `<main>` wrapper; removed the old `<h1>WPM</h1>` (now in header)
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/components/header.tsx` (new), `apps/web/src/components/balance.tsx` (new), `apps/web/src/components/user-menu.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
