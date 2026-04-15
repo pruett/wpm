@@ -96,3 +96,11 @@
 - `input: false` prevents client-side mutation, ensuring only server code can write this field
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/lib/auth.ts`, `PLAN.md`
+
+### Task 12: Create better-auth catch-all handler + port magic-link email template
+- Created `apps/web/src/app/api/auth/[...all]/route.ts` — exports `GET` and `POST` via `toNextJsHandler(auth)` from `better-auth/next-js`
+- This is the standard better-auth Next.js integration: all auth requests under `/api/auth/*` are routed to the better-auth instance
+- Magic-link email template was already ported as-is during Task 10 (inline HTML `<a href="${url}">Click here to sign in to WPM</a>` with Resend driver) — marking complete
+- TypeScript type check passes cleanly; `next build` succeeds with `/api/auth/[...all]` registered as dynamic route (`ƒ`)
+- Files changed: `apps/web/src/app/api/auth/[...all]/route.ts` (new), `PLAN.md`
+- Gotcha: `better-sqlite3` native binding errors during local `next build` are expected — the native addon resolves correctly in Docker where it's compiled against the container's Node ABI
