@@ -189,3 +189,15 @@
 - Non-admins (including unauthenticated users) get a 404 — intentionally reveals nothing about the admin route's existence
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/lib/auth.ts`, `apps/web/src/app/admin/layout.tsx` (new), `PLAN.md`
+
+## Phase 1 — Wallet Provisioning (lazy)
+
+### Task 20: Create provisionWalletIfNeeded.ts
+- Created `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` — lazy wallet provisioning function
+- Accepts `{ id, walletPublicKey }` user object; returns immediately if wallet already provisioned
+- Fresh registration: POSTs `{ userId }` to wpm-api `/api/register`, which creates a wallet and distributes the signup airdrop on-chain
+- Recovery path: handles 409 (already registered) by falling back to `/api/wallet` lookup — covers the case where API-side keystore has the wallet but the local database doesn't
+- Persists the returned `address` to the `user.walletPublicKey` column via direct `better-sqlite3` UPDATE
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` (new), `PLAN.md`
+- Note: The wpm-api `/api/register` endpoint handles the airdrop distribution internally (`nodeClient.distribute`), so the caller just needs to await the response — no separate airdrop step needed

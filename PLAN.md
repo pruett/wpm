@@ -54,7 +54,7 @@
 
 ### Wallet provisioning (lazy)
 
-- [ ] Create `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` — if `user.walletPublicKey` is null, POST `/api/register { userId }` to `wpm-api`, persist returned `address` to user row
+- [x] Create `apps/web/src/lib/wallet/provisionWalletIfNeeded.ts` — if `user.walletPublicKey` is null, POST `/api/register { userId }` to `wpm-api`, persist returned `address` to user row
 - [ ] Call `provisionWalletIfNeeded(userId)` from the root layout server path on first authenticated render
 - [ ] Verify airdrop `Distribute` lands on-chain before layout resolves (await the API response)
 
