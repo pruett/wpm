@@ -1,0 +1,8 @@
+## Phase 0 — SSR Read Tracer
+
+### Task 1: Scaffold apps/web workspace
+- Added `"apps/*"` to root `package.json` workspaces array
+- Created `apps/web/package.json` with Next 16.2.3, React 19.2.5, `@wpm/shared: workspace:*`
+- Used temporary name `@wpm/web-next` to avoid conflict with existing `packages/web` (`@wpm/web`) — will rename during Phase 6 cutover
+- Verified workspace resolves correctly via `bun install`
+- Files changed: `package.json`, `apps/web/package.json`, `bun.lock`
