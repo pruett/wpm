@@ -104,3 +104,15 @@
 - TypeScript type check passes cleanly; `next build` succeeds with `/api/auth/[...all]` registered as dynamic route (`ƒ`)
 - Files changed: `apps/web/src/app/api/auth/[...all]/route.ts` (new), `PLAN.md`
 - Gotcha: `better-sqlite3` native binding errors during local `next build` are expected — the native addon resolves correctly in Docker where it's compiled against the container's Node ABI
+
+## Phase 1 — Browser Auth Client
+
+### Task 13: Create browser auth client
+- Created `apps/web/src/lib/auth-client.ts` — better-auth React client with `magicLinkClient` and `passkeyClient` plugins
+- Uses `createAuthClient` from `better-auth/react` (React-specific variant provides `useSession` hook and other React hooks)
+- Registers `magicLinkClient()` from `better-auth/client/plugins` — exposes `authClient.signIn.magicLink()` for email-based auth
+- Registers `passkeyClient()` from `@better-auth/passkey/client` — exposes `authClient.signIn.passkey()` and `authClient.passkey.addPasskey()` for WebAuthn
+- Mirrors the pattern from `packages/web/src/lib/auth-client.ts` (Svelte version uses `createAuthClient` from `better-auth/svelte`)
+- No `baseURL` needed — defaults to same origin, which is correct since the catch-all route handler is at `/api/auth/[...all]`
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/lib/auth-client.ts` (new), `PLAN.md`

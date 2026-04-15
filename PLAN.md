@@ -40,7 +40,7 @@
 
 ### Browser auth client
 
-- [ ] Create `apps/web/src/lib/auth-client.ts` exposing `authClient.signIn.magicLink` and `authClient.passkey.signIn` helpers
+- [x] Create `apps/web/src/lib/auth-client.ts` exposing `authClient.signIn.magicLink` and `authClient.passkey.signIn` helpers
 - [ ] Build `(auth)/layout.tsx` route group using shadcn auth block as visual foundation
 - [ ] Implement `/login/page.tsx` — email input + passkey-primary CTA when a passkey is detected, magic-link secondary CTA
 - [ ] Implement `/register/page.tsx` — name + email form calling `authClient.signIn.magicLink({ email, name })`
