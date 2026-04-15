@@ -55,3 +55,15 @@
 - Kept `auth-data:/app/data` volume mount for future better-auth integration
 - Validated with `docker compose config --quiet` — syntax is clean (env var warnings expected without .env)
 - Files changed: `docker-compose.yml`, `PLAN.md`
+
+## Phase 0 — SSE Proxy Tracer
+
+### Task 8: SSE proxy route, RealtimeProvider, and LiveTicker
+- Created `apps/web/src/app/api/stream/route.ts` — proxies upstream `WPM_API_URL/events/stream` SSE connection, piping the `ReadableStream` body directly with `text/event-stream` headers
+- Uses `connection()` from `next/server` to opt into dynamic rendering (route segment config `dynamic` is incompatible with `cacheComponents: true`)
+- Created `apps/web/src/lib/realtime/RealtimeProvider.tsx` — client component opening a single `EventSource('/api/stream')`, listening for `price:update`, `market:resolved`, and `balance:update` events, publishing parsed payloads into React context
+- Created `apps/web/src/app/live-ticker.tsx` — throwaway client component displaying connection status and last received SSE event payload as JSON
+- Updated `apps/web/src/app/page.tsx` to wrap authenticated content in `<RealtimeProvider>` and mount `<LiveTicker />` alongside the dashboard
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/app/api/stream/route.ts` (new), `apps/web/src/lib/realtime/RealtimeProvider.tsx` (new), `apps/web/src/app/live-ticker.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
+- Gotcha: Next.js 16 with `cacheComponents: true` disallows route segment config exports (`export const dynamic = ...`). Use `connection()` instead to signal dynamic rendering in route handlers.

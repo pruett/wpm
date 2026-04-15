@@ -21,9 +21,9 @@
 
 ### SSE Proxy Tracer
 
-- [ ] Create `apps/web/src/app/api/stream/route.ts` — Node runtime handler that proxies `http://wpm-api:3000/events/stream` with `ReadableStream` piping and `text/event-stream` headers
-- [ ] Create `apps/web/src/lib/realtime/RealtimeProvider.tsx` — client component opening one `EventSource('/api/stream')`, publishing parsed events into React context
-- [ ] Add a throwaway `<LiveTicker />` client component mounted in `<Dashboard />` that renders the last received SSE event payload
+- [x] Create `apps/web/src/app/api/stream/route.ts` — Node runtime handler that proxies `http://wpm-api:3000/events/stream` with `ReadableStream` piping and `text/event-stream` headers
+- [x] Create `apps/web/src/lib/realtime/RealtimeProvider.tsx` — client component opening one `EventSource('/api/stream')`, publishing parsed events into React context
+- [x] Add a throwaway `<LiveTicker />` client component mounted in `<Dashboard />` that renders the last received SSE event payload
 - [ ] End-to-end check: trigger a bet on `wpm-api`, confirm the Next UI sees `price:update` propagate without refresh
 
 ---
