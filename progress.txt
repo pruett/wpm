@@ -21,3 +21,11 @@
 - `next build` succeeds — generates static `/` route
 - Note: Next.js auto-updated `tsconfig.json` to set `jsx: "react-jsx"` (required by Next's automatic runtime) and added `.next/dev/types/**/*.ts` to includes
 - Files changed: `apps/web/src/app/layout.tsx`, `apps/web/src/app/page.tsx`, `apps/web/tsconfig.json` (auto-modified by Next)
+
+### Task 4: Add cached getMarkets() loader
+- Created `apps/web/src/lib/data/markets.ts` with `'use cache'` directive
+- Uses `cacheLife("minutes")` and `cacheTag("markets")` from `next/cache` for cache lifetime and tag-based invalidation
+- Fetches from `WPM_API_URL` env var (defaults to `http://localhost:4101` matching `API_PORT` from `@wpm/shared` constants)
+- Returns typed `MarketsResponse` from `@wpm/shared` (includes `active: string[]` and `markets: MarketWithOdds[]`)
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/lib/data/markets.ts` (new), `PLAN.md`
