@@ -1,5 +1,5 @@
 {
-  "name": "@wpm/web-next",
+  "name": "@wpm/web",
   "version": "0.0.1",
   "private": true,
   "type": "module",

@@ -469,3 +469,14 @@
 - Docker compose config validates cleanly (env var warnings expected without .env file)
 - TypeScript type check passes cleanly
 - Files changed: `docker-compose.yml`, `.github/workflows/deploy.yml`, `PLAN.md`
+
+### Task 41: Cutover — delete packages/web, rename @wpm/web-next to @wpm/web
+- Deleted `packages/web` entirely via `git rm -r` — removes old SvelteKit frontend (source, Dockerfile, config, tests, migrations, static assets)
+- Renamed `apps/web/package.json` name from `@wpm/web-next` (temporary conflict-avoidance name) to `@wpm/web` (canonical name, now safe since old package is gone)
+- Updated `apps/web/Dockerfile` turbo build filter: `--filter=@wpm/web-next` → `--filter=@wpm/web`
+- Updated `scripts/admin.ts` comment: removed stale reference to `packages/web/src/lib/dev-personas`
+- Regenerated `bun.lock` via `bun install` — 1 package removed (old `@wpm/web` workspace)
+- Root `package.json` workspaces already includes `["packages/*", "apps/*"]` (set up in Phase 0) — no change needed
+- Docker compose already points to `apps/web/Dockerfile` (updated in Task 7) — no change needed
+- Verified: TypeScript type check passes, oxlint passes (0 warnings, 0 errors), `turbo test --filter=@wpm/web` resolves correctly, `docker compose config --quiet` validates cleanly
+- Files changed: `packages/web/` (deleted), `apps/web/package.json`, `apps/web/Dockerfile`, `scripts/admin.ts`, `bun.lock`, `PLAN.md`

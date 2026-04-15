@@ -17,7 +17,7 @@ RUN bun install
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 
-RUN bunx turbo build --filter=@wpm/web-next
+RUN bunx turbo build --filter=@wpm/web
 
 # --- Runtime ---
 FROM node:22-alpine

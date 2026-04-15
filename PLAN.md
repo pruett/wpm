@@ -159,9 +159,9 @@
 
 ### Cutover PR
 
-- [ ] Delete `packages/web` entirely (source, Dockerfile, scripts)
-- [ ] Remove `@wpm/web` entry for old workspace; keep new `apps/web` as sole `@wpm/web`
-- [ ] Root `package.json` workspaces stays `["packages/*", "apps/*"]`
+- [x] Delete `packages/web` entirely (source, Dockerfile, scripts)
+- [x] Remove `@wpm/web` entry for old workspace; keep new `apps/web` as sole `@wpm/web`
+- [x] Root `package.json` workspaces stays `["packages/*", "apps/*"]`
 - [ ] Deploy; retain `auth-data` volume but accept fresh schema (no user migration)
 - [ ] Post-deploy smoke test: seed markets via oracle, create test account, verify magic-link → passkey → airdrop → bet → SSE price update end-to-end
 

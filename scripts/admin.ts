@@ -4,8 +4,7 @@
  *
  * Drives the local node + API directly. Personas are cached at
  * ~/.wpm-admin/personas.json and shared with the browser dev-persona switcher
- * (packages/web/src/lib/dev-personas) so that switching personas in the CLI
- * also lights them up in the web UI.
+ * so that switching personas in the CLI also lights them up in the web UI.
  *
  * Usage: bun scripts/admin.ts <command> [args]
  *        bun scripts/admin.ts help
