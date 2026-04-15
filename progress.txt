@@ -128,3 +128,15 @@
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/postcss.config.mjs` (new), `apps/web/src/app/globals.css` (new), `apps/web/components.json` (new), `apps/web/src/lib/utils.ts` (new), `apps/web/src/components/ui/button.tsx` (new), `apps/web/src/components/ui/card.tsx` (new), `apps/web/src/components/ui/input.tsx` (new), `apps/web/src/components/ui/separator.tsx` (new), `apps/web/src/app/(auth)/layout.tsx` (new), `apps/web/src/app/layout.tsx`, `apps/web/package.json`, `bun.lock`, `PLAN.md`
 - Gotcha: Tailwind v4 uses CSS-based config (`@theme` in globals.css) — no `tailwind.config.ts` needed. next/font's `variable` prop sets CSS custom properties that Tailwind v4's default `font-sans` utility automatically picks up via `var(--font-sans)`.
+
+### Task 15: Implement /login/page.tsx
+- Created `apps/web/src/app/(auth)/login/page.tsx` — client component implementing the login flow
+- Two auth methods: passkey-primary CTA (top, default variant) and magic-link secondary CTA (outline variant below separator)
+- Passkey flow: calls `authClient.signIn.passkey()`, navigates to `/` on success via `useRouter`
+- Magic-link flow: email input + submit, calls `authClient.signIn.magicLink({ email, callbackURL: "/auth/verify" })`, shows confirmation message with user's email on success
+- Error handling: catches auth errors and displays them in destructive text
+- Loading state: disables all inputs/buttons during submission, shows "Sending..." on magic link button
+- Footer links to `/register` for new account creation
+- Mirrors the Svelte login page (`packages/web/src/routes/(auth)/login/+page.svelte`) pattern exactly, adapted for React/Next.js (useState, useRouter, React.FormEvent)
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/app/(auth)/login/page.tsx` (new), `PLAN.md`
