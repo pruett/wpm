@@ -29,3 +29,12 @@
 - Returns typed `MarketsResponse` from `@wpm/shared` (includes `active: string[]` and `markets: MarketWithOdds[]`)
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/lib/data/markets.ts` (new), `PLAN.md`
+
+### Task 5: Render market names in Dashboard server component
+- Created `apps/web/src/app/dashboard.tsx` — async server component calling `getMarkets()` and rendering market names with outcome probabilities
+- Uses `connection()` from `next/server` to opt into dynamic rendering (prevents build-time prerendering when API is unavailable)
+- Updated `apps/web/src/app/page.tsx` — branches on hardcoded `authenticated=true` flag: shows `<Dashboard />` wrapped in `<Suspense>` when true, landing text when false
+- Next.js 16 Partial Prerender kicks in: page shell is static, Dashboard streams dynamically at request time
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/app/dashboard.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
+- Gotcha: Next.js 16 with `cacheComponents: true` requires uncached data access (like `connection()`) to be inside a `<Suspense>` boundary, otherwise the build errors with "Uncached data was accessed outside of <Suspense>"
