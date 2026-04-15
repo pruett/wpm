@@ -118,7 +118,7 @@
 
 - [x] `app/admin/users/page.tsx` — table from `getUsers()` with "distribute tokens" action
 - [x] `app/admin/markets/page.tsx` — list with actions: override seeds, cancel market, manual resolve
-- [ ] `app/admin/system/page.tsx` — chain/oracle health panel, subscribed to elevated-filter SSE events
+- [x] `app/admin/system/page.tsx` — chain/oracle health panel, subscribed to elevated-filter SSE events
 
 ### Admin Server Actions
 

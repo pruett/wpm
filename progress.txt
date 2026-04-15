@@ -389,3 +389,18 @@
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/app/admin/markets/page.tsx` (new), `apps/web/src/components/market-admin-actions.tsx` (new), `apps/web/src/app/actions/admin/resolveMarket.ts` (new), `apps/web/src/app/actions/admin/cancelMarket.ts` (new), `apps/web/src/app/actions/admin/overrideSeed.ts` (new), `PLAN.md`
 - Note: `cancelMarket` and `overrideSeed` actions target `POST /internal/cancel-market` and `POST /internal/override-seed` on the node, which don't exist yet — will need node-side routes. `resolveMarket` targets the existing `POST /internal/resolve-market` endpoint.
+
+### Task 35: Admin system page — chain/oracle health panel with live event feed
+- Created `apps/web/src/app/admin/system/page.tsx` — server component with four sections: node health, chain stats, live event feed, and recent blocks
+- **HealthPanel**: Async server component fetching `getHealth()` — shows node connection status with green/red indicator and "Healthy"/"Degraded" label
+- **ChainStats**: Async server component fetching `getBlocks()` — displays chain height, total transactions, block count, non-empty block count, and transaction breakdown by type (Distribute, CreateMarket, PlaceBet, etc.) sorted by frequency
+- **RecentBlocks**: Async server component showing last 10 blocks (newest first) with block number, timestamp, hash (truncated), signer (truncated), and per-block transaction list with human-readable labels (e.g., "Bet 100 on A — abc123…", "Create 'Market Name'")
+- Created `apps/web/src/components/system-event-feed.tsx` — client component with its own `EventSource` connection to `/api/stream` (separate from the main `RealtimeProvider` since admin pages render outside the dashboard's provider context)
+- Listens for all three SSE event types (`price:update`, `market:resolved`, `balance:update`), maintains a rolling buffer of last 50 events
+- Each event rendered with timestamp, color-coded type label (blue/yellow/green), and formatted detail text
+- Shows connection status indicator and event count
+- All server sections wrapped in `<Suspense>` with skeleton loading fallbacks
+- Uses responsive `lg:grid-cols-2` layout for health + chain stats; full-width for event feed and recent blocks
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/admin/system/page.tsx` (new), `apps/web/src/components/system-event-feed.tsx` (new), `PLAN.md`
+- Note: The event feed opens its own EventSource rather than using `useRealtime()` because admin pages are not wrapped in `<RealtimeProvider>` (which lives in the authenticated dashboard branch of `page.tsx`)
