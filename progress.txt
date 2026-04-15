@@ -209,3 +209,20 @@
 - Covers both plan items: "Call provisionWalletIfNeeded from root layout server path" and "Verify airdrop lands on-chain before layout resolves (await the API response)"
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/page.tsx`, `PLAN.md`
+
+## Phase 2 — Landing & Dashboard Reads
+
+### Task 22: Build Landing page per design brief
+- Rewrote `apps/web/src/app/landing.tsx` — techno-brutalist landing page with halftone chief portrait hero
+- **Halftone portrait**: Server-rendered SVG using a 44×56 dot-matrix grid where circle radii are computed from a mathematical brightness function. The function combines geometric primitives (ellipses, boxes, rotated rectangles) to form a recognizable chief silhouette: head, brow, nose, jaw, neck, shoulders, war bonnet feathers (13 radiating from head), and headband
+- Uses `smoothstep()` SDF-style falloff for natural halftone gradation at shape edges; `hash()` function adds subtle per-cell noise for organic texture
+- Sparse ambient dots (12% of empty grid cells) create a film-grain background effect outside the portrait
+- **Typography**: Geist Mono (`font-mono`) for all text — `text-6xl/7xl/8xl font-black tracking-[0.25em]` title, `text-xs/sm uppercase tracking-[0.2em]` subtitle. Thin horizontal rule separates title from subtitle
+- **Background**: Subtle repeating radial-gradient dot grid at 3% opacity for techno texture
+- **CTAs**: "Log in" (solid) and "Create account" (outline) buttons with `uppercase tracking-wider font-mono` treatment, linking to `/login` and `/register` respectively
+- All monochrome — uses only theme foreground/muted-foreground colors, no color
+- Pure server component — no `'use client'` needed; SVG dots computed once at module level
+- Single viewport layout (`min-h-svh`) per spec requirement
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/landing.tsx`, `PLAN.md`
+- Note: CTAs were already wired to `/login` and `/register` in Task 18; this task adds the design treatment

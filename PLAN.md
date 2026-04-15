@@ -64,8 +64,8 @@
 
 ### Landing page
 
-- [ ] Build `<Landing />` server component per design brief (techno-brutalist, monochrome, halftone chief portrait hero)
-- [ ] Wire Log in / Create account CTAs to `/login` and `/register`
+- [x] Build `<Landing />` server component per design brief (techno-brutalist, monochrome, halftone chief portrait hero)
+- [x] Wire Log in / Create account CTAs to `/login` and `/register`
 
 ### Cached data loaders
 
