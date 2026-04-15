@@ -101,9 +101,9 @@
 
 ### Server Actions
 
-- [ ] `app/actions/placeBet.ts` — validates input with Zod, POSTs `/api/bet` to `wpm-api`, then `updateTag('market:${id}')` and `updateTag('viewer:${userId}')`
-- [ ] `app/actions/sellShares.ts` — validates with Zod, POSTs `/api/sell`, same tag invalidation
-- [ ] Wire buy/sell controls in `<MarketDetail />` to the actions; return-value plumbed to toast on success/error
+- [x] `app/actions/placeBet.ts` — validates input with Zod, POSTs `/api/bet` to `wpm-api`, then `updateTag('market:${id}')` and `updateTag('viewer:${userId}')`
+- [x] `app/actions/sellShares.ts` — validates with Zod, POSTs `/api/sell`, same tag invalidation
+- [x] Wire buy/sell controls in `<MarketDetail />` to the actions; return-value plumbed to toast on success/error
 
 ---
 

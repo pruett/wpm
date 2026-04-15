@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { placeBet } from "@/app/actions/placeBet";
+import { sellShares } from "@/app/actions/sellShares";
 import type { SharePosition } from "@wpm/shared";
 
 type BetControlsProps = {
@@ -16,6 +18,7 @@ type BetControlsProps = {
 };
 
 export function BetControls({
+  marketId,
   outcomes,
   priceA,
   priceB,
@@ -27,6 +30,8 @@ export function BetControls({
   const [selectedOutcome, setSelectedOutcome] = useState<"A" | "B">("A");
   const [amount, setAmount] = useState("");
   const [shares, setShares] = useState("");
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const price = selectedOutcome === "A" ? priceA : priceB;
   const multiplier = selectedOutcome === "A" ? multiplierA : multiplierB;
@@ -45,6 +50,41 @@ export function BetControls({
   function resetInputs() {
     setAmount("");
     setShares("");
+    setMessage(null);
+  }
+
+  function handleBuy() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await placeBet({
+        marketId,
+        outcome: selectedOutcome,
+        amount: numAmount,
+      });
+      if (result.error) {
+        setMessage({ type: "error", text: result.error });
+      } else {
+        setMessage({ type: "success", text: `Bought ${outcomeName} shares` });
+        setAmount("");
+      }
+    });
+  }
+
+  function handleSell() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await sellShares({
+        marketId,
+        outcome: selectedOutcome,
+        shares: numShares,
+      });
+      if (result.error) {
+        setMessage({ type: "error", text: result.error });
+      } else {
+        setMessage({ type: "success", text: `Sold ${outcomeName} shares` });
+        setShares("");
+      }
+    });
   }
 
   return (
@@ -101,6 +141,18 @@ export function BetControls({
         ))}
       </div>
 
+      {message && (
+        <div
+          className={`mb-3 rounded-md px-3 py-2 font-mono text-xs ${
+            message.type === "success"
+              ? "bg-green-500/10 text-green-500"
+              : "bg-destructive/10 text-destructive"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
       {tab === "buy" ? (
         <div className="space-y-3">
           <div>
@@ -115,6 +167,7 @@ export function BetControls({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
               className="font-mono tabular-nums"
+              disabled={isPending}
             />
           </div>
 
@@ -131,8 +184,12 @@ export function BetControls({
             </div>
           )}
 
-          <Button className="w-full font-mono uppercase tracking-wider" disabled={numAmount <= 0}>
-            Buy {outcomeName}
+          <Button
+            className="w-full font-mono uppercase tracking-wider"
+            disabled={numAmount <= 0 || isPending}
+            onClick={handleBuy}
+          >
+            {isPending ? "Placing bet…" : `Buy ${outcomeName}`}
           </Button>
         </div>
       ) : (
@@ -163,6 +220,7 @@ export function BetControls({
                   onChange={(e) => setShares(e.target.value)}
                   placeholder="0"
                   className="font-mono tabular-nums"
+                  disabled={isPending}
                 />
               </div>
 
@@ -178,9 +236,10 @@ export function BetControls({
               <Button
                 className="w-full font-mono uppercase tracking-wider"
                 variant="outline"
-                disabled={numShares <= 0 || numShares > maxShares}
+                disabled={numShares <= 0 || numShares > maxShares || isPending}
+                onClick={handleSell}
               >
-                Sell {outcomeName}
+                {isPending ? "Selling…" : `Sell ${outcomeName}`}
               </Button>
             </>
           )}

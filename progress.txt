@@ -334,3 +334,12 @@
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/components/market-detail.tsx`, `apps/web/src/components/bet-controls.tsx` (new), `apps/web/src/app/@modal/(.)market/[id]/page.tsx`, `apps/web/src/app/market/[id]/page.tsx`, `PLAN.md`
 - Note: The `@modal` parallel slot renders outside the `<RealtimeProvider>` context, so `<LiveOdds />` in the modal will display initial server-rendered prices without live SSE updates; Phase 5 will address this
+
+### Task 31: Server Actions — placeBet, sellShares, and wiring to BetControls
+- Created `apps/web/src/app/actions/placeBet.ts` — `'use server'` action that validates input with Zod v4 (`marketId: string`, `outcome: "A"|"B"`, `amount: number.positive()`), authenticates via `auth.api.getSession()`, fetches wallet token from wpm-api `/api/wallet`, POSTs to `/api/bet`, and calls `updateTag('market:${id}')` + `updateTag('viewer:${userId}')` on success
+- Created `apps/web/src/app/actions/sellShares.ts` — same pattern: Zod validation (`shares` instead of `amount`), auth, wallet token, POSTs to `/api/sell`, same tag invalidation
+- Both actions return `{ success: true }` or `{ error: string }` — no throwing, errors plumbed to UI
+- Updated `apps/web/src/components/bet-controls.tsx` — wired Buy/Sell buttons to server actions via `useTransition` for non-blocking pending state. Added `isPending` disabled states on inputs/buttons, pending text ("Placing bet…"/"Selling…"), and inline success/error message display (green/destructive background). `marketId` prop now used (was previously accepted but unused)
+- Added `zod@4.3.6` as dependency
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/app/actions/placeBet.ts` (new), `apps/web/src/app/actions/sellShares.ts` (new), `apps/web/src/components/bet-controls.tsx`, `apps/web/package.json`, `bun.lock`, `PLAN.md`
