@@ -43,7 +43,7 @@
 - [x] Create `apps/web/src/lib/auth-client.ts` exposing `authClient.signIn.magicLink` and `authClient.passkey.signIn` helpers
 - [x] Build `(auth)/layout.tsx` route group using shadcn auth block as visual foundation
 - [x] Implement `/login/page.tsx` — email input + passkey-primary CTA when a passkey is detected, magic-link secondary CTA
-- [ ] Implement `/register/page.tsx` — name + email form calling `authClient.signIn.magicLink({ email, name })`
+- [x] Implement `/register/page.tsx` — name + email form calling `authClient.signIn.magicLink({ email, name })`
 - [ ] Implement `/auth/verify/page.tsx` — completes magic-link handshake, prompts passkey enrollment, redirects to `/`
 
 ### Root routing gate

@@ -140,3 +140,16 @@
 - Mirrors the Svelte login page (`packages/web/src/routes/(auth)/login/+page.svelte`) pattern exactly, adapted for React/Next.js (useState, useRouter, React.FormEvent)
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/app/(auth)/login/page.tsx` (new), `PLAN.md`
+
+### Task 16: Implement /register/page.tsx
+- Created `apps/web/src/app/(auth)/register/page.tsx` — client component implementing the registration flow
+- Name + email form calling `authClient.signIn.magicLink({ email, name, callbackURL: "/auth/verify" })`
+- On success: shows confirmation message with user's email (same pattern as login page magic link flow)
+- Error handling: catches auth errors and displays them in destructive text
+- Loading state: disables all inputs/buttons during submission, shows "Sending..." on submit button
+- Button disabled when name or email is empty
+- Footer links to `/login` for existing accounts
+- Mirrors the Svelte signup page (`packages/web/src/routes/(auth)/signup/+page.svelte`) pattern, adapted for React/Next.js
+- Dropped invite code validation (not in scope per plan)
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/app/(auth)/register/page.tsx` (new), `PLAN.md`
