@@ -96,8 +96,8 @@
 
 ### MarketDetail component
 
-- [ ] Build `<MarketDetail id={id} />` — outcome probabilities, pool state, user's position, buy/sell controls
-- [ ] Data sourced from `getMarket(id)` + `getPositions(userId)` (shared with dashboard)
+- [x] Build `<MarketDetail id={id} />` — outcome probabilities, pool state, user's position, buy/sell controls
+- [x] Data sourced from `getMarket(id)` + `getPositions(userId)` (shared with dashboard)
 
 ### Server Actions
 
