@@ -226,3 +226,16 @@
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/landing.tsx`, `PLAN.md`
 - Note: CTAs were already wired to `/login` and `/register` in Task 18; this task adds the design treatment
+
+### Task 23: Cached data loaders
+- Created 5 cached data loader files following the established `getMarkets()` pattern from `markets.ts`
+- **`lib/data/market.ts`** — `getMarket(id)` fetches single `MarketWithOdds` from `/api/markets/:id`, tagged `market:${id}`, lifetime `minutes`
+- **`lib/data/leaderboard.ts`** — `getLeaderboard()` fetches `LeaderboardEntry[]` from `/api/leaderboard`, tagged `leaderboard`, lifetime `minutes`
+- **`lib/data/balance.ts`** — `getBalance(userId)` fetches balance via POST `/api/wallet` (returns `{balance, address}` directly, avoids extra token→balance hop), tagged `viewer:${userId}`, lifetime `minutes`. Exports `BalanceData` type
+- **`lib/data/positions.ts`** — `getPositions(userId)` two-step: POST `/api/wallet` to get Bearer token, then GET `/api/positions` with auth header. Returns `SharePosition[]`, tagged `viewer:${userId}`, lifetime `minutes`
+- **`lib/data/users.ts`** — `getUsers()` fetches from `/api/leaderboard` (no dedicated users endpoint exists yet), returns `UserEntry[]` (`{userId, address, balance}`), tagged `users`, lifetime `minutes`. Admin-only consumption
+- All loaders use `'use cache'` directive with `cacheLife("minutes")` and `cacheTag(...)` from `next/cache`
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/lib/data/market.ts` (new), `apps/web/src/lib/data/leaderboard.ts` (new), `apps/web/src/lib/data/balance.ts` (new), `apps/web/src/lib/data/positions.ts` (new), `apps/web/src/lib/data/users.ts` (new), `PLAN.md`
+- Note: `getBalance` uses `/api/wallet` POST directly rather than the auth token → `/api/balance` flow because `/api/wallet` already returns balance in its response, saving a network round-trip
+- Note: `getUsers` piggybacks on `/api/leaderboard` since no dedicated users API endpoint exists; the response shape (`{userId, address, balance}`) is sufficient for the admin users table

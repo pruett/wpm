@@ -69,11 +69,11 @@
 
 ### Cached data loaders
 
-- [ ] `lib/data/market.ts` — `getMarket(id)` tagged `market:${id}`, lifetime `minutes`
-- [ ] `lib/data/leaderboard.ts` — `getLeaderboard()` tagged `leaderboard`, lifetime `minutes`
-- [ ] `lib/data/positions.ts` — `getPositions(userId)` tagged `viewer:${userId}`, lifetime `minutes`
-- [ ] `lib/data/balance.ts` — `getBalance(userId)` tagged `viewer:${userId}`, lifetime `minutes`
-- [ ] `lib/data/users.ts` — `getUsers()` tagged `users`, lifetime `minutes` (admin-only)
+- [x] `lib/data/market.ts` — `getMarket(id)` tagged `market:${id}`, lifetime `minutes`
+- [x] `lib/data/leaderboard.ts` — `getLeaderboard()` tagged `leaderboard`, lifetime `minutes`
+- [x] `lib/data/positions.ts` — `getPositions(userId)` tagged `viewer:${userId}`, lifetime `minutes`
+- [x] `lib/data/balance.ts` — `getBalance(userId)` tagged `viewer:${userId}`, lifetime `minutes`
+- [x] `lib/data/users.ts` — `getUsers()` tagged `users`, lifetime `minutes` (admin-only)
 
 ### Dashboard composition
 
