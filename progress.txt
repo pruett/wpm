@@ -457,3 +457,15 @@
 - No script changes needed — bare `next` is the correct and consistent approach for this monorepo
 - TypeScript type check passes cleanly; lint shows only pre-existing warnings in other packages
 - Files changed: `PLAN.md`
+
+### Task 40: CI/CD audit — deploy.yml, turbo test, and missing ADMIN_EMAILS env var
+- Verified `docker compose build` already picks up `apps/web/Dockerfile` via docker-compose.yml (updated in Task 21) — no deploy.yml build changes needed
+- Verified `docker compose push` pushes `ghcr.io/pruett/wpm-web:latest` correctly — image tag matches docker-compose.yml service
+- Confirmed `turbo test` passes for `@wpm/web-next` — `echo skipped` exits 0 cleanly
+- **Found missing env var**: `ADMIN_EMAILS` was not passed to the `wpm-web` container, meaning `isAdmin()` would always return `false` in production (no admin access)
+- Added `ADMIN_EMAILS=${ADMIN_EMAILS}` to `docker-compose.yml` wpm-web environment section
+- Added `ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}` to `.github/workflows/deploy.yml` VPS `.env` creation
+- Operator action required: add `ADMIN_EMAILS` as a GitHub Actions secret (comma-separated email list)
+- Docker compose config validates cleanly (env var warnings expected without .env file)
+- TypeScript type check passes cleanly
+- Files changed: `docker-compose.yml`, `.github/workflows/deploy.yml`, `PLAN.md`

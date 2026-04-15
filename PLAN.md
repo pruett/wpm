@@ -154,8 +154,8 @@
 
 ### CI/CD
 
-- [ ] Update `.github/workflows/deploy.yml` so `docker compose build` picks up the new `apps/web/Dockerfile` context; re-push `ghcr.io/pruett/wpm-web:latest`
-- [ ] Confirm `turbo test` still passes with `"test": "echo skipped"` placeholder in `apps/web`
+- [x] Update `.github/workflows/deploy.yml` so `docker compose build` picks up the new `apps/web/Dockerfile` context; re-push `ghcr.io/pruett/wpm-web:latest`
+- [x] Confirm `turbo test` still passes with `"test": "echo skipped"` placeholder in `apps/web`
 
 ### Cutover PR
 

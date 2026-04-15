@@ -60,6 +60,7 @@ jobs:
             BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             EMAIL_FROM=WPM <noreply@wpm.cash>
+            ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}
             ENVEOF
             echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u pruett --password-stdin
             docker compose pull

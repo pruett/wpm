@@ -83,6 +83,7 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-WPM <noreply@wpm.cash>}
       - RP_ID=${DOMAIN}
       - ORIGIN=https://${DOMAIN}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
       - NODE_ENV=production
     volumes:
       - auth-data:/app/data
