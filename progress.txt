@@ -371,3 +371,21 @@
 - TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
 - Files changed: `apps/web/src/app/admin/users/page.tsx` (new), `apps/web/src/components/distribute-form.tsx` (new), `apps/web/src/app/actions/admin/distributeTokens.ts` (new), `PLAN.md`
 - Note: The distribute action calls `POST /api/admin/distribute` on wpm-api which doesn't exist yet — will need an API-side route that wraps `nodeClient.distribute()` for the action to work end-to-end
+
+### Task 34: Admin markets page with resolve, cancel, and override seed actions
+- Created `apps/web/src/app/admin/markets/page.tsx` — server component listing all markets with inline admin actions
+- Async `MarketsTable` component uses `connection()` for dynamic rendering, fetches markets via `getMarkets()`, sorts by status (open → closed → resolved → cancelled)
+- Each market card shows: name, outcomes, status badge (color-coded), close countdown (open markets), probabilities, pool liquidity, bettor count, and result (resolved markets)
+- Active markets (open or closed) get three admin action sections: Resolve, Cancel, Override Seeds
+- `<Suspense>` wrapper with skeleton loading fallback (3 animated pulse cards)
+- Created `apps/web/src/components/market-admin-actions.tsx` — client component with three forms:
+  - `<ResolveForm>` — two buttons (one per outcome) calling `resolveMarket` action; shows resolved outcome name on success
+  - `<CancelForm>` — two-click confirmation pattern (click "Cancel" → button turns destructive "Confirm cancel" with "Nevermind" escape) to prevent accidental cancellations
+  - `<OverrideSeedForm>` — two number inputs (Seed A, Seed B) + "Set" button calling `overrideSeed` action; clears inputs on success
+- All three forms use `useTransition` for non-blocking pending state, inline success/error message display (same pattern as `<DistributeForm>`)
+- Created `apps/web/src/app/actions/admin/resolveMarket.ts` — `'use server'` action, re-checks `isAdmin(session)`, validates with Zod v4 (`marketId: string`, `result: "A"|"B"`), dispatches to `POST /internal/resolve-market` on wpm-api (existing node endpoint), invalidates `markets` + `market:${id}` + `leaderboard` tags
+- Created `apps/web/src/app/actions/admin/cancelMarket.ts` — same admin pattern, dispatches to `POST /internal/cancel-market`, invalidates `markets` + `market:${id}`
+- Created `apps/web/src/app/actions/admin/overrideSeed.ts` — same admin pattern, validates `seedA`/`seedB` as positive numbers, dispatches to `POST /internal/override-seed`, invalidates `market:${id}`
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/app/admin/markets/page.tsx` (new), `apps/web/src/components/market-admin-actions.tsx` (new), `apps/web/src/app/actions/admin/resolveMarket.ts` (new), `apps/web/src/app/actions/admin/cancelMarket.ts` (new), `apps/web/src/app/actions/admin/overrideSeed.ts` (new), `PLAN.md`
+- Note: `cancelMarket` and `overrideSeed` actions target `POST /internal/cancel-market` and `POST /internal/override-seed` on the node, which don't exist yet — will need node-side routes. `resolveMarket` targets the existing `POST /internal/resolve-market` endpoint.

@@ -117,15 +117,15 @@
 ### Admin pages
 
 - [x] `app/admin/users/page.tsx` — table from `getUsers()` with "distribute tokens" action
-- [ ] `app/admin/markets/page.tsx` — list with actions: override seeds, cancel market, manual resolve
+- [x] `app/admin/markets/page.tsx` — list with actions: override seeds, cancel market, manual resolve
 - [ ] `app/admin/system/page.tsx` — chain/oracle health panel, subscribed to elevated-filter SSE events
 
 ### Admin Server Actions
 
 - [x] `app/actions/admin/distributeTokens.ts` — re-check `isAdmin`, dispatch to `wpm-api` `POST /internal/distribute`, invalidate `users` + `viewer:${target}`
-- [ ] `app/actions/admin/cancelMarket.ts` — re-check `isAdmin`, dispatch, invalidate `markets` + `market:${id}`
-- [ ] `app/actions/admin/resolveMarket.ts` — re-check `isAdmin`, dispatch to `/internal/resolve-market`, invalidate `markets` + `market:${id}` + `leaderboard`
-- [ ] `app/actions/admin/overrideSeed.ts` — re-check `isAdmin`, dispatch, invalidate `market:${id}`
+- [x] `app/actions/admin/cancelMarket.ts` — re-check `isAdmin`, dispatch, invalidate `markets` + `market:${id}`
+- [x] `app/actions/admin/resolveMarket.ts` — re-check `isAdmin`, dispatch to `/internal/resolve-market`, invalidate `markets` + `market:${id}` + `leaderboard`
+- [x] `app/actions/admin/overrideSeed.ts` — re-check `isAdmin`, dispatch, invalidate `market:${id}`
 
 ---
 
