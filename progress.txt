@@ -447,3 +447,13 @@
 - Docker compose config validates cleanly (`docker compose config --quiet` — env var warnings expected without .env)
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/Dockerfile`, `PLAN.md`
+
+### Task 39: Confirm apps/web dev/build/start scripts work under Node
+- Verified `apps/web/package.json` scripts use bare `next` commands: `next dev --turbopack --port 4102`, `next build`, `next start --port 4102`
+- This is consistent with every other package in the monorepo (all use bare commands: `tsc`, `tsx watch`, `vite dev`, etc.) — bun resolves them from `node_modules/.bin` when invoked via `bun run` or `turbo`
+- **Build path**: `bunx turbo build --filter=@wpm/web-next` → turbo calls `next build` → Next.js runs under Node (has `#!/usr/bin/env node` shebang)
+- **Production path**: Standalone output runs via `node apps/web/server.js` (CMD in Dockerfile) — pure Node runtime, no bun needed
+- **Dev path**: `bun run dev` → `next dev --turbopack --port 4102` — Next.js dev server runs under Node
+- No script changes needed — bare `next` is the correct and consistent approach for this monorepo
+- TypeScript type check passes cleanly; lint shows only pre-existing warnings in other packages
+- Files changed: `PLAN.md`

@@ -150,7 +150,7 @@
 ### Build
 
 - [x] Finalize `apps/web/Dockerfile` — multi-stage, bun builder → slim Node runtime, preserves `better-sqlite3` native bindings, entry `node apps/web/server.js`
-- [ ] Confirm `apps/web` `dev`/`build`/`start` scripts use `bunx next ...` under Node
+- [x] Confirm `apps/web` `dev`/`build`/`start` scripts use `bunx next ...` under Node
 
 ### CI/CD
 
