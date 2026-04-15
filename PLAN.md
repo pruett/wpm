@@ -78,7 +78,7 @@
 ### Dashboard composition
 
 - [x] `<Header />` server component (logo + user menu) with `<Suspense>`-wrapped client `<Balance />` subtree subscribed to SSE
-- [ ] `<ScrollingLeaderboard />` — server fetch via `getLeaderboard()`, CSS `@keyframes` marquee, no JS animation
+- [x] `<ScrollingLeaderboard />` — server fetch via `getLeaderboard()`, CSS `@keyframes` marquee, no JS animation
 - [ ] `<Search />` — client component filtering the hydrated markets array on name + outcome names
 - [ ] `<MarketList />` + `<MarketCard />` — server-rendered cards with a small client `<LiveOdds />` leaf subscribed to `market.updated`
 - [ ] `<Portfolio />` — server fetch via `getPositions(userId)`, shows outcome/shares/cost basis/current value/unrealized P&L, empty state if none

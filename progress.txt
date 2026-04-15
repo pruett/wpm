@@ -251,3 +251,17 @@
 - Updated `apps/web/src/app/page.tsx` — added `<Header user={...} />` above `<main>` in the authenticated branch; added layout styling (`mx-auto max-w-screen-xl px-4 py-6`) to `<main>` wrapper; removed the old `<h1>WPM</h1>` (now in header)
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/components/header.tsx` (new), `apps/web/src/components/balance.tsx` (new), `apps/web/src/components/user-menu.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
+
+### Task 25: Build ScrollingLeaderboard component
+- Created `apps/web/src/components/scrolling-leaderboard.tsx` — async server component fetching leaderboard via `getLeaderboard()`, sorted by balance descending
+- Uses `connection()` from `next/server` to opt into dynamic rendering (consistent with other server components in the app)
+- Renders ranked entries as inline items: rank number, name (or truncated address fallback), and balance — all in `font-mono text-xs`
+- CSS-only marquee animation: duplicated content in `.marquee-track` with `@keyframes marquee-scroll` translating -50% over 30s linear infinite loop
+- Fixed "Top" label on left edge with `z-10` and `bg-background` to stay visible as items scroll behind it
+- Pauses animation on hover (`animation-play-state: paused`)
+- Respects `prefers-reduced-motion: reduce` by disabling animation entirely
+- Returns `null` when leaderboard is empty (graceful empty state)
+- Added marquee CSS keyframes and utility classes to `globals.css`
+- Updated `apps/web/src/app/page.tsx` — mounted `<ScrollingLeaderboard />` in `<Suspense>` between `<Header>` and `<main>` for full-width ticker effect
+- TypeScript type check passes cleanly; build font-fetch errors are sandbox network restrictions only
+- Files changed: `apps/web/src/components/scrolling-leaderboard.tsx` (new), `apps/web/src/app/globals.css`, `apps/web/src/app/page.tsx`, `PLAN.md`

@@ -7,6 +7,7 @@ import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { LiveTicker } from "./live-ticker";
 import { Landing } from "./landing";
 import { Header } from "@/components/header";
+import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
 
 export default async function Home() {
   const session = await auth.api.getSession({
@@ -25,6 +26,9 @@ export default async function Home() {
   return (
     <RealtimeProvider>
       <Header user={{ id: session.user.id, name: session.user.name }} />
+      <Suspense>
+        <ScrollingLeaderboard />
+      </Suspense>
       <main className="mx-auto max-w-screen-xl px-4 py-6">
         <Suspense fallback={<p>Loading markets…</p>}>
           <Dashboard />
