@@ -69,14 +69,14 @@ services:
     image: ghcr.io/pruett/wpm-web:latest
     build:
       context: .
-      dockerfile: packages/web/Dockerfile
+      dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     depends_on:
       wpm-api:
         condition: service_healthy
     environment:
       - PORT=4102
-      - API_URL=http://wpm-api:3000
+      - WPM_API_URL=http://wpm-api:3000
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=https://${DOMAIN}
       - RESEND_API_KEY=${RESEND_API_KEY}

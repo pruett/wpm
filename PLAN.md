@@ -17,7 +17,7 @@
 - [x] Add `apps/web/src/lib/data/markets.ts` with a `'use cache'` `getMarkets()` loader that fetches `http://wpm-api:3000/api/markets`, tagged `markets`, lifetime `minutes`
 - [x] Render market names from `getMarkets()` in a `<Dashboard />` server component behind a hardcoded `authenticated=true` flag
 - [x] Author `apps/web/Dockerfile` (builder + runtime stages, Next standalone output, port 4102)
-- [ ] Swap `docker-compose.yml` `wpm-web.build.dockerfile` from `packages/web/Dockerfile` to `apps/web/Dockerfile`; verify `docker compose up` serves the cached market list at `:4102`
+- [x] Swap `docker-compose.yml` `wpm-web.build.dockerfile` from `packages/web/Dockerfile` to `apps/web/Dockerfile`; verify `docker compose up` serves the cached market list at `:4102`
 
 ### SSE Proxy Tracer
 

@@ -47,3 +47,11 @@
 - Added `**/.next` to `.dockerignore` to prevent local build cache from bloating Docker context
 - Follows existing monorepo Dockerfile patterns (sed workspace protocol, npm install, turbo for build orchestration)
 - Files changed: `apps/web/Dockerfile` (new), `.dockerignore`
+
+### Task 7: Swap docker-compose.yml to use apps/web/Dockerfile
+- Changed `wpm-web` service `dockerfile` from `packages/web/Dockerfile` to `apps/web/Dockerfile`
+- Renamed env var `API_URL` to `WPM_API_URL` to match what `apps/web/src/lib/data/markets.ts` reads (`process.env.WPM_API_URL`)
+- Kept all auth-related env vars (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, `RP_ID`, `ORIGIN`) for Phase 1 compatibility
+- Kept `auth-data:/app/data` volume mount for future better-auth integration
+- Validated with `docker compose config --quiet` — syntax is clean (env var warnings expected without .env)
+- Files changed: `docker-compose.yml`, `PLAN.md`
