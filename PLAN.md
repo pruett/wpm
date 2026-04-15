@@ -81,7 +81,7 @@
 - [x] `<ScrollingLeaderboard />` — server fetch via `getLeaderboard()`, CSS `@keyframes` marquee, no JS animation
 - [x] `<Search />` — client component filtering the hydrated markets array on name + outcome names
 - [x] `<MarketList />` + `<MarketCard />` — server-rendered cards with a small client `<LiveOdds />` leaf subscribed to `market.updated`
-- [ ] `<Portfolio />` — server fetch via `getPositions(userId)`, shows outcome/shares/cost basis/current value/unrealized P&L, empty state if none
+- [x] `<Portfolio />` — server fetch via `getPositions(userId)`, shows outcome/shares/cost basis/current value/unrealized P&L, empty state if none
 
 ---
 

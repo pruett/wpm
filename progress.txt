@@ -289,3 +289,16 @@
 - Updated `apps/web/src/components/search.tsx` — replaced inline `<ul>` market rendering with `<MarketList markets={filtered} />`
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/components/live-odds.tsx` (new), `apps/web/src/components/market-card.tsx` (new), `apps/web/src/components/market-list.tsx` (new), `apps/web/src/components/search.tsx`, `PLAN.md`
+
+### Task 28: Build Portfolio server component
+- Created `apps/web/src/components/portfolio.tsx` — async server component displaying user's share positions with P&L
+- Uses `connection()` for dynamic rendering, fetches positions via `getPositions(userId)` and markets via `getMarkets()` in parallel
+- Enriches positions by joining with market data: computes current value (`shares × currentPrice`) and unrealized P&L (`currentValue - costBasis`)
+- Each position rendered as a `Card` showing: market name, outcome name (badge), share count, cost basis, current value, and P&L with color coding (green for gains, destructive for losses)
+- Summary header shows total portfolio value and total P&L
+- Empty state: "No positions yet. Place a bet to get started." when `positions.length === 0`
+- Gracefully filters out positions whose market is no longer in the active markets list (resolved/cancelled markets)
+- Updated `apps/web/src/app/page.tsx` — mounted `<Portfolio userId={session.user.id} />` in `<Suspense>` below `<Dashboard />` in the authenticated branch
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/components/portfolio.tsx` (new), `apps/web/src/app/page.tsx`, `PLAN.md`
+- Note: P&L is computed server-side from cached market prices; for real-time P&L updates, a future `useMarket` hook (Phase 5) would overlay live prices on the server snapshot

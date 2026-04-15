@@ -8,6 +8,7 @@ import { LiveTicker } from "./live-ticker";
 import { Landing } from "./landing";
 import { Header } from "@/components/header";
 import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
+import { Portfolio } from "@/components/portfolio";
 
 export default async function Home() {
   const session = await auth.api.getSession({
@@ -32,6 +33,9 @@ export default async function Home() {
       <main className="mx-auto max-w-screen-xl px-4 py-6">
         <Suspense fallback={<p>Loading markets…</p>}>
           <Dashboard />
+        </Suspense>
+        <Suspense>
+          <Portfolio userId={session.user.id} />
         </Suspense>
         <LiveTicker />
       </main>
