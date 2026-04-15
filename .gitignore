@@ -3,6 +3,9 @@ dist/
 .turbo/
 *.tsbuildinfo
 
+# Next.js
+.next/
+
 # SvelteKit
 .svelte-kit/
 build/

@@ -13,7 +13,7 @@
 
 - [x] Add `"apps/*"` to root `package.json` workspaces; scaffold `apps/web/package.json` as `@wpm/web` with Next 16, React 19, `@wpm/shared: workspace:*`
 - [x] Create `apps/web/tsconfig.json` (Next conventions, `@/*` path alias) and `apps/web/next.config.ts` with `cacheComponents: true`
-- [ ] Create `apps/web/src/app/layout.tsx` (minimal `<html>/<body>`) and `apps/web/src/app/page.tsx` rendering hardcoded "WPM" landing
+- [x] Create `apps/web/src/app/layout.tsx` (minimal `<html>/<body>`) and `apps/web/src/app/page.tsx` rendering hardcoded "WPM" landing
 - [ ] Add `apps/web/src/lib/data/markets.ts` with a `'use cache'` `getMarkets()` loader that fetches `http://wpm-api:3000/api/markets`, tagged `markets`, lifetime `minutes`
 - [ ] Render market names from `getMarkets()` in a `<Dashboard />` server component behind a hardcoded `authenticated=true` flag
 - [ ] Author `apps/web/Dockerfile` (builder + runtime stages, Next standalone output, port 4102)

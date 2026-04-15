@@ -13,3 +13,11 @@
 - Type check passes cleanly with `tsc --project tsconfig.json --noEmit`
 - `next build` correctly reports missing `app` directory (expected — created in next task)
 - Files changed: `apps/web/tsconfig.json`, `apps/web/next.config.ts`
+
+### Task 3: Create layout.tsx and page.tsx
+- Created `apps/web/src/app/layout.tsx` — minimal root layout with `<html>`, `<body>`, metadata (title: "WPM", description: "Wampum Prediction Markets")
+- Created `apps/web/src/app/page.tsx` — renders hardcoded "WPM" heading and "Wampum Prediction Markets" tagline
+- TypeScript type check passes cleanly
+- `next build` succeeds — generates static `/` route
+- Note: Next.js auto-updated `tsconfig.json` to set `jsx: "react-jsx"` (required by Next's automatic runtime) and added `.next/dev/types/**/*.ts` to includes
+- Files changed: `apps/web/src/app/layout.tsx`, `apps/web/src/app/page.tsx`, `apps/web/tsconfig.json` (auto-modified by Next)
