@@ -14,6 +14,16 @@ export const auth = betterAuth({
   baseURL: env("BETTER_AUTH_URL", "http://localhost:4102"),
   secret: env("BETTER_AUTH_SECRET", "dev-secret-change-me-in-production"),
   database: db,
+  user: {
+    additionalFields: {
+      walletPublicKey: {
+        type: "string",
+        required: false,
+        input: false,
+        returned: true,
+      },
+    },
+  },
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {

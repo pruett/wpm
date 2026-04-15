@@ -88,3 +88,11 @@
 - Dropped invite code validation from magic-link handler (not in scope for apps/web plan)
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/lib/auth.ts`, `apps/web/src/lib/email.ts` (new), `apps/web/package.json`, `bun.lock`, `PLAN.md`
+
+### Task 11: Extend user schema with walletPublicKey field
+- Added `user.additionalFields.walletPublicKey` to the betterAuth config in `apps/web/src/lib/auth.ts`
+- Field config: `type: "string"`, `required: false` (nullable), `input: false` (server-only, clients cannot set during signup), `returned: true` (included in session responses)
+- Immutability enforced at application level (in future `provisionWalletIfNeeded` function), not schema level — better-auth has no built-in "immutable once set" constraint
+- `input: false` prevents client-side mutation, ensuring only server code can write this field
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/lib/auth.ts`, `PLAN.md`
