@@ -276,3 +276,16 @@
 - Updated `apps/web/src/app/dashboard.tsx` — replaced inline `<ul>` market rendering with `<Search markets={markets} />`; added styled `<h2>` heading with `font-mono uppercase tracking-wider`
 - TypeScript type check passes cleanly
 - Files changed: `apps/web/src/components/search.tsx` (new), `apps/web/src/app/dashboard.tsx`, `PLAN.md`
+
+### Task 27: Build MarketList, MarketCard, and LiveOdds components
+- Created `apps/web/src/components/live-odds.tsx` — client component subscribing to `price:update` SSE events for a specific market via `useRealtime()` hook
+- Renders two `OddsBar` sub-components (one per outcome): label, percentage, and a progress bar with animated width transition
+- Filters SSE events by `marketId` match, updates `priceA`/`priceB` state on `price:update` events (same pattern as `<Balance />` component)
+- Created `apps/web/src/components/market-card.tsx` — server-renderable card using shadcn `Card` primitives
+- Displays market name (mono, bold), `<LiveOdds />` client leaf for real-time probabilities, footer with bettor count and time remaining
+- `formatCloseTime()` helper renders human-readable countdown (e.g., "2d left", "3h 15m left", "45m left", "Closed")
+- Highlights closing-soon markets (< 1 hour) in destructive color
+- Created `apps/web/src/components/market-list.tsx` — renders a responsive grid of `<MarketCard />` components (`sm:grid-cols-2 lg:grid-cols-3`)
+- Updated `apps/web/src/components/search.tsx` — replaced inline `<ul>` market rendering with `<MarketList markets={filtered} />`
+- TypeScript type check passes cleanly
+- Files changed: `apps/web/src/components/live-odds.tsx` (new), `apps/web/src/components/market-card.tsx` (new), `apps/web/src/components/market-list.tsx` (new), `apps/web/src/components/search.tsx`, `PLAN.md`

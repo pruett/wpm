@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { MarketList } from "@/components/market-list";
 import type { MarketWithOdds } from "@wpm/shared";
 
 export function Search({ markets }: { markets: MarketWithOdds[] }) {
@@ -32,18 +33,7 @@ export function Search({ markets }: { markets: MarketWithOdds[] }) {
           {query ? "No markets match your search." : "No active markets."}
         </p>
       ) : (
-        <ul className="space-y-2">
-          {filtered.map((m) => (
-            <li key={m.id} className="text-sm">
-              <strong>{m.name}</strong>
-              <span className="text-muted-foreground">
-                {" "}
-                — {m.outcomes[0]} ({(m.priceA * 100).toFixed(0)}%) vs {m.outcomes[1]} (
-                {(m.priceB * 100).toFixed(0)}%)
-              </span>
-            </li>
-          ))}
-        </ul>
+        <MarketList markets={filtered} />
       )}
     </div>
   );
