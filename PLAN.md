@@ -33,7 +33,7 @@
 ### Better-auth server setup
 
 - [x] Create `apps/web/src/lib/auth.ts` — better-auth instance with `better-sqlite3` adapter pointing at `/app/data/wpm.db` (containerized) / `apps/web/data/wpm.db` (local)
-- [ ] Register `@better-auth/passkey` and magic-link plugins with Resend email driver; `RP_ID` + `ORIGIN` from env
+- [x] Register `@better-auth/passkey` and magic-link plugins with Resend email driver; `RP_ID` + `ORIGIN` from env
 - [ ] Extend schema with `user.walletPublicKey` (nullable TEXT, immutable once set)
 - [ ] Create `apps/web/src/app/api/auth/[...all]/route.ts` — better-auth catch-all handler
 - [ ] Port magic-link email template from `packages/web` as-is

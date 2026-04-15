@@ -78,3 +78,13 @@
 - Added `better-auth` (1.6.3), `better-sqlite3` (12.9.0), and `@types/better-sqlite3` as dependencies
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/lib/auth.ts` (new), `apps/web/package.json`, `bun.lock`, `PLAN.md`
+
+### Task 10: Register passkey and magic-link plugins with Resend email driver
+- Updated `apps/web/src/lib/auth.ts` to register `magicLink` and `passkey` plugins
+- `magicLink` plugin: logs magic link URL to console in development, sends email via Resend in production (same pattern as `packages/web`)
+- `passkey` plugin: `RP_ID` (default `localhost`), `rpName` `"WPM"`, `ORIGIN` (default `http://localhost:4102`)
+- Created `apps/web/src/lib/email.ts` — lazy-initialized Resend client with `RESEND_API_KEY` env var, `EMAIL_FROM` defaults to `"WPM <noreply@example.com>"`
+- Added `@better-auth/passkey` (1.6.3) and `resend` (6.11.0) as dependencies
+- Dropped invite code validation from magic-link handler (not in scope for apps/web plan)
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/src/lib/auth.ts`, `apps/web/src/lib/email.ts` (new), `apps/web/package.json`, `bun.lock`, `PLAN.md`
