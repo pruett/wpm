@@ -116,3 +116,15 @@
 - No `baseURL` needed — defaults to same origin, which is correct since the catch-all route handler is at `/api/auth/[...all]`
 - TypeScript type check and `next build` both pass cleanly
 - Files changed: `apps/web/src/lib/auth-client.ts` (new), `PLAN.md`
+
+### Task 14: Build (auth)/layout.tsx route group with shadcn foundation
+- Set up Tailwind CSS v4: installed `tailwindcss@4.2.2`, `@tailwindcss/postcss@4.2.2`; created `postcss.config.mjs` with `@tailwindcss/postcss` plugin
+- Created `src/app/globals.css` with `@import "tailwindcss"` and `@theme` block matching the Svelte app's dark color palette (oklch-based: background, foreground, card, primary, secondary, muted, accent, destructive, border, input, ring, radius tokens)
+- Set up shadcn/ui foundation: created `components.json` (new-york style, RSC enabled, lucide icons), `src/lib/utils.ts` with `cn()` helper (clsx + tailwind-merge)
+- Installed shadcn dependencies: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `@radix-ui/react-slot`, `@radix-ui/react-separator`
+- Added shadcn UI components: `button.tsx` (6 variants, 4 sizes, asChild support), `card.tsx` (Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter), `input.tsx`, `separator.tsx` — all in `src/components/ui/`
+- Created `src/app/(auth)/layout.tsx` — route group layout centering children vertically (`min-h-svh`) with `max-w-sm` container, serves as visual foundation for login/register/verify pages
+- Updated `src/app/layout.tsx` — imports `globals.css`, adds Geist + Geist Mono fonts via `next/font/google` with CSS variable strategy, sets `dark` class on `<html>`, applies `font-sans antialiased` to `<body>`
+- TypeScript type check and `next build` both pass cleanly
+- Files changed: `apps/web/postcss.config.mjs` (new), `apps/web/src/app/globals.css` (new), `apps/web/components.json` (new), `apps/web/src/lib/utils.ts` (new), `apps/web/src/components/ui/button.tsx` (new), `apps/web/src/components/ui/card.tsx` (new), `apps/web/src/components/ui/input.tsx` (new), `apps/web/src/components/ui/separator.tsx` (new), `apps/web/src/app/(auth)/layout.tsx` (new), `apps/web/src/app/layout.tsx`, `apps/web/package.json`, `bun.lock`, `PLAN.md`
+- Gotcha: Tailwind v4 uses CSS-based config (`@theme` in globals.css) — no `tailwind.config.ts` needed. next/font's `variable` prop sets CSS custom properties that Tailwind v4's default `font-sans` utility automatically picks up via `var(--font-sans)`.
