@@ -1,8 +1,5 @@
 import { subscribe, type RealtimeEvent } from "@/lib/realtime/bus";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const HEARTBEAT_MS = 15_000;
 
 export async function GET(req: Request) {

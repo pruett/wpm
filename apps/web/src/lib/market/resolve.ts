@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ammPools, balances, markets, positions, transactions, treasury } from "@/lib/db/schema";
 import { publish } from "@/lib/realtime/bus";
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 export type ResolveMarketResult = { resolved: true } | { resolved: false; reason: string };
 
@@ -111,11 +111,11 @@ export function resolveMarket(marketId: string, outcome: "A" | "B"): ResolveMark
   publish({ type: "market:resolved", marketId, result: outcome });
   for (const u of paidUsers) {
     publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
-    updateTag(`viewer:${u.userId}`);
+    revalidateTag(`viewer:${u.userId}`);
   }
-  updateTag("markets");
-  updateTag(`market:${marketId}`);
-  updateTag("leaderboard");
+  revalidateTag("markets");
+  revalidateTag(`market:${marketId}`);
+  revalidateTag("leaderboard");
 
   return { resolved: true };
 }

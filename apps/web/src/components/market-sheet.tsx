@@ -2,30 +2,53 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 export function MarketSheet({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) router.back();
+  };
+
+  if (isMobile) {
+    return (
+      <Drawer open onOpenChange={handleOpenChange}>
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Market Detail</DrawerTitle>
+            <DrawerDescription>Market odds, pool state, and trading controls</DrawerDescription>
+          </DrawerHeader>
+          <div className="overflow-y-auto p-4">{children}</div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
 
   return (
-    <Sheet open onOpenChange={() => router.back()}>
-      <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle className="font-mono text-sm uppercase tracking-wider">
-            Market Detail
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            Market odds, pool state, and trading controls
-          </SheetDescription>
-        </SheetHeader>
-        <div className="mt-4">{children}</div>
-      </SheetContent>
-    </Sheet>
+    <Dialog open onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Market Detail</DialogTitle>
+          <DialogDescription>Market odds, pool state, and trading controls</DialogDescription>
+        </DialogHeader>
+        <div className="overflow-y-auto">{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 }

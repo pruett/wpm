@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import type { CreateMarketRequest } from "@wpm/shared";
 import { db } from "@/lib/db";
 import { ammPools, markets, transactions, treasury } from "@/lib/db/schema";
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
 
@@ -72,7 +72,7 @@ export function createMarket(req: CreateMarketRequest): CreateMarketResult {
 export function createMarketAndNotify(req: CreateMarketRequest): CreateMarketResult {
   const result = createMarket(req);
   if (result.created) {
-    updateTag("markets");
+    revalidateTag("markets");
   }
   return result;
 }

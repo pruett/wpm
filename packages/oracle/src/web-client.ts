@@ -33,7 +33,11 @@ export class WebClient extends Context.Tag("oracle/WebClient")<
 
       return {
         health: client.get("/api/oracle/health").pipe(
-          Effect.as(true),
+          Effect.flatMap((res) =>
+            res.status >= 200 && res.status < 300
+              ? Effect.succeed(true)
+              : Effect.fail(`health check returned ${res.status}`),
+          ),
           Effect.catchAll(() => Effect.succeed(false)),
           Effect.scoped,
         ),

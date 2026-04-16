@@ -205,11 +205,22 @@ export function Landing() {
       </div>
 
       <div className="flex gap-4">
-        <Button asChild size="lg" className="uppercase tracking-wider font-mono">
-          <Link href="/login">Log in</Link>
+        <Button
+          render={<Link href="/login" />}
+          nativeButton={false}
+          size="lg"
+          className="uppercase tracking-wider font-mono"
+        >
+          Log in
         </Button>
-        <Button variant="outline" asChild size="lg" className="uppercase tracking-wider font-mono">
-          <Link href="/register">Create account</Link>
+        <Button
+          variant="outline"
+          render={<Link href="/register" />}
+          nativeButton={false}
+          size="lg"
+          className="uppercase tracking-wider font-mono"
+        >
+          Create account
         </Button>
       </div>
     </main>

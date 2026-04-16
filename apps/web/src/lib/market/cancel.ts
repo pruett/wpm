@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ammPools, balances, markets, positions, transactions, treasury } from "@/lib/db/schema";
 import { publish } from "@/lib/realtime/bus";
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 export type CancelMarketResult = { cancelled: true } | { cancelled: false; reason: string };
 
@@ -108,11 +108,11 @@ export function cancelMarket(marketId: string, reason?: string): CancelMarketRes
 
   for (const u of refundedUsers) {
     publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
-    updateTag(`viewer:${u.userId}`);
+    revalidateTag(`viewer:${u.userId}`);
   }
-  updateTag("markets");
-  updateTag(`market:${marketId}`);
-  updateTag("leaderboard");
+  revalidateTag("markets");
+  revalidateTag(`market:${marketId}`);
+  revalidateTag("leaderboard");
 
   return { cancelled: true };
 }

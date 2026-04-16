@@ -1,47 +1,27 @@
 services:
-  wpm-node:
-    image: ghcr.io/pruett/wpm-node:latest
+  wpm-web:
+    image: ghcr.io/pruett/wpm-web:latest
     build:
       context: .
-      dockerfile: packages/node/Dockerfile
+      dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    environment:
+      - PORT=4102
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://${DOMAIN}
+      - DATABASE_URL=/app/data/wpm.db
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - WPM_ORACLE_SERVICE_TOKEN=${WPM_ORACLE_SERVICE_TOKEN}
+      - RP_ID=${DOMAIN}
+      - ORIGIN=https://${DOMAIN}
+      - NODE_ENV=production
     volumes:
-      - chain-data:/app/data
-      - keys:/app/data/keys
-    environment:
-      - NODE_PORT=4000
-      - CHAIN_FILE=/app/data/chain.jsonl
-      - KEYS_DIR=/app/data/keys
+      - app-data:/app/data
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'bun -e "const r = await fetch(''http://localhost:4000/internal/health''); if(!r.ok) process.exit(1)"',
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - wpm-net
-
-  wpm-api:
-    image: ghcr.io/pruett/wpm-api:latest
-    build:
-      context: .
-      dockerfile: packages/api/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      wpm-node:
-        condition: service_healthy
-    environment:
-      - API_PORT=3000
-      - NODE_URL=http://wpm-node:4000
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          'bun -e "const r = await fetch(''http://localhost:3000/api/health''); if(!r.ok) process.exit(1)"',
+          'bun -e "const r = await fetch(''http://localhost:4102/api/oracle/health'', { headers: { Authorization: ''Bearer ${WPM_ORACLE_SERVICE_TOKEN}'' } }); if(!r.ok) process.exit(1)"',
         ]
       interval: 10s
       timeout: 5s
@@ -57,36 +37,12 @@ services:
       dockerfile: packages/oracle/Dockerfile
     restart: unless-stopped
     depends_on:
-      wpm-node:
+      wpm-web:
         condition: service_healthy
     environment:
-      - NODE_URL=http://wpm-node:4000
+      - WEB_INTERNAL_URL=http://wpm-web:4102
+      - WPM_ORACLE_SERVICE_TOKEN=${WPM_ORACLE_SERVICE_TOKEN}
       - TZ=${TZ:-America/New_York}
-    networks:
-      - wpm-net
-
-  wpm-web:
-    image: ghcr.io/pruett/wpm-web:latest
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      wpm-api:
-        condition: service_healthy
-    environment:
-      - PORT=4102
-      - WPM_API_URL=http://wpm-api:3000
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=https://${DOMAIN}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - EMAIL_FROM=${EMAIL_FROM:-WPM <noreply@wpm.cash>}
-      - RP_ID=${DOMAIN}
-      - ORIGIN=https://${DOMAIN}
-      - ADMIN_EMAILS=${ADMIN_EMAILS}
-      - NODE_ENV=production
-    volumes:
-      - auth-data:/app/data
     networks:
       - wpm-net
 
@@ -106,9 +62,7 @@ services:
       - wpm-net
 
 volumes:
-  chain-data:
-  keys:
-  auth-data:
+  app-data:
 
 networks:
   wpm-net:

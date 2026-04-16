@@ -1,12 +1,13 @@
-import { MarketCard } from "@/components/market-card";
+import { ItemGroup } from "@/components/ui/item";
+import { MarketItem } from "@/components/market-item";
 import type { MarketWithOdds } from "@wpm/shared";
 
 export function MarketList({ markets }: { markets: MarketWithOdds[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <ItemGroup>
       {markets.map((m) => (
-        <MarketCard key={m.id} market={m} />
+        <MarketItem key={m.id} market={m} />
       ))}
-    </div>
+    </ItemGroup>
   );
 }
