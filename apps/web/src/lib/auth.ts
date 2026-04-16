@@ -1,17 +1,69 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { passkey } from "@better-auth/passkey";
+import { eq } from "drizzle-orm";
 import { db } from "./db";
+import { user } from "./db/schema/auth";
 
 const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:4102";
+
+const pendingProfiles = new Map<string, { displayName: string; color: string; icon: string }>();
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "sqlite" }),
   baseURL: BASE_URL,
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-in/magic-link" && ctx.body) {
+        const { email, displayName, color, icon } = ctx.body;
+        if (email && displayName && color && icon) {
+          pendingProfiles.set(email as string, {
+            displayName: displayName as string,
+            color: color as string,
+            icon: icon as string,
+          });
+        }
+      }
+
+      const newSession = ctx.context.newSession;
+      if (newSession) {
+        const profile = pendingProfiles.get(newSession.user.email);
+        if (profile) {
+          pendingProfiles.delete(newSession.user.email);
+          await db
+            .update(user)
+            .set({
+              display_name: profile.displayName,
+              color: profile.color,
+              icon: profile.icon,
+            })
+            .where(eq(user.id, newSession.user.id));
+        }
+      }
+    }),
+  },
+  user: {
+    additionalFields: {
+      displayName: {
+        type: "string",
+        required: false,
+        fieldName: "display_name",
+      },
+      color: {
+        type: "string",
+        required: false,
+      },
+      icon: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {
