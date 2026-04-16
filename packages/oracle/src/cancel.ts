@@ -3,12 +3,8 @@ import { NflAdapter } from "./adapters/nfl.js";
 import { MlbAdapter } from "./adapters/mlb.js";
 import { WebClient } from "./web-client.js";
 import { OracleError } from "./errors.js";
+import { extractEspnId } from "./market-ids.js";
 import type { Game } from "./types.js";
-
-function extractEspnId(marketId: string): string | undefined {
-  const match = marketId.match(/^(?:nfl|mlb)-(\d+)$/);
-  return match?.[1];
-}
 
 const cancelPostponedGames = (sport: "nfl" | "mlb", getGames: Effect.Effect<Game[], OracleError>) =>
   Effect.gen(function* () {

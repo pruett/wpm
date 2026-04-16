@@ -12,7 +12,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const parsed = ResolveBody.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

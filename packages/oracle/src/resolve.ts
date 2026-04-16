@@ -4,20 +4,8 @@ import { MlbAdapter } from "./adapters/mlb.js";
 import { GolfAdapter } from "./adapters/golf.js";
 import { WebClient } from "./web-client.js";
 import { OracleError } from "./errors.js";
+import { extractEspnId, extractGolfIds } from "./market-ids.js";
 import type { Game } from "./types.js";
-
-function extractEspnId(marketId: string): string | undefined {
-  const match = marketId.match(/^(?:nfl|mlb)-(\d+)$/);
-  return match?.[1];
-}
-
-function extractGolfIds(
-  marketId: string,
-): { tournamentId: string; competitorId: string } | undefined {
-  const match = marketId.match(/^golf-pga-(\d+)-(\d+)$/);
-  if (!match) return undefined;
-  return { tournamentId: match[1], competitorId: match[2] };
-}
 
 function determineOutcome(game: Game): "A" | "B" | undefined {
   if (game.status !== "completed" || !game.winner) return undefined;
@@ -97,7 +85,11 @@ const resolveGolf = Effect.gen(function* () {
     }
 
     const winner = tournament.competitors.find((c) => c.position === 1);
-    const outcome: "A" | "B" = winner?.espnId === ids.competitorId ? "A" : "B";
+    if (!winner) {
+      skipped++;
+      continue;
+    }
+    const outcome: "A" | "B" = winner.espnId === ids.competitorId ? "A" : "B";
 
     yield* web.resolveMarket(market.id, outcome);
     resolved++;
