@@ -24,15 +24,17 @@ Routes, layouts, and server actions following the App Router conventions.
 - `@modal/` — parallel route slot rendering market detail as an intercepted modal over the dashboard.
 - `admin/` — admin pages (markets, users, system). Gated by `src/proxy.ts`.
 - `actions/placeBet.ts`, `actions/sellShares.ts` — server actions for trading. Wrap a synchronous `db.transaction(...)` that updates `balances`, `ammPools`, `positions`, and writes a row to `transactions`. After commit they `publish(...)` to the realtime bus and call `updateTag(...)` to invalidate Next's cache tags.
-- `actions/admin/` — admin server actions: `cancelMarket`, `distributeTokens`, `overrideSeed`, `resolveMarket`.
+- `actions/admin/` — admin server actions: `cancelMarket`, `distributeTokens`, `overrideSeed`, `resolveMarket`. The trade-side actions (`cancelMarket`, `resolveMarket`) are thin wrappers around `lib/market/`.
 - `api/auth/[...all]/` — better-auth's catch-all handler.
+- `api/oracle/` — REST endpoints consumed by the oracle process, authenticated via `requireOracle()` (bearer token from `WPM_ORACLE_SERVICE_TOKEN`). `health/` — liveness check. `markets/` — list open markets (GET) and create a market (POST). `markets/[id]/resolve/` — resolve by outcome. `markets/[id]/cancel/` — cancel (e.g. postponement). These routes delegate to the shared `lib/market/` functions.
 - `api/stream/route.ts` — single SSE endpoint that subscribes to the realtime bus and streams events to the browser. `runtime = "nodejs"`, `dynamic = "force-dynamic"`.
 
 #### `apps/web/src/lib/`
 
 Server-side libraries used by routes and actions.
 
-- `auth.ts`, `auth-client.ts` — better-auth setup with `magicLink` and `passkey` plugins, drizzle adapter on the same SQLite database. Exports `getSession`, `requireUser`, `requireAdmin`, `isAdmin`. Admin membership is derived from the `ADMIN_EMAILS` env var, not stored in the database.
+- `auth.ts`, `auth-client.ts` — better-auth setup with `magicLink` and `passkey` plugins, drizzle adapter on the same SQLite database. Exports `getSession`, `requireUser`, `requireAdmin`, `isAdmin`, `requireOracle`. Admin membership is derived from the `ADMIN_EMAILS` env var, not stored in the database. `requireOracle` validates a bearer token from the `WPM_ORACLE_SERVICE_TOKEN` env var for service-to-service calls.
+- `market/` — extracted market lifecycle logic shared by both admin server actions and oracle API routes: `create.ts`, `resolve.ts`, `cancel.ts`. Each function runs the DB transaction and publishes realtime events.
 - `db/index.ts` — exports a single `better-sqlite3` connection and a Drizzle client. Path comes from `DATABASE_URL` (defaults to `./wpm.db`). `foreign_keys = ON`.
 - `db/schema/app.ts` — application tables: `balances`, `treasury` (singleton, enforced by CHECK constraint), `markets`, `ammPools`, `positions`, `transactions`. The `transactions` table is an append-only audit log of economic events — there are no signatures, blocks, or mempool.
 - `db/schema/auth.ts` — better-auth's tables (generated; do not hand-edit).
@@ -56,17 +58,21 @@ Pure TypeScript library imported by both `apps/web` and `packages/oracle`. No I/
 - `src/amm/` — constant-product AMM math: `calculateBuy`, `calculateSell`, `calculateOdds`. The single source of truth for pricing; both server actions and read-side enrichers go through it.
 - `src/types/` — shared domain types (`Market`, `AMMPool`, `MarketWithOdds`, realtime event types: `PriceUpdateEvent`, `BalanceUpdateEvent`, `MarketResolvedEvent`).
 - `src/crypto/` — hashing and key utilities (legacy from the chain era; still used in spots, scope is shrinking).
-- `src/constants.ts` — token economics constants (`INITIAL_SUPPLY`, `SIGNUP_AIRDROP`) plus port/URL constants left over from the node/api era.
+- `src/oracle/` — oracle API contract types shared between `apps/web` and `packages/oracle`: `CreateMarketRequest`, `ResolveMarketRequest`, `CancelMarketRequest`, `OracleMarket`.
+- `src/constants.ts` — token economics constants (`INITIAL_SUPPLY`, `SIGNUP_AIRDROP`), `WEB_INTERNAL_URL` (base URL for oracle→web communication), plus port/URL constants left over from the node/api era.
 - `src/categories.ts` — sport/category metadata.
 
 ### `packages/oracle/`
 
-Standalone Node process that bridges ESPN data into the system. Uses Effect for orchestration.
+Standalone Node process that bridges ESPN data into the system. Uses Effect for orchestration. Communicates with the web app exclusively through REST endpoints under `/api/oracle/`, authenticated with a shared bearer token (`WPM_ORACLE_SERVICE_TOKEN`).
 
-- `src/index.ts` — entry point. Waits for the downstream service to be healthy, then runs all adapter ingests on a 2-hour `Schedule.fixed` loop.
-- `src/adapters/{nfl,mlb,golf}.ts` — per-sport modules that query ESPN and normalize responses. NFL is the original; MLB and golf followed.
-- `src/ingest.ts`, `src/mlb-ingest.ts`, `src/golf-ingest.ts` — per-sport ingest pipelines that turn adapter output into "create market" requests.
-- `src/node-client.ts` — HTTP client that submits new markets. Currently still points at the old node's `/internal/*` endpoints; the web cutover means this client will need to retarget to a new endpoint inside `apps/web/`. Specifics are TBD.
+- `src/index.ts` — entry point. Waits for the web app to be healthy, then runs two concurrent scheduled loops: an ingest cycle (every 2 hours) that creates new markets, and a resolve/cancel cycle (every 30 minutes) that settles or cancels completed/postponed games. The two loops run with `concurrency: "unbounded"` so neither blocks the other.
+- `src/adapters/{nfl,mlb,golf}.ts` — per-sport modules that query ESPN and normalize responses. NFL is the original; MLB and golf followed. Adapters also expose score and winner fields for completed games, used by the resolve pipeline.
+- `src/ingest.ts`, `src/mlb-ingest.ts`, `src/golf-ingest.ts` — per-sport ingest pipelines that turn adapter output into `CreateMarketRequest` payloads, computing initial AMM reserves via `@wpm/shared`.
+- `src/resolve.ts` — resolve pipeline. Fetches open markets from the web app, matches them to completed ESPN games by ESPN ID, and submits resolution outcomes. Team sports determine winner from score data; golf matches the position-1 competitor (with a guard against missing data).
+- `src/cancel.ts` — cancel pipeline. Detects postponed team-sport games and cancels their corresponding markets.
+- `src/market-ids.ts` — shared helpers (`extractEspnId`, `extractGolfIds`) that parse ESPN IDs out of market ID strings (e.g. `nfl-401234` → `401234`, `golf-pga-401234-56789` → `{ tournamentId, competitorId }`).
+- `src/web-client.ts` — Effect service (`WebClient`) that wraps `@effect/platform`'s HTTP client. Prepends `WEB_INTERNAL_URL`, attaches the bearer token, and exposes typed methods: `health`, `getMarkets`, `createMarket`, `resolveMarket`, `cancelMarket`.
 - `src/errors.ts`, `src/types.ts` — Effect-tagged errors and shared types.
 
 ### Top-level
@@ -100,4 +106,4 @@ Standalone Node process that bridges ESPN data into the system. Uses Effect for 
 - Admin identity lives in `ADMIN_EMAILS`, not in the database. Do not add an `is_admin` column.
 - The realtime bus is process-local. Code must not assume events fan out across processes.
 - The treasury is a singleton row enforced by a CHECK constraint. There is exactly one.
-- The oracle never reads or writes the database directly. It submits market creations through an HTTP boundary (currently the legacy node client; the new target inside `apps/web/` is TBD).
+- The oracle never reads or writes the database directly. It communicates with the web app exclusively through the `/api/oracle/` REST endpoints, authenticated by a shared bearer token (`WPM_ORACLE_SERVICE_TOKEN`).
