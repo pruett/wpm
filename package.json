@@ -10,6 +10,7 @@
     "predev": "kill $(lsof -ti :4100 -i :4101) 2>/dev/null; true",
     "dev": "turbo dev",
     "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules bun.lock",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt --write .",

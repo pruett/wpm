@@ -7,8 +7,8 @@ import { UserMenu } from "./user-menu";
 
 async function BalanceLoader({ userId }: { userId: string }) {
   await connection();
-  const { balance, address } = await getBalance(userId);
-  return <Balance initialBalance={balance} address={address} />;
+  const { balance } = await getBalance(userId);
+  return <Balance initialBalance={balance} userId={userId} />;
 }
 
 export function Header({ user }: { user: { id: string; name: string } }) {

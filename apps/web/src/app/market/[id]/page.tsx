@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { MarketDetail } from "@/components/market-detail";
 
 export default function MarketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,9 +24,6 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
 }
 
 async function MarketPageContent({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, session] = await Promise.all([
-    params,
-    auth.api.getSession({ headers: await headers() }),
-  ]);
+  const [{ id }, session] = await Promise.all([params, getSession()]);
   return <MarketDetail id={id} userId={session?.user.id} />;
 }

@@ -1,63 +1,57 @@
+import { cache } from "react";
+import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { passkey } from "@better-auth/passkey";
-import { EMAIL_FROM, getResend } from "./email";
+import { db } from "./db";
 
-function env(key: string, fallback: string): string {
-  return process.env[key] || fallback;
-}
+const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:4102";
 
-function getDatabase() {
-  const Database = require("better-sqlite3");
-  return new Database(env("DATABASE_PATH", "data/wpm.db"));
-}
+export const auth = betterAuth({
+  database: drizzleAdapter(db, { provider: "sqlite" }),
+  baseURL: BASE_URL,
+  plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, url }) => {
+        // TODO: wire a real email transport. For now, log so dev can click through.
+        console.log(`[magic-link] ${email} → ${url}`);
+      },
+    }),
+    passkey({
+      rpID: new URL(BASE_URL).hostname,
+      rpName: "WPM",
+      origin: BASE_URL,
+    }),
+    nextCookies(),
+  ],
+});
 
-export function isAdmin(session: { user: { email: string } } | null): boolean {
+export type Session = Awaited<ReturnType<typeof auth.api.getSession>>;
+
+export const getSession = cache(async (): Promise<Session> => {
+  return auth.api.getSession({ headers: await headers() });
+});
+
+export function isAdmin(session: Session): boolean {
   if (!session) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
   return adminEmails.includes(session.user.email);
 }
 
-export const auth = betterAuth({
-  baseURL: env("BETTER_AUTH_URL", "http://localhost:4102"),
-  secret: env("BETTER_AUTH_SECRET", "dev-secret-change-me-in-production"),
-  database: getDatabase,
-  user: {
-    additionalFields: {
-      walletPublicKey: {
-        type: "string",
-        required: false,
-        input: false,
-        returned: true,
-      },
-    },
-  },
-  plugins: [
-    magicLink({
-      sendMagicLink: async ({ email, url }) => {
-        if (process.env.NODE_ENV === "development") {
-          console.log(`[Magic Link] ${email}: ${url}`);
-          return;
-        }
+export type ActionResult = { success: true; error?: never } | { success?: never; error: string };
 
-        const result = await getResend().emails.send({
-          from: EMAIL_FROM,
-          to: email,
-          subject: "Your WPM login link",
-          html: `<a href="${url}">Click here to sign in to WPM</a>`,
-        });
+type AuthedSession = NonNullable<Session>;
 
-        if (result.error) {
-          throw new Error(result.error.message);
-        }
-      },
-    }),
-    passkey({
-      rpID: env("RP_ID", "localhost"),
-      rpName: "WPM",
-      origin: env("ORIGIN", "http://localhost:4102"),
-    }),
-    nextCookies(),
-  ],
-});
+export async function requireUser(): Promise<{ session: AuthedSession } | { error: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Not authenticated" };
+  return { session };
+}
+
+export async function requireAdmin(): Promise<{ session: AuthedSession } | { error: string }> {
+  const session = await getSession();
+  if (!isAdmin(session)) return { error: "Unauthorized" };
+  return { session: session as AuthedSession };
+}

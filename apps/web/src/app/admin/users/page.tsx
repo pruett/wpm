@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUsers } from "@/lib/data/users";
 import { DistributeForm } from "@/components/distribute-form";
 
-function truncateAddress(address: string): string {
-  if (address.length <= 12) return address;
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+function truncate(value: string): string {
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
 async function UsersTable() {
@@ -39,10 +39,7 @@ async function UsersTable() {
                   #
                 </th>
                 <th className="px-4 py-2 text-left font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  User ID
-                </th>
-                <th className="px-4 py-2 text-left font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Address
+                  User
                 </th>
                 <th className="px-4 py-2 text-right font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Balance
@@ -61,15 +58,14 @@ async function UsersTable() {
                   <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted-foreground">
                     {i + 1}
                   </td>
-                  <td className="px-4 py-3 font-mono text-sm">{truncateAddress(user.userId)}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                    {truncateAddress(user.address)}
+                  <td className="px-4 py-3 font-mono text-sm">
+                    {user.name || truncate(user.userId)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-sm tabular-nums">
                     {user.balance.toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
-                    <DistributeForm userId={user.userId} address={user.address} />
+                    <DistributeForm userId={user.userId} />
                   </td>
                 </tr>
               ))}

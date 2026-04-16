@@ -4,7 +4,20 @@ export type Transaction =
       to: string;
       amount: number;
       memo: string;
-      signature: string;
+      timestamp: string;
+    }
+  | {
+      type: "Transfer";
+      from: string;
+      to: string;
+      amount: number;
+      timestamp: string;
+    }
+  | {
+      type: "Referral";
+      inviter: string;
+      invitee: string;
+      amount: number;
       timestamp: string;
     }
   | {
@@ -17,7 +30,6 @@ export type Transaction =
       initialProbabilityA?: number;
       logos?: [string, string];
       leagueLogo?: string;
-      signature: string;
       timestamp: string;
     }
   | {
@@ -25,15 +37,21 @@ export type Transaction =
       marketId: string;
       outcome: "A" | "B";
       amount: number;
-      submitter: string;
-      signature: string;
+      userId: string;
+      timestamp: string;
+    }
+  | {
+      type: "SellShares";
+      marketId: string;
+      outcome: "A" | "B";
+      shares: number;
+      userId: string;
       timestamp: string;
     }
   | {
       type: "ResolveMarket";
       marketId: string;
       result: "A" | "B";
-      signature: string;
       timestamp: string;
     }
   | {
@@ -42,28 +60,14 @@ export type Transaction =
       to: string;
       shares: number;
       amount: number;
-      signature: string;
       timestamp: string;
     }
   | {
-      type: "SellShares";
+      type: "CancelMarket";
       marketId: string;
-      outcome: "A" | "B";
-      shares: number;
-      submitter: string;
-      signature: string;
+      reason: string;
       timestamp: string;
     };
-
-export type Block = {
-  index: number;
-  timestamp: string;
-  transactions: Transaction[];
-  previousHash: string;
-  hash: string;
-  signature: string;
-  signer: string;
-};
 
 export type Market = {
   id: string;
@@ -85,7 +89,7 @@ export type AMMPool = {
 };
 
 export type SharePosition = {
-  owner: string;
+  userId: string;
   marketId: string;
   outcome: "A" | "B";
   shares: number;
@@ -103,7 +107,7 @@ export type MarketWithOdds = Market & {
 
 export type MarketBettor = {
   name: string;
-  address: string;
+  userId: string;
   outcome: "A" | "B";
   shares: number;
   costBasis: number;
@@ -123,7 +127,7 @@ export type MarketResolvedEvent = {
 
 export type BalanceUpdateEvent = {
   type: "balance:update";
-  address: string;
+  userId: string;
   balance: number;
 };
 
@@ -152,13 +156,7 @@ export type MarketsResponse = {
 };
 
 export type LeaderboardEntry = {
+  userId: string;
   name: string;
-  address: string;
-  balance: number;
-};
-
-export type WalletResponse = {
-  token: string;
-  address: string;
   balance: number;
 };

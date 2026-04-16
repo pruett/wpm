@@ -1,10 +1,10 @@
 import { cacheLife, cacheTag } from "next/cache";
-
-const API_BASE = process.env.WPM_API_URL ?? "http://localhost:4101";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { balances } from "@/lib/db/schema";
 
 export type BalanceData = {
   balance: number;
-  address: string;
 };
 
 export async function getBalance(userId: string): Promise<BalanceData> {
@@ -12,14 +12,10 @@ export async function getBalance(userId: string): Promise<BalanceData> {
   cacheLife("minutes");
   cacheTag(`viewer:${userId}`);
 
-  const res = await fetch(`${API_BASE}/api/wallet`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
+  const row = await db.query.balances.findFirst({
+    where: eq(balances.userId, userId),
+    columns: { amount: true },
   });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch balance: ${res.status}`);
-  }
-  const data = (await res.json()) as { token: string; address: string; balance: number };
-  return { balance: data.balance, address: data.address };
+
+  return { balance: row?.amount ?? 0 };
 }

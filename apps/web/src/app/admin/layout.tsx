@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { auth, isAdmin } from "@/lib/auth";
+import { getSession, isAdmin } from "@/lib/auth";
 import { AdminNav } from "@/components/admin-nav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!isAdmin(session)) {
     notFound();

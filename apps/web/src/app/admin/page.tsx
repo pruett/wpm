@@ -3,35 +3,17 @@ import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMarkets } from "@/lib/data/markets";
 import { getUsers } from "@/lib/data/users";
-import { getBlocks } from "@/lib/data/blocks";
 import { getHealth } from "@/lib/data/health";
 
 async function OverviewCards() {
   await connection();
-  const [marketsData, users, blocks, health] = await Promise.all([
-    getMarkets(),
-    getUsers(),
-    getBlocks(),
-    getHealth(),
-  ]);
+  const [marketsData, users, health] = await Promise.all([getMarkets(), getUsers(), getHealth()]);
 
   const activeMarkets = marketsData.markets.filter((m) => m.status === "open").length;
   const totalMarkets = marketsData.markets.length;
-  const chainHeight = blocks.length > 0 ? blocks[blocks.length - 1].index : 0;
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const signupsToday = blocks
-    .flatMap((b) => b.transactions)
-    .filter(
-      (tx) =>
-        tx.type === "Distribute" &&
-        tx.memo === "signup_airdrop" &&
-        new Date(tx.timestamp) >= todayStart,
-    ).length;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
@@ -47,24 +29,12 @@ async function OverviewCards() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Signups Today
+            Users
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="font-mono text-3xl font-black tabular-nums">{signupsToday}</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">{users.length} total users</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Chain Height
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="font-mono text-3xl font-black tabular-nums">{chainHeight}</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">{blocks.length} blocks</p>
+          <p className="font-mono text-3xl font-black tabular-nums">{users.length}</p>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">registered</p>
         </CardContent>
       </Card>
 
@@ -98,8 +68,8 @@ export default function AdminPage() {
       <h1 className="mb-6 font-mono text-2xl font-black uppercase tracking-wider">Overview</h1>
       <Suspense
         fallback={
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
               <Card key={i}>
                 <CardHeader className="pb-2">
                   <div className="h-3 w-20 animate-pulse rounded bg-muted" />

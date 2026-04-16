@@ -26,7 +26,7 @@ function formatEvent(event: SSEEvent): { label: string; detail: string } {
     case "balance:update":
       return {
         label: "Balance Update",
-        detail: `${event.address.slice(0, 12)}… — ${event.balance.toLocaleString()} WPM`,
+        detail: `${event.userId.slice(0, 12)}… — ${event.balance.toLocaleString()} WPM`,
       };
   }
 }

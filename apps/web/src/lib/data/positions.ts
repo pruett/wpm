@@ -1,28 +1,46 @@
 import { cacheLife, cacheTag } from "next/cache";
+import { eq } from "drizzle-orm";
 import type { SharePosition } from "@wpm/shared";
-
-const API_BASE = process.env.WPM_API_URL ?? "http://localhost:4101";
+import { db } from "@/lib/db";
+import { positions } from "@/lib/db/schema";
 
 export async function getPositions(userId: string): Promise<SharePosition[]> {
   "use cache";
   cacheLife("minutes");
   cacheTag(`viewer:${userId}`);
 
-  const walletRes = await fetch(`${API_BASE}/api/wallet`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
+  const rows = await db.query.positions.findMany({
+    where: eq(positions.userId, userId),
   });
-  if (!walletRes.ok) {
-    throw new Error(`Failed to fetch wallet for positions: ${walletRes.status}`);
-  }
-  const { token } = (await walletRes.json()) as { token: string };
 
-  const res = await fetch(`${API_BASE}/api/positions`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch positions: ${res.status}`);
+  const result: SharePosition[] = [];
+  for (const row of rows) {
+    const total = row.sharesA + row.sharesB;
+    if (total === 0) continue;
+
+    // Cost basis is stored once per (user, market) row; split proportionally
+    // across outcomes the user holds so the per-outcome SharePosition shape holds.
+    const basisA = Math.round((row.costBasis * row.sharesA) / total);
+    const basisB = row.costBasis - basisA;
+
+    if (row.sharesA > 0) {
+      result.push({
+        userId: row.userId,
+        marketId: row.marketId,
+        outcome: "A",
+        shares: row.sharesA,
+        costBasis: basisA,
+      });
+    }
+    if (row.sharesB > 0) {
+      result.push({
+        userId: row.userId,
+        marketId: row.marketId,
+        outcome: "B",
+        shares: row.sharesB,
+        costBasis: basisB,
+      });
+    }
   }
-  return res.json();
+  return result;
 }

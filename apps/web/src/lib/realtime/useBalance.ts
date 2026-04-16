@@ -3,15 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRealtime } from "./RealtimeProvider";
 
-export function useBalance(address: string, initialBalance: number): number {
+export function useBalance(userId: string, initialBalance: number): number {
   const [balance, setBalance] = useState(initialBalance);
   const { lastEvent } = useRealtime();
 
   useEffect(() => {
-    if (lastEvent?.type === "balance:update" && lastEvent.address === address) {
+    if (lastEvent?.type === "balance:update" && lastEvent.userId === userId) {
       setBalance(lastEvent.balance);
     }
-  }, [lastEvent, address]);
+  }, [lastEvent, userId]);
 
   return balance;
 }

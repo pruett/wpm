@@ -1,7 +1,5 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
-import { provisionWalletIfNeeded } from "@/lib/wallet/provisionWalletIfNeeded";
+import { getSession } from "@/lib/auth";
 import { Dashboard } from "./dashboard";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { Landing } from "./landing";
@@ -9,19 +7,20 @@ import { Header } from "@/components/header";
 import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
 import { Portfolio } from "@/components/portfolio";
 
-export default async function Home() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+async function HomeContent() {
+  const session = await getSession();
 
   if (!session) {
     return <Landing />;
   }
-
-  await provisionWalletIfNeeded({
-    id: session.user.id,
-    walletPublicKey: session.user.walletPublicKey,
-  });
 
   return (
     <RealtimeProvider>

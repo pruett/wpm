@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { MarketSheet } from "@/components/market-sheet";
 import { MarketDetail } from "@/components/market-detail";
 
@@ -17,9 +16,6 @@ export default function MarketModal({ params }: { params: Promise<{ id: string }
 }
 
 async function MarketModalContent({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, session] = await Promise.all([
-    params,
-    auth.api.getSession({ headers: await headers() }),
-  ]);
+  const [{ id }, session] = await Promise.all([params, getSession()]);
   return <MarketDetail id={id} userId={session?.user.id} />;
 }

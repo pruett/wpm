@@ -3,7 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   output: "standalone",
-  serverExternalPackages: ["better-sqlite3"],
+  transpilePackages: ["@wpm/shared"],
+  outputFileTracingIncludes: {
+    "/**/*": ["./src/lib/db/migrations/**/*"],
+  },
 };
 
 export default nextConfig;

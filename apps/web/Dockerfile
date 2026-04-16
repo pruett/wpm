@@ -6,7 +6,6 @@ WORKDIR /app
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=bun /usr/local/bin/bunx /usr/local/bin/bunx
-RUN apk add --no-cache python3 make g++
 
 COPY package.json turbo.json tsconfig.json bun.lock ./
 COPY packages/shared/package.json packages/shared/
@@ -30,8 +29,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-
-RUN mkdir -p data && chown nextjs:nodejs data
 
 USER nextjs
 

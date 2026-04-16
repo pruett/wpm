@@ -5,12 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { distributeTokens } from "@/app/actions/admin/distributeTokens";
 
-type DistributeFormProps = {
-  userId: string;
-  address: string;
-};
-
-export function DistributeForm({ userId, address }: DistributeFormProps) {
+export function DistributeForm({ userId }: { userId: string }) {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -25,7 +20,7 @@ export function DistributeForm({ userId, address }: DistributeFormProps) {
       if (result.error) {
         setMessage({ type: "error", text: result.error });
       } else {
-        setMessage({ type: "success", text: `Sent ${amount} WPM to ${address.slice(0, 8)}…` });
+        setMessage({ type: "success", text: `Sent ${amount} WPM to ${userId.slice(0, 8)}…` });
         setAmount("");
       }
     });

@@ -1,4 +1,4 @@
-import type { AMMPool } from "../types/index.js";
+import type { AMMPool } from "../types/index";
 
 export function initializePool(
   marketId: string,

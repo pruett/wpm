@@ -1,10 +1,11 @@
 import { cacheLife, cacheTag } from "next/cache";
-
-const API_BASE = process.env.WPM_API_URL ?? "http://localhost:4101";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { balances, user } from "@/lib/db/schema";
 
 export type UserEntry = {
   userId: string;
-  address: string;
+  name: string;
   balance: number;
 };
 
@@ -13,9 +14,15 @@ export async function getUsers(): Promise<UserEntry[]> {
   cacheLife("minutes");
   cacheTag("users");
 
-  const res = await fetch(`${API_BASE}/api/leaderboard`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch users: ${res.status}`);
-  }
-  return res.json();
+  const rows = await db
+    .select({
+      userId: user.id,
+      name: user.name,
+      balance: balances.amount,
+    })
+    .from(user)
+    .innerJoin(balances, eq(balances.userId, user.id))
+    .orderBy(desc(balances.amount));
+
+  return rows;
 }
