@@ -2,7 +2,6 @@ import { eq, sql } from "drizzle-orm";
 import type { CreateMarketRequest } from "@wpm/shared";
 import { db } from "@/lib/db";
 import { ammPools, markets, transactions, treasury } from "@/lib/db/schema";
-import { publish } from "@/lib/realtime/bus";
 import { updateTag } from "next/cache";
 
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };

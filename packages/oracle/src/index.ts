@@ -53,10 +53,13 @@ const program = Effect.gen(function* () {
   );
   yield* Effect.logInfo("Web app is healthy");
 
-  yield* Effect.all([
-    runIngestCycle.pipe(Effect.repeat(Schedule.fixed("2 hours"))),
-    runResolveCycle.pipe(Effect.repeat(Schedule.fixed("30 minutes"))),
-  ]);
+  yield* Effect.all(
+    [
+      runIngestCycle.pipe(Effect.repeat(Schedule.fixed("2 hours"))),
+      runResolveCycle.pipe(Effect.repeat(Schedule.fixed("30 minutes"))),
+    ],
+    { concurrency: "unbounded" },
+  );
 });
 
 const ServicesLive = Layer.mergeAll(
