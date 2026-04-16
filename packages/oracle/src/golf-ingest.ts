@@ -1,41 +1,14 @@
 import { Effect } from "effect";
+import { initializePool, type CreateMarketRequest } from "@wpm/shared";
 import { GolfAdapter, parseScore, type Competitor } from "./adapters/golf.js";
-import { NodeClient } from "./node-client.js";
+import { WebClient } from "./web-client.js";
 import { OracleError } from "./errors.js";
 
-/**
- * Golf tournaments have many possible winners, but each market must be binary.
- * Following Kalshi/Polymarket's proven pattern: decompose each tournament into
- * independent per-golfer contracts — "Will [Golfer] win [Tournament]?" → Yes / No.
- *
- * Each golfer becomes a standalone binary market. The Yes outcome pays out if
- * that golfer wins; No pays out otherwise. This lets the existing constant-product
- * AMM price each golfer's probability independently, and traders can build
- * multi-golfer positions by combining individual contracts.
- *
- * Markets are only created once the final round (round 4) is in progress,
- * giving users a betting window on Sunday morning with three rounds of
- * leaderboard context.
- */
 const SEED_AMOUNT = 100;
-
-/** Betting window from market creation until close (4 hours). */
 const BETTING_WINDOW_MS = 4 * 60 * 60 * 1000;
-
-/** Standard PGA final round number. */
 const FINAL_ROUND = 4;
-
-/** Exponential decay constant — each stroke back roughly halves win probability. */
 const DECAY_K = 0.5;
 
-/**
- * Compute win probabilities from leaderboard scores using exponential decay.
- *
- * weight(golfer) = e^(-k * strokes_behind_leader)
- * probability(golfer) = weight(golfer) / sum(all_weights)
- *
- * Returns a Map<espnId, probability>.
- */
 export function scoreToProbabilities(competitors: Competitor[]): Map<string, number> {
   const probs = new Map<string, number>();
   if (competitors.length === 0) return probs;
@@ -64,15 +37,12 @@ export function scoreToProbabilities(competitors: Competitor[]): Map<string, num
 
 export const golfIngest = Effect.gen(function* () {
   const golf = yield* GolfAdapter;
-  const node = yield* NodeClient;
+  const web = yield* WebClient;
 
   const tournaments = yield* golf.getUpcomingTournaments;
   const finalRound = tournaments.filter(
     (t) => t.status === "in_progress" && t.round === FINAL_ROUND,
   );
-
-  const existing = yield* node.getMarkets;
-  const existingIds = new Set(existing.map((e) => e.market.id));
 
   let created = 0;
   let skipped = 0;
@@ -82,21 +52,29 @@ export const golfIngest = Effect.gen(function* () {
 
     for (const competitor of tournament.competitors) {
       const marketId = `golf-pga-${tournament.espnId}-${competitor.espnId}`;
-      if (existingIds.has(marketId)) {
-        skipped++;
-        continue;
-      }
+      const initialProbabilityA = probabilities.get(competitor.espnId);
+      const pool = initializePool(marketId, SEED_AMOUNT, initialProbabilityA);
+      const closesAt = new Date(Date.now() + BETTING_WINDOW_MS).toISOString();
 
-      yield* node.createMarket({
+      const params: CreateMarketRequest = {
         id: marketId,
+        sport: "golf-pga",
         name: `${competitor.name} to win ${tournament.name}`,
-        outcomes: ["Yes", "No"],
-        closesAt: new Date(Date.now() + BETTING_WINDOW_MS).toISOString(),
-        seedAmount: SEED_AMOUNT,
-        initialProbabilityA: probabilities.get(competitor.espnId),
+        teamA: "Yes",
+        teamB: "No",
         leagueLogo: tournament.leagueLogo || undefined,
-      });
-      created++;
+        startTime: closesAt,
+        bettingClosesAt: closesAt,
+        seedAmount: SEED_AMOUNT,
+        initialProbabilityA,
+        reserveA: pool.sharesA,
+        reserveB: pool.sharesB,
+        wpmReserve: pool.liquidity,
+      };
+
+      const result = yield* web.createMarket(params);
+      if (result.created) created++;
+      else skipped++;
     }
   }
 

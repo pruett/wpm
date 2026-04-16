@@ -16,3 +16,10 @@ export const NODE_INTERNAL_URL =
 
 /** Base URL for the Effect API server. Override with API_URL env var. */
 export const API_URL = globalThis.process?.env?.API_URL || `http://localhost:${API_PORT}`;
+
+/** Port the web app listens on. Override with WEB_PORT env var. */
+export const WEB_PORT = Number(globalThis.process?.env?.WEB_PORT) || 3000;
+
+/** Base URL for the web app's internal API. Override with WEB_INTERNAL_URL env var. */
+export const WEB_INTERNAL_URL =
+  globalThis.process?.env?.WEB_INTERNAL_URL || `http://localhost:${WEB_PORT}`;

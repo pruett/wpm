@@ -12,4 +12,7 @@ export type Game = {
   readonly status: GameStatus;
   readonly awayMoneyline?: number;
   readonly homeMoneyline?: number;
+  readonly homeScore?: number;
+  readonly awayScore?: number;
+  readonly winner?: "home" | "away";
 };

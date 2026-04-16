@@ -42,6 +42,13 @@ export function isAdmin(session: Session): boolean {
 
 export type ActionResult = { success: true; error?: never } | { success?: never; error: string };
 
+export function requireOracle(request: Request): { ok: true } | { error: string; status: number } {
+  const token = request.headers.get("authorization")?.replace("Bearer ", "");
+  const expected = process.env.WPM_ORACLE_SERVICE_TOKEN;
+  if (!expected || token !== expected) return { error: "Unauthorized", status: 401 };
+  return { ok: true };
+}
+
 type AuthedSession = NonNullable<Session>;
 
 export async function requireUser(): Promise<{ session: AuthedSession } | { error: string }> {

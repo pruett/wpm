@@ -47,6 +47,8 @@ const EspnNflCompetitor = Schema.Struct({
     displayName: Schema.String,
     logo: Schema.optionalWith(Schema.String, { default: () => "" }),
   }),
+  score: Schema.optionalWith(Schema.String, { default: () => "" }),
+  winner: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 });
 
 const EspnNflEvent = Schema.Struct({
@@ -110,6 +112,10 @@ export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
     const home = competition.competitors.find((c) => c.homeAway === "home");
     const away = competition.competitors.find((c) => c.homeAway === "away");
     const statusName = event.status.type.name;
+    const homeScore = home?.score ? Number(home.score) : undefined;
+    const awayScore = away?.score ? Number(away.score) : undefined;
+    const winner = home?.winner ? ("home" as const) : away?.winner ? ("away" as const) : undefined;
+
     return {
       espnId: event.id,
       name: `${away?.team.displayName ?? "Unknown"} vs ${home?.team.displayName ?? "Unknown"}`,
@@ -120,6 +126,9 @@ export function parseEspnNflResponse(data: EspnNflScoreboardResponse): Game[] {
       leagueLogo,
       startTime: event.date,
       status: STATUS_MAP[statusName] ?? "scheduled",
+      homeScore: Number.isFinite(homeScore) ? homeScore : undefined,
+      awayScore: Number.isFinite(awayScore) ? awayScore : undefined,
+      winner,
     };
   });
 }

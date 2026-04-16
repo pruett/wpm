@@ -2,10 +2,10 @@ import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect, Layer, Ref } from "effect";
 import { NflAdapter } from "../src/adapters/nfl.js";
-import { NodeClient, type CreateMarketParams } from "../src/node-client.js";
+import { WebClient } from "../src/web-client.js";
 import { ingest } from "../src/ingest.js";
 import type { Game } from "../src/types.js";
-import type { Market, AMMPool } from "@wpm/shared";
+import type { CreateMarketRequest, OracleMarket } from "@wpm/shared";
 
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
@@ -22,16 +22,16 @@ function makeGame(overrides: Partial<Game> = {}): Game {
   };
 }
 
-function makeMarketEntry(id: string, name: string): { market: Market; pool: AMMPool } {
+function toOracleMarket(params: CreateMarketRequest): OracleMarket {
   return {
-    market: {
-      id,
-      name,
-      outcomes: ["Away", "Home"],
-      closesAt: "2026-02-08T23:30Z",
-      status: "open",
-    },
-    pool: { marketId: id, sharesA: 1000, sharesB: 1000, k: 1_000_000, liquidity: 1000 },
+    id: params.id,
+    sport: params.sport,
+    name: params.name,
+    teamA: params.teamA,
+    teamB: params.teamB,
+    startTime: new Date(params.startTime).getTime(),
+    bettingClosesAt: new Date(params.bettingClosesAt).getTime(),
+    status: "open",
   };
 }
 
@@ -41,19 +41,27 @@ function makeFakeNfl(games: Game[]) {
   });
 }
 
-function makeFakeNode(initialMarkets: Array<{ market: Market; pool: AMMPool }> = []) {
+function makeFakeWeb() {
   return Layer.effect(
-    NodeClient,
+    WebClient,
     Effect.gen(function* () {
-      const marketsRef = yield* Ref.make(initialMarkets);
+      const marketsRef = yield* Ref.make<OracleMarket[]>([]);
       return {
-        getMarkets: Ref.get(marketsRef),
-        createMarket: (params: CreateMarketParams) =>
-          Ref.update(marketsRef, (markets) => [
-            ...markets,
-            makeMarketEntry(params.id, params.name),
-          ]).pipe(Effect.asVoid),
         health: Effect.succeed(true as boolean),
+        getMarkets: Ref.get(marketsRef),
+        createMarket: (params: CreateMarketRequest) =>
+          Ref.get(marketsRef).pipe(
+            Effect.flatMap((markets) => {
+              if (markets.some((m) => m.id === params.id)) {
+                return Effect.succeed({ created: false });
+              }
+              return Ref.update(marketsRef, (ms) => [...ms, toOracleMarket(params)]).pipe(
+                Effect.as({ created: true }),
+              );
+            }),
+          ),
+        resolveMarket: () => Effect.void,
+        cancelMarket: () => Effect.void,
       };
     }),
   );
@@ -66,10 +74,10 @@ describe("Ingest", () => {
       expect(result.created).toBe(3);
       expect(result.skipped).toBe(0);
 
-      const node = yield* NodeClient;
-      const markets = yield* node.getMarkets;
+      const web = yield* WebClient;
+      const markets = yield* web.getMarkets;
       expect(markets).toHaveLength(3);
-      expect(markets.map((m) => m.market.id)).toEqual(["nfl-100", "nfl-200", "nfl-300"]);
+      expect(markets.map((m) => m.id)).toEqual(["nfl-100", "nfl-200", "nfl-300"]);
     }).pipe(
       Effect.provide(
         Layer.merge(
@@ -78,7 +86,7 @@ describe("Ingest", () => {
             makeGame({ espnId: "200", name: "Cowboys vs Giants" }),
             makeGame({ espnId: "300", name: "Bills vs Dolphins" }),
           ]),
-          makeFakeNode(),
+          makeFakeWeb(),
         ),
       ),
     ),
@@ -93,8 +101,8 @@ describe("Ingest", () => {
       expect(r2.created).toBe(0);
       expect(r2.skipped).toBe(3);
 
-      const node = yield* NodeClient;
-      const markets = yield* node.getMarkets;
+      const web = yield* WebClient;
+      const markets = yield* web.getMarkets;
       expect(markets).toHaveLength(3);
     }).pipe(
       Effect.provide(
@@ -104,7 +112,7 @@ describe("Ingest", () => {
             makeGame({ espnId: "200" }),
             makeGame({ espnId: "300" }),
           ]),
-          makeFakeNode(),
+          makeFakeWeb(),
         ),
       ),
     ),
@@ -115,10 +123,10 @@ describe("Ingest", () => {
       const result = yield* ingest;
       expect(result.created).toBe(2);
 
-      const node = yield* NodeClient;
-      const markets = yield* node.getMarkets;
+      const web = yield* WebClient;
+      const markets = yield* web.getMarkets;
       expect(markets).toHaveLength(2);
-      expect(markets.map((m) => m.market.id)).toEqual(["nfl-100", "nfl-200"]);
+      expect(markets.map((m) => m.id)).toEqual(["nfl-100", "nfl-200"]);
     }).pipe(
       Effect.provide(
         Layer.merge(
@@ -129,7 +137,7 @@ describe("Ingest", () => {
             makeGame({ espnId: "400", status: "completed" }),
             makeGame({ espnId: "500", status: "postponed" }),
           ]),
-          makeFakeNode(),
+          makeFakeWeb(),
         ),
       ),
     ),
