@@ -2,10 +2,10 @@ import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect, Layer, Ref } from "effect";
 import { GolfAdapter, type Tournament } from "../src/adapters/golf.js";
-import { NodeClient, type CreateMarketParams } from "../src/node-client.js";
+import { WebClient } from "../src/web-client.js";
 import { golfIngest, scoreToProbabilities } from "../src/golf-ingest.js";
 import { parseScore } from "../src/adapters/golf.js";
-import type { Market, AMMPool } from "@wpm/shared";
+import type { CreateMarketRequest, OracleMarket } from "@wpm/shared";
 
 function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
   return {
@@ -24,16 +24,16 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
   };
 }
 
-function makeMarketEntry(id: string, name: string): { market: Market; pool: AMMPool } {
+function toOracleMarket(params: CreateMarketRequest): OracleMarket {
   return {
-    market: {
-      id,
-      name,
-      outcomes: ["Yes", "No"],
-      closesAt: "2026-04-10T13:00Z",
-      status: "open",
-    },
-    pool: { marketId: id, sharesA: 100, sharesB: 100, k: 10_000, liquidity: 100 },
+    id: params.id,
+    sport: params.sport,
+    name: params.name,
+    teamA: params.teamA,
+    teamB: params.teamB,
+    startTime: new Date(params.startTime).getTime(),
+    bettingClosesAt: new Date(params.bettingClosesAt).getTime(),
+    status: "open",
   };
 }
 
@@ -43,25 +43,28 @@ function makeFakeGolf(tournaments: Tournament[]) {
   });
 }
 
-function makeFakeNode(initialMarkets: Array<{ market: Market; pool: AMMPool }> = []) {
+function makeFakeWeb(opts?: { onCreateMarket?: (params: CreateMarketRequest) => void }) {
   return Layer.effect(
-    NodeClient,
+    WebClient,
     Effect.gen(function* () {
-      const marketsRef = yield* Ref.make(initialMarkets);
-      const paramsRef = yield* Ref.make<CreateMarketParams[]>([]);
+      const marketsRef = yield* Ref.make<OracleMarket[]>([]);
       return {
-        getMarkets: Ref.get(marketsRef),
-        createMarket: (params: CreateMarketParams) =>
-          Effect.all([
-            Ref.update(marketsRef, (markets) => [
-              ...markets,
-              makeMarketEntry(params.id, params.name),
-            ]),
-            Ref.update(paramsRef, (all) => [...all, params]),
-          ]).pipe(Effect.asVoid),
         health: Effect.succeed(true as boolean),
-        /** Exposed for test assertions — not part of NodeClient interface. */
-        _getCreateParams: Ref.get(paramsRef),
+        getMarkets: Ref.get(marketsRef),
+        createMarket: (params: CreateMarketRequest) =>
+          Ref.get(marketsRef).pipe(
+            Effect.flatMap((markets) => {
+              opts?.onCreateMarket?.(params);
+              if (markets.some((m) => m.id === params.id)) {
+                return Effect.succeed({ created: false });
+              }
+              return Ref.update(marketsRef, (ms) => [...ms, toOracleMarket(params)]).pipe(
+                Effect.as({ created: true }),
+              );
+            }),
+          ),
+        resolveMarket: () => Effect.void,
+        cancelMarket: () => Effect.void,
       };
     }),
   );
@@ -71,31 +74,26 @@ describe("Golf Ingest", () => {
   it.effect("creates binary markets only for final-round tournaments", () =>
     Effect.gen(function* () {
       const result = yield* golfIngest;
-
-      // 2 golfers from final-round Masters + 2 from final-round Open = 4
-      // Scheduled, early-round, and completed tournaments are filtered out
       expect(result.created).toBe(4);
       expect(result.skipped).toBe(0);
 
-      const node = yield* NodeClient;
-      const markets = yield* node.getMarkets;
+      const web = yield* WebClient;
+      const markets = yield* web.getMarkets;
       expect(markets).toHaveLength(4);
 
-      // Correct market IDs across both tournaments
-      expect(markets.map((m) => m.market.id)).toEqual([
+      expect(markets.map((m) => m.id)).toEqual([
         "golf-pga-100-1",
         "golf-pga-100-2",
         "golf-pga-200-3",
         "golf-pga-200-4",
       ]);
 
-      // Market names follow "Golfer to win Tournament" pattern
-      expect(markets[0].market.name).toBe("Golfer A to win The Masters");
-      expect(markets[2].market.name).toBe("Golfer C to win The Open");
+      expect(markets[0].name).toBe("Golfer A to win The Masters");
+      expect(markets[2].name).toBe("Golfer C to win The Open");
 
-      // All golf markets are binary Yes/No
       for (const m of markets) {
-        expect(m.market.outcomes).toEqual(["Yes", "No"]);
+        expect(m.teamA).toBe("Yes");
+        expect(m.teamB).toBe("No");
       }
     }).pipe(
       Effect.provide(
@@ -125,7 +123,7 @@ describe("Golf Ingest", () => {
             makeTournament({ espnId: "400", status: "in_progress", round: 2 }),
             makeTournament({ espnId: "500", status: "completed", round: 4 }),
           ]),
-          makeFakeNode(),
+          makeFakeWeb(),
         ),
       ),
     ),
@@ -140,10 +138,10 @@ describe("Golf Ingest", () => {
       expect(r2.created).toBe(0);
       expect(r2.skipped).toBe(3);
 
-      const node = yield* NodeClient;
-      const markets = yield* node.getMarkets;
+      const web = yield* WebClient;
+      const markets = yield* web.getMarkets;
       expect(markets).toHaveLength(3);
-    }).pipe(Effect.provide(Layer.merge(makeFakeGolf([makeTournament()]), makeFakeNode()))),
+    }).pipe(Effect.provide(Layer.merge(makeFakeGolf([makeTournament()]), makeFakeWeb()))),
   );
 
   it.effect("handles empty field gracefully", () =>
@@ -153,38 +151,41 @@ describe("Golf Ingest", () => {
       expect(result.skipped).toBe(0);
     }).pipe(
       Effect.provide(
-        Layer.merge(makeFakeGolf([makeTournament({ competitors: [] })]), makeFakeNode()),
+        Layer.merge(makeFakeGolf([makeTournament({ competitors: [] })]), makeFakeWeb()),
       ),
     ),
   );
 
-  it.effect("passes initialProbabilityA to createMarket", () =>
-    Effect.gen(function* () {
+  it.effect("passes initialProbabilityA to createMarket", () => {
+    const captured: CreateMarketRequest[] = [];
+    return Effect.gen(function* () {
       yield* golfIngest;
 
-      const node = yield* NodeClient;
-      // Access the captured params via the extended fake
-      const params: CreateMarketParams[] = yield* (node as any)._getCreateParams;
+      expect(captured).toHaveLength(3);
 
-      expect(params).toHaveLength(3);
-
-      // All should have initialProbabilityA defined
-      for (const p of params) {
+      for (const p of captured) {
         expect(p.initialProbabilityA).toBeDefined();
-        expect(p.initialProbabilityA).toBeGreaterThan(0);
-        expect(p.initialProbabilityA).toBeLessThan(1);
+        expect(p.initialProbabilityA!).toBeGreaterThan(0);
+        expect(p.initialProbabilityA!).toBeLessThan(1);
+        expect(p.reserveA).toBeGreaterThan(0);
+        expect(p.reserveB).toBeGreaterThan(0);
       }
 
-      // Leader should have highest probability
-      const leaderProb = params[0].initialProbabilityA!;
-      const trailerProb = params[2].initialProbabilityA!;
+      const leaderProb = captured[0].initialProbabilityA!;
+      const trailerProb = captured[2].initialProbabilityA!;
       expect(leaderProb).toBeGreaterThan(trailerProb);
 
-      // Probabilities should sum to ≈ 1.0
-      const sum = params.reduce((s, p) => s + p.initialProbabilityA!, 0);
+      const sum = captured.reduce((s, p) => s + p.initialProbabilityA!, 0);
       expect(sum).toBeCloseTo(1.0, 5);
-    }).pipe(Effect.provide(Layer.merge(makeFakeGolf([makeTournament()]), makeFakeNode()))),
-  );
+    }).pipe(
+      Effect.provide(
+        Layer.merge(
+          makeFakeGolf([makeTournament()]),
+          makeFakeWeb({ onCreateMarket: (p) => captured.push(p) }),
+        ),
+      ),
+    );
+  });
 });
 
 describe("scoreToProbabilities", () => {

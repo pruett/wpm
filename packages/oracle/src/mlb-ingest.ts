@@ -1,30 +1,24 @@
 import { Effect } from "effect";
+import { initializePool, type CreateMarketRequest } from "@wpm/shared";
 import { MlbAdapter } from "./adapters/mlb.js";
 import { moneylineToFairProbability } from "./adapters/nfl.js";
-import { NodeClient } from "./node-client.js";
+import { WebClient } from "./web-client.js";
 import { OracleError } from "./errors.js";
 
 const SEED_AMOUNT = 1000;
 
 export const mlbIngest = Effect.gen(function* () {
   const mlb = yield* MlbAdapter;
-  const node = yield* NodeClient;
+  const web = yield* WebClient;
 
   const games = yield* mlb.getUpcomingGames;
   const scheduled = games.filter((g) => g.status === "scheduled");
-
-  const existing = yield* node.getMarkets;
-  const existingIds = new Set(existing.map((e) => e.market.id));
 
   let created = 0;
   let skipped = 0;
 
   for (const game of scheduled) {
     const marketId = `mlb-${game.espnId}`;
-    if (existingIds.has(marketId)) {
-      skipped++;
-      continue;
-    }
 
     let initialProbabilityA: number | undefined;
     if (game.awayMoneyline !== undefined && game.homeMoneyline !== undefined) {
@@ -32,20 +26,29 @@ export const mlbIngest = Effect.gen(function* () {
       initialProbabilityA = awayProb;
     }
 
-    const logos: [string, string] | undefined =
-      game.awayLogo && game.homeLogo ? [game.awayLogo, game.homeLogo] : undefined;
+    const pool = initializePool(marketId, SEED_AMOUNT, initialProbabilityA);
 
-    yield* node.createMarket({
+    const params: CreateMarketRequest = {
       id: marketId,
+      sport: "mlb",
       name: game.name,
-      outcomes: [game.awayTeam, game.homeTeam],
-      closesAt: game.startTime,
+      teamA: game.awayTeam,
+      teamB: game.homeTeam,
+      logoA: game.awayLogo || undefined,
+      logoB: game.homeLogo || undefined,
+      leagueLogo: game.leagueLogo || undefined,
+      startTime: game.startTime,
+      bettingClosesAt: game.startTime,
       seedAmount: SEED_AMOUNT,
       initialProbabilityA,
-      logos,
-      leagueLogo: game.leagueLogo || undefined,
-    });
-    created++;
+      reserveA: pool.sharesA,
+      reserveB: pool.sharesB,
+      wpmReserve: pool.liquidity,
+    };
+
+    const result = yield* web.createMarket(params);
+    if (result.created) created++;
+    else skipped++;
   }
 
   yield* Effect.logInfo(`MLB ingest complete: ${created} created, ${skipped} skipped`);
