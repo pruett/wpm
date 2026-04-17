@@ -48,9 +48,9 @@ export async function overrideSeed(
       k: reserveA * reserveB,
       liquidity,
     });
-    publish({ type: "price:update", marketId, ...odds });
-
     updateTag(`market:${marketId}`);
+
+    publish({ type: "price:update", marketId, ...odds });
 
     return { success: true };
   } catch (e) {

@@ -120,11 +120,11 @@ export async function placeBet(input: z.input<typeof PlaceBetInput>): Promise<Ac
       k: newReserveA * newReserveB,
       liquidity: newLiquidity,
     });
-    publish({ type: "price:update", marketId, ...odds });
-    publish({ type: "balance:update", userId, balance: newBalance });
-
     updateTag(`market:${marketId}`);
     updateTag(`viewer:${userId}`);
+
+    publish({ type: "price:update", marketId, ...odds });
+    publish({ type: "balance:update", userId, balance: newBalance });
 
     return { success: true };
   } catch (e) {

@@ -6,15 +6,10 @@ import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/comp
 import type { MarketWithOdds } from "@wpm/shared";
 
 export function MarketItem({ market }: { market: MarketWithOdds }) {
-  const { priceA, priceB } = useMarket(market.id, {
-    priceA: market.priceA,
-    priceB: market.priceB,
-    multiplierA: market.multiplierA,
-    multiplierB: market.multiplierB,
-  });
+  useMarket(market.id);
 
-  const pctA = (priceA * 100).toFixed(0);
-  const pctB = (priceB * 100).toFixed(0);
+  const pctA = (market.priceA * 100).toFixed(0);
+  const pctB = (market.priceB * 100).toFixed(0);
   const closesAt = new Date(market.closesAt);
 
   return (

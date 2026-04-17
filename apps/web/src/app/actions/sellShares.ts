@@ -126,11 +126,11 @@ export async function sellShares(input: z.input<typeof SellSharesInput>): Promis
       k: newReserveA * newReserveB,
       liquidity: newLiquidity,
     });
-    publish({ type: "price:update", marketId, ...odds });
-    publish({ type: "balance:update", userId, balance: newBalance });
-
     updateTag(`market:${marketId}`);
     updateTag(`viewer:${userId}`);
+
+    publish({ type: "price:update", marketId, ...odds });
+    publish({ type: "balance:update", userId, balance: newBalance });
 
     return { success: true };
   } catch (e) {

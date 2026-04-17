@@ -1,17 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRealtime } from "./RealtimeProvider";
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useRealtimeEvent } from "./RealtimeProvider";
 
-export function useBalance(userId: string, initialBalance: number): number {
-  const [balance, setBalance] = useState(initialBalance);
-  const { lastEvent } = useRealtime();
-
-  useEffect(() => {
-    if (lastEvent?.type === "balance:update" && lastEvent.userId === userId) {
-      setBalance(lastEvent.balance);
-    }
-  }, [lastEvent, userId]);
-
-  return balance;
+// Subscribes the current route to balance events for the given user.
+// Matching events invalidate the cached `viewer:<id>` reads (balance,
+// positions) via router.refresh().
+export function useBalance(userId: string): void {
+  const router = useRouter();
+  useRealtimeEvent(
+    useCallback(
+      (event) => {
+        if (event.type === "balance:update" && event.userId === userId) {
+          router.refresh();
+        }
+      },
+      [userId, router],
+    ),
+  );
 }

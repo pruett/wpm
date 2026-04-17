@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreateMarketDialog } from "@/components/create-market-dialog";
 import { getMarkets } from "@/lib/data/markets";
 import { getUsers } from "@/lib/data/users";
 import { getHealth } from "@/lib/data/health";
@@ -65,7 +66,10 @@ async function OverviewCards() {
 export default function AdminPage() {
   return (
     <div>
-      <h1 className="mb-6 font-mono text-2xl font-black uppercase tracking-wider">Overview</h1>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="font-mono text-2xl font-black uppercase tracking-wider">Overview</h1>
+        <CreateMarketDialog />
+      </div>
       <Suspense
         fallback={
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

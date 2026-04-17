@@ -108,14 +108,17 @@ export function resolveMarket(marketId: string, outcome: "A" | "B"): ResolveMark
   if (paidUsers === "already_resolved") return { resolved: true };
   if (!Array.isArray(paidUsers)) return paidUsers;
 
-  publish({ type: "market:resolved", marketId, result: outcome });
   for (const u of paidUsers) {
-    publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
     revalidateTag(`viewer:${u.userId}`, "max");
   }
   revalidateTag("markets", "max");
   revalidateTag(`market:${marketId}`, "max");
   revalidateTag("leaderboard", "max");
+
+  publish({ type: "market:resolved", marketId, result: outcome });
+  for (const u of paidUsers) {
+    publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
+  }
 
   return { resolved: true };
 }

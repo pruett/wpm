@@ -64,11 +64,11 @@ export async function distributeTokens(
       return current + amount;
     });
 
-    publish({ type: "balance:update", userId, balance: newBalance });
-
     updateTag("users");
     updateTag(`viewer:${userId}`);
     updateTag("leaderboard");
+
+    publish({ type: "balance:update", userId, balance: newBalance });
 
     return { success: true };
   } catch (e) {

@@ -69,12 +69,8 @@ type Props = {
 };
 
 export function BetControls({ market, userId, positions }: Props) {
-  const { priceA, priceB, multiplierA, multiplierB } = useMarket(market.id, {
-    priceA: market.priceA,
-    priceB: market.priceB,
-    multiplierA: market.multiplierA,
-    multiplierB: market.multiplierB,
-  });
+  useMarket(market.id);
+  const { priceA, priceB, multiplierA, multiplierB } = market;
 
   const [teamA, teamB] = market.outcomes;
   const logoA = market.logos?.[0];

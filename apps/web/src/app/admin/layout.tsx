@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getSession, isAdmin } from "@/lib/auth";
 import { AdminNav } from "@/components/admin-nav";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+async function AdminGate({ children }: { children: React.ReactNode }) {
   const session = await getSession();
+  if (!isAdmin(session)) notFound();
+  return <>{children}</>;
+}
 
-  if (!isAdmin(session)) {
-    notFound();
-  }
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-svh">
       <header className="border-b border-border">
@@ -34,7 +35,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <aside className="hidden w-48 shrink-0 md:block">
           <AdminNav />
         </aside>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          <Suspense fallback={null}>
+            <AdminGate>{children}</AdminGate>
+          </Suspense>
+        </main>
       </div>
     </div>
   );

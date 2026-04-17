@@ -5,17 +5,12 @@ import { useMarket } from "@/lib/realtime/useMarket";
 type LiveOddsProps = {
   marketId: string;
   outcomes: [string, string];
-  initialPriceA: number;
-  initialPriceB: number;
+  priceA: number;
+  priceB: number;
 };
 
-export function LiveOdds({ marketId, outcomes, initialPriceA, initialPriceB }: LiveOddsProps) {
-  const { priceA, priceB } = useMarket(marketId, {
-    priceA: initialPriceA,
-    priceB: initialPriceB,
-    multiplierA: 0,
-    multiplierB: 0,
-  });
+export function LiveOdds({ marketId, outcomes, priceA, priceB }: LiveOddsProps) {
+  useMarket(marketId);
 
   return (
     <div className="grid grid-cols-2 gap-2">

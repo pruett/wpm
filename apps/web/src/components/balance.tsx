@@ -2,8 +2,8 @@
 
 import { useBalance } from "@/lib/realtime/useBalance";
 
-export function Balance({ initialBalance, userId }: { initialBalance: number; userId: string }) {
-  const balance = useBalance(userId, initialBalance);
+export function Balance({ balance, userId }: { balance: number; userId: string }) {
+  useBalance(userId);
 
   return (
     <span className="font-mono text-sm tabular-nums">

@@ -18,8 +18,8 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
           <LiveOdds
             marketId={market.id}
             outcomes={market.outcomes}
-            initialPriceA={market.priceA}
-            initialPriceB={market.priceB}
+            priceA={market.priceA}
+            priceB={market.priceB}
           />
         </CardContent>
         <CardFooter className="justify-between text-xs text-muted-foreground">

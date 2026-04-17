@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { Dashboard } from "./dashboard";
-import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { Landing } from "./landing";
 import { Header } from "@/components/header";
 import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
@@ -23,7 +22,7 @@ async function HomeContent() {
   }
 
   return (
-    <RealtimeProvider>
+    <>
       <Header user={{ id: session.user.id, name: session.user.name }} />
       <Suspense>
         <ScrollingLeaderboard />
@@ -36,6 +35,6 @@ async function HomeContent() {
           <Portfolio userId={session.user.id} />
         </Suspense>
       </main>
-    </RealtimeProvider>
+    </>
   );
 }

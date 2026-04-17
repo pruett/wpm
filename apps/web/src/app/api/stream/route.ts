@@ -1,29 +1,19 @@
+import { getSession } from "@/lib/auth";
 import { subscribe, type RealtimeEvent } from "@/lib/realtime/bus";
 
 const HEARTBEAT_MS = 15_000;
 
 export async function GET(req: Request) {
+  const session = await getSession();
+  // 204 keeps EventSource from reconnecting. Unauthenticated clients get no stream.
+  if (!session) return new Response(null, { status: 204 });
+
+  const userId = session.user.id;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
-      const safeEnqueue = (chunk: Uint8Array) => {
-        if (closed) return;
-        try {
-          controller.enqueue(chunk);
-        } catch {
-          cleanup();
-        }
-      };
-
-      const send = (event: RealtimeEvent) => {
-        const frame = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
-        safeEnqueue(encoder.encode(frame));
-      };
-
-      const unsubscribe = subscribe(send);
-      const heartbeat = setInterval(() => safeEnqueue(encoder.encode(": ping\n\n")), HEARTBEAT_MS);
 
       const cleanup = () => {
         if (closed) return;
@@ -34,6 +24,25 @@ export async function GET(req: Request) {
           controller.close();
         } catch {}
       };
+
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (closed) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          cleanup();
+        }
+      };
+
+      const send = (event: RealtimeEvent) => {
+        // Per-connection filter: balance updates never leak across users.
+        if (event.type === "balance:update" && event.userId !== userId) return;
+        const frame = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+        safeEnqueue(encoder.encode(frame));
+      };
+
+      const unsubscribe = subscribe(send);
+      const heartbeat = setInterval(() => safeEnqueue(encoder.encode(": ping\n\n")), HEARTBEAT_MS);
 
       req.signal.addEventListener("abort", cleanup);
       safeEnqueue(encoder.encode(": connected\n\n"));

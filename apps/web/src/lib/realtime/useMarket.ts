@@ -1,29 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRealtime } from "./RealtimeProvider";
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useRealtimeEvent } from "./RealtimeProvider";
 
-type MarketPrices = {
-  priceA: number;
-  priceB: number;
-  multiplierA: number;
-  multiplierB: number;
-};
-
-export function useMarket(marketId: string, initial: MarketPrices): MarketPrices {
-  const [prices, setPrices] = useState(initial);
-  const { lastEvent } = useRealtime();
-
-  useEffect(() => {
-    if (lastEvent?.type === "price:update" && lastEvent.marketId === marketId) {
-      setPrices({
-        priceA: lastEvent.priceA,
-        priceB: lastEvent.priceB,
-        multiplierA: lastEvent.multiplierA,
-        multiplierB: lastEvent.multiplierB,
-      });
-    }
-  }, [lastEvent, marketId]);
-
-  return prices;
+// Subscribes the current route to market price/resolution events. Matching
+// events trigger router.refresh(), which re-runs `getMarket` / `getMarkets`
+// against now-invalidated `market:<id>` cache tags. Render fresh prop values
+// directly — no local state to drift from the RSC cache.
+export function useMarket(marketId: string): void {
+  const router = useRouter();
+  useRealtimeEvent(
+    useCallback(
+      (event) => {
+        if (event.type === "price:update" && event.marketId === marketId) {
+          router.refresh();
+          return;
+        }
+        if (event.type === "market:resolved" && event.marketId === marketId) {
+          router.refresh();
+        }
+      },
+      [marketId, router],
+    ),
+  );
 }

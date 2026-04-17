@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { SSEEvent } from "@/lib/realtime/RealtimeProvider";
+import { useCallback, useRef, useState } from "react";
+import { useRealtime, useRealtimeEvent, type SSEEvent } from "@/lib/realtime/RealtimeProvider";
 
 type FeedEntry = {
   id: number;
@@ -9,7 +9,7 @@ type FeedEntry = {
   receivedAt: Date;
 };
 
-let nextId = 0;
+const MAX_ENTRIES = 50;
 
 function formatEvent(event: SSEEvent): { label: string; detail: string } {
   switch (event.type) {
@@ -44,32 +44,16 @@ function typeColor(type: SSEEvent["type"]): string {
 
 export function SystemEventFeed() {
   const [entries, setEntries] = useState<FeedEntry[]>([]);
-  const [connected, setConnected] = useState(false);
-  const esRef = useRef<EventSource | null>(null);
+  const { connected } = useRealtime();
+  const nextIdRef = useRef(0);
 
-  useEffect(() => {
-    const es = new EventSource("/api/stream");
-    esRef.current = es;
-
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-
-    const handler = (e: MessageEvent) => {
-      const data: SSEEvent = JSON.parse(e.data);
+  useRealtimeEvent(
+    useCallback((event) => {
       setEntries((prev) =>
-        [{ id: nextId++, event: data, receivedAt: new Date() }, ...prev].slice(0, 50),
+        [{ id: nextIdRef.current++, event, receivedAt: new Date() }, ...prev].slice(0, MAX_ENTRIES),
       );
-    };
-
-    es.addEventListener("price:update", handler);
-    es.addEventListener("market:resolved", handler);
-    es.addEventListener("balance:update", handler);
-
-    return () => {
-      es.close();
-      esRef.current = null;
-    };
-  }, []);
+    }, []),
+  );
 
   return (
     <div>
