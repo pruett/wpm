@@ -20,13 +20,7 @@ vite.config.ts.timestamp-*
 *.pem
 *.pub
 
-# Chain data
-chain.jsonl
-
 # Auth data (runtime)
-packages/api/users.json
-packages/api/wallet-keystore.json
-packages/web/data/
 apps/web/wpm.db
 apps/web/wpm.db-journal
 apps/web/wpm.db-wal
