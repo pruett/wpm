@@ -80,6 +80,13 @@ export const positions = sqliteTable(
   ],
 );
 
+export const oracleHeartbeats = sqliteTable("oracle_heartbeats", {
+  job: text("job").primaryKey(),
+  status: text("status", { enum: ["ok", "error"] }).notNull(),
+  message: text("message"),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const transactionTypes = [
   "Distribute",
   "Transfer",

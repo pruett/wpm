@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getHealth } from "@/lib/data/health";
+import { getOracleHeartbeats, type HeartbeatRow } from "@/lib/data/oracle-heartbeats";
 import { SystemEventFeed } from "@/components/system-event-feed";
 
 async function HealthPanel() {
@@ -34,6 +35,72 @@ async function HealthPanel() {
   );
 }
 
+function formatAge(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${m % 60}m ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function jobBadge(row: HeartbeatRow): { label: string; dotClass: string } {
+  if (row.stale) return { label: "Stale", dotClass: "bg-destructive" };
+  if (row.status === "error") return { label: "Error", dotClass: "bg-yellow-500" };
+  return { label: "Healthy", dotClass: "bg-green-500" };
+}
+
+async function OraclePanel() {
+  await connection();
+  const rows = await getOracleHeartbeats();
+  const expectedJobs = ["liveness", "ingest", "resolve"];
+  const byJob = new Map(rows.map((r) => [r.job, r]));
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          Oracle
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {expectedJobs.map((job) => {
+            const row = byJob.get(job);
+            if (!row) {
+              return (
+                <div key={job} className="flex items-center gap-3">
+                  <div className="h-4 w-4 rounded-full bg-muted" />
+                  <div>
+                    <p className="font-mono text-sm font-bold uppercase">{job}</p>
+                    <p className="font-mono text-xs text-muted-foreground">No heartbeat yet</p>
+                  </div>
+                </div>
+              );
+            }
+            const badge = jobBadge(row);
+            return (
+              <div key={job} className="flex items-center gap-3">
+                <div className={`h-4 w-4 rounded-full ${badge.dotClass}`} />
+                <div>
+                  <p className="font-mono text-sm font-bold uppercase">
+                    {job} · {badge.label}
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    last seen {formatAge(row.ageMs)}
+                    {row.message ? ` — ${row.message}` : ""}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CardSkeleton() {
   return (
     <Card>
@@ -55,6 +122,12 @@ export default function AdminSystemPage() {
       <Suspense fallback={<CardSkeleton />}>
         <HealthPanel />
       </Suspense>
+
+      <div className="mt-6">
+        <Suspense fallback={<CardSkeleton />}>
+          <OraclePanel />
+        </Suspense>
+      </div>
 
       <div className="mt-6">
         <Card>

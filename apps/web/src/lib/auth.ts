@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
@@ -6,9 +7,11 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { passkey } from "@better-auth/passkey";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { SIGNUP_AIRDROP } from "@wpm/shared";
 import { db } from "./db";
 import { user } from "./db/schema/auth";
+import { balances, transactions, treasury } from "./db/schema/app";
 
 const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:4102";
 
@@ -47,6 +50,49 @@ export const auth = betterAuth({
       }
     }),
   },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (createdUser) => {
+          db.transaction((tx) => {
+            const inserted = tx
+              .insert(balances)
+              .values({ userId: createdUser.id, amount: SIGNUP_AIRDROP })
+              .onConflictDoNothing()
+              .run();
+            if (inserted.changes === 0) return;
+
+            const t = tx.select().from(treasury).where(eq(treasury.id, "treasury")).get();
+            if (!t) throw new Error("Treasury not seeded");
+            if (t.amount < SIGNUP_AIRDROP) {
+              throw new Error("Insufficient treasury balance for signup airdrop");
+            }
+
+            tx.update(treasury)
+              .set({ amount: sql`${treasury.amount} - ${SIGNUP_AIRDROP}` })
+              .where(eq(treasury.id, "treasury"))
+              .run();
+
+            const now = Date.now();
+            tx.insert(transactions)
+              .values({
+                type: "Distribute",
+                userId: createdUser.id,
+                payload: JSON.stringify({
+                  type: "Distribute",
+                  to: createdUser.id,
+                  amount: SIGNUP_AIRDROP,
+                  memo: "signup_airdrop",
+                  timestamp: new Date(now).toISOString(),
+                }),
+                createdAt: now,
+              })
+              .run();
+          });
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       displayName: {
@@ -69,6 +115,10 @@ export const auth = betterAuth({
       sendMagicLink: async ({ email, url }) => {
         // TODO: wire a real email transport. For now, log so dev can click through.
         console.log(`[magic-link] ${email} → ${url}`);
+        const capturePath = process.env.WPM_MAGIC_LINK_CAPTURE_PATH;
+        if (capturePath) {
+          fs.appendFileSync(capturePath, `${JSON.stringify({ email, url })}\n`);
+        }
       },
     }),
     passkey({

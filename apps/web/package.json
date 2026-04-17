@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack --port 4102",
+    "dev": "bun run db:bootstrap && next dev --turbopack --port 4102",
     "build": "next build",
-    "start": "next start --port 4102",
-    "test": "echo skipped",
+    "start": "bun run db:bootstrap && next start --port 4102",
+    "test": "playwright test",
     "clean": "rm -rf node_modules bun.lock .next .turbo",
     "db:generate": "drizzle-kit generate",
     "db:better-auth:generate": "bun x auth@latest generate --output ./src/lib/db/schema/auth.ts --yes",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:bootstrap": "tsx src/lib/db/bootstrap.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
@@ -52,11 +53,13 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
+    "tsx": "^4.0.0",
     "typescript": "^5.7.0"
   }
 }

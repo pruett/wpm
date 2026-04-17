@@ -24,6 +24,16 @@ export type CancelMarketRequest = {
   reason?: string;
 };
 
+export const ORACLE_JOBS = ["liveness", "ingest", "resolve"] as const;
+export type OracleJob = (typeof ORACLE_JOBS)[number];
+export type OracleHeartbeatStatus = "ok" | "error";
+
+export type HeartbeatRequest = {
+  job: OracleJob;
+  status: OracleHeartbeatStatus;
+  message?: string;
+};
+
 export type OracleMarket = {
   id: string;
   sport: string;

@@ -72,7 +72,7 @@ export function createMarket(req: CreateMarketRequest): CreateMarketResult {
 export function createMarketAndNotify(req: CreateMarketRequest): CreateMarketResult {
   const result = createMarket(req);
   if (result.created) {
-    revalidateTag("markets");
+    revalidateTag("markets", "max");
   }
   return result;
 }

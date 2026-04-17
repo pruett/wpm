@@ -108,11 +108,11 @@ export function cancelMarket(marketId: string, reason?: string): CancelMarketRes
 
   for (const u of refundedUsers) {
     publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
-    revalidateTag(`viewer:${u.userId}`);
+    revalidateTag(`viewer:${u.userId}`, "max");
   }
-  revalidateTag("markets");
-  revalidateTag(`market:${marketId}`);
-  revalidateTag("leaderboard");
+  revalidateTag("markets", "max");
+  revalidateTag(`market:${marketId}`, "max");
+  revalidateTag("leaderboard", "max");
 
   return { cancelled: true };
 }

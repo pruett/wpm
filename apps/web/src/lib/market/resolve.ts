@@ -111,11 +111,11 @@ export function resolveMarket(marketId: string, outcome: "A" | "B"): ResolveMark
   publish({ type: "market:resolved", marketId, result: outcome });
   for (const u of paidUsers) {
     publish({ type: "balance:update", userId: u.userId, balance: u.newBalance });
-    revalidateTag(`viewer:${u.userId}`);
+    revalidateTag(`viewer:${u.userId}`, "max");
   }
-  revalidateTag("markets");
-  revalidateTag(`market:${marketId}`);
-  revalidateTag("leaderboard");
+  revalidateTag("markets", "max");
+  revalidateTag(`market:${marketId}`, "max");
+  revalidateTag("leaderboard", "max");
 
   return { resolved: true };
 }

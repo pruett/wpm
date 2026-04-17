@@ -31,6 +31,16 @@ apps/web/wpm.db
 apps/web/wpm.db-journal
 apps/web/wpm.db-wal
 apps/web/wpm.db-shm
+apps/web/wpm-e2e.db
+apps/web/wpm-e2e.db-journal
+apps/web/wpm-e2e.db-wal
+apps/web/wpm-e2e.db-shm
+apps/web/wpm-e2e-magic-links.log
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.playwright/
 
 # Nginx certs
 nginx/certs/

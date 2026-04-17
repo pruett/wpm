@@ -1,6 +1,11 @@
 import { Context, Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
-import { WEB_INTERNAL_URL, type CreateMarketRequest, type OracleMarket } from "@wpm/shared";
+import {
+  WEB_INTERNAL_URL,
+  type CreateMarketRequest,
+  type HeartbeatRequest,
+  type OracleMarket,
+} from "@wpm/shared";
 import { OracleError } from "./errors.js";
 
 const ORACLE_TOKEN = process.env.WPM_ORACLE_SERVICE_TOKEN ?? "";
@@ -18,6 +23,7 @@ export class WebClient extends Context.Tag("oracle/WebClient")<
       outcome: "A" | "B",
     ) => Effect.Effect<void, OracleError>;
     readonly cancelMarket: (marketId: string, reason?: string) => Effect.Effect<void, OracleError>;
+    readonly heartbeat: (params: HeartbeatRequest) => Effect.Effect<void, OracleError>;
   }
 >() {
   static Live = Layer.effect(
@@ -76,6 +82,15 @@ export class WebClient extends Context.Tag("oracle/WebClient")<
             Effect.mapError(
               (e) => new OracleError({ message: `Failed to cancel market ${marketId}: ${e}` }),
             ),
+            Effect.scoped,
+          ),
+
+        heartbeat: (params) =>
+          HttpClientRequest.post("/api/oracle/heartbeat").pipe(
+            HttpClientRequest.bodyUnsafeJson(params),
+            client.execute,
+            Effect.asVoid,
+            Effect.mapError((e) => new OracleError({ message: `Failed to post heartbeat: ${e}` })),
             Effect.scoped,
           ),
       };

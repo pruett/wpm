@@ -1,5 +1,6 @@
 import { NodeHttpClient, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer, Schedule } from "effect";
+import type { OracleJob } from "@wpm/shared";
 import { NflAdapter } from "./adapters/nfl.js";
 import { GolfAdapter } from "./adapters/golf.js";
 import { MlbAdapter } from "./adapters/mlb.js";
@@ -10,39 +11,75 @@ import { mlbIngest } from "./mlb-ingest.js";
 import { resolveAll } from "./resolve.js";
 import { cancelAll } from "./cancel.js";
 
-const runIngestCycle = Effect.all([
-  ingest.pipe(
-    Effect.tap((r) =>
-      Effect.logInfo(`NFL ingest done — ${r.created} created, ${r.skipped} skipped`),
-    ),
-    Effect.catchAll((e) => Effect.logError(`NFL ingest failed: ${e}`)),
-  ),
-  golfIngest.pipe(
-    Effect.tap((r) =>
-      Effect.logInfo(`Golf ingest done — ${r.created} created, ${r.skipped} skipped`),
-    ),
-    Effect.catchAll((e) => Effect.logError(`Golf ingest failed: ${e}`)),
-  ),
-  mlbIngest.pipe(
-    Effect.tap((r) =>
-      Effect.logInfo(`MLB ingest done — ${r.created} created, ${r.skipped} skipped`),
-    ),
-    Effect.catchAll((e) => Effect.logError(`MLB ingest failed: ${e}`)),
-  ),
-]);
+type JobResult = "ok" | "error";
 
-const runResolveCycle = Effect.all([
-  resolveAll.pipe(
-    Effect.tap((r) =>
-      Effect.logInfo(`Resolve cycle done — ${r.resolved} resolved, ${r.skipped} skipped`),
+const track = <A, E, R>(
+  name: string,
+  eff: Effect.Effect<A, E, R>,
+  describe: (a: A) => string,
+): Effect.Effect<JobResult, never, R> =>
+  eff.pipe(
+    Effect.tap((r) => Effect.logInfo(describe(r))),
+    Effect.as<JobResult>("ok"),
+    Effect.catchAll((e) =>
+      Effect.logError(`${name} failed: ${e}`).pipe(Effect.as<JobResult>("error")),
     ),
-    Effect.catchAll((e) => Effect.logError(`Resolve cycle failed: ${e}`)),
-  ),
-  cancelAll.pipe(
-    Effect.tap((r) => Effect.logInfo(`Cancel cycle done — ${r.cancelled} cancelled`)),
-    Effect.catchAll((e) => Effect.logError(`Cancel cycle failed: ${e}`)),
-  ),
-]);
+  );
+
+const sendHeartbeat = (job: OracleJob, results: readonly JobResult[]) =>
+  Effect.gen(function* () {
+    const web = yield* WebClient;
+    const status = results.includes("error") ? "error" : "ok";
+    yield* web
+      .heartbeat({ job, status })
+      .pipe(Effect.catchAll((e) => Effect.logError(`heartbeat(${job}) failed: ${e}`)));
+  });
+
+const runIngestCycle = Effect.gen(function* () {
+  const results = yield* Effect.all(
+    [
+      track(
+        "NFL ingest",
+        ingest,
+        (r) => `NFL ingest done — ${r.created} created, ${r.skipped} skipped`,
+      ),
+      track(
+        "Golf ingest",
+        golfIngest,
+        (r) => `Golf ingest done — ${r.created} created, ${r.skipped} skipped`,
+      ),
+      track(
+        "MLB ingest",
+        mlbIngest,
+        (r) => `MLB ingest done — ${r.created} created, ${r.skipped} skipped`,
+      ),
+    ],
+    { concurrency: "unbounded" },
+  );
+  yield* sendHeartbeat("ingest", results);
+});
+
+const runLivenessTick = Effect.gen(function* () {
+  const web = yield* WebClient;
+  yield* web
+    .heartbeat({ job: "liveness", status: "ok" })
+    .pipe(Effect.catchAll((e) => Effect.logError(`heartbeat(liveness) failed: ${e}`)));
+});
+
+const runResolveCycle = Effect.gen(function* () {
+  const results = yield* Effect.all(
+    [
+      track(
+        "Resolve cycle",
+        resolveAll,
+        (r) => `Resolve cycle done — ${r.resolved} resolved, ${r.skipped} skipped`,
+      ),
+      track("Cancel cycle", cancelAll, (r) => `Cancel cycle done — ${r.cancelled} cancelled`),
+    ],
+    { concurrency: "unbounded" },
+  );
+  yield* sendHeartbeat("resolve", results);
+});
 
 const program = Effect.gen(function* () {
   const web = yield* WebClient;
@@ -55,6 +92,7 @@ const program = Effect.gen(function* () {
 
   yield* Effect.all(
     [
+      runLivenessTick.pipe(Effect.repeat(Schedule.fixed("1 minute"))),
       runIngestCycle.pipe(Effect.repeat(Schedule.fixed("2 hours"))),
       runResolveCycle.pipe(Effect.repeat(Schedule.fixed("30 minutes"))),
     ],
