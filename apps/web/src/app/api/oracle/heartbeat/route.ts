@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
 import { ORACLE_JOBS } from "@wpm/shared";
-import { requireOracle } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { oracleHeartbeats } from "@/lib/db/schema";
+import { requireOracle } from "@/data/auth";
+import { recordHeartbeat } from "@/data/oracle";
+import { tags } from "@/data/tags";
 
 const HeartbeatBody = z.object({
   job: z.enum(ORACLE_JOBS),
@@ -28,14 +28,8 @@ export async function POST(request: Request) {
   }
 
   const { job, status, message } = parsed.data;
-  db.insert(oracleHeartbeats)
-    .values({ job, status, message: message ?? null, lastSeenAt: new Date() })
-    .onConflictDoUpdate({
-      target: oracleHeartbeats.job,
-      set: { status, message: message ?? null, lastSeenAt: new Date() },
-    })
-    .run();
+  await recordHeartbeat(job, status, message ?? null);
 
-  revalidateTag("oracle-heartbeats", "max");
+  revalidateTag(tags.oracleHeartbeats(), "max");
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOracle } from "@/lib/auth";
+import { requireOracle } from "@/data/auth";
 
 export function GET(request: Request) {
   const guard = requireOracle(request);

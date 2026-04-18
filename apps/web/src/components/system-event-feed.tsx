@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useRealtime, useRealtimeEvent, type SSEEvent } from "@/lib/realtime/RealtimeProvider";
+import { useRealtime, useRealtimeEvent, type SSEEvent } from "@/providers/RealtimeProvider";
 
 type FeedEntry = {
   id: number;

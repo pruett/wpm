@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useMarket } from "@/lib/realtime/useMarket";
-import { placeBet } from "@/app/actions/placeBet";
-import { sellShares } from "@/app/actions/sellShares";
+import { useMarket } from "@/providers/useMarket";
+import { placeBet } from "@/actions/placeBet";
+import { sellShares } from "@/actions/sellShares";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";

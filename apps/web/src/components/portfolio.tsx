@@ -1,6 +1,5 @@
-import { connection } from "next/server";
-import { getPositions } from "@/lib/data/positions";
-import { getMarkets } from "@/lib/data/markets";
+import { getPositions } from "@/data/positions";
+import { getMarkets } from "@/data/markets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MarketWithOdds, SharePosition } from "@wpm/shared";
 
@@ -37,7 +36,6 @@ function formatPnl(value: number): string {
 }
 
 export async function Portfolio({ userId }: { userId: string }) {
-  await connection();
   const [positions, { markets }] = await Promise.all([getPositions(userId), getMarkets()]);
 
   if (positions.length === 0) {

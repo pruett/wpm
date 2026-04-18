@@ -1,12 +1,10 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getHealth } from "@/lib/data/health";
-import { getOracleHeartbeats, type HeartbeatRow } from "@/lib/data/oracle-heartbeats";
+import { getHealth } from "@/data/health";
+import { getOracleHeartbeats, type HeartbeatRow } from "@/data/oracle";
 import { SystemEventFeed } from "@/components/system-event-feed";
 
 async function HealthPanel() {
-  await connection();
   const health = await getHealth();
 
   return (
@@ -52,7 +50,6 @@ function jobBadge(row: HeartbeatRow): { label: string; dotClass: string } {
 }
 
 async function OraclePanel() {
-  await connection();
   const rows = await getOracleHeartbeats();
   const expectedJobs = ["liveness", "ingest", "resolve"];
   const byJob = new Map(rows.map((r) => [r.job, r]));

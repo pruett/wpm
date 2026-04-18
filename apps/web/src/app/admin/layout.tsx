@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getSession, isAdmin } from "@/lib/auth";
+import { getSession, isAdmin } from "@/data/auth";
 import { AdminNav } from "@/components/admin-nav";
 
 async function AdminGate({ children }: { children: React.ReactNode }) {

@@ -1,11 +1,10 @@
-import { getSession } from "@/lib/auth";
-import { subscribe, type RealtimeEvent } from "@/lib/realtime/bus";
+import { getSession } from "@/data/auth";
+import { subscribe, type RealtimeEvent } from "@/lib/events/bus";
 
 const HEARTBEAT_MS = 15_000;
 
 export async function GET(req: Request) {
   const session = await getSession();
-  // 204 keeps EventSource from reconnecting. Unauthenticated clients get no stream.
   if (!session) return new Response(null, { status: 204 });
 
   const userId = session.user.id;
@@ -35,7 +34,6 @@ export async function GET(req: Request) {
       };
 
       const send = (event: RealtimeEvent) => {
-        // Per-connection filter: balance updates never leak across users.
         if (event.type === "balance:update" && event.userId !== userId) return;
         const frame = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
         safeEnqueue(encoder.encode(frame));

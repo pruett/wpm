@@ -1,13 +1,11 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateMarketDialog } from "@/components/create-market-dialog";
-import { getMarkets } from "@/lib/data/markets";
-import { getUsers } from "@/lib/data/users";
-import { getHealth } from "@/lib/data/health";
+import { getMarkets } from "@/data/markets";
+import { getUsers } from "@/data/users";
+import { getHealth } from "@/data/health";
 
 async function OverviewCards() {
-  await connection();
   const [marketsData, users, health] = await Promise.all([getMarkets(), getUsers(), getHealth()]);
 
   const activeMarkets = marketsData.markets.filter((m) => m.status === "open").length;

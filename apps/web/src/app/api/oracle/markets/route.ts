@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
 import type { CreateMarketRequest } from "@wpm/shared";
-import { requireOracle } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { markets } from "@/lib/db/schema";
-import { createMarketAndNotify } from "@/lib/market";
+import { requireOracle } from "@/data/auth";
+import { createMarket, listAllMarketsRaw } from "@/data/markets";
+import { tags } from "@/data/tags";
 
 const CreateMarketBody = z.object({
   id: z.string().min(1),
@@ -24,11 +24,11 @@ const CreateMarketBody = z.object({
   wpmReserve: z.number().positive(),
 });
 
-export function GET(request: Request) {
+export async function GET(request: Request) {
   const guard = requireOracle(request);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const rows = db.select().from(markets).all();
+  const rows = await listAllMarketsRaw();
   return NextResponse.json(rows);
 }
 
@@ -47,8 +47,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const result = createMarketAndNotify(parsed.data as CreateMarketRequest);
+  const result = await createMarket(parsed.data as CreateMarketRequest);
   if (result.created) {
+    revalidateTag(tags.marketsAll(), "max");
     return NextResponse.json({ created: true }, { status: 201 });
   }
   return NextResponse.json({ created: false, reason: result.reason }, { status: 200 });

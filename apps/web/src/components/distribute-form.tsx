@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { distributeTokens } from "@/app/actions/admin/distributeTokens";
+import { distributeTokens } from "@/actions/admin/distributeTokens";
 
 export function DistributeForm({ userId }: { userId: string }) {
   const [amount, setAmount] = useState("");

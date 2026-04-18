@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { resolveMarket } from "@/app/actions/admin/resolveMarket";
-import { cancelMarket } from "@/app/actions/admin/cancelMarket";
-import { overrideSeed } from "@/app/actions/admin/overrideSeed";
+import { resolveMarket } from "@/actions/admin/resolveMarket";
+import { cancelMarket } from "@/actions/admin/cancelMarket";
+import { overrideSeed } from "@/actions/admin/overrideSeed";
 
 type StatusMessageProps = {
   message: { type: "success" | "error"; text: string } | null;

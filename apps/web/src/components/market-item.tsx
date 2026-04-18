@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMarket } from "@/lib/realtime/useMarket";
+import { useMarket } from "@/providers/useMarket";
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import type { MarketWithOdds } from "@wpm/shared";
 

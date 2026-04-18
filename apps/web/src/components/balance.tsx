@@ -1,6 +1,6 @@
 "use client";
 
-import { useBalance } from "@/lib/realtime/useBalance";
+import { useBalance } from "@/providers/useBalance";
 
 export function Balance({ balance, userId }: { balance: number; userId: string }) {
   useBalance(userId);

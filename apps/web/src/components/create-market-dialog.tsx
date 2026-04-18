@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createMarket } from "@/app/actions/admin/createMarket";
+import { createMarket } from "@/actions/admin/createMarket";
 
 type FormState = {
   id: string;

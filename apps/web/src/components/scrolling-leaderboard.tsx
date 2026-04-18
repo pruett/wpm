@@ -1,8 +1,6 @@
-import { connection } from "next/server";
-import { getLeaderboard } from "@/lib/data/leaderboard";
+import { getLeaderboard } from "@/data/leaderboard";
 
 export async function ScrollingLeaderboard() {
-  await connection();
   const entries = await getLeaderboard();
 
   if (entries.length === 0) return null;

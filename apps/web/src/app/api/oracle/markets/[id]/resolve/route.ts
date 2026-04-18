@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
-import { requireOracle } from "@/lib/auth";
-import { resolveMarket } from "@/lib/market";
+import { requireOracle } from "@/data/auth";
+import { resolveMarket } from "@/data/markets";
+import { tags } from "@/data/tags";
+import { emit } from "@/lib/events/emit";
 
 const ResolveBody = z.object({
   outcome: z.enum(["A", "B"]),
@@ -23,9 +26,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const result = resolveMarket(id, parsed.data.outcome);
-  if (result.resolved) {
-    return NextResponse.json({ resolved: true });
+  const result = await resolveMarket(id, parsed.data.outcome);
+  if (!result.resolved) {
+    return NextResponse.json({ resolved: false, reason: result.reason }, { status: 409 });
   }
-  return NextResponse.json({ resolved: false, reason: result.reason }, { status: 409 });
+
+  revalidateTag(tags.market(id), "max");
+  revalidateTag(tags.marketsAll(), "max");
+  revalidateTag(tags.leaderboard(), "max");
+  for (const u of result.affectedUsers) {
+    revalidateTag(tags.viewer(u.userId), "max");
+  }
+
+  emit.marketResolved(id, parsed.data.outcome);
+  for (const u of result.affectedUsers) {
+    emit.balanceUpdate(u.userId, u.newBalance);
+  }
+
+  return NextResponse.json({ resolved: true });
 }

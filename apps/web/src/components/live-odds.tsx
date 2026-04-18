@@ -1,6 +1,6 @@
 "use client";
 
-import { useMarket } from "@/lib/realtime/useMarket";
+import { useMarket } from "@/providers/useMarket";
 
 type LiveOddsProps = {
   marketId: string;

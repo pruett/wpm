@@ -1,8 +1,7 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getMarkets } from "@/lib/data/markets";
+import { getMarkets } from "@/data/markets";
 import { ResolveForm, CancelForm, OverrideSeedForm } from "@/components/market-admin-actions";
 
 function formatCloseTime(closesAt: string): string {
@@ -35,7 +34,6 @@ function statusBadge(status: string) {
 }
 
 async function MarketsTable() {
-  await connection();
   const { markets } = await getMarkets();
 
   if (markets.length === 0) {

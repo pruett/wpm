@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getUsers } from "@/lib/data/users";
+import { getUsers } from "@/data/users";
 import { DistributeForm } from "@/components/distribute-form";
 
 function truncate(value: string): string {
@@ -10,7 +9,6 @@ function truncate(value: string): string {
 }
 
 async function UsersTable() {
-  await connection();
   const users = await getUsers();
 
   if (users.length === 0) {

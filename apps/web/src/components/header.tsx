@@ -1,12 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { connection } from "next/server";
-import { getBalance } from "@/lib/data/balance";
+import { getBalance } from "@/data/balances";
 import { Balance } from "./balance";
 import { UserMenu } from "./user-menu";
 
 async function BalanceLoader({ userId }: { userId: string }) {
-  await connection();
   const { balance } = await getBalance(userId);
   return <Balance balance={balance} userId={userId} />;
 }
