@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getSession, isAdmin } from "@/data/auth";
 import { AdminNav } from "@/components/admin-nav";
+import { RealtimeProvider } from "@/providers/RealtimeProvider";
 
 async function AdminGate({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -37,7 +38,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
         <main className="min-w-0 flex-1">
           <Suspense fallback={null}>
-            <AdminGate>{children}</AdminGate>
+            <AdminGate>
+              <RealtimeProvider>{children}</RealtimeProvider>
+            </AdminGate>
           </Suspense>
         </main>
       </div>

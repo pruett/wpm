@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useMarket } from "@/providers/useMarket";
 import { placeBet } from "@/actions/placeBet";
 import { sellShares } from "@/actions/sellShares";
+import { useBetConfirm } from "@/components/bet-confirm-provider";
+import { useIsInMarketDrawer } from "@/components/market-drawer";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +89,8 @@ export function BetControls({ market, userId, positions }: Props) {
   const [sellShareAmount, setSellShareAmount] = useState<number>(0);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const betConfirm = useBetConfirm();
+  const inDrawer = useIsInMarketDrawer();
 
   const price = outcome === "A" ? priceA : priceB;
   const multiplier = outcome === "A" ? multiplierA : multiplierB;
@@ -117,6 +121,15 @@ export function BetControls({ market, userId, positions }: Props) {
       const result = await placeBet({ marketId: market.id, outcome, amount });
       if (result.error) {
         setMessage({ kind: "error", text: result.error });
+        return;
+      }
+      if (inDrawer && betConfirm) {
+        betConfirm.confirmBet({
+          amount,
+          outcomeName,
+          shares: estShares,
+          payout: estPayout,
+        });
         return;
       }
       setMessage({ kind: "success", text: `Placed ${amount} WPM on ${outcomeName}.` });

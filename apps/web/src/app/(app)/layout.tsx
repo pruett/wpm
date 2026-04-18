@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { getCurrentUser } from "@/data/auth";
+import { BetConfirmProvider } from "@/components/bet-confirm-provider";
 import { RealtimeProvider } from "@/providers/RealtimeProvider";
 import { SessionProvider } from "@/providers/SessionProvider";
 
@@ -19,8 +20,10 @@ async function AuthedShell({ children, modal }: { children: ReactNode; modal: Re
   return (
     <SessionProvider user={{ id: user.id, name: user.name, email: user.email }}>
       <RealtimeProvider>
-        {children}
-        {modal}
+        <BetConfirmProvider>
+          {children}
+          {modal}
+        </BetConfirmProvider>
       </RealtimeProvider>
     </SessionProvider>
   );

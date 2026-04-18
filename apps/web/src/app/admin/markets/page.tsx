@@ -3,19 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getMarkets } from "@/data/markets";
 import { ResolveForm, CancelForm, OverrideSeedForm } from "@/components/market-admin-actions";
-
-function formatCloseTime(closesAt: string): string {
-  const close = new Date(closesAt);
-  const now = new Date();
-  const diff = close.getTime() - now.getTime();
-  if (diff <= 0) return "Closed";
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
+import { CloseCountdown } from "@/components/close-countdown";
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -73,11 +61,7 @@ async function MarketsTable() {
                 </div>
                 <div className="flex items-center gap-2">
                   {statusBadge(market.status)}
-                  {isOpen && (
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatCloseTime(market.closesAt)}
-                    </span>
-                  )}
+                  {isOpen && <CloseCountdown closesAt={market.closesAt} />}
                 </div>
               </div>
             </CardHeader>
