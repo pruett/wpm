@@ -1,11 +1,13 @@
+import { client } from "./index";
 import { runMigrations } from "./migrate";
 import { seedTreasury } from "./seed";
 
-export function bootstrapDb(): void {
-  runMigrations();
-  seedTreasury();
+export async function bootstrapDb(): Promise<void> {
+  await runMigrations();
+  await seedTreasury();
 }
 
 if (import.meta.main) {
-  bootstrapDb();
+  await bootstrapDb();
+  await client.end();
 }

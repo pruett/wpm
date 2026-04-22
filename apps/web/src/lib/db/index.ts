@@ -1,10 +1,10 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-const DB_PATH = process.env.DATABASE_URL ?? "./wpm.db";
+const connectionString =
+  process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/wpm";
 
-export const sqlite = new Database(DB_PATH);
-sqlite.pragma("foreign_keys = ON");
+export const client = postgres(connectionString);
 
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(client, { schema });

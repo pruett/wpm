@@ -1,34 +1,43 @@
 import { relations, sql } from "drizzle-orm";
-import { sqliteTable, text, integer, index, primaryKey, check } from "drizzle-orm/sqlite-core";
+import {
+  pgTable,
+  text,
+  bigint,
+  serial,
+  timestamp,
+  index,
+  primaryKey,
+  check,
+} from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
-export const balances = sqliteTable("balances", {
+export const balances = pgTable("balances", {
   userId: text("user_id")
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
-  amount: integer("amount").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+    .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 });
 
 // Singleton row representing the platform treasury. The CHECK constraint
 // prevents inserting any row whose id is not 'treasury'.
-export const treasury = sqliteTable(
+export const treasury = pgTable(
   "treasury",
   {
     id: text("id").primaryKey().default("treasury"),
-    amount: integer("amount").notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (t) => [check("treasury_singleton", sql`${t.id} = 'treasury'`)],
 );
 
-export const markets = sqliteTable(
+export const markets = pgTable(
   "markets",
   {
     id: text("id").primaryKey(),
@@ -39,29 +48,29 @@ export const markets = sqliteTable(
     logoA: text("logo_a"),
     logoB: text("logo_b"),
     leagueLogo: text("league_logo"),
-    startTime: integer("start_time").notNull(),
-    bettingClosesAt: integer("betting_closes_at").notNull(),
+    startTime: bigint("start_time", { mode: "number" }).notNull(),
+    bettingClosesAt: bigint("betting_closes_at", { mode: "number" }).notNull(),
     status: text("status", {
       enum: ["open", "closed", "resolved", "cancelled"],
     }).notNull(),
     resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
-    resolvedAt: integer("resolved_at"),
-    createdAt: integer("created_at").notNull(),
+    resolvedAt: bigint("resolved_at", { mode: "number" }),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
   },
   (t) => [index("ix_markets_status_start").on(t.status, t.startTime)],
 );
 
-export const ammPools = sqliteTable("amm_pools", {
+export const ammPools = pgTable("amm_pools", {
   marketId: text("market_id")
     .primaryKey()
     .references(() => markets.id, { onDelete: "cascade" }),
-  reserveA: integer("reserve_a").notNull(),
-  reserveB: integer("reserve_b").notNull(),
-  wpmReserve: integer("wpm_reserve").notNull(),
-  seedAmount: integer("seed_amount").notNull(),
+  reserveA: bigint("reserve_a", { mode: "number" }).notNull(),
+  reserveB: bigint("reserve_b", { mode: "number" }).notNull(),
+  wpmReserve: bigint("wpm_reserve", { mode: "number" }).notNull(),
+  seedAmount: bigint("seed_amount", { mode: "number" }).notNull(),
 });
 
-export const positions = sqliteTable(
+export const positions = pgTable(
   "positions",
   {
     userId: text("user_id")
@@ -70,9 +79,9 @@ export const positions = sqliteTable(
     marketId: text("market_id")
       .notNull()
       .references(() => markets.id, { onDelete: "cascade" }),
-    sharesA: integer("shares_a").notNull().default(0),
-    sharesB: integer("shares_b").notNull().default(0),
-    costBasis: integer("cost_basis").notNull().default(0),
+    sharesA: bigint("shares_a", { mode: "number" }).notNull().default(0),
+    sharesB: bigint("shares_b", { mode: "number" }).notNull().default(0),
+    costBasis: bigint("cost_basis", { mode: "number" }).notNull().default(0),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.marketId] }),
@@ -80,11 +89,11 @@ export const positions = sqliteTable(
   ],
 );
 
-export const oracleHeartbeats = sqliteTable("oracle_heartbeats", {
+export const oracleHeartbeats = pgTable("oracle_heartbeats", {
   job: text("job").primaryKey(),
   status: text("status", { enum: ["ok", "error"] }).notNull(),
   message: text("message"),
-  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { mode: "date", withTimezone: true }).notNull(),
 });
 
 export const transactionTypes = [
@@ -99,17 +108,17 @@ export const transactionTypes = [
   "CancelMarket",
 ] as const;
 
-export const transactions = sqliteTable(
+export const transactions = pgTable(
   "transactions",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     type: text("type", { enum: transactionTypes }).notNull(),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     marketId: text("market_id").references(() => markets.id, {
       onDelete: "set null",
     }),
     payload: text("payload").notNull(),
-    createdAt: integer("created_at").notNull(),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
   },
   (t) => [
     index("ix_tx_user").on(t.userId, t.createdAt),
