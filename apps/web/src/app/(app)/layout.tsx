@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { getCurrentUser } from "@/data/auth";
+
 import { BetConfirmProvider } from "@/components/bet-confirm-provider";
+import { getCurrentUser } from "@/data/auth";
 import { RealtimeProvider } from "@/providers/RealtimeProvider";
 import { SessionProvider } from "@/providers/SessionProvider";
 

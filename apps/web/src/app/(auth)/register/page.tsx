@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Brain,
+  Crown,
+  Dices,
+  Flame,
+  Gem,
+  type LucideIcon,
+  Rocket,
+  Skull,
+  Target,
+  Trophy,
+  Shuffle,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { authClient } from "@/lib/auth/client";
+
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -25,21 +38,9 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
-import {
-  Brain,
-  Crown,
-  Dices,
-  Flame,
-  Gem,
-  type LucideIcon,
-  Rocket,
-  Skull,
-  Target,
-  Trophy,
-  Shuffle,
-  Zap,
-} from "lucide-react";
 
 const COLORS = [
   "red",
@@ -266,7 +267,7 @@ export default function RegisterPage() {
                                 className={cn(
                                   "size-7 rounded-full border border-black/10 transition-transform",
                                   "hover:scale-110",
-                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
                                   "disabled:pointer-events-none disabled:opacity-50",
                                   selected &&
                                     "ring-2 ring-foreground ring-offset-2 ring-offset-background",
@@ -311,7 +312,7 @@ export default function RegisterPage() {
                                   className={cn(
                                     "flex size-11 items-center justify-center rounded-md border bg-background transition-colors",
                                     "hover:bg-accent",
-                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
                                     "disabled:pointer-events-none disabled:opacity-50",
                                     selected && "bg-accent",
                                   )}

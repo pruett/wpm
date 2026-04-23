@@ -1,7 +1,9 @@
 "use client";
 
+import type { MarketWithOdds, SharePosition } from "@wpm/shared";
+
 import { useState, useTransition } from "react";
-import { useMarket } from "@/providers/useMarket";
+
 import { placeBet } from "@/actions/placeBet";
 import { sellShares } from "@/actions/sellShares";
 import { useBetConfirm } from "@/components/bet-confirm-provider";
@@ -35,7 +37,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { MarketWithOdds, SharePosition } from "@wpm/shared";
+import { useMarket } from "@/providers/useMarket";
 
 const BUY_PRESETS = [25, 100, 500, 1000];
 const BUY_SLIDER_MAX = 1000;

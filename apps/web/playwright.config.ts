@@ -6,7 +6,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = process.env.E2E_PORT ?? "4103";
 const BASE_URL = `http://localhost:${PORT}`;
-const TEST_DB_PATH = path.resolve(__dirname, "wpm-e2e.db");
+const TEST_DATABASE_URL =
+  process.env.E2E_DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm_test";
 const MAGIC_LINK_CAPTURE_PATH = path.resolve(__dirname, "wpm-e2e-magic-links.log");
 const ORACLE_TOKEN = "test-oracle-token";
 
@@ -31,7 +32,7 @@ export default defineConfig({
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      DATABASE_URL: TEST_DB_PATH,
+      DATABASE_URL: TEST_DATABASE_URL,
       BETTER_AUTH_SECRET: "test-secret-padding-32-bytes-long==",
       BETTER_AUTH_URL: BASE_URL,
       WPM_ORACLE_SERVICE_TOKEN: ORACLE_TOKEN,
@@ -41,4 +42,4 @@ export default defineConfig({
   },
 });
 
-export { BASE_URL, ORACLE_TOKEN, TEST_DB_PATH, MAGIC_LINK_CAPTURE_PATH };
+export { BASE_URL, ORACLE_TOKEN, TEST_DATABASE_URL, MAGIC_LINK_CAPTURE_PATH };

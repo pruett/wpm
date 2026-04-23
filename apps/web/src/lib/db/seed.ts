@@ -1,4 +1,5 @@
 import { INITIAL_SUPPLY } from "@wpm/shared";
+
 import { db } from "./index";
 import { treasury } from "./schema";
 

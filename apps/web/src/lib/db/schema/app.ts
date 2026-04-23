@@ -9,6 +9,7 @@ import {
   primaryKey,
   check,
 } from "drizzle-orm/pg-core";
+
 import { user } from "./auth";
 
 export const balances = pgTable("balances", {

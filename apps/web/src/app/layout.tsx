@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+
 import { Geist_Mono, Inter } from "next/font/google";
+
 import "./globals.css";
 import { cn } from "@/lib/utils";
 

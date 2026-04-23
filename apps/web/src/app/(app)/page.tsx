@@ -1,9 +1,11 @@
 import { Suspense } from "react";
-import { getSession } from "@/data/auth";
-import { Dashboard } from "./dashboard";
+
 import { Header } from "@/components/header";
-import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
 import { Portfolio } from "@/components/portfolio";
+import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
+import { getSession } from "@/data/auth";
+
+import { Dashboard } from "./dashboard";
 
 export default function Home() {
   return (

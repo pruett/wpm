@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+
 import { useRealtime, useRealtimeEvent, type SSEEvent } from "@/providers/RealtimeProvider";
 
 type FeedEntry = {
@@ -80,7 +81,7 @@ export function SystemEventFeed() {
                 key={entry.id}
                 className="flex items-baseline gap-3 rounded px-2 py-1 font-mono text-xs hover:bg-accent/30"
               >
-                <time className="shrink-0 tabular-nums text-muted-foreground">
+                <time className="shrink-0 text-muted-foreground tabular-nums">
                   {entry.receivedAt.toLocaleTimeString()}
                 </time>
                 <span className={`shrink-0 ${typeColor(entry.event.type)}`}>{label}</span>

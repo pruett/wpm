@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getSession, isAdmin } from "@/data/auth";
+
 import { AdminNav } from "@/components/admin-nav";
+import { getSession, isAdmin } from "@/data/auth";
 import { RealtimeProvider } from "@/providers/RealtimeProvider";
 
 async function AdminGate({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/" className="font-mono text-lg font-black tracking-[0.15em]">
               WPM
             </Link>
-            <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
               Admin
             </span>
           </div>

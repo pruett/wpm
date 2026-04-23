@@ -1,5 +1,7 @@
 "use client";
 
+import type { BalanceUpdateEvent, MarketResolvedEvent, PriceUpdateEvent } from "@wpm/shared";
+
 import {
   createContext,
   useCallback,
@@ -9,7 +11,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { BalanceUpdateEvent, MarketResolvedEvent, PriceUpdateEvent } from "@wpm/shared";
 
 export type SSEEvent = PriceUpdateEvent | MarketResolvedEvent | BalanceUpdateEvent;
 

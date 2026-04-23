@@ -1,18 +1,19 @@
-import fs from "node:fs";
-import Database from "better-sqlite3";
 import { expect, test } from "@playwright/test";
 import { SIGNUP_AIRDROP } from "@wpm/shared";
-import { MAGIC_LINK_CAPTURE_PATH, TEST_DB_PATH } from "../../playwright.config";
+import fs from "node:fs";
+import postgres from "postgres";
+
+import { MAGIC_LINK_CAPTURE_PATH, TEST_DATABASE_URL } from "../../playwright.config";
 
 function readLatestMagicLinkFor(email: string): string {
-  const contents = fs.readFileSync(MAGIC_LINK_CAPTURE_PATH, "utf8");
-  const matches = contents
+  const entries = fs
+    .readFileSync(MAGIC_LINK_CAPTURE_PATH, "utf8")
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as { email: string; url: string })
     .filter((entry) => entry.email === email);
-  if (matches.length === 0) throw new Error(`no magic link captured for ${email}`);
-  return matches[matches.length - 1].url;
+  if (entries.length === 0) throw new Error(`no magic link captured for ${email}`);
+  return entries[entries.length - 1].url;
 }
 
 test("new user signup airdrops SIGNUP_AIRDROP and records a Distribute transaction", async ({
@@ -32,40 +33,33 @@ test("new user signup airdrops SIGNUP_AIRDROP and records a Distribute transacti
   });
   expect(signInRes.ok()).toBe(true);
 
-  const verifyUrl = readLatestMagicLinkFor(email);
-  const verifyRes = await request.get(verifyUrl, { maxRedirects: 0 });
-  expect([200, 302, 303].includes(verifyRes.status())).toBe(true);
+  const verifyRes = await request.get(readLatestMagicLinkFor(email), { maxRedirects: 0 });
+  expect([200, 302, 303]).toContain(verifyRes.status());
 
-  const sqlite = new Database(TEST_DB_PATH, { readonly: true });
+  const sql = postgres(TEST_DATABASE_URL);
   try {
-    const userRow = sqlite.prepare("SELECT id FROM user WHERE email = ?").get(email) as
-      | { id: string }
-      | undefined;
+    const [userRow] = await sql<{ id: string }[]>`
+      select id from "user" where email = ${email}
+    `;
     expect(userRow).toBeDefined();
-    const userId = userRow!.id;
 
-    const balanceRow = sqlite
-      .prepare("SELECT amount FROM balances WHERE user_id = ?")
-      .get(userId) as { amount: number } | undefined;
-    expect(balanceRow?.amount).toBe(SIGNUP_AIRDROP);
+    const [balance] = await sql<{ amount: string }[]>`
+      select amount from balances where user_id = ${userRow.id}
+    `;
+    expect(Number(balance?.amount)).toBe(SIGNUP_AIRDROP);
 
-    const txRow = sqlite
-      .prepare("SELECT type, payload FROM transactions WHERE user_id = ? AND type = 'Distribute'")
-      .get(userId) as { type: string; payload: string } | undefined;
-    expect(txRow).toBeDefined();
-    const payload = JSON.parse(txRow!.payload) as {
-      type: string;
-      to: string;
-      amount: number;
-      memo: string;
-    };
-    expect(payload).toMatchObject({
+    const [tx] = await sql<{ payload: string }[]>`
+      select payload from transactions
+      where user_id = ${userRow.id} and type = 'Distribute'
+    `;
+    expect(tx).toBeDefined();
+    expect(JSON.parse(tx.payload)).toMatchObject({
       type: "Distribute",
-      to: userId,
+      to: userRow.id,
       amount: SIGNUP_AIRDROP,
       memo: "signup_airdrop",
     });
   } finally {
-    sqlite.close();
+    await sql.end();
   }
 });

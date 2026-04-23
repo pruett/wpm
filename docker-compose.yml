@@ -1,22 +1,43 @@
 services:
+  wpm-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-wpm}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-wpm}
+      - POSTGRES_DB=${POSTGRES_DB:-wpm}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wpm} -d ${POSTGRES_DB:-wpm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - wpm-net
+
   wpm-web:
     image: ghcr.io/pruett/wpm-web:latest
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    depends_on:
+      wpm-db:
+        condition: service_healthy
     environment:
       - PORT=4102
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=https://${DOMAIN}
-      - DATABASE_URL=/app/data/wpm.db
+      - DATABASE_URL=postgres://${POSTGRES_USER:-wpm}:${POSTGRES_PASSWORD:-wpm}@wpm-db:5432/${POSTGRES_DB:-wpm}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - WPM_ORACLE_SERVICE_TOKEN=${WPM_ORACLE_SERVICE_TOKEN}
       - RP_ID=${DOMAIN}
       - ORIGIN=https://${DOMAIN}
       - NODE_ENV=production
-    volumes:
-      - app-data:/app/data
     healthcheck:
       test:
         [
@@ -62,7 +83,7 @@ services:
       - wpm-net
 
 volumes:
-  app-data:
+  db-data:
 
 networks:
   wpm-net:

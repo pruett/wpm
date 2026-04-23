@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
-import { z } from "zod/v4";
 import type { CreateMarketRequest } from "@wpm/shared";
+
+import { revalidateTag } from "next/cache";
+import { NextResponse } from "next/server";
+import { z } from "zod/v4";
+
 import { requireOracle } from "@/data/auth";
 import { createMarket, listAllMarketsRaw } from "@/data/markets";
 import { tags } from "@/data/tags";

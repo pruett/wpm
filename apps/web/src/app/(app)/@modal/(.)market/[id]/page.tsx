@@ -1,7 +1,8 @@
 import { Suspense } from "react";
-import { getSession } from "@/data/auth";
-import { MarketDrawer } from "@/components/market-drawer";
+
 import { MarketDetail } from "@/components/market-detail";
+import { MarketDrawer } from "@/components/market-drawer";
+import { getSession } from "@/data/auth";
 
 export default function MarketModal({ params }: { params: Promise<{ id: string }> }) {
   return (

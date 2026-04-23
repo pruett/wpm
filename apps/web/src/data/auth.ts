@@ -1,6 +1,7 @@
 import "server-only";
-import { cache } from "react";
 import { headers } from "next/headers";
+import { cache } from "react";
+
 import { auth, type Session } from "@/lib/auth/server";
 
 export type { Session } from "@/lib/auth/server";

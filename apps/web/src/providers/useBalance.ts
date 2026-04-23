@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
+
 import { useRealtimeEvent } from "./RealtimeProvider";
 
 export function useBalance(userId: string): void {

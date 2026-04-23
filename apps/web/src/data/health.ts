@@ -1,7 +1,9 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 import { sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
+
 import { tags } from "./tags";
 
 export type HealthData = {
@@ -15,7 +17,7 @@ export async function getHealth(): Promise<HealthData> {
   cacheTag(tags.health());
 
   try {
-    await db.get(sql`select 1`);
+    await db.execute(sql`select 1`);
     return { status: "ok", node: true };
   } catch {
     return { status: "degraded", node: false };

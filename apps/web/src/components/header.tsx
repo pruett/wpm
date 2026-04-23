@@ -1,6 +1,8 @@
-import { Suspense } from "react";
 import Link from "next/link";
+import { Suspense } from "react";
+
 import { getBalance } from "@/data/balances";
+
 import { Balance } from "./balance";
 import { UserMenu } from "./user-menu";
 

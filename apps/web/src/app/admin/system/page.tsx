@@ -1,8 +1,9 @@
 import { Suspense } from "react";
+
+import { SystemEventFeed } from "@/components/system-event-feed";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getHealth } from "@/data/health";
 import { getOracleHeartbeats, type HeartbeatRow } from "@/data/oracle";
-import { SystemEventFeed } from "@/components/system-event-feed";
 
 async function HealthPanel() {
   const health = await getHealth();
@@ -10,7 +11,7 @@ async function HealthPanel() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
           Ledger Health
         </CardTitle>
       </CardHeader>
@@ -57,7 +58,7 @@ async function OraclePanel() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
           Oracle
         </CardTitle>
       </CardHeader>
@@ -114,7 +115,7 @@ function CardSkeleton() {
 export default function AdminSystemPage() {
   return (
     <div>
-      <h1 className="mb-6 font-mono text-2xl font-black uppercase tracking-wider">System</h1>
+      <h1 className="mb-6 font-mono text-2xl font-black tracking-wider uppercase">System</h1>
 
       <Suspense fallback={<CardSkeleton />}>
         <HealthPanel />
@@ -129,7 +130,7 @@ export default function AdminSystemPage() {
       <div className="mt-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
               Live Event Feed
             </CardTitle>
           </CardHeader>

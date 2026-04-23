@@ -18,7 +18,7 @@ export async function ScrollingLeaderboard() {
   return (
     <div className="overflow-hidden border-b border-border bg-card/50">
       <div className="relative flex h-8 items-center font-mono text-xs">
-        <span className="z-10 shrink-0 border-r border-border bg-background px-3 font-bold uppercase tracking-wider">
+        <span className="z-10 shrink-0 border-r border-border bg-background px-3 font-bold tracking-wider uppercase">
           Top
         </span>
         <div className="marquee-track flex min-w-full">

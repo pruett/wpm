@@ -2,9 +2,10 @@
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
-import { sellShares as sellSharesDAL } from "@/data/trading";
-import { tags } from "@/data/tags";
+
 import { type ActionResult } from "@/data/auth";
+import { tags } from "@/data/tags";
+import { sellShares as sellSharesDAL } from "@/data/trading";
 import { emit } from "@/lib/events/emit";
 
 const SellSharesInput = z.object({

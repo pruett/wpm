@@ -1,5 +1,7 @@
-import { expect, test } from "@playwright/test";
 import type { CreateMarketRequest, OracleMarket } from "@wpm/shared";
+
+import { expect, test } from "@playwright/test";
+
 import { ORACLE_TOKEN } from "../../playwright.config";
 
 const authHeaders = { authorization: `Bearer ${ORACLE_TOKEN}` };

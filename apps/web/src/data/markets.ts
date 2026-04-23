@@ -1,7 +1,4 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
-import { eq, sql } from "drizzle-orm";
-import { calculateOdds } from "@wpm/shared";
 import type {
   AMMPool,
   CreateMarketRequest,
@@ -9,6 +6,11 @@ import type {
   MarketWithOdds,
   MarketsResponse,
 } from "@wpm/shared";
+
+import { calculateOdds } from "@wpm/shared";
+import { eq, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
 import {
   ammPools,
@@ -18,6 +20,7 @@ import {
   transactions,
   treasury,
 } from "@/lib/db/schema";
+
 import { tags } from "./tags";
 
 type MarketRow = typeof marketsTable.$inferSelect;
@@ -113,69 +116,62 @@ export async function listAllMarketsRaw(): Promise<MarketRow[]> {
   cacheLife("minutes");
   cacheTag(tags.marketsAll());
 
-  return db.select().from(marketsTable).all();
+  return db.select().from(marketsTable);
 }
 
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
 
 export async function createMarket(req: CreateMarketRequest): Promise<CreateMarketResult> {
-  return db.transaction((tx) => {
-    const existing = tx
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
       .select({ id: marketsTable.id })
       .from(marketsTable)
-      .where(eq(marketsTable.id, req.id))
-      .get();
+      .where(eq(marketsTable.id, req.id));
     if (existing) return { created: false, reason: "already_exists" } as const;
 
     const now = Date.now();
 
-    tx.update(treasury)
+    await tx
+      .update(treasury)
       .set({ amount: sql`${treasury.amount} - ${req.seedAmount}` })
-      .where(eq(treasury.id, "treasury"))
-      .run();
+      .where(eq(treasury.id, "treasury"));
 
-    tx.insert(marketsTable)
-      .values({
-        id: req.id,
-        sport: req.sport,
-        name: req.name,
-        teamA: req.teamA,
-        teamB: req.teamB,
-        logoA: req.logoA ?? null,
-        logoB: req.logoB ?? null,
-        leagueLogo: req.leagueLogo ?? null,
-        startTime: new Date(req.startTime).getTime(),
-        bettingClosesAt: new Date(req.bettingClosesAt).getTime(),
-        status: "open",
-        createdAt: now,
-      })
-      .run();
+    await tx.insert(marketsTable).values({
+      id: req.id,
+      sport: req.sport,
+      name: req.name,
+      teamA: req.teamA,
+      teamB: req.teamB,
+      logoA: req.logoA ?? null,
+      logoB: req.logoB ?? null,
+      leagueLogo: req.leagueLogo ?? null,
+      startTime: new Date(req.startTime).getTime(),
+      bettingClosesAt: new Date(req.bettingClosesAt).getTime(),
+      status: "open",
+      createdAt: now,
+    });
 
-    tx.insert(ammPools)
-      .values({
-        marketId: req.id,
-        reserveA: Math.round(req.reserveA),
-        reserveB: Math.round(req.reserveB),
-        wpmReserve: Math.round(req.wpmReserve),
-        seedAmount: req.seedAmount,
-      })
-      .run();
+    await tx.insert(ammPools).values({
+      marketId: req.id,
+      reserveA: Math.round(req.reserveA),
+      reserveB: Math.round(req.reserveB),
+      wpmReserve: Math.round(req.wpmReserve),
+      seedAmount: req.seedAmount,
+    });
 
-    tx.insert(transactions)
-      .values({
+    await tx.insert(transactions).values({
+      type: "CreateMarket",
+      marketId: req.id,
+      payload: JSON.stringify({
         type: "CreateMarket",
-        marketId: req.id,
-        payload: JSON.stringify({
-          type: "CreateMarket",
-          id: req.id,
-          name: req.name,
-          outcomes: [req.teamA, req.teamB],
-          seedAmount: req.seedAmount,
-          timestamp: new Date(now).toISOString(),
-        }),
-        createdAt: now,
-      })
-      .run();
+        id: req.id,
+        name: req.name,
+        outcomes: [req.teamA, req.teamB],
+        seedAmount: req.seedAmount,
+        timestamp: new Date(now).toISOString(),
+      }),
+      createdAt: now,
+    });
 
     return { created: true } as const;
   });
@@ -189,8 +185,8 @@ export async function resolveMarket(
   marketId: string,
   outcome: "A" | "B",
 ): Promise<ResolveMarketResult> {
-  const txResult = db.transaction((tx) => {
-    const market = tx.select().from(marketsTable).where(eq(marketsTable.id, marketId)).get();
+  const txResult = await db.transaction(async (tx) => {
+    const [market] = await tx.select().from(marketsTable).where(eq(marketsTable.id, marketId));
     if (!market) return { resolved: false as const, reason: "Market not found" };
 
     if (market.status === "resolved") {
@@ -204,15 +200,11 @@ export async function resolveMarket(
       return { resolved: false as const, reason: "Market is cancelled" };
     }
 
-    const pool = tx.select().from(ammPools).where(eq(ammPools.marketId, marketId)).get();
+    const [pool] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!pool) return { resolved: false as const, reason: "AMM pool missing" };
 
-    const winners = tx
-      .select()
-      .from(positions)
-      .where(eq(positions.marketId, marketId))
-      .all()
-      .filter((p) => (outcome === "A" ? p.sharesA > 0 : p.sharesB > 0));
+    const allPositions = await tx.select().from(positions).where(eq(positions.marketId, marketId));
+    const winners = allPositions.filter((p) => (outcome === "A" ? p.sharesA > 0 : p.sharesB > 0));
 
     const now = Date.now();
     let totalPaid = 0;
@@ -223,37 +215,34 @@ export async function resolveMarket(
       const payout = winningShares;
       if (payout <= 0) continue;
 
-      const prior =
-        tx
-          .select({ amount: balances.amount })
-          .from(balances)
-          .where(eq(balances.userId, p.userId))
-          .get()?.amount ?? 0;
+      const [priorRow] = await tx
+        .select({ amount: balances.amount })
+        .from(balances)
+        .where(eq(balances.userId, p.userId));
+      const prior = priorRow?.amount ?? 0;
 
-      tx.insert(balances)
+      await tx
+        .insert(balances)
         .values({ userId: p.userId, amount: payout })
         .onConflictDoUpdate({
           target: balances.userId,
           set: { amount: sql`${balances.amount} + ${payout}` },
-        })
-        .run();
+        });
 
-      tx.insert(transactions)
-        .values({
+      await tx.insert(transactions).values({
+        type: "SettlePayout",
+        userId: p.userId,
+        marketId,
+        payload: JSON.stringify({
           type: "SettlePayout",
-          userId: p.userId,
           marketId,
-          payload: JSON.stringify({
-            type: "SettlePayout",
-            marketId,
-            to: p.userId,
-            shares: winningShares,
-            amount: payout,
-            timestamp: new Date(now).toISOString(),
-          }),
-          createdAt: now,
-        })
-        .run();
+          to: p.userId,
+          shares: winningShares,
+          amount: payout,
+          timestamp: new Date(now).toISOString(),
+        }),
+        createdAt: now,
+      });
 
       totalPaid += payout;
       affected.push({ userId: p.userId, newBalance: prior + payout });
@@ -261,31 +250,29 @@ export async function resolveMarket(
 
     const liquidityRemainder = pool.wpmReserve - totalPaid;
     if (liquidityRemainder > 0) {
-      tx.update(treasury)
+      await tx
+        .update(treasury)
         .set({ amount: sql`${treasury.amount} + ${liquidityRemainder}` })
-        .where(eq(treasury.id, "treasury"))
-        .run();
+        .where(eq(treasury.id, "treasury"));
     }
 
-    tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId)).run();
-    tx.update(marketsTable)
+    await tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId));
+    await tx
+      .update(marketsTable)
       .set({ status: "resolved", resolvedOutcome: outcome, resolvedAt: now })
-      .where(eq(marketsTable.id, marketId))
-      .run();
+      .where(eq(marketsTable.id, marketId));
 
-    tx.insert(transactions)
-      .values({
+    await tx.insert(transactions).values({
+      type: "ResolveMarket",
+      marketId,
+      payload: JSON.stringify({
         type: "ResolveMarket",
         marketId,
-        payload: JSON.stringify({
-          type: "ResolveMarket",
-          marketId,
-          result: outcome,
-          timestamp: new Date(now).toISOString(),
-        }),
-        createdAt: now,
-      })
-      .run();
+        result: outcome,
+        timestamp: new Date(now).toISOString(),
+      }),
+      createdAt: now,
+    });
 
     return affected;
   });
@@ -300,8 +287,8 @@ export type CancelMarketResult =
   | { cancelled: false; reason: string };
 
 export async function cancelMarket(marketId: string, reason?: string): Promise<CancelMarketResult> {
-  const txResult = db.transaction((tx) => {
-    const market = tx.select().from(marketsTable).where(eq(marketsTable.id, marketId)).get();
+  const txResult = await db.transaction(async (tx) => {
+    const [market] = await tx.select().from(marketsTable).where(eq(marketsTable.id, marketId));
     if (!market) return { cancelled: false as const, reason: "Market not found" };
 
     if (market.status === "cancelled") return "already_cancelled" as const;
@@ -309,15 +296,11 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
       return { cancelled: false as const, reason: "Market is already resolved" };
     }
 
-    const pool = tx.select().from(ammPools).where(eq(ammPools.marketId, marketId)).get();
+    const [pool] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!pool) return { cancelled: false as const, reason: "AMM pool missing" };
 
-    const holders = tx
-      .select()
-      .from(positions)
-      .where(eq(positions.marketId, marketId))
-      .all()
-      .filter((p) => p.sharesA > 0 || p.sharesB > 0);
+    const allPositions = await tx.select().from(positions).where(eq(positions.marketId, marketId));
+    const holders = allPositions.filter((p) => p.sharesA > 0 || p.sharesB > 0);
 
     const now = Date.now();
     let totalRefunded = 0;
@@ -325,37 +308,34 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
 
     for (const p of holders) {
       if (p.costBasis <= 0) continue;
-      const prior =
-        tx
-          .select({ amount: balances.amount })
-          .from(balances)
-          .where(eq(balances.userId, p.userId))
-          .get()?.amount ?? 0;
+      const [priorRow] = await tx
+        .select({ amount: balances.amount })
+        .from(balances)
+        .where(eq(balances.userId, p.userId));
+      const prior = priorRow?.amount ?? 0;
 
-      tx.insert(balances)
+      await tx
+        .insert(balances)
         .values({ userId: p.userId, amount: p.costBasis })
         .onConflictDoUpdate({
           target: balances.userId,
           set: { amount: sql`${balances.amount} + ${p.costBasis}` },
-        })
-        .run();
+        });
 
-      tx.insert(transactions)
-        .values({
+      await tx.insert(transactions).values({
+        type: "SettlePayout",
+        userId: p.userId,
+        marketId,
+        payload: JSON.stringify({
           type: "SettlePayout",
-          userId: p.userId,
           marketId,
-          payload: JSON.stringify({
-            type: "SettlePayout",
-            marketId,
-            to: p.userId,
-            shares: p.sharesA + p.sharesB,
-            amount: p.costBasis,
-            timestamp: new Date(now).toISOString(),
-          }),
-          createdAt: now,
-        })
-        .run();
+          to: p.userId,
+          shares: p.sharesA + p.sharesB,
+          amount: p.costBasis,
+          timestamp: new Date(now).toISOString(),
+        }),
+        createdAt: now,
+      });
 
       totalRefunded += p.costBasis;
       affected.push({ userId: p.userId, newBalance: prior + p.costBasis });
@@ -363,35 +343,33 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
 
     const liquidityRemainder = pool.wpmReserve - totalRefunded;
     if (liquidityRemainder > 0) {
-      tx.update(treasury)
+      await tx
+        .update(treasury)
         .set({ amount: sql`${treasury.amount} + ${liquidityRemainder}` })
-        .where(eq(treasury.id, "treasury"))
-        .run();
+        .where(eq(treasury.id, "treasury"));
     }
 
-    tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId)).run();
-    tx.update(positions)
+    await tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId));
+    await tx
+      .update(positions)
       .set({ sharesA: 0, sharesB: 0, costBasis: 0 })
-      .where(eq(positions.marketId, marketId))
-      .run();
-    tx.update(marketsTable)
+      .where(eq(positions.marketId, marketId));
+    await tx
+      .update(marketsTable)
       .set({ status: "cancelled", resolvedAt: now })
-      .where(eq(marketsTable.id, marketId))
-      .run();
+      .where(eq(marketsTable.id, marketId));
 
-    tx.insert(transactions)
-      .values({
+    await tx.insert(transactions).values({
+      type: "CancelMarket",
+      marketId,
+      payload: JSON.stringify({
         type: "CancelMarket",
         marketId,
-        payload: JSON.stringify({
-          type: "CancelMarket",
-          marketId,
-          reason: reason ?? "oracle_cancel",
-          timestamp: new Date(now).toISOString(),
-        }),
-        createdAt: now,
-      })
-      .run();
+        reason: reason ?? "oracle_cancel",
+        timestamp: new Date(now).toISOString(),
+      }),
+      createdAt: now,
+    });
 
     return affected;
   });
@@ -409,14 +387,14 @@ export async function overrideSeed(
   const reserveA = Math.round(seedA);
   const reserveB = Math.round(seedB);
 
-  return db.transaction((tx) => {
-    const market = tx.select().from(marketsTable).where(eq(marketsTable.id, marketId)).get();
+  return db.transaction(async (tx) => {
+    const [market] = await tx.select().from(marketsTable).where(eq(marketsTable.id, marketId));
     if (!market) throw new Error("Market not found");
 
-    const pool = tx.select().from(ammPools).where(eq(ammPools.marketId, marketId)).get();
+    const [pool] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!pool) throw new Error("AMM pool missing");
 
-    tx.update(ammPools).set({ reserveA, reserveB }).where(eq(ammPools.marketId, marketId)).run();
+    await tx.update(ammPools).set({ reserveA, reserveB }).where(eq(ammPools.marketId, marketId));
 
     return { liquidity: pool.wpmReserve, reserveA, reserveB };
   });

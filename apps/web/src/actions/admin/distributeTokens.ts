@@ -2,9 +2,10 @@
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
+
 import { requireAdmin, type ActionResult } from "@/data/auth";
-import { distributeTokens as distributeTokensDAL } from "@/data/treasury";
 import { tags } from "@/data/tags";
+import { distributeTokens as distributeTokensDAL } from "@/data/treasury";
 import { emit } from "@/lib/events/emit";
 
 const DistributeInput = z.object({

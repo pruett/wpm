@@ -1,7 +1,9 @@
-import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LiveOdds } from "@/components/live-odds";
 import type { MarketWithOdds } from "@wpm/shared";
+
+import Link from "next/link";
+
+import { LiveOdds } from "@/components/live-odds";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function MarketCard({ market }: { market: MarketWithOdds }) {
   const closesAt = new Date(market.closesAt);
@@ -12,7 +14,7 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
     <Link href={`/market/${market.id}`} className="block">
       <Card className="flex flex-col transition-colors hover:border-foreground/25">
         <CardHeader className="pb-3">
-          <CardTitle className="font-mono text-sm font-bold leading-snug">{market.name}</CardTitle>
+          <CardTitle className="font-mono text-sm leading-snug font-bold">{market.name}</CardTitle>
         </CardHeader>
         <CardContent className="flex-1">
           <LiveOdds

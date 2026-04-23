@@ -1,8 +1,10 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
 import { desc, eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
 import { balances, user } from "@/lib/db/schema";
+
 import { tags } from "./tags";
 
 export type UserEntry = {

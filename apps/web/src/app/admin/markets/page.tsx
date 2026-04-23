@@ -1,9 +1,10 @@
 import { Suspense } from "react";
+
+import { CloseCountdown } from "@/components/close-countdown";
+import { ResolveForm, CancelForm, OverrideSeedForm } from "@/components/market-admin-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getMarkets } from "@/data/markets";
-import { ResolveForm, CancelForm, OverrideSeedForm } from "@/components/market-admin-actions";
-import { CloseCountdown } from "@/components/close-countdown";
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -41,7 +42,7 @@ async function MarketsTable() {
 
   return (
     <div className="space-y-4">
-      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+      <p className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
         {markets.length} {markets.length === 1 ? "market" : "markets"}
       </p>
       {sorted.map((market) => {
@@ -66,7 +67,7 @@ async function MarketsTable() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex gap-6 font-mono text-xs tabular-nums text-muted-foreground">
+              <div className="flex gap-6 font-mono text-xs text-muted-foreground tabular-nums">
                 <span>A: {(market.priceA * 100).toFixed(1)}%</span>
                 <span>B: {(market.priceB * 100).toFixed(1)}%</span>
                 <span>Pool: {market.pool.liquidity.toLocaleString()}</span>
@@ -87,19 +88,19 @@ async function MarketsTable() {
                   <Separator />
                   <div className="space-y-3">
                     <div>
-                      <p className="mb-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                      <p className="mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
                         Resolve
                       </p>
                       <ResolveForm marketId={market.id} outcomes={market.outcomes} />
                     </div>
                     <div>
-                      <p className="mb-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                      <p className="mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
                         Cancel
                       </p>
                       <CancelForm marketId={market.id} />
                     </div>
                     <div>
-                      <p className="mb-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                      <p className="mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
                         Override Seeds
                       </p>
                       <OverrideSeedForm marketId={market.id} />
@@ -118,7 +119,7 @@ async function MarketsTable() {
 export default function AdminMarketsPage() {
   return (
     <div>
-      <h1 className="mb-6 font-mono text-2xl font-black uppercase tracking-wider">Markets</h1>
+      <h1 className="mb-6 font-mono text-2xl font-black tracking-wider uppercase">Markets</h1>
       <Suspense
         fallback={
           <div className="space-y-4">

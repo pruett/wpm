@@ -1,23 +1,23 @@
-import "server-only";
-import fs from "node:fs";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { passkey } from "@better-auth/passkey";
+import { SIGNUP_AIRDROP } from "@wpm/shared";
 import { betterAuth } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
-import { passkey } from "@better-auth/passkey";
+import { magicLink } from "better-auth/plugins";
 import { eq, sql } from "drizzle-orm";
-import { SIGNUP_AIRDROP } from "@wpm/shared";
+import fs from "node:fs";
+
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema/auth";
 import { balances, transactions, treasury } from "@/lib/db/schema/app";
+import { user } from "@/lib/db/schema/auth";
 
 const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:4102";
 
 const pendingProfiles = new Map<string, { displayName: string; color: string; icon: string }>();
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "sqlite" }),
+  database: drizzleAdapter(db, { provider: "pg" }),
   baseURL: BASE_URL,
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
@@ -53,40 +53,38 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (createdUser) => {
-          db.transaction((tx) => {
-            const inserted = tx
+          await db.transaction(async (tx) => {
+            const inserted = await tx
               .insert(balances)
               .values({ userId: createdUser.id, amount: SIGNUP_AIRDROP })
               .onConflictDoNothing()
-              .run();
-            if (inserted.changes === 0) return;
+              .returning({ userId: balances.userId });
+            if (inserted.length === 0) return;
 
-            const t = tx.select().from(treasury).where(eq(treasury.id, "treasury")).get();
+            const [t] = await tx.select().from(treasury).where(eq(treasury.id, "treasury"));
             if (!t) throw new Error("Treasury not seeded");
             if (t.amount < SIGNUP_AIRDROP) {
               throw new Error("Insufficient treasury balance for signup airdrop");
             }
 
-            tx.update(treasury)
+            await tx
+              .update(treasury)
               .set({ amount: sql`${treasury.amount} - ${SIGNUP_AIRDROP}` })
-              .where(eq(treasury.id, "treasury"))
-              .run();
+              .where(eq(treasury.id, "treasury"));
 
             const now = Date.now();
-            tx.insert(transactions)
-              .values({
+            await tx.insert(transactions).values({
+              type: "Distribute",
+              userId: createdUser.id,
+              payload: JSON.stringify({
                 type: "Distribute",
-                userId: createdUser.id,
-                payload: JSON.stringify({
-                  type: "Distribute",
-                  to: createdUser.id,
-                  amount: SIGNUP_AIRDROP,
-                  memo: "signup_airdrop",
-                  timestamp: new Date(now).toISOString(),
-                }),
-                createdAt: now,
-              })
-              .run();
+                to: createdUser.id,
+                amount: SIGNUP_AIRDROP,
+                memo: "signup_airdrop",
+                timestamp: new Date(now).toISOString(),
+              }),
+              createdAt: now,
+            });
           });
         },
       },

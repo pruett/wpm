@@ -1,8 +1,9 @@
 "use server";
 
+import { initializePool, type CreateMarketRequest } from "@wpm/shared";
 import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
-import { initializePool, type CreateMarketRequest } from "@wpm/shared";
+
 import { requireAdmin, type ActionResult } from "@/data/auth";
 import { createMarket as createMarketDAL } from "@/data/markets";
 import { tags } from "@/data/tags";

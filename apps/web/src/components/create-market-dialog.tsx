@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+
+import { createMarket } from "@/actions/admin/createMarket";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createMarket } from "@/actions/admin/createMarket";
 
 type FormState = {
   id: string;
@@ -119,14 +120,14 @@ export function CreateMarketDialog() {
     >
       <DialogTrigger
         render={
-          <Button variant="outline" className="font-mono text-xs uppercase tracking-wider">
+          <Button variant="outline" className="font-mono text-xs tracking-wider uppercase">
             Create market
           </Button>
         }
       />
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-mono uppercase tracking-wider">Create market</DialogTitle>
+          <DialogTitle className="font-mono tracking-wider uppercase">Create market</DialogTitle>
           <DialogDescription>Seed a new prediction market.</DialogDescription>
         </DialogHeader>
 
@@ -236,7 +237,7 @@ export function CreateMarketDialog() {
           </div>
 
           <details className="group">
-            <summary className="cursor-pointer font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <summary className="cursor-pointer font-mono text-xs tracking-wider text-muted-foreground uppercase">
               Logos (optional)
             </summary>
             <div className="mt-3 grid gap-3">
@@ -304,10 +305,10 @@ function Field({
 }) {
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={htmlFor} className="font-mono text-xs uppercase tracking-wider">
+      <Label htmlFor={htmlFor} className="font-mono text-xs tracking-wider uppercase">
         {label}
         {hint && (
-          <span className="ml-1 text-muted-foreground normal-case tracking-normal">({hint})</span>
+          <span className="ml-1 tracking-normal text-muted-foreground normal-case">({hint})</span>
         )}
       </Label>
       {children}

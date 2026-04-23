@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { NextResponse } from "next/server";
 import { z } from "zod/v4";
+
 import { requireOracle } from "@/data/auth";
 import { cancelMarket } from "@/data/markets";
 import { tags } from "@/data/tags";

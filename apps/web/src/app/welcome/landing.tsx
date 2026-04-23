@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 
 function smoothstep(edge0: number, edge1: number, x: number): number {
@@ -170,7 +171,7 @@ function HalftonePortrait() {
   return (
     <svg
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      className="w-56 sm:w-72 md:w-80 h-auto text-foreground"
+      className="h-auto w-56 text-foreground sm:w-72 md:w-80"
       aria-hidden="true"
     >
       {dots.map((dot, i) => (
@@ -182,7 +183,7 @@ function HalftonePortrait() {
 
 export function Landing() {
   return (
-    <main className="relative flex min-h-svh flex-col items-center justify-center gap-10 p-6 overflow-hidden">
+    <main className="relative flex min-h-svh flex-col items-center justify-center gap-10 overflow-hidden p-6">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.03]"
         style={{
@@ -195,11 +196,11 @@ export function Landing() {
       <HalftonePortrait />
 
       <div className="text-center">
-        <h1 className="font-mono text-6xl sm:text-7xl md:text-8xl font-black tracking-[0.25em]">
+        <h1 className="font-mono text-6xl font-black tracking-[0.25em] sm:text-7xl md:text-8xl">
           WPM
         </h1>
         <div className="mx-auto mt-4 h-px w-32 bg-foreground/20" />
-        <p className="mt-4 text-xs sm:text-sm uppercase tracking-[0.2em] text-muted-foreground font-mono">
+        <p className="mt-4 font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase sm:text-sm">
           Wampum Prediction Markets
         </p>
       </div>
@@ -209,7 +210,7 @@ export function Landing() {
           render={<Link href="/login" />}
           nativeButton={false}
           size="lg"
-          className="uppercase tracking-wider font-mono"
+          className="font-mono tracking-wider uppercase"
         >
           Log in
         </Button>
@@ -218,7 +219,7 @@ export function Landing() {
           render={<Link href="/register" />}
           nativeButton={false}
           size="lg"
-          className="uppercase tracking-wider font-mono"
+          className="font-mono tracking-wider uppercase"
         >
           Create account
         </Button>

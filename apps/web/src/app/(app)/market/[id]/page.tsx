@@ -1,7 +1,8 @@
-import { Suspense } from "react";
 import Link from "next/link";
-import { getSession } from "@/data/auth";
+import { Suspense } from "react";
+
 import { MarketDetail } from "@/components/market-detail";
+import { getSession } from "@/data/auth";
 
 export default function MarketPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -9,7 +10,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
       <div className="mb-6">
         <Link
           href="/"
-          className="font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          className="font-mono text-xs tracking-wider text-muted-foreground uppercase hover:text-foreground"
         >
           &larr; Back
         </Link>

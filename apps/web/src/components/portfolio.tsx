@@ -1,7 +1,8 @@
-import { getPositions } from "@/data/positions";
-import { getMarkets } from "@/data/markets";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MarketWithOdds, SharePosition } from "@wpm/shared";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getMarkets } from "@/data/markets";
+import { getPositions } from "@/data/positions";
 
 type EnrichedPosition = SharePosition & {
   marketName: string;
@@ -41,7 +42,7 @@ export async function Portfolio({ userId }: { userId: string }) {
   if (positions.length === 0) {
     return (
       <section className="mt-8">
-        <h2 className="mb-4 font-mono text-lg font-bold uppercase tracking-wider">Portfolio</h2>
+        <h2 className="mb-4 font-mono text-lg font-bold tracking-wider uppercase">Portfolio</h2>
         <p className="font-mono text-sm text-muted-foreground">
           No positions yet. Place a bet to get started.
         </p>
@@ -59,10 +60,10 @@ export async function Portfolio({ userId }: { userId: string }) {
   return (
     <section className="mt-8">
       <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="font-mono text-lg font-bold uppercase tracking-wider">Portfolio</h2>
+        <h2 className="font-mono text-lg font-bold tracking-wider uppercase">Portfolio</h2>
         <div className="flex items-baseline gap-4 font-mono text-sm">
           <span className="text-muted-foreground">
-            Value <span className="tabular-nums text-foreground">{totalValue.toFixed(2)}</span>
+            Value <span className="text-foreground tabular-nums">{totalValue.toFixed(2)}</span>
           </span>
           <span className={totalPnl >= 0 ? "text-green-500" : "text-destructive"}>
             <span className="tabular-nums">{formatPnl(totalPnl)}</span>
@@ -73,8 +74,8 @@ export async function Portfolio({ userId }: { userId: string }) {
       <div className="space-y-2">
         {enriched.map((pos) => (
           <Card key={`${pos.marketId}-${pos.outcome}`}>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="font-mono text-sm font-bold leading-snug">
+            <CardHeader className="px-4 pt-4 pb-2">
+              <CardTitle className="font-mono text-sm leading-snug font-bold">
                 {pos.marketName}
               </CardTitle>
             </CardHeader>
@@ -84,7 +85,7 @@ export async function Portfolio({ userId }: { userId: string }) {
                   <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium">
                     {pos.outcomeName}
                   </span>
-                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
                     {pos.shares.toFixed(2)} shares
                   </span>
                 </div>

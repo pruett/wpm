@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { SearchIcon } from "lucide-react";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { MarketList } from "@/components/market-list";
 import type { MarketWithOdds } from "@wpm/shared";
+
+import { SearchIcon } from "lucide-react";
+import { useState, useMemo } from "react";
+
+import { MarketList } from "@/components/market-list";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 
 export function Search({ markets }: { markets: MarketWithOdds[] }) {
   const [query, setQuery] = useState("");

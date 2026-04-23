@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { requireOracle } from "@/data/auth";
 
 export function GET(request: Request) {

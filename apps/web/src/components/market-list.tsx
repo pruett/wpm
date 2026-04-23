@@ -1,6 +1,7 @@
-import { ItemGroup } from "@/components/ui/item";
-import { MarketItem } from "@/components/market-item";
 import type { MarketWithOdds } from "@wpm/shared";
+
+import { MarketItem } from "@/components/market-item";
+import { ItemGroup } from "@/components/ui/item";
 
 export function MarketList({ markets }: { markets: MarketWithOdds[] }) {
   return (

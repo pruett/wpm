@@ -22,7 +22,7 @@ export function CloseCountdown({ closesAt }: { closesAt: string }) {
   }, []);
 
   return (
-    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+    <span className="font-mono text-xs text-muted-foreground tabular-nums">
       {format(closesAt, now)}
     </span>
   );

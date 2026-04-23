@@ -2,9 +2,10 @@
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
-import { placeBet as placeBetDAL } from "@/data/trading";
-import { tags } from "@/data/tags";
+
 import { type ActionResult } from "@/data/auth";
+import { tags } from "@/data/tags";
+import { placeBet as placeBetDAL } from "@/data/trading";
 import { emit } from "@/lib/events/emit";
 
 const PlaceBetInput = z.object({

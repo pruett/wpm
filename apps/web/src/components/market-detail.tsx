@@ -1,7 +1,8 @@
+import type { SharePosition } from "@wpm/shared";
+
+import { BetControls } from "@/components/bet-controls";
 import { getMarket } from "@/data/markets";
 import { getPositions } from "@/data/positions";
-import { BetControls } from "@/components/bet-controls";
-import type { SharePosition } from "@wpm/shared";
 
 export async function MarketDetail({ id, userId }: { id: string; userId?: string }) {
   const [market, positions] = await Promise.all([

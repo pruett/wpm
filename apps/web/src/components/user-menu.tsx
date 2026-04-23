@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth/client";
+
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth/client";
 
 export function UserMenu({ name }: { name: string }) {
   const router = useRouter();
@@ -15,7 +16,7 @@ export function UserMenu({ name }: { name: string }) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm text-muted-foreground hidden sm:inline">{name}</span>
+      <span className="hidden text-sm text-muted-foreground sm:inline">{name}</span>
       <Button variant="ghost" size="sm" onClick={handleSignOut}>
         Sign out
       </Button>

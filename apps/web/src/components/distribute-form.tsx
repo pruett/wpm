@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+
+import { distributeTokens } from "@/actions/admin/distributeTokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { distributeTokens } from "@/actions/admin/distributeTokens";
 
 export function DistributeForm({ userId }: { userId: string }) {
   const [amount, setAmount] = useState("");

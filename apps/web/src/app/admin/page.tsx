@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { CreateMarketDialog } from "@/components/create-market-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getHealth } from "@/data/health";
 import { getMarkets } from "@/data/markets";
 import { getUsers } from "@/data/users";
-import { getHealth } from "@/data/health";
 
 async function OverviewCards() {
   const [marketsData, users, health] = await Promise.all([getMarkets(), getUsers(), getHealth()]);
@@ -15,7 +16,7 @@ async function OverviewCards() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
             Active Markets
           </CardTitle>
         </CardHeader>
@@ -27,7 +28,7 @@ async function OverviewCards() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
             Users
           </CardTitle>
         </CardHeader>
@@ -39,7 +40,7 @@ async function OverviewCards() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          <CardTitle className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
             Node Status
           </CardTitle>
         </CardHeader>
@@ -65,7 +66,7 @@ export default function AdminPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="font-mono text-2xl font-black uppercase tracking-wider">Overview</h1>
+        <h1 className="font-mono text-2xl font-black tracking-wider uppercase">Overview</h1>
         <CreateMarketDialog />
       </div>
       <Suspense

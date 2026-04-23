@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useMarket } from "@/providers/useMarket";
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import type { MarketWithOdds } from "@wpm/shared";
+
+import Link from "next/link";
+
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { useMarket } from "@/providers/useMarket";
 
 export function MarketItem({ market }: { market: MarketWithOdds }) {
   useMarket(market.id);

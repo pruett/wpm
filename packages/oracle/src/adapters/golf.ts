@@ -41,9 +41,11 @@ const EspnGolfCompetitor = Schema.Struct({
   id: Schema.String,
   order: Schema.Number,
   score: Schema.String,
-  athlete: Schema.Struct({
-    displayName: Schema.String,
-  }),
+  athlete: Schema.optional(
+    Schema.Struct({
+      displayName: Schema.String,
+    }),
+  ),
 });
 
 const EspnGolfEvent = Schema.Struct({
@@ -108,12 +110,18 @@ export function parseEspnGolfResponse(data: EspnGolfScoreboardResponse): Tournam
   return data.events.map((event) => {
     const competition = event.competitions[0];
     const statusName = event.status.type.name;
-    const allCompetitors: Competitor[] = competition.competitors.map((c) => ({
-      espnId: c.id,
-      name: c.athlete.displayName,
-      position: c.order,
-      score: c.score,
-    }));
+    const allCompetitors: Competitor[] = competition.competitors.flatMap((c) =>
+      c.athlete
+        ? [
+            {
+              espnId: c.id,
+              name: c.athlete.displayName,
+              position: c.order,
+              score: c.score,
+            },
+          ]
+        : [],
+    );
     return {
       espnId: event.id,
       name: event.name,

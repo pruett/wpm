@@ -1,9 +1,12 @@
 import "server-only";
-import { cacheLife, cacheTag } from "next/cache";
-import { eq } from "drizzle-orm";
 import type { SharePosition } from "@wpm/shared";
+
+import { eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
 import { positions } from "@/lib/db/schema";
+
 import { tags } from "./tags";
 
 export async function getPositions(userId: string): Promise<SharePosition[]> {

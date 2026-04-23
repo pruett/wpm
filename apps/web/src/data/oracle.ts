@@ -1,7 +1,9 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
+
 import { db } from "@/lib/db";
 import { oracleHeartbeats } from "@/lib/db/schema";
+
 import { tags } from "./tags";
 
 export type HeartbeatRow = {
@@ -26,7 +28,7 @@ export async function getOracleHeartbeats(): Promise<HeartbeatRow[]> {
   cacheTag(tags.oracleHeartbeats());
 
   const now = Date.now();
-  const rows = db.select().from(oracleHeartbeats).all();
+  const rows = await db.select().from(oracleHeartbeats);
   return rows.map((r) => {
     const lastSeen = r.lastSeenAt.getTime();
     const ageMs = now - lastSeen;
@@ -48,11 +50,11 @@ export async function recordHeartbeat(
   message: string | null,
 ): Promise<void> {
   const now = new Date();
-  db.insert(oracleHeartbeats)
+  await db
+    .insert(oracleHeartbeats)
     .values({ job, status, message, lastSeenAt: now })
     .onConflictDoUpdate({
       target: oracleHeartbeats.job,
       set: { status, message, lastSeenAt: now },
-    })
-    .run();
+    });
 }
