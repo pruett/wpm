@@ -4,49 +4,40 @@
 
 WPM is a prediction market platform for a small friend group: binary sports betting on game moneylines, priced by an Automated Market Maker (AMM). Users get an airdrop of WPM tokens at signup and trade outcome shares against per-market liquidity pools seeded by a treasury.
 
-The system is intentionally small. A single Next.js application owns the user-facing UI, the server-side business logic, the SQLite database that stores balances, markets, positions, pools, and an audit log of every economic event. A separate Oracle process ingests sports schedules from ESPN and feeds new markets into the system. There is no blockchain — earlier designs used a custom chain with signed transactions, a mempool, and a standalone API; that has been collapsed into Next.js server actions writing to SQLite inside a single transaction.
+The system is a single Next.js application. It owns the user-facing UI, the server-side business logic, and the Postgres database (Neon in production) that stores balances, markets, positions, pools, and an audit log of every economic event. All mutations flow through server actions writing inside a single DB transaction.
 
-Real-time price and balance updates fan out over an in-process event bus to a single SSE endpoint that the browser subscribes to.
+Market ingest runs as a Vercel Cron job — a scheduled `GET /api/cron/ingest` that pulls schedules from Kalshi and creates missing markets.
 
 ## Code Map
 
-### `apps/web/`
-
-The Next.js application — the only user-facing service and the source of truth for all state.
-
-#### `apps/web/src/app/`
+### `src/app/`
 
 Routes, layouts, and server actions following the App Router conventions.
 
-#### `apps/web/src/lib/`
+### `src/app/api/cron/ingest/`
 
-Server-side libraries used by routes and actions.
+The Kalshi ingest cron route. Runs on a Vercel Cron schedule defined in `vercel.json`. Authenticated via `Authorization: Bearer ${CRON_SECRET}`.
 
-#### `apps/web/src/proxy.ts`
+### `src/lib/`
 
-Next.js middleware
+Server-side libraries used by routes and actions. Notable modules:
 
-#### DB and schema
-
-- `apps/web/wpm.db` - sqlite db
-- `apps/web/drizzle.config.ts` and `apps/web/src/lib/db` - db configuration
-
-### `packages/shared/`
-
-Pure TypeScript library imported by both `apps/web` and `packages/oracle`. No I/O, no framework dependencies.
-
-### `packages/oracle/`
-
-Standalone Node process that bridges ESPN data into the system. Uses Effect for orchestration. Communicates with the web app exclusively through REST endpoints under `/api/oracle/`, authenticated with a shared bearer token (`WPM_ORACLE_SERVICE_TOKEN`).
+- `amm.ts` — pure AMM math (buy, sell, odds).
+- `categories.ts` — sport category metadata.
+- `constants.ts` — monetary supply constants.
+- `types.ts` — domain types shared across the app.
+- `kalshi/` — Kalshi API schemas and ingest logic.
+- `auth/` — better-auth server + client.
+- `db/` — drizzle schema and migrations.
 
 ## Cross-Cutting Concerns
 
-**Caching and invalidation.** Read-side helpers in `lib/data/` use Next's `"use cache"` with `cacheTag("market:<id>")`, `cacheTag("viewer:<userId>")`, etc. Mutations call `updateTag(...)` after the DB transaction commits, so the next render fetches fresh data without busting unrelated caches.
+**Caching and invalidation.** Read-side helpers in `data/` use Next's `"use cache"` with `cacheTag("market:<id>")`, `cacheTag("viewer:<userId>")`, etc. Mutations call `revalidateTag(...)` after the DB transaction commits.
 
-**Auth.** Better-auth owns sessions, magic-link email, and passkeys. Admin status is _not_ a database field; it is computed from `ADMIN_EMAILS`. Auth-gated routes use `requireUser` / `requireAdmin` inside actions; `/admin/*` also has a middleware redirect.
+**Auth.** Better-auth owns sessions, magic-link email, and passkeys. Admin status is computed from the `ADMIN_EMAILS` env var.
 
-## Architectural Invariants
+## Hosting
 
-- The `transactions` table is a plain audit log.
-- SQLite is the single source of truth. There is no separate node process or external API server holding state.
-- The oracle never reads or writes the database directly. It communicates with the web app exclusively through the `/api/oracle/` REST endpoints, authenticated by a shared bearer token (`WPM_ORACLE_SERVICE_TOKEN`).
+- **App:** Vercel (Pro plan — cron routes use `maxDuration = 300`).
+- **Database:** Neon Postgres via `DATABASE_URL` (pooled).
+- **Local dev:** `docker compose up wpm-db` starts a Postgres container; `bun dev` runs Next.
