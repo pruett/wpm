@@ -38,7 +38,7 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
       const [market] = await tx.select().from(markets).where(eq(markets.id, marketId));
       if (!market) throw new Error("Market not found");
       if (market.status !== "open") throw new Error("Market is not open");
-      if (Date.now() >= market.bettingClosesAt) throw new Error("Betting has closed");
+      if (Date.now() >= market.closesAt) throw new Error("Betting has closed");
 
       const [bal] = await tx.select().from(balances).where(eq(balances.userId, userId));
       const currentBalance = bal?.amount ?? 0;
@@ -151,7 +151,7 @@ export async function sellShares(input: SellSharesInput): Promise<SellSharesResu
       const [market] = await tx.select().from(markets).where(eq(markets.id, marketId));
       if (!market) throw new Error("Market not found");
       if (market.status !== "open") throw new Error("Market is not open");
-      if (Date.now() >= market.bettingClosesAt) throw new Error("Betting has closed");
+      if (Date.now() >= market.closesAt) throw new Error("Betting has closed");
 
       const [pos] = await tx
         .select()

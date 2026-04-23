@@ -9,7 +9,7 @@ import { sellShares } from "@/actions/sellShares";
 import { useBetConfirm } from "@/components/bet-confirm-provider";
 import { useIsInMarketDrawer } from "@/components/market-drawer";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -77,8 +77,6 @@ export function BetControls({ market, userId, positions }: Props) {
   const { priceA, priceB, multiplierA, multiplierB } = market;
 
   const [teamA, teamB] = market.outcomes;
-  const logoA = market.logos?.[0];
-  const logoB = market.logos?.[1];
 
   const closesAt = new Date(market.closesAt);
   const diffMs = closesAt.getTime() - Date.now();
@@ -162,19 +160,13 @@ export function BetControls({ market, userId, positions }: Props) {
   const canSell = !isClosed && sellShareAmount > 0 && sellShareAmount <= ownedShares && !isPending;
 
   const outcomes = [
-    { key: "A" as const, name: teamA, logo: logoA, price: priceA, multiplier: multiplierA },
-    { key: "B" as const, name: teamB, logo: logoB, price: priceB, multiplier: multiplierB },
+    { key: "A" as const, name: teamA, price: priceA, multiplier: multiplierA },
+    { key: "B" as const, name: teamB, price: priceB, multiplier: multiplierB },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-start gap-3">
-        {market.leagueLogo ? (
-          <Avatar>
-            <AvatarImage src={market.leagueLogo} alt="" />
-            <AvatarFallback>LG</AvatarFallback>
-          </Avatar>
-        ) : null}
         <div className="flex flex-1 flex-col gap-2">
           <ItemTitle>{market.name}</ItemTitle>
           <div className="flex flex-wrap items-center gap-2">
@@ -210,7 +202,6 @@ export function BetControls({ market, userId, positions }: Props) {
             className="h-auto flex-1 flex-col items-center gap-2 py-4"
           >
             <Avatar size="lg">
-              {o.logo ? <AvatarImage src={o.logo} alt="" /> : null}
               <AvatarFallback>{initials(o.name)}</AvatarFallback>
             </Avatar>
             <ItemTitle>{o.name}</ItemTitle>
@@ -426,7 +417,6 @@ export function BetControls({ market, userId, positions }: Props) {
           <ItemGroup>
             {positions.map((pos) => {
               const posName = pos.outcome === "A" ? teamA : teamB;
-              const posLogo = pos.outcome === "A" ? logoA : logoB;
               const posPrice = pos.outcome === "A" ? priceA : priceB;
               const value = pos.shares * posPrice;
               const pnl = value - pos.costBasis;
@@ -434,7 +424,6 @@ export function BetControls({ market, userId, positions }: Props) {
                 <Item key={pos.outcome} variant="outline" size="sm">
                   <ItemMedia>
                     <Avatar size="sm">
-                      {posLogo ? <AvatarImage src={posLogo} alt="" /> : null}
                       <AvatarFallback>{initials(posName)}</AvatarFallback>
                     </Avatar>
                   </ItemMedia>

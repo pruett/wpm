@@ -9,6 +9,11 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "test:contract": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true

@@ -4,11 +4,12 @@ export type CreateMarketRequest = {
   name: string;
   teamA: string;
   teamB: string;
+  tickerA?: string;
+  tickerB?: string;
   logoA?: string;
   logoB?: string;
   leagueLogo?: string;
-  startTime: string;
-  bettingClosesAt: string;
+  closesAt: string;
   seedAmount: number;
   initialProbabilityA?: number;
   reserveA: number;
@@ -40,8 +41,9 @@ export type OracleMarket = {
   name: string;
   teamA: string;
   teamB: string;
-  startTime: number;
-  bettingClosesAt: number;
+  tickerA?: string;
+  tickerB?: string;
+  closesAt: number;
   status: "open" | "closed" | "resolved" | "cancelled";
   resolvedOutcome?: "A" | "B";
 };

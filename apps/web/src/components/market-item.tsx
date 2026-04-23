@@ -4,7 +4,7 @@ import type { MarketWithOdds } from "@wpm/shared";
 
 import Link from "next/link";
 
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { useMarket } from "@/providers/useMarket";
 
 export function MarketItem({ market }: { market: MarketWithOdds }) {
@@ -20,17 +20,6 @@ export function MarketItem({ market }: { market: MarketWithOdds }) {
       role="listitem"
       render={
         <Link href={`/market/${market.id}`}>
-          {market.leagueLogo && (
-            <ItemMedia variant="image">
-              <img
-                src={market.leagueLogo}
-                alt=""
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            </ItemMedia>
-          )}
           <ItemContent>
             <ItemTitle className="line-clamp-1">{market.name}</ItemTitle>
             <ItemDescription>

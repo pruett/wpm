@@ -29,8 +29,7 @@ function toOracleMarket(params: CreateMarketRequest): OracleMarket {
     name: params.name,
     teamA: params.teamA,
     teamB: params.teamB,
-    startTime: new Date(params.startTime).getTime(),
-    bettingClosesAt: new Date(params.bettingClosesAt).getTime(),
+    closesAt: new Date(params.closesAt).getTime(),
     status: "open",
   };
 }

@@ -32,9 +32,7 @@ function toMarket(row: MarketRow): Market {
     id: row.id,
     name: row.name,
     outcomes: [row.teamA, row.teamB],
-    logos: row.logoA && row.logoB ? [row.logoA, row.logoB] : undefined,
-    leagueLogo: row.leagueLogo ?? undefined,
-    closesAt: new Date(row.bettingClosesAt).toISOString(),
+    closesAt: new Date(row.closesAt).toISOString(),
     status: row.status,
     result: row.resolvedOutcome ?? undefined,
   };
@@ -119,9 +117,24 @@ export async function listAllMarketsRaw(): Promise<MarketRow[]> {
   return db.select().from(marketsTable);
 }
 
+export type OrderBookSnapshot = {
+  yesBidCentsA?: number;
+  yesAskCentsA?: number;
+  noBidCentsA?: number;
+  noAskCentsA?: number;
+  yesBidCentsB?: number;
+  yesAskCentsB?: number;
+  noBidCentsB?: number;
+  noAskCentsB?: number;
+  volume24hA?: number;
+  volume24hB?: number;
+};
+
+export type CreateMarketInput = CreateMarketRequest & OrderBookSnapshot;
+
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
 
-export async function createMarket(req: CreateMarketRequest): Promise<CreateMarketResult> {
+export async function createMarket(req: CreateMarketInput): Promise<CreateMarketResult> {
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ id: marketsTable.id })
@@ -142,13 +155,21 @@ export async function createMarket(req: CreateMarketRequest): Promise<CreateMark
       name: req.name,
       teamA: req.teamA,
       teamB: req.teamB,
-      logoA: req.logoA ?? null,
-      logoB: req.logoB ?? null,
-      leagueLogo: req.leagueLogo ?? null,
-      startTime: new Date(req.startTime).getTime(),
-      bettingClosesAt: new Date(req.bettingClosesAt).getTime(),
+      tickerA: req.tickerA ?? null,
+      tickerB: req.tickerB ?? null,
+      closesAt: new Date(req.closesAt).getTime(),
       status: "open",
       createdAt: now,
+      yesBidCentsA: req.yesBidCentsA ?? null,
+      yesAskCentsA: req.yesAskCentsA ?? null,
+      noBidCentsA: req.noBidCentsA ?? null,
+      noAskCentsA: req.noAskCentsA ?? null,
+      yesBidCentsB: req.yesBidCentsB ?? null,
+      yesAskCentsB: req.yesAskCentsB ?? null,
+      noBidCentsB: req.noBidCentsB ?? null,
+      noAskCentsB: req.noAskCentsB ?? null,
+      volume24hA: req.volume24hA ?? null,
+      volume24hB: req.volume24hB ?? null,
     });
 
     await tx.insert(ammPools).values({

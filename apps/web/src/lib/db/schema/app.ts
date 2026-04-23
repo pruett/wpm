@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   bigint,
+  integer,
   serial,
   timestamp,
   index,
@@ -46,19 +47,29 @@ export const markets = pgTable(
     name: text("name").notNull(),
     teamA: text("team_a").notNull(),
     teamB: text("team_b").notNull(),
-    logoA: text("logo_a"),
-    logoB: text("logo_b"),
-    leagueLogo: text("league_logo"),
-    startTime: bigint("start_time", { mode: "number" }).notNull(),
-    bettingClosesAt: bigint("betting_closes_at", { mode: "number" }).notNull(),
+    tickerA: text("ticker_a"),
+    tickerB: text("ticker_b"),
+    closesAt: bigint("closes_at", { mode: "number" }).notNull(),
     status: text("status", {
       enum: ["open", "closed", "resolved", "cancelled"],
     }).notNull(),
     resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
     resolvedAt: bigint("resolved_at", { mode: "number" }),
     createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    // Upstream order-book snapshot (cents, 0–100). Null for markets without
+    // an external price feed.
+    yesBidCentsA: integer("yes_bid_cents_a"),
+    yesAskCentsA: integer("yes_ask_cents_a"),
+    noBidCentsA: integer("no_bid_cents_a"),
+    noAskCentsA: integer("no_ask_cents_a"),
+    yesBidCentsB: integer("yes_bid_cents_b"),
+    yesAskCentsB: integer("yes_ask_cents_b"),
+    noBidCentsB: integer("no_bid_cents_b"),
+    noAskCentsB: integer("no_ask_cents_b"),
+    volume24hA: bigint("volume_24h_a", { mode: "number" }),
+    volume24hB: bigint("volume_24h_b", { mode: "number" }),
   },
-  (t) => [index("ix_markets_status_start").on(t.status, t.startTime)],
+  (t) => [index("ix_markets_status_closes").on(t.status, t.closesAt)],
 );
 
 export const ammPools = pgTable("amm_pools", {

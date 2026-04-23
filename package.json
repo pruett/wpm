@@ -9,6 +9,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "test": "turbo test",
+    "test:contract": "turbo test:contract",
     "clean": "turbo clean && rm -rf node_modules bun.lock",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

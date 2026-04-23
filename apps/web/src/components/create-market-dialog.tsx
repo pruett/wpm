@@ -23,11 +23,7 @@ type FormState = {
   name: string;
   teamA: string;
   teamB: string;
-  logoA: string;
-  logoB: string;
-  leagueLogo: string;
-  startTime: string;
-  bettingClosesAt: string;
+  closesAt: string;
   seedAmount: string;
   initialProbabilityA: string;
 };
@@ -38,11 +34,7 @@ const EMPTY: FormState = {
   name: "",
   teamA: "",
   teamB: "",
-  logoA: "",
-  logoB: "",
-  leagueLogo: "",
-  startTime: "",
-  bettingClosesAt: "",
+  closesAt: "",
   seedAmount: "1000",
   initialProbabilityA: "",
 };
@@ -91,11 +83,7 @@ export function CreateMarketDialog() {
         name: form.name.trim(),
         teamA: form.teamA.trim(),
         teamB: form.teamB.trim(),
-        logoA: form.logoA.trim() || undefined,
-        logoB: form.logoB.trim() || undefined,
-        leagueLogo: form.leagueLogo.trim() || undefined,
-        startTime: localToIso(form.startTime),
-        bettingClosesAt: localToIso(form.bettingClosesAt),
+        closesAt: localToIso(form.closesAt),
         seedAmount,
         initialProbabilityA,
       });
@@ -187,28 +175,16 @@ export function CreateMarketDialog() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Starts" htmlFor="cm-start">
-              <Input
-                id="cm-start"
-                type="datetime-local"
-                value={form.startTime}
-                onChange={(e) => update("startTime", e.target.value)}
-                required
-                disabled={isPending}
-              />
-            </Field>
-            <Field label="Betting closes" htmlFor="cm-close">
-              <Input
-                id="cm-close"
-                type="datetime-local"
-                value={form.bettingClosesAt}
-                onChange={(e) => update("bettingClosesAt", e.target.value)}
-                required
-                disabled={isPending}
-              />
-            </Field>
-          </div>
+          <Field label="Betting closes" htmlFor="cm-close">
+            <Input
+              id="cm-close"
+              type="datetime-local"
+              value={form.closesAt}
+              onChange={(e) => update("closesAt", e.target.value)}
+              required
+              disabled={isPending}
+            />
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Seed amount" htmlFor="cm-seed">
@@ -235,38 +211,6 @@ export function CreateMarketDialog() {
               />
             </Field>
           </div>
-
-          <details className="group">
-            <summary className="cursor-pointer font-mono text-xs tracking-wider text-muted-foreground uppercase">
-              Logos (optional)
-            </summary>
-            <div className="mt-3 grid gap-3">
-              <Field label="Logo A" htmlFor="cm-logoA">
-                <Input
-                  id="cm-logoA"
-                  value={form.logoA}
-                  onChange={(e) => update("logoA", e.target.value)}
-                  disabled={isPending}
-                />
-              </Field>
-              <Field label="Logo B" htmlFor="cm-logoB">
-                <Input
-                  id="cm-logoB"
-                  value={form.logoB}
-                  onChange={(e) => update("logoB", e.target.value)}
-                  disabled={isPending}
-                />
-              </Field>
-              <Field label="League logo" htmlFor="cm-league">
-                <Input
-                  id="cm-league"
-                  value={form.leagueLogo}
-                  onChange={(e) => update("leagueLogo", e.target.value)}
-                  disabled={isPending}
-                />
-              </Field>
-            </div>
-          </details>
 
           {message && (
             <p

@@ -8,8 +8,7 @@ const authHeaders = { authorization: `Bearer ${ORACLE_TOKEN}` };
 
 test("oracle creates a market and it appears in the oracle market list", async ({ request }) => {
   const marketId = `e2e-market-${Date.now()}`;
-  const startTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  const bettingClosesAt = startTime;
+  const closesAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
   const payload: CreateMarketRequest = {
     id: marketId,
@@ -17,8 +16,7 @@ test("oracle creates a market and it appears in the oracle market list", async (
     name: "Packers @ Bears",
     teamA: "Green Bay Packers",
     teamB: "Chicago Bears",
-    startTime,
-    bettingClosesAt,
+    closesAt,
     seedAmount: 1000,
     reserveA: 500,
     reserveB: 500,

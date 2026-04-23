@@ -3,11 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { KALSHI_SERIES, KalshiEventsResponse, kalshiEventsUrl } from "./index.js";
 
-const ENABLED = process.env.KALSHI_CONTRACT_TESTS === "true";
-const testIf = ENABLED ? it : it.skip;
-
 describe("Kalshi API contract", () => {
-  testIf(
+  it(
     "MLB events?series=KXMLBGAME response matches our schema with nested markets",
     { timeout: 30_000 },
     async () => {
@@ -47,7 +44,7 @@ describe("Kalshi API contract", () => {
     },
   );
 
-  testIf(
+  it(
     "NFL events?series=KXNFLGAME response decodes (may be empty during offseason)",
     { timeout: 30_000 },
     async () => {
