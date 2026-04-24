@@ -2,15 +2,10 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type {
-  AMMPool,
-  CreateMarketRequest,
-  Market,
-  MarketWithOdds,
-  MarketsResponse,
-} from "@/lib/types";
+import type { TranslatedMarket } from "@/lib/kalshi/translator";
+import type { AMMPool, Market, MarketWithOdds, MarketsResponse } from "@/lib/types";
 
-import { calculateOdds } from "@/lib/amm";
+import { calculateOdds, initializePool } from "@/lib/amm";
 import { db } from "@/lib/db";
 import {
   ammPools,
@@ -117,78 +112,49 @@ export async function listAllMarketsRaw(): Promise<MarketRow[]> {
   return db.select().from(marketsTable);
 }
 
-export type OrderBookSnapshot = {
-  yesBidCentsA?: number;
-  yesAskCentsA?: number;
-  noBidCentsA?: number;
-  noAskCentsA?: number;
-  yesBidCentsB?: number;
-  yesAskCentsB?: number;
-  noBidCentsB?: number;
-  noAskCentsB?: number;
-  volume24hA?: number;
-  volume24hB?: number;
-};
-
-export type CreateMarketInput = CreateMarketRequest & OrderBookSnapshot;
-
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
 
-export async function createMarket(req: CreateMarketInput): Promise<CreateMarketResult> {
+export async function createMarket(input: TranslatedMarket): Promise<CreateMarketResult> {
+  const { market, seedAmount, initialProbabilityA } = input;
+
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ id: marketsTable.id })
       .from(marketsTable)
-      .where(eq(marketsTable.id, req.id));
+      .where(eq(marketsTable.id, market.id));
     if (existing) return { created: false, reason: "already_exists" } as const;
 
     const now = Date.now();
+    const pool = initializePool(market.id, seedAmount, initialProbabilityA);
 
     await tx
       .update(treasury)
-      .set({ amount: sql`${treasury.amount} - ${req.seedAmount}` })
+      .set({ amount: sql`${treasury.amount} - ${seedAmount}` })
       .where(eq(treasury.id, "treasury"));
 
     await tx.insert(marketsTable).values({
-      id: req.id,
-      sport: req.sport,
-      name: req.name,
-      teamA: req.teamA,
-      teamB: req.teamB,
-      tickerA: req.tickerA ?? null,
-      tickerB: req.tickerB ?? null,
-      closesAt: new Date(req.closesAt).getTime(),
+      ...market,
       status: "open",
       createdAt: now,
-      yesBidCentsA: req.yesBidCentsA ?? null,
-      yesAskCentsA: req.yesAskCentsA ?? null,
-      noBidCentsA: req.noBidCentsA ?? null,
-      noAskCentsA: req.noAskCentsA ?? null,
-      yesBidCentsB: req.yesBidCentsB ?? null,
-      yesAskCentsB: req.yesAskCentsB ?? null,
-      noBidCentsB: req.noBidCentsB ?? null,
-      noAskCentsB: req.noAskCentsB ?? null,
-      volume24hA: req.volume24hA ?? null,
-      volume24hB: req.volume24hB ?? null,
     });
 
     await tx.insert(ammPools).values({
-      marketId: req.id,
-      reserveA: Math.round(req.reserveA),
-      reserveB: Math.round(req.reserveB),
-      wpmReserve: Math.round(req.wpmReserve),
-      seedAmount: req.seedAmount,
+      marketId: market.id,
+      reserveA: Math.round(pool.sharesA),
+      reserveB: Math.round(pool.sharesB),
+      wpmReserve: Math.round(pool.liquidity),
+      seedAmount,
     });
 
     await tx.insert(transactions).values({
       type: "CreateMarket",
-      marketId: req.id,
+      marketId: market.id,
       payload: JSON.stringify({
         type: "CreateMarket",
-        id: req.id,
-        name: req.name,
-        outcomes: [req.teamA, req.teamB],
-        seedAmount: req.seedAmount,
+        id: market.id,
+        name: market.name,
+        outcomes: [market.teamA, market.teamB],
+        seedAmount,
         timestamp: new Date(now).toISOString(),
       }),
       createdAt: now,

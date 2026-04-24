@@ -8,6 +8,13 @@
       "when": 1776972401600,
       "tag": "0000_fresh_jack_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777047786940,
+      "tag": "0001_ancient_kinsey_walden",
+      "breakpoints": true
     }
   ]
 }

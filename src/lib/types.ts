@@ -131,22 +131,3 @@ export type LeaderboardEntry = {
   name: string;
   balance: number;
 };
-
-export type CreateMarketRequest = {
-  id: string;
-  sport: string;
-  name: string;
-  teamA: string;
-  teamB: string;
-  tickerA?: string;
-  tickerB?: string;
-  logoA?: string;
-  logoB?: string;
-  leagueLogo?: string;
-  closesAt: string;
-  seedAmount: number;
-  initialProbabilityA?: number;
-  reserveA: number;
-  reserveB: number;
-  wpmReserve: number;
-};

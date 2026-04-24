@@ -1,17 +1,13 @@
 import "server-only";
-import { createMarket, type CreateMarketInput } from "@/data/markets";
-import { initializePool } from "@/lib/amm";
+import { createMarket } from "@/data/markets";
 
 import {
   KALSHI_SERIES,
   KalshiEventsResponse,
   kalshiEventsUrl,
-  type KalshiEvent,
-  type KalshiMarket,
   type KalshiSeriesTicker,
 } from "./index";
-
-const SEED_AMOUNT = 1000;
+import { translateKalshiEvent, type TranslationResult } from "./translator";
 
 const SERIES_TO_SPORT: Record<KalshiSeriesTicker, string> = {
   [KALSHI_SERIES.MLB]: "mlb",
@@ -20,15 +16,32 @@ const SERIES_TO_SPORT: Record<KalshiSeriesTicker, string> = {
   [KALSHI_SERIES.NHL]: "nhl",
 };
 
-export type KalshiIngestSummary = {
-  bySeries: Record<string, { fetched: number; created: number; skipped: number }>;
-  totals: { fetched: number; created: number; skipped: number };
+type SkipReasonKind = Exclude<TranslationResult["kind"], "ok"> | "already_exists";
+
+export type SeriesIngestSummary = {
+  fetched: number;
+  created: number;
+  skipped: Record<SkipReasonKind, number>;
 };
+
+export type KalshiIngestSummary = {
+  bySeries: Record<string, SeriesIngestSummary>;
+  totals: { fetched: number; created: number; skipped: Record<SkipReasonKind, number> };
+};
+
+function emptySkipCounters(): Record<SkipReasonKind, number> {
+  return {
+    non_binary: 0,
+    unparseable_close_time: 0,
+    no_initial_price: 0,
+    already_exists: 0,
+  };
+}
 
 export async function runKalshiIngest(): Promise<KalshiIngestSummary> {
   const summary: KalshiIngestSummary = {
     bySeries: {},
-    totals: { fetched: 0, created: 0, skipped: 0 },
+    totals: { fetched: 0, created: 0, skipped: emptySkipCounters() },
   };
 
   for (const seriesTicker of Object.values(KALSHI_SERIES)) {
@@ -36,13 +49,15 @@ export async function runKalshiIngest(): Promise<KalshiIngestSummary> {
     summary.bySeries[seriesTicker] = result;
     summary.totals.fetched += result.fetched;
     summary.totals.created += result.created;
-    summary.totals.skipped += result.skipped;
+    for (const key of Object.keys(result.skipped) as SkipReasonKind[]) {
+      summary.totals.skipped[key] += result.skipped[key];
+    }
   }
 
   return summary;
 }
 
-async function ingestSeries(seriesTicker: KalshiSeriesTicker) {
+async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIngestSummary> {
   const response = await fetch(kalshiEventsUrl(seriesTicker));
   if (!response.ok) {
     throw new Error(`Kalshi ${seriesTicker} request failed: ${response.status}`);
@@ -51,75 +66,21 @@ async function ingestSeries(seriesTicker: KalshiSeriesTicker) {
   const sport = SERIES_TO_SPORT[seriesTicker];
 
   let created = 0;
-  let skipped = 0;
+  const skipped = emptySkipCounters();
 
   for (const event of parsed.events) {
-    const req = toCreateMarketRequest(event, sport);
-    if (!req) {
-      skipped++;
+    const result = translateKalshiEvent(event, sport);
+    if (result.kind !== "ok") {
+      skipped[result.kind]++;
       continue;
     }
-    const result = await createMarket(req);
-    if (result.created) created++;
-    else skipped++;
+    const persistence = await createMarket(result.value);
+    if (persistence.created) {
+      created++;
+    } else {
+      skipped[persistence.reason]++;
+    }
   }
 
   return { fetched: parsed.events.length, created, skipped };
-}
-
-function toCreateMarketRequest(event: KalshiEvent, sport: string): CreateMarketInput | null {
-  // Only binary events map to our A/B AMM.
-  if (event.markets.length !== 2) return null;
-
-  const [a, b] = event.markets;
-  const closesAt = Date.parse(a.expected_expiration_time);
-  if (!Number.isFinite(closesAt)) return null;
-
-  const probA = midProbability(a);
-  const id = `kalshi-${event.event_ticker}`;
-  const pool = initializePool(id, SEED_AMOUNT, probA ?? undefined);
-
-  return {
-    id,
-    sport,
-    name: event.title,
-    teamA: a.yes_sub_title,
-    teamB: b.yes_sub_title,
-    tickerA: a.ticker,
-    tickerB: b.ticker,
-    closesAt: new Date(closesAt).toISOString(),
-    seedAmount: SEED_AMOUNT,
-    initialProbabilityA: probA ?? undefined,
-    reserveA: pool.sharesA,
-    reserveB: pool.sharesB,
-    wpmReserve: pool.liquidity,
-    yesBidCentsA: dollarsToCents(a.yes_bid_dollars),
-    yesAskCentsA: dollarsToCents(a.yes_ask_dollars),
-    noBidCentsA: dollarsToCents(a.no_bid_dollars),
-    noAskCentsA: dollarsToCents(a.no_ask_dollars),
-    yesBidCentsB: dollarsToCents(b.yes_bid_dollars),
-    yesAskCentsB: dollarsToCents(b.yes_ask_dollars),
-    noBidCentsB: dollarsToCents(b.no_bid_dollars),
-    noAskCentsB: dollarsToCents(b.no_ask_dollars),
-    volume24hA: volumeToInt(a.volume_24h_fp),
-    volume24hB: volumeToInt(b.volume_24h_fp),
-  };
-}
-
-function midProbability(market: KalshiMarket): number | null {
-  const bid = Number(market.yes_bid_dollars);
-  const ask = Number(market.yes_ask_dollars);
-  if (!Number.isFinite(bid) || !Number.isFinite(ask)) return null;
-  if (bid === 0 && ask === 0) return null;
-  return (bid + ask) / 2;
-}
-
-function dollarsToCents(dollars: string): number {
-  const n = Number(dollars);
-  return Number.isFinite(n) ? Math.round(n * 100) : 0;
-}
-
-function volumeToInt(raw: string): number {
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
 }

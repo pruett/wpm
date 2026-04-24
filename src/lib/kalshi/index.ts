@@ -11,8 +11,12 @@ export const KALSHI_SERIES = {
 
 export type KalshiSeriesTicker = (typeof KALSHI_SERIES)[keyof typeof KALSHI_SERIES];
 
-export const kalshiEventsUrl = (seriesTicker: string) =>
-  `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true`;
+export const kalshiEventsUrl = (seriesTicker: string, minCloseTs: number = currentUnixSeconds()) =>
+  `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&min_close_ts=${minCloseTs}`;
+
+function currentUnixSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
 
 const KalshiMarketSchema = z.object({
   ticker: z.string(),
