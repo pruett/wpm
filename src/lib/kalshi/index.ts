@@ -14,6 +14,9 @@ export type KalshiSeriesTicker = (typeof KALSHI_SERIES)[keyof typeof KALSHI_SERI
 export const kalshiEventsUrl = (seriesTicker: string, minCloseTs: number = currentUnixSeconds()) =>
   `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&min_close_ts=${minCloseTs}`;
 
+export const kalshiEventsByTickerUrl = (seriesTicker: string, eventTickers: string[]) =>
+  `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&event_tickers=${eventTickers.join(",")}&with_nested_markets=true`;
+
 function currentUnixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -28,6 +31,7 @@ const KalshiMarketSchema = z.object({
   no_ask_dollars: z.string(),
   volume_24h_fp: z.string(),
   expected_expiration_time: z.string(),
+  result: z.enum(["yes", "no", ""]).optional().default(""),
 });
 
 export type KalshiMarket = z.infer<typeof KalshiMarketSchema>;

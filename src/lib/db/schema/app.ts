@@ -50,7 +50,7 @@ export const markets = pgTable(
     tickerB: text("ticker_b"),
     closesAt: bigint("closes_at", { mode: "number" }).notNull(),
     status: text("status", {
-      enum: ["open", "closed", "resolved", "cancelled"],
+      enum: ["open", "resolved", "cancelled"],
     }).notNull(),
     resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
     resolvedAt: bigint("resolved_at", { mode: "number" }),

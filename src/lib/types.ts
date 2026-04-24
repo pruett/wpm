@@ -76,7 +76,7 @@ export type Market = {
   logos?: [string, string];
   leagueLogo?: string;
   closesAt: string;
-  status: "open" | "closed" | "resolved" | "cancelled";
+  status: "open" | "resolved" | "cancelled";
   result?: "A" | "B";
 };
 

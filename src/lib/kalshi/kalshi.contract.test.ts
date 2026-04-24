@@ -38,6 +38,8 @@ describe("Kalshi API contract", () => {
           }
           expect(Number.isFinite(Number(market.volume_24h_fp))).toBe(true);
           expect(Number.isFinite(Date.parse(market.expected_expiration_time))).toBe(true);
+          // Pre-settlement: result is absent or "". Post-settlement: "yes" or "no".
+          expect(["", "yes", "no"]).toContain(market.result);
         }
       }
     },

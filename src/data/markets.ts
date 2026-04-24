@@ -165,7 +165,11 @@ export async function createMarket(input: TranslatedMarket): Promise<CreateMarke
 }
 
 export type ResolveMarketResult =
-  | { resolved: true; affectedUsers: { userId: string; newBalance: number }[] }
+  | {
+      resolved: true;
+      alreadyResolved?: boolean;
+      affectedUsers: { userId: string; newBalance: number }[];
+    }
   | { resolved: false; reason: string };
 
 export async function resolveMarket(
@@ -264,13 +268,18 @@ export async function resolveMarket(
     return affected;
   });
 
-  if (txResult === "already_resolved") return { resolved: true, affectedUsers: [] };
+  if (txResult === "already_resolved")
+    return { resolved: true, alreadyResolved: true, affectedUsers: [] };
   if (!Array.isArray(txResult)) return txResult;
   return { resolved: true, affectedUsers: txResult };
 }
 
 export type CancelMarketResult =
-  | { cancelled: true; affectedUsers: { userId: string; newBalance: number }[] }
+  | {
+      cancelled: true;
+      alreadyCancelled?: boolean;
+      affectedUsers: { userId: string; newBalance: number }[];
+    }
   | { cancelled: false; reason: string };
 
 export async function cancelMarket(marketId: string, reason?: string): Promise<CancelMarketResult> {
@@ -361,7 +370,8 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
     return affected;
   });
 
-  if (txResult === "already_cancelled") return { cancelled: true, affectedUsers: [] };
+  if (txResult === "already_cancelled")
+    return { cancelled: true, alreadyCancelled: true, affectedUsers: [] };
   if (!Array.isArray(txResult)) return txResult;
   return { cancelled: true, affectedUsers: txResult };
 }

@@ -64,3 +64,40 @@ function midProbability(market: KalshiMarket): number | null {
   if (bid <= 0 || ask <= 0) return null;
   return (bid + ask) / 2;
 }
+
+const TERMINAL_KALSHI_STATUSES = new Set(["settled", "finalized", "determined"]);
+
+function isTerminalKalshiStatus(status: string): boolean {
+  return TERMINAL_KALSHI_STATUSES.has(status);
+}
+
+export type ResolutionTranslation =
+  | { kind: "resolved_a" }
+  | { kind: "resolved_b" }
+  | { kind: "voided" }
+  | { kind: "not_settled_yet" }
+  | { kind: "ambiguous"; reason: string }
+  | { kind: "kalshi_event_missing" };
+
+export function translateKalshiResolution(event: KalshiEvent): ResolutionTranslation {
+  if (event.markets.length !== 2) {
+    return { kind: "ambiguous", reason: `expected 2 nested markets, got ${event.markets.length}` };
+  }
+  const [a, b] = event.markets;
+
+  if (!isTerminalKalshiStatus(a.status) || !isTerminalKalshiStatus(b.status)) {
+    return { kind: "not_settled_yet" };
+  }
+
+  const ra = a.result;
+  const rb = b.result;
+
+  if (ra === "yes" && rb === "no") return { kind: "resolved_a" };
+  if (ra === "no" && rb === "yes") return { kind: "resolved_b" };
+  if (ra === "no" && rb === "no") return { kind: "voided" };
+
+  return {
+    kind: "ambiguous",
+    reason: `terminal but unexpected result pair: a=${ra || "<empty>"} b=${rb || "<empty>"}`,
+  };
+}
