@@ -14,5 +14,5 @@ hooks = [
 repo = "local"
 hooks = [
   { id = "oxlint", name = "oxlint", language = "system", entry = "bun run lint", files = '\.tsx?$', pass_filenames = false },
-  { id = "oxfmt-check", name = "oxfmt", language = "system", entry = "bun run fmt:check", files = '\.tsx?$', pass_filenames = false },
+  { id = "oxfmt", name = "oxfmt", language = "system", entry = "bun run fmt", files = '\.tsx?$', pass_filenames = true },
 ]

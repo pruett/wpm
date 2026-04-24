@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 
 import { BetConfirmProvider } from "@/components/bet-confirm-provider";
 import { getCurrentUser } from "@/data/auth";
-import { SessionProvider } from "@/providers/SessionProvider";
+import { SessionProvider } from "@/providers/session";
 
 export default function AppLayout({ children, modal }: { children: ReactNode; modal: ReactNode }) {
   return (
@@ -18,7 +18,7 @@ async function AuthedShell({ children, modal }: { children: ReactNode; modal: Re
   if (!user) redirect("/welcome");
 
   return (
-    <SessionProvider user={{ id: user.id, name: user.name, email: user.email }}>
+    <SessionProvider user={user}>
       <BetConfirmProvider>
         {children}
         {modal}

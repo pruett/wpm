@@ -2,7 +2,9 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-export type SessionUser = { id: string; name: string; email: string };
+import type { getCurrentUser } from "@/data/auth";
+
+export type SessionUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 const SessionContext = createContext<SessionUser | null>(null);
 
