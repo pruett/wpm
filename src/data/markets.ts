@@ -15,6 +15,7 @@ import {
   transactions,
   treasury,
 } from "@/lib/db/schema";
+import { computeSettlement, type SettlementOutput } from "@/lib/settlement";
 
 import { tags } from "./tags";
 
@@ -53,11 +54,10 @@ function enrichMarket(market: Market, pool: AMMPool, bettorCount: number): Marke
       priceB: winB,
       multiplierA: winA > 0 ? 1 / winA : 0,
       multiplierB: winB > 0 ? 1 / winB : 0,
-      pool,
       bettorCount,
     };
   }
-  return { ...market, ...calculateOdds(pool), pool, bettorCount };
+  return { ...market, ...calculateOdds(pool), bettorCount };
 }
 
 export async function getMarket(id: string): Promise<MarketWithOdds> {
@@ -72,11 +72,12 @@ export async function getMarket(id: string): Promise<MarketWithOdds> {
 
   if (!row || !row.pool) throw new Error(`Market ${id} not found`);
 
-  const bettors = new Set(
-    row.positions.filter((p) => p.sharesA > 0 || p.sharesB > 0).map((p) => p.userId),
-  );
+  // A position row is persistent — its presence (not non-zero shares) is the
+  // signal that a user has participated in this market. Liveness of those
+  // shares is answered by markets.status.
+  const bettorCount = new Set(row.positions.map((p) => p.userId)).size;
 
-  return enrichMarket(toMarket(row), toPool(row.pool), bettors.size);
+  return enrichMarket(toMarket(row), toPool(row.pool), bettorCount);
 }
 
 export async function getMarkets(): Promise<MarketsResponse> {
@@ -88,28 +89,16 @@ export async function getMarkets(): Promise<MarketsResponse> {
     with: { pool: true, positions: true },
   });
 
-  const enriched: MarketWithOdds[] = rows
-    .filter((r): r is MarketRow & { pool: PoolRow; positions: PositionRow[] } => r.pool !== null)
-    .map((r) => {
-      const bettors = new Set(
-        r.positions.filter((p) => p.sharesA > 0 || p.sharesB > 0).map((p) => p.userId),
-      );
-      return enrichMarket(toMarket(r), toPool(r.pool), bettors.size);
-    });
+  const withPools = rows.filter(
+    (r): r is MarketRow & { pool: PoolRow; positions: PositionRow[] } => r.pool !== null,
+  );
 
-  const active = enriched
-    .filter((m) => m.status === "open" && m.pool.sharesA !== m.pool.sharesB)
-    .map((m) => m.id);
+  const enriched: MarketWithOdds[] = withPools.map((r) => {
+    const bettorCount = new Set(r.positions.map((p) => p.userId)).size;
+    return enrichMarket(toMarket(r), toPool(r.pool), bettorCount);
+  });
 
-  return { active, markets: enriched };
-}
-
-export async function listAllMarketsRaw(): Promise<MarketRow[]> {
-  "use cache";
-  cacheLife("minutes");
-  cacheTag(tags.marketsAll());
-
-  return db.select().from(marketsTable);
+  return { markets: enriched };
 }
 
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
@@ -140,9 +129,9 @@ export async function createMarket(input: TranslatedMarket): Promise<CreateMarke
 
     await tx.insert(ammPools).values({
       marketId: market.id,
-      reserveA: Math.round(pool.sharesA),
-      reserveB: Math.round(pool.sharesB),
-      wpmReserve: Math.round(pool.liquidity),
+      reserveA: pool.sharesA,
+      reserveB: pool.sharesB,
+      wpmReserve: pool.liquidity,
       seedAmount,
     });
 
@@ -154,7 +143,8 @@ export async function createMarket(input: TranslatedMarket): Promise<CreateMarke
         id: market.id,
         name: market.name,
         outcomes: [market.teamA, market.teamB],
-        seedAmount,
+        seedAmount: Number(seedAmount),
+        initialProbabilityA,
         timestamp: new Date(now).toISOString(),
       }),
       createdAt: now,
@@ -195,59 +185,18 @@ export async function resolveMarket(
     if (!pool) return { resolved: false as const, reason: "AMM pool missing" };
 
     const allPositions = await tx.select().from(positions).where(eq(positions.marketId, marketId));
-    const winners = allPositions.filter((p) => (outcome === "A" ? p.sharesA > 0 : p.sharesB > 0));
+
+    const settlement = computeSettlement({
+      kind: "resolve",
+      outcome,
+      wpmReserve: pool.wpmReserve,
+      positions: allPositions,
+    });
 
     const now = Date.now();
-    let totalPaid = 0;
-    const affected: { userId: string; newBalance: number }[] = [];
+    const affected = await applySettlement(tx, marketId, settlement, now);
 
-    for (const p of winners) {
-      const winningShares = outcome === "A" ? p.sharesA : p.sharesB;
-      const payout = winningShares;
-      if (payout <= 0) continue;
-
-      const [priorRow] = await tx
-        .select({ amount: balances.amount })
-        .from(balances)
-        .where(eq(balances.userId, p.userId));
-      const prior = priorRow?.amount ?? 0;
-
-      await tx
-        .insert(balances)
-        .values({ userId: p.userId, amount: payout })
-        .onConflictDoUpdate({
-          target: balances.userId,
-          set: { amount: sql`${balances.amount} + ${payout}` },
-        });
-
-      await tx.insert(transactions).values({
-        type: "SettlePayout",
-        userId: p.userId,
-        marketId,
-        payload: JSON.stringify({
-          type: "SettlePayout",
-          marketId,
-          to: p.userId,
-          shares: winningShares,
-          amount: payout,
-          timestamp: new Date(now).toISOString(),
-        }),
-        createdAt: now,
-      });
-
-      totalPaid += payout;
-      affected.push({ userId: p.userId, newBalance: prior + payout });
-    }
-
-    const liquidityRemainder = pool.wpmReserve - totalPaid;
-    if (liquidityRemainder > 0) {
-      await tx
-        .update(treasury)
-        .set({ amount: sql`${treasury.amount} + ${liquidityRemainder}` })
-        .where(eq(treasury.id, "treasury"));
-    }
-
-    await tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId));
+    await tx.update(ammPools).set({ wpmReserve: 0n }).where(eq(ammPools.marketId, marketId));
     await tx
       .update(marketsTable)
       .set({ status: "resolved", resolvedOutcome: outcome, resolvedAt: now })
@@ -296,60 +245,18 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
     if (!pool) return { cancelled: false as const, reason: "AMM pool missing" };
 
     const allPositions = await tx.select().from(positions).where(eq(positions.marketId, marketId));
-    const holders = allPositions.filter((p) => p.sharesA > 0 || p.sharesB > 0);
+
+    const settlement = computeSettlement({
+      kind: "cancel",
+      wpmReserve: pool.wpmReserve,
+      positions: allPositions,
+    });
 
     const now = Date.now();
-    let totalRefunded = 0;
-    const affected: { userId: string; newBalance: number }[] = [];
+    const affected = await applySettlement(tx, marketId, settlement, now);
 
-    for (const p of holders) {
-      if (p.costBasis <= 0) continue;
-      const [priorRow] = await tx
-        .select({ amount: balances.amount })
-        .from(balances)
-        .where(eq(balances.userId, p.userId));
-      const prior = priorRow?.amount ?? 0;
-
-      await tx
-        .insert(balances)
-        .values({ userId: p.userId, amount: p.costBasis })
-        .onConflictDoUpdate({
-          target: balances.userId,
-          set: { amount: sql`${balances.amount} + ${p.costBasis}` },
-        });
-
-      await tx.insert(transactions).values({
-        type: "SettlePayout",
-        userId: p.userId,
-        marketId,
-        payload: JSON.stringify({
-          type: "SettlePayout",
-          marketId,
-          to: p.userId,
-          shares: p.sharesA + p.sharesB,
-          amount: p.costBasis,
-          timestamp: new Date(now).toISOString(),
-        }),
-        createdAt: now,
-      });
-
-      totalRefunded += p.costBasis;
-      affected.push({ userId: p.userId, newBalance: prior + p.costBasis });
-    }
-
-    const liquidityRemainder = pool.wpmReserve - totalRefunded;
-    if (liquidityRemainder > 0) {
-      await tx
-        .update(treasury)
-        .set({ amount: sql`${treasury.amount} + ${liquidityRemainder}` })
-        .where(eq(treasury.id, "treasury"));
-    }
-
-    await tx.update(ammPools).set({ wpmReserve: 0 }).where(eq(ammPools.marketId, marketId));
-    await tx
-      .update(positions)
-      .set({ sharesA: 0, sharesB: 0, costBasis: 0 })
-      .where(eq(positions.marketId, marketId));
+    // Position rows are an immutable ledger — not zeroed on cancel (ADR-0004).
+    await tx.update(ammPools).set({ wpmReserve: 0n }).where(eq(ammPools.marketId, marketId));
     await tx
       .update(marketsTable)
       .set({ status: "cancelled", resolvedAt: now })
@@ -376,23 +283,74 @@ export async function cancelMarket(marketId: string, reason?: string): Promise<C
   return { cancelled: true, affectedUsers: txResult };
 }
 
-export async function overrideSeed(
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function applySettlement(
+  tx: Tx,
   marketId: string,
-  seedA: number,
-  seedB: number,
-): Promise<{ liquidity: number; reserveA: number; reserveB: number }> {
-  const reserveA = Math.round(seedA);
-  const reserveB = Math.round(seedB);
+  settlement: SettlementOutput,
+  now: number,
+): Promise<{ userId: string; newBalance: number }[]> {
+  const affected: { userId: string; newBalance: number }[] = [];
 
-  return db.transaction(async (tx) => {
-    const [market] = await tx.select().from(marketsTable).where(eq(marketsTable.id, marketId));
-    if (!market) throw new Error("Market not found");
+  for (const p of settlement.payouts) {
+    if (p.amount > 0n) {
+      const [priorRow] = await tx
+        .select({ amount: balances.amount })
+        .from(balances)
+        .where(eq(balances.userId, p.userId));
+      const prior = priorRow?.amount ?? 0n;
 
-    const [pool] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
-    if (!pool) throw new Error("AMM pool missing");
+      await tx
+        .insert(balances)
+        .values({ userId: p.userId, amount: p.amount })
+        .onConflictDoUpdate({
+          target: balances.userId,
+          set: { amount: sql`${balances.amount} + ${p.amount}` },
+        });
 
-    await tx.update(ammPools).set({ reserveA, reserveB }).where(eq(ammPools.marketId, marketId));
+      affected.push({ userId: p.userId, newBalance: Number(prior + p.amount) });
+    }
 
-    return { liquidity: pool.wpmReserve, reserveA, reserveB };
-  });
+    await tx.insert(transactions).values({
+      type: "SettlePayout",
+      userId: p.userId,
+      marketId,
+      payload: JSON.stringify({
+        type: "SettlePayout",
+        marketId,
+        to: p.userId,
+        shares: Number(p.shares),
+        amount: Number(p.amount),
+        kind: p.kind,
+        timestamp: new Date(now).toISOString(),
+      }),
+      createdAt: now,
+    });
+  }
+
+  if (settlement.backstopAmount > 0n) {
+    await tx
+      .update(treasury)
+      .set({ amount: sql`${treasury.amount} - ${settlement.backstopAmount}` })
+      .where(eq(treasury.id, "treasury"));
+    await tx.insert(transactions).values({
+      type: "TreasuryBackstop",
+      marketId,
+      payload: JSON.stringify({
+        type: "TreasuryBackstop",
+        marketId,
+        amount: Number(settlement.backstopAmount),
+        timestamp: new Date(now).toISOString(),
+      }),
+      createdAt: now,
+    });
+  } else if (settlement.treasuryDelta > 0n) {
+    await tx
+      .update(treasury)
+      .set({ amount: sql`${treasury.amount} + ${settlement.treasuryDelta}` })
+      .where(eq(treasury.id, "treasury"));
+  }
+
+  return affected;
 }

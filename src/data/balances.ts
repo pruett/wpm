@@ -19,5 +19,5 @@ export async function getBalance(userId: string): Promise<BalanceData> {
     columns: { amount: true },
   });
 
-  return { balance: row?.amount ?? 0 };
+  return { balance: row ? Number(row.amount) : 0 };
 }

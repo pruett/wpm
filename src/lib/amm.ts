@@ -1,15 +1,19 @@
 import type { AMMPool } from "./types";
 
+const PROB_SCALE = 10_000n;
+const MIN_PROB_BPS = 100n;
+const MAX_PROB_BPS = PROB_SCALE - MIN_PROB_BPS;
+
 export function initializePool(
   marketId: string,
-  seedAmount: number,
+  seedAmount: bigint,
   initialProbabilityA?: number,
 ): AMMPool {
   const raw = initialProbabilityA ?? 0.5;
-  const probA = Math.min(Math.max(raw, 0.01), 0.99);
-  const total = 2 * seedAmount;
-  const sharesA = total * (1 - probA);
-  const sharesB = total * probA;
+  const probBps = clampProbBps(BigInt(Math.round(raw * Number(PROB_SCALE))));
+  const total = 2n * seedAmount;
+  const sharesA = (total * (PROB_SCALE - probBps)) / PROB_SCALE;
+  const sharesB = total - sharesA;
   return {
     marketId,
     sharesA,
@@ -22,45 +26,63 @@ export function initializePool(
 export function calculateBuy(
   pool: AMMPool,
   outcome: "A" | "B",
-  amount: number,
-): { shares: number; newPool: AMMPool } {
+  amount: bigint,
+): { shares: bigint; newPool: AMMPool } {
   const [target, other] =
     outcome === "A" ? [pool.sharesA, pool.sharesB] : [pool.sharesB, pool.sharesA];
 
   const newOther = other + amount;
-  const newTarget = pool.k / newOther;
+  // Round the pool's retained side UP so newTarget * newOther >= k.
+  const newTarget = ceilDiv(pool.k, newOther);
   const swapOut = target - newTarget;
+  const shares = amount + swapOut;
 
-  const totalShares = amount + swapOut;
+  const newSharesA = outcome === "A" ? newTarget : newOther;
+  const newSharesB = outcome === "A" ? newOther : newTarget;
 
   const newPool: AMMPool = {
     marketId: pool.marketId,
-    sharesA: outcome === "A" ? newTarget : newOther,
-    sharesB: outcome === "A" ? newOther : newTarget,
-    k: pool.k,
+    sharesA: newSharesA,
+    sharesB: newSharesB,
+    k: newSharesA * newSharesB,
     liquidity: pool.liquidity + amount,
   };
 
-  return { shares: totalShares, newPool };
+  return { shares, newPool };
 }
 
 export function calculateSell(
   pool: AMMPool,
   outcome: "A" | "B",
-  sharesToSell: number,
-): { wpmReturned: number; newPool: AMMPool } {
+  sharesToSell: bigint,
+): { wpmReturned: bigint; newPool: AMMPool } {
   const [target, other] =
     outcome === "A" ? [pool.sharesA, pool.sharesB] : [pool.sharesB, pool.sharesA];
 
   const P = target + sharesToSell;
   const Q = other;
-  const wpmReturned = (P + Q - Math.sqrt((P - Q) ** 2 + 4 * pool.k)) / 2;
+
+  // Solve (P - w) * (Q - w) = k for w. Use floor isqrt and then nudge w down
+  // until the invariant holds, so the pool's effective k only grows.
+  const disc = (P - Q) * (P - Q) + 4n * pool.k;
+  const sqrtDisc = isqrt(disc);
+  let wpmReturned = (P + Q - sqrtDisc) / 2n;
+  if (wpmReturned < 0n) wpmReturned = 0n;
+
+  while (wpmReturned > 0n && (P - wpmReturned) * (Q - wpmReturned) < pool.k) {
+    wpmReturned -= 1n;
+  }
+
+  const newTarget = P - wpmReturned;
+  const newOther = Q - wpmReturned;
+  const newSharesA = outcome === "A" ? newTarget : newOther;
+  const newSharesB = outcome === "A" ? newOther : newTarget;
 
   const newPool: AMMPool = {
     marketId: pool.marketId,
-    sharesA: outcome === "A" ? P - wpmReturned : Q - wpmReturned,
-    sharesB: outcome === "A" ? Q - wpmReturned : P - wpmReturned,
-    k: pool.k,
+    sharesA: newSharesA,
+    sharesB: newSharesB,
+    k: newSharesA * newSharesB,
     liquidity: pool.liquidity - wpmReturned,
   };
 
@@ -69,9 +91,11 @@ export function calculateSell(
 
 export function calculatePrices(pool: AMMPool): { priceA: number; priceB: number } {
   const total = pool.sharesA + pool.sharesB;
+  if (total === 0n) return { priceA: 0.5, priceB: 0.5 };
+  const totalNum = Number(total);
   return {
-    priceA: pool.sharesB / total,
-    priceB: pool.sharesA / total,
+    priceA: Number(pool.sharesB) / totalNum,
+    priceB: Number(pool.sharesA) / totalNum,
   };
 }
 
@@ -82,5 +106,32 @@ export function calculateOdds(pool: AMMPool): {
   multiplierB: number;
 } {
   const { priceA, priceB } = calculatePrices(pool);
-  return { priceA, priceB, multiplierA: 1 / priceA, multiplierB: 1 / priceB };
+  return {
+    priceA,
+    priceB,
+    multiplierA: priceA > 0 ? 1 / priceA : 0,
+    multiplierB: priceB > 0 ? 1 / priceB : 0,
+  };
+}
+
+function ceilDiv(numerator: bigint, denominator: bigint): bigint {
+  return (numerator + denominator - 1n) / denominator;
+}
+
+function clampProbBps(bps: bigint): bigint {
+  if (bps < MIN_PROB_BPS) return MIN_PROB_BPS;
+  if (bps > MAX_PROB_BPS) return MAX_PROB_BPS;
+  return bps;
+}
+
+export function isqrt(x: bigint): bigint {
+  if (x < 0n) throw new Error("isqrt of negative");
+  if (x < 2n) return x;
+  let r = x;
+  let s = (x + 1n) / 2n;
+  while (s < r) {
+    r = s;
+    s = (s + x / s) / 2n;
+  }
+  return r;
 }

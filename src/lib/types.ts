@@ -7,20 +7,6 @@ export type Transaction =
       timestamp: string;
     }
   | {
-      type: "Transfer";
-      from: string;
-      to: string;
-      amount: number;
-      timestamp: string;
-    }
-  | {
-      type: "Referral";
-      inviter: string;
-      invitee: string;
-      amount: number;
-      timestamp: string;
-    }
-  | {
       type: "CreateMarket";
       id: string;
       name: string;
@@ -28,8 +14,6 @@ export type Transaction =
       closesAt: string;
       seedAmount: number;
       initialProbabilityA?: number;
-      logos?: [string, string];
-      leagueLogo?: string;
       timestamp: string;
     }
   | {
@@ -60,6 +44,13 @@ export type Transaction =
       to: string;
       shares: number;
       amount: number;
+      kind: "win" | "loss" | "refund";
+      timestamp: string;
+    }
+  | {
+      type: "TreasuryBackstop";
+      marketId: string;
+      amount: number;
       timestamp: string;
     }
   | {
@@ -73,8 +64,6 @@ export type Market = {
   id: string;
   name: string;
   outcomes: [string, string];
-  logos?: [string, string];
-  leagueLogo?: string;
   closesAt: string;
   status: "open" | "resolved" | "cancelled";
   result?: "A" | "B";
@@ -82,10 +71,10 @@ export type Market = {
 
 export type AMMPool = {
   marketId: string;
-  sharesA: number;
-  sharesB: number;
-  k: number;
-  liquidity: number;
+  sharesA: bigint;
+  sharesB: bigint;
+  k: bigint;
+  liquidity: bigint;
 };
 
 export type SharePosition = {
@@ -101,28 +90,10 @@ export type MarketWithOdds = Market & {
   priceB: number;
   multiplierA: number;
   multiplierB: number;
-  pool: AMMPool;
   bettorCount: number;
 };
 
-export type MarketBettor = {
-  name: string;
-  userId: string;
-  outcome: "A" | "B";
-  shares: number;
-  costBasis: number;
-};
-
-export type CategoryInfo = {
-  slug: string;
-  name: string;
-  sport: string;
-  logo: string;
-  marketCount: number;
-};
-
 export type MarketsResponse = {
-  active: string[];
   markets: MarketWithOdds[];
 };
 

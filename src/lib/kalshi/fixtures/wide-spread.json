@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "event_ticker": "KXMLBGAME-25APR24WIDESPREAD",
+      "series_ticker": "KXMLBGAME",
+      "title": "Wide Spread Game",
+      "strike_date": "2026-04-24",
+      "markets": [
+        {
+          "ticker": "KXMLBGAME-25APR24WIDESPREAD-A",
+          "status": "active",
+          "yes_sub_title": "Alpha",
+          "yes_bid_dollars": "0.20",
+          "yes_ask_dollars": "0.80",
+          "no_bid_dollars": "0.20",
+          "no_ask_dollars": "0.80",
+          "volume_24h_fp": "10",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        },
+        {
+          "ticker": "KXMLBGAME-25APR24WIDESPREAD-B",
+          "status": "active",
+          "yes_sub_title": "Bravo",
+          "yes_bid_dollars": "0.40",
+          "yes_ask_dollars": "0.44",
+          "no_bid_dollars": "0.56",
+          "no_ask_dollars": "0.60",
+          "volume_24h_fp": "100",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        }
+      ]
+    }
+  ]
+}

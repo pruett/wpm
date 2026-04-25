@@ -5,7 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { SharePosition } from "@/lib/types";
 
 import { db } from "@/lib/db";
-import { positions } from "@/lib/db/schema";
+import { markets as marketsTable, positions } from "@/lib/db/schema";
 
 import { tags } from "./tags";
 
@@ -14,34 +14,45 @@ export async function getPositions(userId: string): Promise<SharePosition[]> {
   cacheLife("minutes");
   cacheTag(tags.viewer(userId));
 
-  const rows = await db.query.positions.findMany({
-    where: eq(positions.userId, userId),
-  });
+  const rows = await db
+    .select({
+      userId: positions.userId,
+      marketId: positions.marketId,
+      sharesA: positions.sharesA,
+      sharesB: positions.sharesB,
+      costBasis: positions.costBasis,
+      status: marketsTable.status,
+    })
+    .from(positions)
+    .innerJoin(marketsTable, eq(marketsTable.id, positions.marketId))
+    .where(eq(positions.userId, userId));
 
   const result: SharePosition[] = [];
   for (const row of rows) {
-    const total = row.sharesA + row.sharesB;
-    if (total === 0) continue;
+    if (row.status !== "open") continue;
 
-    const basisA = Math.round((row.costBasis * row.sharesA) / total);
+    const total = row.sharesA + row.sharesB;
+    if (total === 0n) continue;
+
+    const basisA = (row.costBasis * row.sharesA) / total;
     const basisB = row.costBasis - basisA;
 
-    if (row.sharesA > 0) {
+    if (row.sharesA > 0n) {
       result.push({
         userId: row.userId,
         marketId: row.marketId,
         outcome: "A",
-        shares: row.sharesA,
-        costBasis: basisA,
+        shares: Number(row.sharesA),
+        costBasis: Number(basisA),
       });
     }
-    if (row.sharesB > 0) {
+    if (row.sharesB > 0n) {
       result.push({
         userId: row.userId,
         marketId: row.marketId,
         outcome: "B",
-        shares: row.sharesB,
-        costBasis: basisB,
+        shares: Number(row.sharesB),
+        costBasis: Number(basisB),
       });
     }
   }

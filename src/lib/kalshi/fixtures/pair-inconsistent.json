@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "event_ticker": "KXMLBGAME-25APR24PAIRCONFLICT",
+      "series_ticker": "KXMLBGAME",
+      "title": "Pair Inconsistent Game",
+      "strike_date": "2026-04-24",
+      "markets": [
+        {
+          "ticker": "KXMLBGAME-25APR24PAIRCONFLICT-A",
+          "status": "active",
+          "yes_sub_title": "Alpha",
+          "yes_bid_dollars": "0.70",
+          "yes_ask_dollars": "0.74",
+          "no_bid_dollars": "0.26",
+          "no_ask_dollars": "0.30",
+          "volume_24h_fp": "100",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        },
+        {
+          "ticker": "KXMLBGAME-25APR24PAIRCONFLICT-B",
+          "status": "active",
+          "yes_sub_title": "Bravo",
+          "yes_bid_dollars": "0.68",
+          "yes_ask_dollars": "0.72",
+          "no_bid_dollars": "0.28",
+          "no_ask_dollars": "0.32",
+          "volume_24h_fp": "100",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        }
+      ]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ export const balances = pgTable("balances", {
   userId: text("user_id")
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
-  amount: bigint("amount", { mode: "number" }).notNull(),
+  amount: bigint("amount", { mode: "bigint" }).notNull(),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
@@ -29,7 +29,7 @@ export const treasury = pgTable(
   "treasury",
   {
     id: text("id").primaryKey().default("treasury"),
-    amount: bigint("amount", { mode: "number" }).notNull(),
+    amount: bigint("amount", { mode: "bigint" }).notNull(),
     updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -63,10 +63,10 @@ export const ammPools = pgTable("amm_pools", {
   marketId: text("market_id")
     .primaryKey()
     .references(() => markets.id, { onDelete: "cascade" }),
-  reserveA: bigint("reserve_a", { mode: "number" }).notNull(),
-  reserveB: bigint("reserve_b", { mode: "number" }).notNull(),
-  wpmReserve: bigint("wpm_reserve", { mode: "number" }).notNull(),
-  seedAmount: bigint("seed_amount", { mode: "number" }).notNull(),
+  reserveA: bigint("reserve_a", { mode: "bigint" }).notNull(),
+  reserveB: bigint("reserve_b", { mode: "bigint" }).notNull(),
+  wpmReserve: bigint("wpm_reserve", { mode: "bigint" }).notNull(),
+  seedAmount: bigint("seed_amount", { mode: "bigint" }).notNull(),
 });
 
 export const positions = pgTable(
@@ -78,9 +78,9 @@ export const positions = pgTable(
     marketId: text("market_id")
       .notNull()
       .references(() => markets.id, { onDelete: "cascade" }),
-    sharesA: bigint("shares_a", { mode: "number" }).notNull().default(0),
-    sharesB: bigint("shares_b", { mode: "number" }).notNull().default(0),
-    costBasis: bigint("cost_basis", { mode: "number" }).notNull().default(0),
+    sharesA: bigint("shares_a", { mode: "bigint" }).notNull().default(0n),
+    sharesB: bigint("shares_b", { mode: "bigint" }).notNull().default(0n),
+    costBasis: bigint("cost_basis", { mode: "bigint" }).notNull().default(0n),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.marketId] }),
@@ -88,22 +88,14 @@ export const positions = pgTable(
   ],
 );
 
-export const oracleHeartbeats = pgTable("oracle_heartbeats", {
-  job: text("job").primaryKey(),
-  status: text("status", { enum: ["ok", "error"] }).notNull(),
-  message: text("message"),
-  lastSeenAt: timestamp("last_seen_at", { mode: "date", withTimezone: true }).notNull(),
-});
-
 export const transactionTypes = [
   "Distribute",
-  "Transfer",
-  "Referral",
   "CreateMarket",
   "PlaceBet",
   "SellShares",
   "ResolveMarket",
   "SettlePayout",
+  "TreasuryBackstop",
   "CancelMarket",
 ] as const;
 

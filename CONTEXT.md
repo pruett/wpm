@@ -104,22 +104,8 @@ The terminal event where a **Market** is marked with a winning **Outcome** (`A` 
 _Avoid_: "close" (betting cutoff is derived from `closesAt`, not a lifecycle state), "finalize", "Kalshi resolution" (that's a **Kalshi Settlement**).
 
 **Settlement** / **Payout**:
-The act of paying out 1 WPM per winning **Share** to each holder after **Resolution**, and zero per losing **Share**. Corresponds to `SettlePayout` transaction type.
-_Avoid_: "distribution" (distribution is a treasury operation, see `Distribute`), "claim".
-
-**Cancellation**:
-A **Market** terminated without a winning **Outcome**. Moves status to `cancelled` and refunds each holder their **Cost Basis** from the **Pool**. Reached only through the automated resolver — there is no user- or operator-facing cancel operation, and the UI never triggers it. Triggered by one of two conditions, recorded in the `CancelMarket` transaction payload's `reason`:
-- `kalshi_voided` — the **Kalshi Event** settled with both **Kalshi Markets** `no` (Kalshi's void convention).
-- `kalshi_no_settlement` — 48 hours have elapsed past the **Market**'s `closesAt` without Kalshi posting a settlement (the **Settlement Deadline**; see ADR-0002).
-_Avoid_: "refund" (refund is the *consequence* of cancellation, not the event), "void" as a verb (prefer "Kalshi voided the event").
-
-**Settlement Deadline**:
-48 hours past a **Market**'s `closesAt`. If Kalshi has not posted a **Kalshi Settlement** by then, the resolver force-cancels the **Market** with reason `kalshi_no_settlement` rather than letting users' positions remain locked indefinitely. A policy knob — intentionally long enough to absorb weather delays and overtime, short enough to bound user lockup.
-_Avoid_: "timeout" (ambiguous with HTTP/fetch timeouts), "expiry" (Kalshi uses `expected_expiration_time` for a different concept).
-
-**Market Status** (lifecycle):
-`open` → betting allowed until `closesAt`, after which the resolver is eligible to act; `resolved` → outcome decided and payouts processed; `cancelled` → terminated without a winner, cost basis refunded. There is intentionally no stored `closed` state — "past close, awaiting resolution" is derived from `(status = 'open', closesAt < now)` rather than stored.
-_Avoid_: "active"/"inactive" (too coarse), "live" (ambiguous with UI state), "closed" (was an unused enum value, dropped in the resolution pipeline migration).
+The act of paying out 1 WPM per winning **Share** to each holder after **Resolution**, and zero per losing **Share**. Corresponds to `SettlePayout` transaction type. **Settlement is fused with Resolution**: the two are conceptually distinct domain events but commit together in a single DB transaction — a **Market** is never observable in a `resolved`-but-unpaid state. The distinction survives only in the transaction log (one `ResolveMarket` row + N `SettlePayout` rows per resolution).
+_Avoid_: "distribution" (distribution is a treasury operation, see `Distribute`), "claim" (there is no user-initiated claim step — payouts are pushed, not pulled).
 
 ## Relationships
 
@@ -135,6 +121,7 @@ _Avoid_: "active"/"inactive" (too coarse), "live" (ambiguous with UI state), "cl
 
 - **Ingestion is one-shot discovery.** Kalshi data is consulted exactly once per **Market** — at the moment we create it — to seed the AMM's initial probability. After creation, the **Market** is an independent Wampum entity; Kalshi is never re-queried for *pricing*. Live Kalshi price movement does not touch our rows.
 - **The AMM is the sole source of truth for prices** after creation. The Wampum **Market** intentionally diverges from Kalshi from t=0 onward.
+- **Ingestion gates on Kalshi confidence, not on a preferred probability range.** The translator rejects a **Kalshi Market** if its bid-ask spread exceeds a threshold — a wide spread means buyers and sellers have not consolidated on a price and the midpoint is a phantom. The gate asks "has Kalshi agreed on *a* number?"; it never filters on *which* number. Seeding a skewed probability (e.g., 0.12 or 0.88) is fine and expected — seeding a phantom 0.50 drawn from an 0.20/0.80 order book is not.
 
 ## Resolution invariants
 
@@ -143,6 +130,10 @@ _Avoid_: "active"/"inactive" (too coarse), "live" (ambiguous with UI state), "cl
 - **Resolution is our-side-driven.** The resolver starts from Wampum — `markets WHERE status = 'open' AND closesAt < now` — and asks Kalshi about those specific events. It does not enumerate Kalshi's settled events and look for matches.
 - **Void is inferred, not signalled.** Kalshi has no dedicated void status; a **Kalshi Event** whose two **Kalshi Markets** both settle `no` is treated as voided → `kalshi_voided` **Cancellation**.
 - **The Settlement Deadline bounds user lockup.** 48 hours past `closesAt` with no **Kalshi Settlement** → force-cancel with `kalshi_no_settlement`. Trades the risk of mis-cancelling a slow-to-settle market against the risk of indefinite position lockup; we've chosen the former.
+- **Resolution and Settlement commit atomically.** A single DB transaction flips the **Market**'s status, pays 1 WPM per winning **Share** out of the **Pool**'s `wpmReserve`, sweeps the remainder to the treasury, and writes both the `ResolveMarket` row and one `SettlePayout` row per winning holder. There is no intermediate `resolved`-but-unpaid state, no user-initiated claim, and no settlement queue — payouts are pushed, not pulled.
+- **The treasury is the explicit backstop for AMM shortfalls.** Skewed initial probabilities create pools where `totalWinningShares` can exceed `wpmReserve` under heavy betting on the underdog side. When that happens at **Resolution**, winners are paid in full; the gap is drawn from the treasury and logged as a distinct event so shortfalls are observable, not silent. Because the AMM is integer-native with pool-favoring rounding (ADR-0005), a shortfall is always a real skew event, never rounding dust.
+- **Cancellation refunds remaining `costBasis`, not market value.** On **Cancellation**, each holder with outstanding **Shares** receives their `costBasis` — the net WPM they put into the market after prior sells. Users who already sold all their shares (regardless of profit or loss) receive nothing from cancel; their cash flow was resolved by the sell. The refund gate is `sharesA > 0 || sharesB > 0`, never `costBasis > 0`. Semantic: *cancellation undoes your remaining position; it does not retroactively reverse sells you already made.*
+- **Every holder gets a `SettlePayout` row.** On both **Resolution** and **Cancellation**, every user with a non-zero holding at settlement time gets exactly one `SettlePayout` transaction row — winners with `amount = winningShares`, losers with `amount = 0`, cancel refunds with `amount = costBasis`. Absence of a row means "this user did not hold a position," never "this user held but got nothing." Timeline completeness: `SELECT * FROM transactions WHERE userId = ? AND marketId = ?` returns the full story.
 
 ## Example dialogue
 

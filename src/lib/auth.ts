@@ -53,23 +53,24 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (createdUser) => {
+          const airdrop = BigInt(SIGNUP_AIRDROP);
           await db.transaction(async (tx) => {
             const inserted = await tx
               .insert(balances)
-              .values({ userId: createdUser.id, amount: SIGNUP_AIRDROP })
+              .values({ userId: createdUser.id, amount: airdrop })
               .onConflictDoNothing()
               .returning({ userId: balances.userId });
             if (inserted.length === 0) return;
 
             const [t] = await tx.select().from(treasury).where(eq(treasury.id, "treasury"));
             if (!t) throw new Error("Treasury not seeded");
-            if (t.amount < SIGNUP_AIRDROP) {
+            if (t.amount < airdrop) {
               throw new Error("Insufficient treasury balance for signup airdrop");
             }
 
             await tx
               .update(treasury)
-              .set({ amount: sql`${treasury.amount} - ${SIGNUP_AIRDROP}` })
+              .set({ amount: sql`${treasury.amount} - ${airdrop}` })
               .where(eq(treasury.id, "treasury"));
 
             const now = Date.now();

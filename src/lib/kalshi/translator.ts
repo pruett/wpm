@@ -2,7 +2,16 @@ import { markets } from "@/lib/db/schema";
 
 import type { KalshiEvent, KalshiMarket } from "./index";
 
-const SEED_AMOUNT = 1000;
+const SEED_AMOUNT = 1000n;
+
+// Maximum tolerated bid-ask spread on either Kalshi Market before we reject
+// the event. A wide spread means buyers and sellers have not agreed on a
+// price and the midpoint is a phantom.
+const MAX_SPREAD = 0.1;
+// Maximum tolerated disagreement between midProb_a and (1 - midProb_b) across
+// the two Kalshi Markets of a single Event. Disagreement beyond this means
+// the order book is internally inconsistent.
+const MAX_PAIR_DISAGREEMENT = 0.05;
 
 type MarketInsert = typeof markets.$inferInsert;
 
@@ -10,15 +19,25 @@ export type TranslatedMarketRow = Omit<MarketInsert, "status" | "createdAt">;
 
 export type TranslatedMarket = {
   market: TranslatedMarketRow;
-  seedAmount: number;
+  seedAmount: bigint;
   initialProbabilityA: number;
 };
+
+export type InsufficientConfidenceReason =
+  | "spread_a_too_wide"
+  | "spread_b_too_wide"
+  | "pair_inconsistent";
 
 export type TranslationResult =
   | { kind: "ok"; value: TranslatedMarket }
   | { kind: "non_binary"; count: number }
   | { kind: "unparseable_close_time"; raw: string }
-  | { kind: "no_initial_price"; eventTicker: string };
+  | { kind: "no_initial_price"; eventTicker: string }
+  | {
+      kind: "insufficient_confidence";
+      eventTicker: string;
+      reasons: InsufficientConfidenceReason[];
+    };
 
 export function translateKalshiEvent(event: KalshiEvent, sport: string): TranslationResult {
   if (event.markets.length !== 2) {
@@ -32,11 +51,27 @@ export function translateKalshiEvent(event: KalshiEvent, sport: string): Transla
     return { kind: "unparseable_close_time", raw: a.expected_expiration_time };
   }
 
-  const probA = midProbability(a);
-  const probB = midProbability(b);
-  if (probA === null || probB === null) {
+  const quoteA = quote(a);
+  const quoteB = quote(b);
+  if (quoteA === null || quoteB === null) {
     return { kind: "no_initial_price", eventTicker: event.event_ticker };
   }
+
+  const reasons: InsufficientConfidenceReason[] = [];
+  if (quoteA.spread > MAX_SPREAD) reasons.push("spread_a_too_wide");
+  if (quoteB.spread > MAX_SPREAD) reasons.push("spread_b_too_wide");
+
+  const impliedFromA = quoteA.mid;
+  const impliedFromB = 1 - quoteB.mid;
+  if (Math.abs(impliedFromA - impliedFromB) > MAX_PAIR_DISAGREEMENT) {
+    reasons.push("pair_inconsistent");
+  }
+
+  if (reasons.length > 0) {
+    return { kind: "insufficient_confidence", eventTicker: event.event_ticker, reasons };
+  }
+
+  const initialProbabilityA = (impliedFromA + impliedFromB) / 2;
 
   return {
     kind: "ok",
@@ -52,17 +87,19 @@ export function translateKalshiEvent(event: KalshiEvent, sport: string): Transla
         closesAt,
       },
       seedAmount: SEED_AMOUNT,
-      initialProbabilityA: probA,
+      initialProbabilityA,
     },
   };
 }
 
-function midProbability(market: KalshiMarket): number | null {
+type Quote = { mid: number; spread: number };
+
+function quote(market: KalshiMarket): Quote | null {
   const bid = Number(market.yes_bid_dollars);
   const ask = Number(market.yes_ask_dollars);
   if (!Number.isFinite(bid) || !Number.isFinite(ask)) return null;
   if (bid <= 0 || ask <= 0) return null;
-  return (bid + ask) / 2;
+  return { mid: (bid + ask) / 2, spread: ask - bid };
 }
 
 const TERMINAL_KALSHI_STATUSES = new Set(["settled", "finalized", "determined"]);

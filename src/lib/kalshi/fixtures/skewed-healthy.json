@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "event_ticker": "KXMLBGAME-25APR24SKEW",
+      "series_ticker": "KXMLBGAME",
+      "title": "Skewed But Healthy",
+      "strike_date": "2026-04-24",
+      "markets": [
+        {
+          "ticker": "KXMLBGAME-25APR24SKEW-A",
+          "status": "active",
+          "yes_sub_title": "Alpha",
+          "yes_bid_dollars": "0.85",
+          "yes_ask_dollars": "0.87",
+          "no_bid_dollars": "0.13",
+          "no_ask_dollars": "0.15",
+          "volume_24h_fp": "100",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        },
+        {
+          "ticker": "KXMLBGAME-25APR24SKEW-B",
+          "status": "active",
+          "yes_sub_title": "Bravo",
+          "yes_bid_dollars": "0.13",
+          "yes_ask_dollars": "0.15",
+          "no_bid_dollars": "0.85",
+          "no_ask_dollars": "0.87",
+          "volume_24h_fp": "100",
+          "expected_expiration_time": "2026-04-25T05:00:00Z"
+        }
+      ]
+    }
+  ]
+}

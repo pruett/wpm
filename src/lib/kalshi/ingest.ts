@@ -34,6 +34,7 @@ function emptySkipCounters(): Record<SkipReasonKind, number> {
     non_binary: 0,
     unparseable_close_time: 0,
     no_initial_price: 0,
+    insufficient_confidence: 0,
     already_exists: 0,
   };
 }
