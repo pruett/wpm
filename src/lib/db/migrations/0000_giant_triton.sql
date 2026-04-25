@@ -24,24 +24,7 @@ CREATE TABLE "markets" (
 	"status" text NOT NULL,
 	"resolved_outcome" text,
 	"resolved_at" bigint,
-	"created_at" bigint NOT NULL,
-	"yes_bid_cents_a" integer,
-	"yes_ask_cents_a" integer,
-	"no_bid_cents_a" integer,
-	"no_ask_cents_a" integer,
-	"yes_bid_cents_b" integer,
-	"yes_ask_cents_b" integer,
-	"no_bid_cents_b" integer,
-	"no_ask_cents_b" integer,
-	"volume_24h_a" bigint,
-	"volume_24h_b" bigint
-);
---> statement-breakpoint
-CREATE TABLE "oracle_heartbeats" (
-	"job" text PRIMARY KEY NOT NULL,
-	"status" text NOT NULL,
-	"message" text,
-	"last_seen_at" timestamp with time zone NOT NULL
+	"created_at" bigint NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "positions" (
@@ -152,7 +135,7 @@ CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> state
 CREATE INDEX "passkey_userId_idx" ON "passkey" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "passkey_credentialID_idx" ON "passkey" USING btree ("credential_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
--- seed: treasury.sql
-INSERT INTO "treasury" ("id", "amount") VALUES ('treasury', 10000000) ON CONFLICT ("id") DO NOTHING;
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");
 --> statement-breakpoint
+-- seed: treasury
+INSERT INTO "treasury" ("id", "amount") VALUES ('treasury', 10000000) ON CONFLICT ("id") DO NOTHING;

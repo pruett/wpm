@@ -78,9 +78,15 @@ export const positions = pgTable(
     marketId: text("market_id")
       .notNull()
       .references(() => markets.id, { onDelete: "cascade" }),
-    sharesA: bigint("shares_a", { mode: "bigint" }).notNull().default(0n),
-    sharesB: bigint("shares_b", { mode: "bigint" }).notNull().default(0n),
-    costBasis: bigint("cost_basis", { mode: "bigint" }).notNull().default(0n),
+    sharesA: bigint("shares_a", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    sharesB: bigint("shares_b", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    costBasis: bigint("cost_basis", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.marketId] }),

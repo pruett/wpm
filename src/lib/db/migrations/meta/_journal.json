@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1776972401600,
-      "tag": "0000_fresh_jack_flag",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777047786940,
-      "tag": "0001_ancient_kinsey_walden",
+      "when": 1777145769851,
+      "tag": "0000_giant_triton",
       "breakpoints": true
     }
   ]

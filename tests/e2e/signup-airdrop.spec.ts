@@ -1,9 +1,9 @@
-import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import postgres from "postgres";
 
 import { MAGIC_LINK_CAPTURE_PATH, TEST_DATABASE_URL } from "../../playwright.config";
 import { SIGNUP_AIRDROP } from "../../src/lib/constants";
+import { expect, test } from "./fixtures";
 
 function readLatestMagicLinkFor(email: string): string {
   const entries = fs
@@ -18,8 +18,10 @@ function readLatestMagicLinkFor(email: string): string {
 
 test("new user signup airdrops SIGNUP_AIRDROP and records a Distribute transaction", async ({
   request,
+  cleanup,
 }) => {
   const email = `airdrop-${Date.now()}@test.local`;
+  cleanup.trackUser(email);
 
   const signInRes = await request.post("/api/auth/sign-in/magic-link", {
     data: {

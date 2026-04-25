@@ -4,10 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PORT = process.env.E2E_PORT ?? "4103";
-const BASE_URL = `http://localhost:${PORT}`;
-const TEST_DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm_test";
+const BASE_URL = "http://localhost:3000";
+const TEST_DATABASE_URL = process.env.DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm";
 const MAGIC_LINK_CAPTURE_PATH = path.resolve(__dirname, "wpm-e2e-magic-links.log");
 
 export default defineConfig({
@@ -24,19 +22,12 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: `next dev --port ${PORT}`,
+    command: "next dev --port 3000",
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 300_000,
     stdout: "pipe",
     stderr: "pipe",
-    env: {
-      DATABASE_URL: TEST_DATABASE_URL,
-      BETTER_AUTH_SECRET: "test-secret-padding-32-bytes-long==",
-      BETTER_AUTH_URL: BASE_URL,
-      WPM_MAGIC_LINK_CAPTURE_PATH: MAGIC_LINK_CAPTURE_PATH,
-      ADMIN_EMAILS: "admin@test.local",
-    },
   },
 });
 

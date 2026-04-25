@@ -18,10 +18,11 @@
     "fmt:all": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "clean": "rm -rf node_modules bun.lock .next",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate && bun run src/lib/db/seeds/append-to-migrations.ts",
     "db:better-auth:generate": "bun x auth@latest generate --output ./src/lib/db/schema/auth.ts --yes",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "db:push": "drizzle-kit push && bun run db:seed",
+    "db:seed": "bun run src/lib/db/seeds/treasury.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

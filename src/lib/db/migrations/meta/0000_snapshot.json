@@ -1,5 +1,5 @@
 {
-  "id": "9e1b4144-3470-4082-b411-48c6b282d35b",
+  "id": "1770ae88-5564-428a-aeec-84c2fcb894bc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -45,8 +45,12 @@
           "name": "amm_pools_market_id_markets_id_fk",
           "tableFrom": "amm_pools",
           "tableTo": "markets",
-          "columnsFrom": ["market_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "market_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -87,8 +91,12 @@
           "name": "balances_user_id_user_id_fk",
           "tableFrom": "balances",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -174,66 +182,6 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
-        },
-        "yes_bid_cents_a": {
-          "name": "yes_bid_cents_a",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "yes_ask_cents_a": {
-          "name": "yes_ask_cents_a",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "no_bid_cents_a": {
-          "name": "no_bid_cents_a",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "no_ask_cents_a": {
-          "name": "no_ask_cents_a",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "yes_bid_cents_b": {
-          "name": "yes_bid_cents_b",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "yes_ask_cents_b": {
-          "name": "yes_ask_cents_b",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "no_bid_cents_b": {
-          "name": "no_bid_cents_b",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "no_ask_cents_b": {
-          "name": "no_ask_cents_b",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "volume_24h_a": {
-          "name": "volume_24h_a",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "volume_24h_b": {
-          "name": "volume_24h_b",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -266,43 +214,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.oracle_heartbeats": {
-      "name": "oracle_heartbeats",
-      "schema": "",
-      "columns": {
-        "job": {
-          "name": "job",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.positions": {
       "name": "positions",
       "schema": "",
@@ -324,21 +235,21 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "0"
         },
         "shares_b": {
           "name": "shares_b",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "0"
         },
         "cost_basis": {
           "name": "cost_basis",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "0"
         }
       },
       "indexes": {
@@ -363,8 +274,12 @@
           "name": "positions_user_id_user_id_fk",
           "tableFrom": "positions",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -372,8 +287,12 @@
           "name": "positions_market_id_markets_id_fk",
           "tableFrom": "positions",
           "tableTo": "markets",
-          "columnsFrom": ["market_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "market_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -381,7 +300,10 @@
       "compositePrimaryKeys": {
         "positions_user_id_market_id_pk": {
           "name": "positions_user_id_market_id_pk",
-          "columns": ["user_id", "market_id"]
+          "columns": [
+            "user_id",
+            "market_id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -500,8 +422,12 @@
           "name": "transactions_user_id_user_id_fk",
           "tableFrom": "transactions",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -509,8 +435,12 @@
           "name": "transactions_market_id_markets_id_fk",
           "tableFrom": "transactions",
           "tableTo": "markets",
-          "columnsFrom": ["market_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "market_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -665,8 +595,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -785,8 +719,12 @@
           "name": "passkey_user_id_user_id_fk",
           "tableFrom": "passkey",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -873,8 +811,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -884,7 +826,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -966,7 +910,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
