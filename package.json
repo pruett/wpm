@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:contract": "vitest run --config vitest.contract.config.ts --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
