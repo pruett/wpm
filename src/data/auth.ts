@@ -19,20 +19,8 @@ export async function getCurrentUser() {
   return session?.user ?? null;
 }
 
-export function isAdmin(session: Session): boolean {
-  if (!session) return false;
-  const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim()) ?? [];
-  return adminEmails.includes(session.user.email);
-}
-
 export async function requireUser(): Promise<{ session: AuthedSession } | { error: string }> {
   const session = await getSession();
   if (!session) return { error: "Not authenticated" };
   return { session };
-}
-
-export async function requireAdmin(): Promise<{ session: AuthedSession } | { error: string }> {
-  const session = await getSession();
-  if (!isAdmin(session)) return { error: "Unauthorized" };
-  return { session: session as AuthedSession };
 }
