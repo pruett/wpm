@@ -40,15 +40,17 @@ export type TranslationResult =
     };
 
 export function translateKalshiEvent(event: KalshiEvent, sport: string): TranslationResult {
-  if (event.markets.length !== 2) {
-    return { kind: "non_binary", count: event.markets.length };
+  const nestedMarkets = event.markets ?? [];
+  if (nestedMarkets.length !== 2) {
+    return { kind: "non_binary", count: nestedMarkets.length };
   }
 
-  const [a, b] = event.markets;
+  const [a, b] = nestedMarkets;
 
-  const closesAt = Date.parse(a.expected_expiration_time);
+  const rawCloseTime = a.expected_expiration_time ?? "";
+  const closesAt = Date.parse(rawCloseTime);
   if (!Number.isFinite(closesAt)) {
-    return { kind: "unparseable_close_time", raw: a.expected_expiration_time };
+    return { kind: "unparseable_close_time", raw: rawCloseTime };
   }
 
   const quoteA = quote(a);
@@ -102,7 +104,10 @@ function quote(market: KalshiMarket): Quote | null {
   return { mid: (bid + ask) / 2, spread: ask - bid };
 }
 
-const TERMINAL_KALSHI_STATUSES = new Set(["settled", "finalized", "determined"]);
+// "settled" is included alongside the SDK's MarketStatusEnum terminal values
+// because the live Kalshi API still emits it on the elections host even though
+// the SDK enum omits it.
+const TERMINAL_KALSHI_STATUSES = new Set<string>(["settled", "finalized", "determined"]);
 
 function isTerminalKalshiStatus(status: string): boolean {
   return TERMINAL_KALSHI_STATUSES.has(status);
@@ -117,10 +122,14 @@ export type ResolutionTranslation =
   | { kind: "kalshi_event_missing" };
 
 export function translateKalshiResolution(event: KalshiEvent): ResolutionTranslation {
-  if (event.markets.length !== 2) {
-    return { kind: "ambiguous", reason: `expected 2 nested markets, got ${event.markets.length}` };
+  const nestedMarkets = event.markets ?? [];
+  if (nestedMarkets.length !== 2) {
+    return {
+      kind: "ambiguous",
+      reason: `expected 2 nested markets, got ${nestedMarkets.length}`,
+    };
   }
-  const [a, b] = event.markets;
+  const [a, b] = nestedMarkets;
 
   if (!isTerminalKalshiStatus(a.status) || !isTerminalKalshiStatus(b.status)) {
     return { kind: "not_settled_yet" };

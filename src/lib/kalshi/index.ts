@@ -1,4 +1,10 @@
-import { z } from "zod";
+import {
+  Configuration,
+  type EventData,
+  EventsApi,
+  GetEventsStatusEnum,
+  type Market,
+} from "kalshi-typescript";
 
 const KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2";
 
@@ -11,43 +17,23 @@ export const KALSHI_SERIES = {
 
 export type KalshiSeriesTicker = (typeof KALSHI_SERIES)[keyof typeof KALSHI_SERIES];
 
-export const kalshiEventsUrl = (seriesTicker: string, minCloseTs: number = currentUnixSeconds()) =>
-  `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&min_close_ts=${minCloseTs}`;
+// Re-exported under our domain names. The two ingest/resolve flows only ever
+// touch the Events surface, so the SDK Configuration is intentionally
+// credential-less — /events is a public endpoint.
+export type KalshiEvent = EventData;
+export type KalshiMarket = Market;
 
-export const kalshiEventsByTickerUrl = (seriesTicker: string, eventTickers: string[]) =>
-  `${KALSHI_BASE_URL}/events?series_ticker=${seriesTicker}&event_tickers=${eventTickers.join(",")}&with_nested_markets=true`;
+let cachedClient: EventsApi | null = null;
 
-function currentUnixSeconds(): number {
+export function kalshiEvents(): EventsApi {
+  if (!cachedClient) {
+    cachedClient = new EventsApi(new Configuration({ basePath: KALSHI_BASE_URL }));
+  }
+  return cachedClient;
+}
+
+export function currentUnixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-const KalshiMarketSchema = z.object({
-  ticker: z.string(),
-  status: z.string(),
-  yes_sub_title: z.string(),
-  yes_bid_dollars: z.string(),
-  yes_ask_dollars: z.string(),
-  no_bid_dollars: z.string(),
-  no_ask_dollars: z.string(),
-  volume_24h_fp: z.string(),
-  expected_expiration_time: z.string(),
-  result: z.enum(["yes", "no", ""]).optional().default(""),
-});
-
-export type KalshiMarket = z.infer<typeof KalshiMarketSchema>;
-
-const KalshiEventSchema = z.object({
-  event_ticker: z.string(),
-  series_ticker: z.string(),
-  title: z.string(),
-  strike_date: z.string().default(""),
-  markets: z.array(KalshiMarketSchema),
-});
-
-export type KalshiEvent = z.infer<typeof KalshiEventSchema>;
-
-export const KalshiEventsResponse = z.object({
-  events: z.array(KalshiEventSchema),
-});
-
-export type KalshiEventsResponse = z.infer<typeof KalshiEventsResponse>;
+export { GetEventsStatusEnum };

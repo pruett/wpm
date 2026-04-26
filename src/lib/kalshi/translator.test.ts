@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { KalshiEvent } from "./index.js";
+
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
 import nonBinary from "./fixtures/non-binary.json" with { type: "json" };
 import notSettledYet from "./fixtures/not-settled-yet.json" with { type: "json" };
@@ -12,13 +14,16 @@ import skewedHealthy from "./fixtures/skewed-healthy.json" with { type: "json" }
 import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with { type: "json" };
 import wideSpread from "./fixtures/wide-spread.json" with { type: "json" };
 import zeroSpread from "./fixtures/zero-spread.json" with { type: "json" };
-import { KalshiEventsResponse } from "./index.js";
 import { translateKalshiEvent, translateKalshiResolution } from "./translator.js";
+
+// Fixtures only carry the subset of the SDK's EventData/Market shape that the
+// translator reads — the cast lets us exercise translator behavior without
+// fabricating every field the full SDK type requires.
+const eventOf = (fixture: unknown): KalshiEvent => (fixture as { events: KalshiEvent[] }).events[0];
 
 describe("translateKalshiEvent", () => {
   it("translates a healthy binary event", () => {
-    const { events } = KalshiEventsResponse.parse(binaryHealthy);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(binaryHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
@@ -37,8 +42,7 @@ describe("translateKalshiEvent", () => {
   });
 
   it("skips events with zero-spread on either side", () => {
-    const { events } = KalshiEventsResponse.parse(zeroSpread);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(zeroSpread), "mlb");
 
     expect(result).toEqual({
       kind: "no_initial_price",
@@ -47,22 +51,19 @@ describe("translateKalshiEvent", () => {
   });
 
   it("skips events with more than two nested markets", () => {
-    const { events } = KalshiEventsResponse.parse(nonBinary);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(nonBinary), "mlb");
 
     expect(result).toEqual({ kind: "non_binary", count: 3 });
   });
 
   it("skips events with an unparseable close timestamp", () => {
-    const { events } = KalshiEventsResponse.parse(unparseableCloseTime);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(unparseableCloseTime), "mlb");
 
     expect(result).toEqual({ kind: "unparseable_close_time", raw: "not-a-timestamp" });
   });
 
   it("rejects events where one Kalshi Market has a wide bid-ask spread", () => {
-    const { events } = KalshiEventsResponse.parse(wideSpread);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(wideSpread), "mlb");
 
     expect(result.kind).toBe("insufficient_confidence");
     if (result.kind !== "insufficient_confidence") return;
@@ -71,8 +72,7 @@ describe("translateKalshiEvent", () => {
   });
 
   it("rejects events where the two Kalshi Markets disagree beyond the pair threshold", () => {
-    const { events } = KalshiEventsResponse.parse(pairInconsistent);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(pairInconsistent), "mlb");
 
     expect(result.kind).toBe("insufficient_confidence");
     if (result.kind !== "insufficient_confidence") return;
@@ -80,8 +80,7 @@ describe("translateKalshiEvent", () => {
   });
 
   it("accepts a skewed but consistent event and seeds with the averaged probability", () => {
-    const { events } = KalshiEventsResponse.parse(skewedHealthy);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(skewedHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
@@ -90,8 +89,7 @@ describe("translateKalshiEvent", () => {
   });
 
   it("computes initialProbabilityA as the average of midProb_a and 1 - midProb_b", () => {
-    const { events } = KalshiEventsResponse.parse(binaryHealthy);
-    const result = translateKalshiEvent(events[0], "mlb");
+    const result = translateKalshiEvent(eventOf(binaryHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
@@ -102,39 +100,32 @@ describe("translateKalshiEvent", () => {
 
 describe("translateKalshiResolution", () => {
   it("maps A yes / B no to resolved_a", () => {
-    const { events } = KalshiEventsResponse.parse(settledAWins);
-    expect(translateKalshiResolution(events[0])).toEqual({ kind: "resolved_a" });
+    expect(translateKalshiResolution(eventOf(settledAWins))).toEqual({ kind: "resolved_a" });
   });
 
   it("maps A no / B yes to resolved_b", () => {
-    const { events } = KalshiEventsResponse.parse(settledBWins);
-    expect(translateKalshiResolution(events[0])).toEqual({ kind: "resolved_b" });
+    expect(translateKalshiResolution(eventOf(settledBWins))).toEqual({ kind: "resolved_b" });
   });
 
   it("maps both-no to voided", () => {
-    const { events } = KalshiEventsResponse.parse(settledVoided);
-    expect(translateKalshiResolution(events[0])).toEqual({ kind: "voided" });
+    expect(translateKalshiResolution(eventOf(settledVoided))).toEqual({ kind: "voided" });
   });
 
   it("returns not_settled_yet when either side is non-terminal", () => {
-    const { events } = KalshiEventsResponse.parse(notSettledYet);
-    expect(translateKalshiResolution(events[0])).toEqual({ kind: "not_settled_yet" });
+    expect(translateKalshiResolution(eventOf(notSettledYet))).toEqual({ kind: "not_settled_yet" });
   });
 
   it("returns ambiguous when both sides terminal but results are both yes", () => {
-    const { events } = KalshiEventsResponse.parse(settledAmbiguous);
-    const result = translateKalshiResolution(events[0]);
+    const result = translateKalshiResolution(eventOf(settledAmbiguous));
     expect(result.kind).toBe("ambiguous");
   });
 
   it("returns not_settled_yet when result fields are empty (pre-settlement)", () => {
-    const { events } = KalshiEventsResponse.parse(binaryHealthy);
-    expect(translateKalshiResolution(events[0])).toEqual({ kind: "not_settled_yet" });
+    expect(translateKalshiResolution(eventOf(binaryHealthy))).toEqual({ kind: "not_settled_yet" });
   });
 
   it("returns ambiguous for non-binary events", () => {
-    const { events } = KalshiEventsResponse.parse(nonBinary);
-    const result = translateKalshiResolution(events[0]);
+    const result = translateKalshiResolution(eventOf(nonBinary));
     expect(result.kind).toBe("ambiguous");
   });
 });

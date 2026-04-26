@@ -1,17 +1,12 @@
 import "server-only";
+import { isAxiosError } from "axios";
 import { and, eq, lt } from "drizzle-orm";
 
 import { cancelMarket, resolveMarket } from "@/data/markets";
 import { db } from "@/lib/db";
 import { markets as marketsTable } from "@/lib/db/schema";
 
-import {
-  KALSHI_SERIES,
-  KalshiEventsResponse,
-  kalshiEventsByTickerUrl,
-  type KalshiEvent,
-  type KalshiSeriesTicker,
-} from "./index";
+import { KALSHI_SERIES, type KalshiEvent, kalshiEvents, type KalshiSeriesTicker } from "./index";
 import { translateKalshiResolution, type ResolutionTranslation } from "./translator";
 
 const SPORT_TO_SERIES: Record<string, KalshiSeriesTicker> = {
@@ -115,15 +110,13 @@ async function resolveSeries(
   if (rows.length === 0) return summary;
 
   const rowsByTicker = new Map<string, PastCloseMarket>();
-  const requestedTickers: string[] = [];
   for (const row of rows) {
     const ticker = eventTickerFromMarketId(row.id);
     if (!ticker) continue;
     rowsByTicker.set(ticker, row);
-    requestedTickers.push(ticker);
   }
 
-  const eventsByTicker = await fetchEventsByTicker(seriesTicker, requestedTickers);
+  const eventsByTicker = await fetchEventsByTicker(seriesTicker, [...rowsByTicker.keys()]);
 
   for (const [ticker, row] of rowsByTicker) {
     const event = eventsByTicker.get(ticker);
@@ -144,17 +137,30 @@ async function fetchEventsByTicker(
   const map = new Map<string, KalshiEvent>();
   if (tickers.length === 0) return map;
 
-  const url = kalshiEventsByTickerUrl(seriesTicker, tickers);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Kalshi ${seriesTicker} resolve request failed: ${response.status}`);
-  }
-  const parsed = KalshiEventsResponse.parse(await response.json());
-  const requested = new Set(tickers);
-  for (const event of parsed.events) {
-    if (requested.has(event.event_ticker)) {
-      map.set(event.event_ticker, event);
-    }
+  // The SDK does not expose the bulk `event_tickers` filter on getEvents, so
+  // we fan out to per-ticker getEvent calls. A 404 means the event is no
+  // longer available on Kalshi — treated as kalshi_event_missing downstream.
+  const client = kalshiEvents();
+  const results = await Promise.all(
+    tickers.map(async (ticker) => {
+      try {
+        const { data } = await client.getEvent(ticker, true);
+        return [ticker, data.event] as const;
+      } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 404) {
+          return [ticker, null] as const;
+        }
+        throw new Error(
+          `Kalshi ${seriesTicker} resolve request failed for ${ticker}: ${
+            isAxiosError(err) ? (err.response?.status ?? err.message) : String(err)
+          }`,
+        );
+      }
+    }),
+  );
+
+  for (const [ticker, event] of results) {
+    if (event) map.set(ticker, event);
   }
   return map;
 }

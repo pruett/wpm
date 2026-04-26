@@ -2,9 +2,10 @@ import "server-only";
 import { createMarket } from "@/data/markets";
 
 import {
+  currentUnixSeconds,
+  GetEventsStatusEnum,
   KALSHI_SERIES,
-  KalshiEventsResponse,
-  kalshiEventsUrl,
+  kalshiEvents,
   type KalshiSeriesTicker,
 } from "./index";
 import { translateKalshiEvent, type TranslationResult } from "./translator";
@@ -59,17 +60,21 @@ export async function runKalshiIngest(): Promise<KalshiIngestSummary> {
 }
 
 async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIngestSummary> {
-  const response = await fetch(kalshiEventsUrl(seriesTicker));
-  if (!response.ok) {
-    throw new Error(`Kalshi ${seriesTicker} request failed: ${response.status}`);
-  }
-  const parsed = KalshiEventsResponse.parse(await response.json());
+  const { data } = await kalshiEvents().getEvents(
+    undefined,
+    undefined,
+    true,
+    undefined,
+    GetEventsStatusEnum.Open,
+    seriesTicker,
+    currentUnixSeconds(),
+  );
   const sport = SERIES_TO_SPORT[seriesTicker];
 
   let created = 0;
   const skipped = emptySkipCounters();
 
-  for (const event of parsed.events) {
+  for (const event of data.events) {
     const result = translateKalshiEvent(event, sport);
     if (result.kind !== "ok") {
       skipped[result.kind]++;
@@ -83,5 +88,5 @@ async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIng
     }
   }
 
-  return { fetched: parsed.events.length, created, skipped };
+  return { fetched: data.events.length, created, skipped };
 }
