@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const BASE_URL = "http://localhost:3000";
-const TEST_DATABASE_URL = process.env.DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm";
+const BASE_URL = "http://localhost:3001";
+const TEST_DATABASE_URL =
+  process.env.E2E_DATABASE_URL ?? "postgres://wpm:wpm@localhost:5433/wpm_test";
 const MAGIC_LINK_CAPTURE_PATH = path.resolve(__dirname, "wpm-e2e-magic-links.log");
 
 export default defineConfig({
@@ -22,12 +23,17 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "next dev --port 3000",
+    command: "next dev --port 3001",
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 300_000,
     stdout: "pipe",
     stderr: "pipe",
+    env: {
+      DATABASE_URL: TEST_DATABASE_URL,
+      BETTER_AUTH_URL: BASE_URL,
+      NEXT_DIST_DIR: ".next-e2e",
+    },
   },
 });
 

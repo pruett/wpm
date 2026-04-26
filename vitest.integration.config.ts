@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TEST_DATABASE_URL =
-  process.env.INTEGRATION_DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm_integration";
+  process.env.INTEGRATION_DATABASE_URL ?? "postgres://wpm:wpm@localhost:5433/wpm_integration";
 
 export default defineConfig({
   resolve: {

@@ -5,6 +5,7 @@ dist/
 
 # Next.js
 .next/
+.next-e2e/
 
 # SvelteKit
 .svelte-kit/

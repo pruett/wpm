@@ -6,7 +6,7 @@ import postgres from "postgres";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 export default async function globalSetup() {
-  const dbUrl = process.env.DATABASE_URL ?? "postgres://wpm:wpm@localhost:5432/wpm_integration";
+  const dbUrl = process.env.DATABASE_URL ?? "postgres://wpm:wpm@localhost:5433/wpm_integration";
   const url = new URL(dbUrl);
   const database = url.pathname.slice(1);
   url.pathname = "/postgres";
