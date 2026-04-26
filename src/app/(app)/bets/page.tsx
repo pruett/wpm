@@ -1,32 +1,27 @@
 import { Suspense } from "react";
 
 import { Header } from "@/components/header";
-import { ScrollingLeaderboard } from "@/components/scrolling-leaderboard";
+import { Portfolio } from "@/components/portfolio";
 import { getSession } from "@/data/auth";
 
-import { Dashboard } from "./dashboard";
-
-export default function Home() {
+export default function BetsPage() {
   return (
     <Suspense fallback={null}>
-      <HomeContent />
+      <BetsContent />
     </Suspense>
   );
 }
 
-async function HomeContent() {
+async function BetsContent() {
   const session = await getSession();
   if (!session) return null;
 
   return (
     <>
       <Header user={{ id: session.user.id, name: session.user.name }} />
-      <Suspense>
-        <ScrollingLeaderboard />
-      </Suspense>
       <main className="mx-auto max-w-screen-xl px-4 py-6">
-        <Suspense fallback={<p>Loading markets…</p>}>
-          <Dashboard />
+        <Suspense>
+          <Portfolio userId={session.user.id} />
         </Suspense>
       </main>
     </>

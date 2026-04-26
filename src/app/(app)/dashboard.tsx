@@ -3,7 +3,9 @@ import { getMarkets } from "@/data/markets";
 
 export async function Dashboard() {
   const { markets } = await getMarkets();
-  const openMarkets = markets.filter((m) => m.status === "open");
+  const openMarkets = markets
+    .filter((m) => m.status === "open")
+    .sort((a, b) => b.bettorCount - a.bettorCount);
 
   return (
     <section>

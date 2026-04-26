@@ -14,11 +14,19 @@ async function BalanceLoader({ userId }: { userId: string }) {
 export function Header({ user }: { user: { id: string; name: string } }) {
   return (
     <header className="border-b border-border">
-      <div className="mx-auto flex h-14 max-w-screen-xl items-center justify-between px-4">
+      <div className="mx-auto grid h-14 max-w-screen-xl grid-cols-3 items-center px-4">
         <Link href="/" className="font-mono text-lg font-black tracking-[0.15em]">
           WPM
         </Link>
-        <div className="flex items-center gap-4">
+        <nav className="flex items-center justify-center gap-4 font-mono text-sm font-medium tracking-wider uppercase">
+          <Link href="/" className="text-muted-foreground hover:text-foreground">
+            Home
+          </Link>
+          <Link href="/bets" className="text-muted-foreground hover:text-foreground">
+            Bets
+          </Link>
+        </nav>
+        <div className="flex items-center justify-end gap-4">
           <Suspense fallback={<span className="font-mono text-sm text-muted-foreground">---</span>}>
             <BalanceLoader userId={user.id} />
           </Suspense>
