@@ -1,3 +1,5 @@
+import type { Sport } from "@/lib/types";
+
 import { markets } from "@/lib/db/schema";
 
 import type { KalshiEvent, KalshiMarket } from "./index";
@@ -39,7 +41,7 @@ export type TranslationResult =
       reasons: InsufficientConfidenceReason[];
     };
 
-export function translateKalshiEvent(event: KalshiEvent, sport: string): TranslationResult {
+export function translateKalshiEvent(event: KalshiEvent, sport: Sport): TranslationResult {
   const nestedMarkets = event.markets ?? [];
   if (nestedMarkets.length !== 2) {
     return { kind: "non_binary", count: nestedMarkets.length };

@@ -10,6 +10,8 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 
+import { SPORTS } from "@/lib/types";
+
 import { user } from "./auth";
 
 export const balances = pgTable("balances", {
@@ -42,7 +44,7 @@ export const markets = pgTable(
   "markets",
   {
     id: text("id").primaryKey(),
-    sport: text("sport").notNull(),
+    sport: text("sport", { enum: SPORTS }).notNull(),
     name: text("name").notNull(),
     teamA: text("team_a").notNull(),
     teamB: text("team_b").notNull(),

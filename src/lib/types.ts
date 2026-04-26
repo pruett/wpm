@@ -60,9 +60,13 @@ export type Transaction =
       timestamp: string;
     };
 
+export const SPORTS = ["mlb", "nfl", "nba", "nhl"] as const;
+export type Sport = (typeof SPORTS)[number];
+
 export type Market = {
   id: string;
   name: string;
+  sport: Sport;
   outcomes: [string, string];
   closesAt: string;
   status: "open" | "resolved" | "cancelled";

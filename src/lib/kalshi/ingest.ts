@@ -1,4 +1,6 @@
 import "server-only";
+import type { Sport } from "@/lib/types";
+
 import { createMarket } from "@/data/markets";
 
 import {
@@ -10,7 +12,7 @@ import {
 } from "./index";
 import { translateKalshiEvent, type TranslationResult } from "./translator";
 
-const SERIES_TO_SPORT: Record<KalshiSeriesTicker, string> = {
+const SERIES_TO_SPORT: Record<KalshiSeriesTicker, Sport> = {
   [KALSHI_SERIES.MLB]: "mlb",
   [KALSHI_SERIES.NFL]: "nfl",
   [KALSHI_SERIES.NBA]: "nba",

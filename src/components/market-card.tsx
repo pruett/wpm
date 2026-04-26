@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { MarketWithOdds } from "@/lib/types";
 
 import { LiveOdds } from "@/components/live-odds";
+import { SportLogo } from "@/components/sport-logo";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function MarketCard({ market }: { market: MarketWithOdds }) {
@@ -13,7 +14,8 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
   return (
     <Link href={`/market/${market.id}`} className="block">
       <Card className="flex flex-col transition-colors hover:border-foreground/25">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-start gap-2 pb-3">
+          <SportLogo sport={market.sport} className="mt-0.5 text-muted-foreground" />
           <CardTitle className="font-mono text-sm leading-snug font-bold">{market.name}</CardTitle>
         </CardHeader>
         <CardContent className="flex-1">

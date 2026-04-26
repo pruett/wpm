@@ -82,7 +82,7 @@ describe("end-to-end: bet → resolve with 5 bettors", () => {
     const created = await createMarket({
       market: {
         id: MARKET_ID,
-        sport: "test",
+        sport: "mlb",
         name: "Test Market",
         teamA: "A",
         teamB: "B",

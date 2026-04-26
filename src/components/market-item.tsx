@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { MarketWithOdds } from "@/lib/types";
 
+import { SportLogo } from "@/components/sport-logo";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 
 export function MarketItem({ market }: { market: MarketWithOdds }) {
@@ -15,6 +16,7 @@ export function MarketItem({ market }: { market: MarketWithOdds }) {
       role="listitem"
       render={
         <Link href={`/market/${market.id}`}>
+          <SportLogo sport={market.sport} className="text-muted-foreground" />
           <ItemContent>
             <ItemTitle className="line-clamp-1">{market.name}</ItemTitle>
             <ItemDescription>

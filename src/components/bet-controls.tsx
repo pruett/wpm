@@ -8,6 +8,7 @@ import { placeBet } from "@/actions/placeBet";
 import { sellShares } from "@/actions/sellShares";
 import { useBetConfirm } from "@/components/bet-confirm-provider";
 import { useIsInMarketDrawer } from "@/components/market-drawer";
+import { SportLogo } from "@/components/sport-logo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -165,6 +166,7 @@ export function BetControls({ market, userId, positions }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-start gap-3">
+        <SportLogo sport={market.sport} size={22} className="mt-1 text-muted-foreground" />
         <div className="flex flex-1 flex-col gap-2">
           <ItemTitle>{market.name}</ItemTitle>
           <div className="flex flex-wrap items-center gap-2">

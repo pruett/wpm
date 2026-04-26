@@ -27,6 +27,7 @@ function toMarket(row: MarketRow): Market {
   return {
     id: row.id,
     name: row.name,
+    sport: row.sport,
     outcomes: [row.teamA, row.teamB],
     closesAt: new Date(row.closesAt).toISOString(),
     status: row.status,
