@@ -1,11 +1,11 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { SharePosition } from "@/lib/types";
+import type { SharePosition, Sport } from "@/lib/types";
 
 import { db } from "@/lib/db";
-import { markets as marketsTable, positions } from "@/lib/db/schema";
+import { markets as marketsTable, positions, transactions } from "@/lib/db/schema";
 
 import { tags } from "./tags";
 
@@ -56,5 +56,82 @@ export async function getPositions(userId: string): Promise<SharePosition[]> {
       });
     }
   }
+  return result;
+}
+
+export type BetHistoryEntry = {
+  marketId: string;
+  marketName: string;
+  sport: Sport;
+  outcomes: [string, string];
+  closesAt: string;
+  marketStatus: "open" | "resolved" | "cancelled";
+  resolvedOutcome: "A" | "B" | null;
+  resolvedAt: number | null;
+  sharesA: number;
+  sharesB: number;
+  costBasis: number;
+  settledAmount: number;
+};
+
+export async function getBetHistory(userId: string): Promise<BetHistoryEntry[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(tags.viewer(userId));
+
+  const rows = await db
+    .select({
+      marketId: positions.marketId,
+      sharesA: positions.sharesA,
+      sharesB: positions.sharesB,
+      costBasis: positions.costBasis,
+      marketName: marketsTable.name,
+      sport: marketsTable.sport,
+      teamA: marketsTable.teamA,
+      teamB: marketsTable.teamB,
+      closesAt: marketsTable.closesAt,
+      marketStatus: marketsTable.status,
+      resolvedOutcome: marketsTable.resolvedOutcome,
+      resolvedAt: marketsTable.resolvedAt,
+    })
+    .from(positions)
+    .innerJoin(marketsTable, eq(marketsTable.id, positions.marketId))
+    .where(eq(positions.userId, userId));
+
+  const settlements = await db
+    .select({ marketId: transactions.marketId, payload: transactions.payload })
+    .from(transactions)
+    .where(and(eq(transactions.userId, userId), eq(transactions.type, "SettlePayout")));
+
+  const settledByMarket = new Map<string, number>();
+  for (const s of settlements) {
+    if (!s.marketId) continue;
+    const parsed = JSON.parse(s.payload) as { amount?: number };
+    if (typeof parsed.amount !== "number") continue;
+    settledByMarket.set(s.marketId, (settledByMarket.get(s.marketId) ?? 0) + parsed.amount);
+  }
+
+  const result: BetHistoryEntry[] = [];
+  for (const row of rows) {
+    // Resolved/cancelled positions stay on the ledger at non-zero shares (ADR-0004),
+    // so a zero-share row on an open market means the user has fully sold out — skip it.
+    if (row.marketStatus === "open" && row.sharesA === 0n && row.sharesB === 0n) continue;
+
+    result.push({
+      marketId: row.marketId,
+      marketName: row.marketName,
+      sport: row.sport,
+      outcomes: [row.teamA, row.teamB],
+      closesAt: new Date(row.closesAt).toISOString(),
+      marketStatus: row.marketStatus,
+      resolvedOutcome: row.resolvedOutcome,
+      resolvedAt: row.resolvedAt,
+      sharesA: Number(row.sharesA),
+      sharesB: Number(row.sharesB),
+      costBasis: Number(row.costBasis),
+      settledAmount: settledByMarket.get(row.marketId) ?? 0,
+    });
+  }
+
   return result;
 }
