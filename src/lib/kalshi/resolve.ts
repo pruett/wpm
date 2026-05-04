@@ -20,6 +20,11 @@ const SETTLEMENT_DEADLINE_MS = 48 * 60 * 60 * 1000;
 
 const MARKET_ID_PREFIX = "kalshi-";
 
+// Basic-tier read budget is 200 tokens/sec (~20 reads/sec at 10 tokens per
+// req). 4 in-flight stays comfortably under that across realistic round-trip
+// latencies.
+const KALSHI_FETCH_CONCURRENCY = 4;
+
 type SkipReason =
   | "not_settled_yet"
   | "ambiguous"
@@ -141,26 +146,28 @@ async function fetchEventsByTicker(
   // we fan out to per-ticker getEvent calls. A 404 means the event is no
   // longer available on Kalshi — treated as kalshi_event_missing downstream.
   const client = kalshiEvents();
-  const results = await Promise.all(
-    tickers.map(async (ticker) => {
-      try {
-        const { data } = await client.getEvent(ticker, true);
-        return [ticker, data.event] as const;
-      } catch (err) {
-        if (isAxiosError(err) && err.response?.status === 404) {
-          return [ticker, null] as const;
-        }
-        throw new Error(
-          `Kalshi ${seriesTicker} resolve request failed for ${ticker}: ${
-            isAxiosError(err) ? (err.response?.status ?? err.message) : String(err)
-          }`,
-        );
+  const fetchOne = async (ticker: string) => {
+    try {
+      const { data } = await client.getEvent(ticker, true);
+      return [ticker, data.event] as const;
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 404) {
+        return [ticker, null] as const;
       }
-    }),
-  );
+      throw new Error(
+        `Kalshi ${seriesTicker} resolve request failed for ${ticker}: ${
+          isAxiosError(err) ? (err.response?.status ?? err.message) : String(err)
+        }`,
+      );
+    }
+  };
 
-  for (const [ticker, event] of results) {
-    if (event) map.set(ticker, event);
+  for (let i = 0; i < tickers.length; i += KALSHI_FETCH_CONCURRENCY) {
+    const batch = tickers.slice(i, i + KALSHI_FETCH_CONCURRENCY);
+    const batchResults = await Promise.all(batch.map(fetchOne));
+    for (const [ticker, event] of batchResults) {
+      if (event) map.set(ticker, event);
+    }
   }
   return map;
 }
