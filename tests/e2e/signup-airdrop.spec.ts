@@ -3,6 +3,7 @@ import postgres from "postgres";
 
 import { MAGIC_LINK_CAPTURE_PATH, TEST_DATABASE_URL } from "../../playwright.config";
 import { SIGNUP_AIRDROP } from "../../src/lib/constants";
+import { PROFILE_COLORS } from "../../src/lib/profile";
 import { expect, test } from "./fixtures";
 
 function readLatestMagicLinkFor(email: string): string {
@@ -28,7 +29,7 @@ test("new user signup airdrops SIGNUP_AIRDROP and records a Distribute transacti
       email,
       name: "Airdrop Tester",
       displayName: "Airdrop Tester",
-      color: "#ff0000",
+      color: PROFILE_COLORS[0],
       icon: "star",
       callbackURL: "/",
     },

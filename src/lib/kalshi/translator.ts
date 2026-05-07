@@ -119,6 +119,7 @@ export type ResolutionTranslation =
   | { kind: "resolved_a" }
   | { kind: "resolved_b" }
   | { kind: "voided" }
+  | { kind: "scalar_settled"; reason: string }
   | { kind: "not_settled_yet" }
   | { kind: "ambiguous"; reason: string }
   | { kind: "kalshi_event_missing" };
@@ -143,6 +144,18 @@ export function translateKalshiResolution(event: KalshiEvent): ResolutionTransla
   if (ra === "yes" && rb === "no") return { kind: "resolved_a" };
   if (ra === "no" && rb === "yes") return { kind: "resolved_b" };
   if (ra === "no" && rb === "no") return { kind: "voided" };
+
+  // Kalshi pays binary markets a partial dollar amount via `result: "scalar"`
+  // (e.g. rain-shortened or tied games). Our binary AMM has no partial-payout
+  // path, so refund all bettors via cancel.
+  if (ra === "scalar" || rb === "scalar") {
+    const settleA = a.settlement_value_dollars ?? "<unset>";
+    const settleB = b.settlement_value_dollars ?? "<unset>";
+    return {
+      kind: "scalar_settled",
+      reason: `kalshi scalar settlement: a=${settleA} b=${settleB}`,
+    };
+  }
 
   return {
     kind: "ambiguous",

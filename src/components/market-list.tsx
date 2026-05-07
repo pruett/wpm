@@ -1,14 +1,13 @@
 import type { MarketWithOdds } from "@/lib/types";
 
-import { MarketItem } from "@/components/market-item";
-import { ItemGroup } from "@/components/ui/item";
+import { MarketCard } from "@/components/market-card";
 
 export function MarketList({ markets }: { markets: MarketWithOdds[] }) {
   return (
-    <ItemGroup>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {markets.map((m) => (
-        <MarketItem key={m.id} market={m} />
+        <MarketCard key={m.id} market={m} />
       ))}
-    </ItemGroup>
+    </div>
   );
 }

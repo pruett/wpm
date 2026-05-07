@@ -95,6 +95,11 @@ export type MarketWithOdds = Market & {
   multiplierA: number;
   multiplierB: number;
   bettorCount: number;
+  bettors: {
+    id: string;
+    name: string;
+    color: string | null;
+  }[];
 };
 
 export type MarketsResponse = {

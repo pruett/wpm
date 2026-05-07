@@ -9,6 +9,7 @@ import pairInconsistent from "./fixtures/pair-inconsistent.json" with { type: "j
 import settledAWins from "./fixtures/settled-a-wins.json" with { type: "json" };
 import settledAmbiguous from "./fixtures/settled-ambiguous.json" with { type: "json" };
 import settledBWins from "./fixtures/settled-b-wins.json" with { type: "json" };
+import settledScalar from "./fixtures/settled-scalar.json" with { type: "json" };
 import settledVoided from "./fixtures/settled-voided.json" with { type: "json" };
 import skewedHealthy from "./fixtures/skewed-healthy.json" with { type: "json" };
 import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with { type: "json" };
@@ -109,6 +110,13 @@ describe("translateKalshiResolution", () => {
 
   it("maps both-no to voided", () => {
     expect(translateKalshiResolution(eventOf(settledVoided))).toEqual({ kind: "voided" });
+  });
+
+  it("maps a scalar (partial) settlement to scalar_settled with payout details", () => {
+    const result = translateKalshiResolution(eventOf(settledScalar));
+    expect(result.kind).toBe("scalar_settled");
+    if (result.kind !== "scalar_settled") return;
+    expect(result.reason).toContain("0.5000");
   });
 
   it("returns not_settled_yet when either side is non-terminal", () => {

@@ -32,11 +32,14 @@ type SkipReason =
   | "already_resolved"
   | "already_cancelled";
 
+export type AmbiguousSkip = { marketId: string; reason: string };
+
 export type SeriesResolveSummary = {
   considered: number;
   resolved: number;
   cancelled: number;
   skipped: Record<SkipReason, number>;
+  ambiguous: AmbiguousSkip[];
 };
 
 export type KalshiResolveSummary = {
@@ -46,6 +49,7 @@ export type KalshiResolveSummary = {
     resolved: number;
     cancelled: number;
     skipped: Record<SkipReason, number>;
+    ambiguous: (AmbiguousSkip & { series: string })[];
   };
 };
 
@@ -60,7 +64,13 @@ function emptySkipCounters(): Record<SkipReason, number> {
 }
 
 function emptySeriesSummary(): SeriesResolveSummary {
-  return { considered: 0, resolved: 0, cancelled: 0, skipped: emptySkipCounters() };
+  return {
+    considered: 0,
+    resolved: 0,
+    cancelled: 0,
+    skipped: emptySkipCounters(),
+    ambiguous: [],
+  };
 }
 
 function eventTickerFromMarketId(marketId: string): string | null {
@@ -73,7 +83,13 @@ type PastCloseMarket = typeof marketsTable.$inferSelect;
 export async function runKalshiResolve(now: number = Date.now()): Promise<KalshiResolveSummary> {
   const summary: KalshiResolveSummary = {
     bySeries: {},
-    totals: { considered: 0, resolved: 0, cancelled: 0, skipped: emptySkipCounters() },
+    totals: {
+      considered: 0,
+      resolved: 0,
+      cancelled: 0,
+      skipped: emptySkipCounters(),
+      ambiguous: [],
+    },
   };
 
   const rows = await db
@@ -99,6 +115,9 @@ export async function runKalshiResolve(now: number = Date.now()): Promise<Kalshi
     summary.totals.cancelled += seriesSummary.cancelled;
     for (const key of Object.keys(seriesSummary.skipped) as SkipReason[]) {
       summary.totals.skipped[key] += seriesSummary.skipped[key];
+    }
+    for (const entry of seriesSummary.ambiguous) {
+      summary.totals.ambiguous.push({ ...entry, series: seriesTicker });
     }
   }
 
@@ -181,30 +200,35 @@ async function dispatch(
   switch (translation.kind) {
     case "resolved_a": {
       const result = await resolveMarket(row.id, "A");
-      countResolve(result, summary);
+      countResolve(row.id, result, summary);
       return;
     }
     case "resolved_b": {
       const result = await resolveMarket(row.id, "B");
-      countResolve(result, summary);
+      countResolve(row.id, result, summary);
       return;
     }
     case "voided": {
       const result = await cancelMarket(row.id, "kalshi_voided");
-      countCancel(result, summary);
+      countCancel(row.id, result, summary);
+      return;
+    }
+    case "scalar_settled": {
+      const result = await cancelMarket(row.id, "kalshi_scalar_settled");
+      countCancel(row.id, result, summary);
       return;
     }
     case "not_settled_yet": {
       if (now - row.closesAt > SETTLEMENT_DEADLINE_MS) {
         const result = await cancelMarket(row.id, "kalshi_no_settlement");
-        countCancel(result, summary);
+        countCancel(row.id, result, summary);
       } else {
         summary.skipped.not_settled_yet++;
       }
       return;
     }
     case "ambiguous": {
-      summary.skipped.ambiguous++;
+      recordAmbiguous(row.id, translation.reason, summary);
       return;
     }
     case "kalshi_event_missing": {
@@ -214,7 +238,13 @@ async function dispatch(
   }
 }
 
+function recordAmbiguous(marketId: string, reason: string, summary: SeriesResolveSummary): void {
+  summary.skipped.ambiguous++;
+  summary.ambiguous.push({ marketId, reason });
+}
+
 function countResolve(
+  marketId: string,
   result: Awaited<ReturnType<typeof resolveMarket>>,
   summary: SeriesResolveSummary,
 ): void {
@@ -222,11 +252,12 @@ function countResolve(
     if (result.alreadyResolved) summary.skipped.already_resolved++;
     else summary.resolved++;
   } else {
-    summary.skipped.ambiguous++;
+    recordAmbiguous(marketId, result.reason, summary);
   }
 }
 
 function countCancel(
+  marketId: string,
   result: Awaited<ReturnType<typeof cancelMarket>>,
   summary: SeriesResolveSummary,
 ): void {
@@ -234,6 +265,6 @@ function countCancel(
     if (result.alreadyCancelled) summary.skipped.already_cancelled++;
     else summary.cancelled++;
   } else {
-    summary.skipped.ambiguous++;
+    recordAmbiguous(marketId, result.reason, summary);
   }
 }

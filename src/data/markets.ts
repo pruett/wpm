@@ -14,6 +14,7 @@ import {
   positions,
   transactions,
   treasury,
+  user as userTable,
 } from "@/lib/db/schema";
 import { computeSettlement, type SettlementOutput } from "@/lib/settlement";
 
@@ -21,7 +22,9 @@ import { tags } from "./tags";
 
 type MarketRow = typeof marketsTable.$inferSelect;
 type PoolRow = typeof ammPools.$inferSelect;
-type PositionRow = typeof positions.$inferSelect;
+type PositionWithUser = typeof positions.$inferSelect & {
+  user: typeof userTable.$inferSelect;
+};
 
 function toMarket(row: MarketRow): Market {
   return {
@@ -45,7 +48,24 @@ function toPool(row: PoolRow): AMMPool {
   };
 }
 
-function enrichMarket(market: Market, pool: AMMPool, bettorCount: number): MarketWithOdds {
+function uniqueBettors(positions: PositionWithUser[]): MarketWithOdds["bettors"] {
+  const bettors = new Map<string, MarketWithOdds["bettors"][number]>();
+  for (const position of positions) {
+    bettors.set(position.user.id, {
+      id: position.user.id,
+      name: position.user.name,
+      color: position.user.color,
+    });
+  }
+  return [...bettors.values()];
+}
+
+function enrichMarket(
+  market: Market,
+  pool: AMMPool,
+  bettors: MarketWithOdds["bettors"],
+): MarketWithOdds {
+  const bettorCount = bettors.length;
   if (market.status === "resolved") {
     const winA = market.result === "A" ? 1 : 0;
     const winB = market.result === "B" ? 1 : 0;
@@ -56,9 +76,10 @@ function enrichMarket(market: Market, pool: AMMPool, bettorCount: number): Marke
       multiplierA: winA > 0 ? 1 / winA : 0,
       multiplierB: winB > 0 ? 1 / winB : 0,
       bettorCount,
+      bettors,
     };
   }
-  return { ...market, ...calculateOdds(pool), bettorCount };
+  return { ...market, ...calculateOdds(pool), bettorCount, bettors };
 }
 
 export async function getMarket(id: string): Promise<MarketWithOdds> {
@@ -68,7 +89,7 @@ export async function getMarket(id: string): Promise<MarketWithOdds> {
 
   const row = await db.query.markets.findFirst({
     where: eq(marketsTable.id, id),
-    with: { pool: true, positions: true },
+    with: { pool: true, positions: { with: { user: true } } },
   });
 
   if (!row || !row.pool) throw new Error(`Market ${id} not found`);
@@ -76,9 +97,7 @@ export async function getMarket(id: string): Promise<MarketWithOdds> {
   // A position row is persistent — its presence (not non-zero shares) is the
   // signal that a user has participated in this market. Liveness of those
   // shares is answered by markets.status.
-  const bettorCount = new Set(row.positions.map((p) => p.userId)).size;
-
-  return enrichMarket(toMarket(row), toPool(row.pool), bettorCount);
+  return enrichMarket(toMarket(row), toPool(row.pool), uniqueBettors(row.positions));
 }
 
 export async function getMarkets(): Promise<MarketsResponse> {
@@ -87,16 +106,15 @@ export async function getMarkets(): Promise<MarketsResponse> {
   cacheTag(tags.marketsAll());
 
   const rows = await db.query.markets.findMany({
-    with: { pool: true, positions: true },
+    with: { pool: true, positions: { with: { user: true } } },
   });
 
   const withPools = rows.filter(
-    (r): r is MarketRow & { pool: PoolRow; positions: PositionRow[] } => r.pool !== null,
+    (r): r is MarketRow & { pool: PoolRow; positions: PositionWithUser[] } => r.pool !== null,
   );
 
   const enriched: MarketWithOdds[] = withPools.map((r) => {
-    const bettorCount = new Set(r.positions.map((p) => p.userId)).size;
-    return enrichMarket(toMarket(r), toPool(r.pool), bettorCount);
+    return enrichMarket(toMarket(r), toPool(r.pool), uniqueBettors(r.positions));
   });
 
   return { markets: enriched };

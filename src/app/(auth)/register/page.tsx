@@ -40,33 +40,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { PROFILE_COLOR_HEX, PROFILE_COLORS } from "@/lib/profile";
 import { cn } from "@/lib/utils";
-
-const COLORS = [
-  "red",
-  "orange",
-  "amber",
-  "lime",
-  "emerald",
-  "teal",
-  "sky",
-  "blue",
-  "violet",
-  "pink",
-] as const;
-type ColorId = (typeof COLORS)[number];
-const COLOR_HEX: Record<ColorId, string> = {
-  red: "#ef4444",
-  orange: "#f97316",
-  amber: "#f59e0b",
-  lime: "#84cc16",
-  emerald: "#10b981",
-  teal: "#14b8a6",
-  sky: "#0ea5e9",
-  blue: "#3b82f6",
-  violet: "#8b5cf6",
-  pink: "#ec4899",
-};
 
 const ICONS = [
   "crown",
@@ -103,7 +78,7 @@ const registerSchema = z.object({
     .max(20, "Display name must be at most 20 characters")
     .regex(/^[a-zA-Z0-9_-]+$/, "Letters, numbers, dashes, and underscores only"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email"),
-  color: z.enum(COLORS, { message: "Pick a color" }),
+  color: z.enum(PROFILE_COLORS, { message: "Pick a color" }),
   icon: z.enum(ICONS, { message: "Pick an icon" }),
 });
 
@@ -119,14 +94,14 @@ export default function RegisterPage() {
       name: "",
       displayName: "",
       email: "",
-      color: COLORS[0],
+      color: PROFILE_COLORS[0],
       icon: ICONS[0],
     },
     mode: "onBlur",
   });
 
   useEffect(() => {
-    form.setValue("color", COLORS[Math.floor(Math.random() * COLORS.length)]);
+    form.setValue("color", PROFILE_COLORS[Math.floor(Math.random() * PROFILE_COLORS.length)]);
     form.setValue("icon", ICONS[Math.floor(Math.random() * ICONS.length)]);
   }, [form]);
 
@@ -155,7 +130,7 @@ export default function RegisterPage() {
   }
 
   function shuffleMark() {
-    form.setValue("color", COLORS[Math.floor(Math.random() * COLORS.length)]);
+    form.setValue("color", PROFILE_COLORS[Math.floor(Math.random() * PROFILE_COLORS.length)]);
     form.setValue("icon", ICONS[Math.floor(Math.random() * ICONS.length)]);
   }
 
@@ -251,9 +226,9 @@ export default function RegisterPage() {
                           aria-invalid={fieldState.invalid}
                           className="flex flex-wrap gap-2"
                         >
-                          {COLORS.map((color) => {
+                          {PROFILE_COLORS.map((color) => {
                             const selected = field.value === color;
-                            const hex = COLOR_HEX[color];
+                            const hex = PROFILE_COLOR_HEX[color];
                             return (
                               <button
                                 key={color}
@@ -286,7 +261,7 @@ export default function RegisterPage() {
                     name="icon"
                     render={({ field, fieldState }) => {
                       const selectedColor = form.watch("color");
-                      const tint = COLOR_HEX[selectedColor];
+                      const tint = PROFILE_COLOR_HEX[selectedColor];
                       return (
                         <Field data-invalid={fieldState.invalid}>
                           <div

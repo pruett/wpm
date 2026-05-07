@@ -4,7 +4,10 @@ import type { MarketWithOdds } from "@/lib/types";
 
 import { LiveOdds } from "@/components/live-odds";
 import { SportLogo } from "@/components/sport-logo";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { initialsForName, profileColorForeground, profileColorToHex } from "@/lib/profile";
 
 export function MarketCard({ market }: { market: MarketWithOdds }) {
   const closesAt = new Date(market.closesAt);
@@ -21,16 +24,54 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
         <CardContent className="flex-1">
           <LiveOdds outcomes={market.outcomes} priceA={market.priceA} priceB={market.priceB} />
         </CardContent>
-        <CardFooter className="justify-between text-xs text-muted-foreground">
-          <span className="font-mono tabular-nums">
-            {market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"}
-          </span>
+        <CardFooter className="justify-between gap-3 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <BettorAvatars bettors={market.bettors} />
+            <span className="font-mono tabular-nums">
+              {market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"}
+            </span>
+          </div>
           <span className={isClosingSoon ? "text-destructive" : ""}>
             {formatCloseTime(closesAt)}
           </span>
         </CardFooter>
       </Card>
     </Link>
+  );
+}
+
+function BettorAvatars({ bettors }: { bettors: MarketWithOdds["bettors"] }) {
+  if (bettors.length === 0) return null;
+
+  const visibleBettors = bettors.slice(0, 5);
+  const overflowCount = bettors.length - visibleBettors.length;
+
+  return (
+    <AvatarGroup aria-label="Market bettors">
+      {visibleBettors.map((bettor) => {
+        const backgroundColor = profileColorToHex(bettor.color);
+        const color = profileColorForeground(bettor.color);
+
+        return (
+          <HoverCard key={bettor.id}>
+            <HoverCardTrigger render={<span />}>
+              <Avatar size="sm">
+                <AvatarFallback
+                  style={{ backgroundColor, color }}
+                  className="font-mono text-[10px] font-bold text-current"
+                >
+                  {initialsForName(bettor.name)}
+                </AvatarFallback>
+              </Avatar>
+            </HoverCardTrigger>
+            <HoverCardContent side="top" align="start" className="w-fit px-3 py-2">
+              <p className="font-medium whitespace-nowrap">{bettor.name}</p>
+            </HoverCardContent>
+          </HoverCard>
+        );
+      })}
+      {overflowCount > 0 && <AvatarGroupCount>+{overflowCount}</AvatarGroupCount>}
+    </AvatarGroup>
   );
 }
 

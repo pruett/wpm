@@ -11,10 +11,14 @@ import { SIGNUP_AIRDROP } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { balances, transactions, treasury } from "@/lib/db/schema/app";
 import { user } from "@/lib/db/schema/auth";
+import { isProfileColor, type ProfileColor } from "@/lib/profile";
 
 const BASE_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:4102";
 
-const pendingProfiles = new Map<string, { displayName: string; color: string; icon: string }>();
+const pendingProfiles = new Map<
+  string,
+  { displayName: string; color: ProfileColor; icon: string }
+>();
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
@@ -23,10 +27,10 @@ export const auth = betterAuth({
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/sign-in/magic-link" && ctx.body) {
         const { email, displayName, color, icon } = ctx.body;
-        if (email && displayName && color && icon) {
+        if (email && displayName && isProfileColor(color) && icon) {
           pendingProfiles.set(email as string, {
             displayName: displayName as string,
-            color: color as string,
+            color,
             icon: icon as string,
           });
         }
