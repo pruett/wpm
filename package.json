@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "drizzle-kit migrate && next build",
     "start": "bun run db:migrate && next start",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
