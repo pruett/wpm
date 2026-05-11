@@ -40,6 +40,21 @@ export const treasury = pgTable(
   (t) => [check("treasury_singleton", sql`${t.id} = 'treasury'`)],
 );
 
+export const events = pgTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    sport: text("sport", { enum: SPORTS }).notNull(),
+    name: text("name").notNull(),
+    closesAt: bigint("closes_at", { mode: "number" }).notNull(),
+    status: text("status", {
+      enum: ["open", "terminal"],
+    }).notNull(),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  },
+  (t) => [index("ix_events_status_closes").on(t.status, t.closesAt)],
+);
+
 export const markets = pgTable(
   "markets",
   {
@@ -60,6 +75,10 @@ export const markets = pgTable(
   },
   (t) => [index("ix_markets_status_closes").on(t.status, t.closesAt)],
 );
+
+export const eventRelations = relations(events, ({ many }) => ({
+  markets: many(markets),
+}));
 
 export const ammPools = pgTable("amm_pools", {
   marketId: text("market_id")
