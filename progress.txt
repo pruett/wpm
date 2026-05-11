@@ -461,3 +461,32 @@ Closes two plan bullets:
 - `bun run test` — 37/37 unit tests pass (was 45 before; 8 deleted: 4 isqrt + 4 calculateSell).
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt` on changed files — clean (after `oxfmt --write` on `amm.ts`).
+
+## 2026-05-11 — Phase 2: Delete `translateKalshiResolution` from translator.ts
+
+Removed the legacy per-child resolution decision function from `src/lib/kalshi/translator.ts`. The function had no production callers — the resolver driver was rewired to `decideEventCommit` (in `src/lib/kalshi/resolve.ts`) during Phase 0 Slice 1, and the only remaining references were its own unit tests.
+
+### What got deleted from `translator.ts`
+- `translateKalshiResolution(event)` function
+- `ResolutionTranslation` discriminated-union type (7 variants)
+- `TERMINAL_KALSHI_STATUSES` const and `isTerminalKalshiStatus` helper — `resolve.ts` already carries its own private copy of `TERMINAL_KALSHI_STATUSES` for the new `decideEventCommit` path, so deleting these from the translator does not orphan the live resolver
+
+### What got deleted from `translator.test.ts`
+- Entire `describe("translateKalshiResolution", ...)` block (7 cases)
+- Unused fixture imports: `not-settled-yet`, `settled-a-wins`, `settled-ambiguous`, `settled-b-wins`, `settled-scalar`, `settled-voided`
+- Stale named export from the `./translator.js` import
+
+### Fixture retention
+Left the `settled-*.json` and `not-settled-yet.json` Kalshi fixtures in `src/lib/kalshi/fixtures/` even though they are now orphaned by the translator tests. The Phase 3 "Resolver decision tests" block (PLAN §Phase 3 lines 113-119) will need terminal-Kalshi-market fixtures to exercise `decideEventCommit`; these existing settle-* shapes will likely be reusable then. Plan §Phase 6 only calls out `non-binary.json` and `pair-inconsistent.json` for explicit deletion.
+
+### Files changed
+- `src/lib/kalshi/translator.ts` (delete `translateKalshiResolution`, `ResolutionTranslation`, terminal-status helpers)
+- `src/lib/kalshi/translator.test.ts` (delete `describe("translateKalshiResolution"...)` block + orphaned imports)
+- `PLAN.md` (mark one bullet complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 30/30 unit tests pass (was 37; 7 deleted with the `translateKalshiResolution` describe block).
+- `bun run test:integration` — 3/3 tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `translator.test.ts`).
