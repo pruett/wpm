@@ -762,3 +762,47 @@ a near-duplicate JSON fixture.
   overload error remains.
 - `bunx oxlint src/lib/kalshi/resolve.test.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check src/lib/kalshi/resolve.test.ts` — clean.
+
+## 2026-05-11 — Phase 1: Drop `ix_markets_status_closes` index
+
+Removed the legacy composite index from the `markets` table now that the
+resolver driver selects exclusively from `events` via
+`ix_events_status_closes` (added in Phase 0). No production query reads
+`markets.status` or `markets.closesAt` for filtering — only single-row
+lookups by primary key — so the index gives nothing back at this point.
+
+`markets.status` and `markets.closesAt` columns themselves stay for now:
+they're still used by the legacy `createMarket`/`resolveMarket`/
+`cancelMarket` paths kept around for `tests/integration/bet-and-resolve.test.ts`.
+Their drop is tied to the broader Phase 1 column-purge bullet (line 41).
+
+### Migration regen
+Followed the same procedure as the prior regen:
+1. Deleted `0000_petite_grey_gargoyle.sql` and `meta/0000_snapshot.json`.
+2. Stubbed `meta/_journal.json` with empty `entries: []` so drizzle-kit
+   could compute prevId/idx for a fresh emit.
+3. Ran `bun run db:generate` — produced `0000_mute_gressill.sql` plus
+   updated snapshot + journal. Treasury seed re-appended by the wrapper.
+4. Verified `ix_markets_status_closes` is absent from the new SQL
+   (`grep -c` returned 0).
+5. `oxfmt --write` on the regenerated snapshot/journal to normalise
+   trailing newlines.
+
+### Files changed
+- `src/lib/db/schema/app.ts` (drop index, inline the `markets` pgTable
+  callback now that it has no second argument)
+- `src/lib/db/migrations/0000_petite_grey_gargoyle.sql` (deleted)
+- `src/lib/db/migrations/0000_mute_gressill.sql` (new)
+- `src/lib/db/migrations/meta/0000_snapshot.json` (regenerated)
+- `src/lib/db/migrations/meta/_journal.json` (regenerated)
+- `PLAN.md` (mark Phase 1 line 45 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run test:integration` — 3/3 tests pass (migrations apply cleanly,
+  no broken FKs or index drops in flight).
+- `bunx oxlint src/lib/db/schema/app.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write`
+  on snapshot + journal).
