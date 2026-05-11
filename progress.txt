@@ -1034,3 +1034,51 @@ names is safe.
   Phase 5 UI rewiring lands, the mapping disappears: `MarketWithOdds`
   drops to `{ priceYes, multiplierYes, ... }` and components consume the
   YES-side directly (NO price is `1 - priceYes`).
+  YES/NO keys directly.
+
+## 2026-05-11 — Phase 1: Purge `"A" | "B"` from `Transaction` payload types
+
+Removed legacy A/B fields from two variants of the `Transaction` discriminated
+union in `src/lib/types.ts` per PLAN line 50:
+- `PlaceBet`: dropped `outcome: "A" | "B"`. The new `placeBet` in
+  `data/trading.ts` already omits `outcome` from its JSON payload — only the
+  legacy adapter (`placeBetLegacy`) still writes it. Since `Transaction` is
+  type-only and not imported anywhere, this change just aligns the documented
+  shape with the YES-only model.
+- `ResolveMarket`: replaced `result: "A" | "B"` with `resolvedAs: "yes" | "no"`
+  to match the new `markets.resolvedAs` column. The dual-write in
+  `data/events.ts:310` still emits both `result: legacyOutcome` and
+  `resolvedAs: childOut.resolvedAs` in the actual payload — `JSON.stringify`
+  isn't type-checked against `Transaction`, so the extra `result` field is
+  harmless. Cleanup of the dual-write happens when the legacy A/B columns
+  drop in Phase 1 schema migration.
+
+`SellShares` was already absent from the union (it never made it past the
+Slice 1 reshape), so that bullet of PLAN line 50 was already complete.
+`SettlePayout` never had an `"A" | "B"` field.
+
+### Files changed
+- `src/lib/types.ts` (Transaction.PlaceBet drops `outcome`;
+  Transaction.ResolveMarket swaps `result` for `resolvedAs`)
+- `PLAN.md` (mark Phase 1 line 50 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 40/40 unit tests pass.
+- `bun run test:integration` — 3/3 tests pass.
+- `bunx oxlint src/lib/types.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/types.ts` — clean.
+
+### Notes
+- `Transaction` has zero importers in src/ — confirmed via grep for
+  `import.*Transaction.*types` and `: Transaction[^a-zA-Z]`. This makes the
+  type a documentation artifact rather than a runtime contract, which is why
+  the JSON.stringify call sites can carry extra fields (e.g. `result`)
+  without TypeScript complaining. Future work could either delete the type
+  entirely or wire it up as a typed bridge for the audit-log payload — both
+  out of scope for this task.
+- Kept the change strictly to PLAN line 50. The remaining `"A" | "B"`
+  references elsewhere (`Market.result`, `SharePosition.outcome`,
+  `MarketWithOdds.priceA/B`) are covered by separate PLAN bullets (lines
+  51–53) and will land alongside their respective consumer rewrites.
