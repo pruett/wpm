@@ -219,3 +219,40 @@ The legacy `runKalshiResolve` driver and its per-child `dispatch`/`translateKals
 
 ### Gotcha
 - `(typeof kalshiResponse.markets)[number]` does not type-narrow through an inline `??[]` — the `Market[] | undefined` on `EventData.markets` resists indexing. Fix: bind `nestedKalshi = kalshiResponse.markets ?? []` first, then reference `(typeof nestedKalshi)[number]`.
+
+## 2026-05-11 — Phase 0 Slice 1: Wire event-centric resolver
+
+Replaced the market-centric resolver driver with an event-centric one. `runKalshiResolve` now selects from `events WHERE status='open' AND closesAt < now`, loads each event's child markets (`id`/`eventId`/`ticker`), groups by `events.sport` → Kalshi series, fans out per-event-ticker getEvent calls (4-way concurrency, basic-tier read budget), feeds each Kalshi response into `decideEventCommit`, and on a `commit` decision dispatches to a new `commitEvent` function in `data/events.ts`.
+
+### `commitEvent` (Slice 1 stub) — `src/data/events.ts`
+Takes `{eventId, perChild: ChildOutcome[]}`. Asserts the event is still open, iterates the children, and per-child dispatches to the legacy `resolveMarket`/`cancelMarket` data-layer calls:
+
+- `resolved_yes` → `resolveMarket(id, "A")` — under the YES-first mapping established by `createEvent`, A is YES (`sharesA → reserveYes`), so the legacy single-side payout function does the right thing.
+- `resolved_no` → `resolveMarket(id, "B")` — under YES-only trading no holder has `sharesB`, so all payouts compute to 0; a `SettlePayout amount=0` row gets emitted per holder, which is exactly what PRD §Settlement calls for.
+- `cancelled_*` → `cancelMarket(id, "<reason>")`.
+
+After all children are dispatched, flips `events.status = 'terminal'` so subsequent resolver passes skip the event. The single-DB-transaction body promised by PLAN §Phase 3 "rewire resolveMarket/cancelMarket into a single commitEvent" is intentionally deferred — that's the next plan task, which replaces the per-child dispatch with `computeSettlement` across all children in one tx.
+
+### Summary structure (`KalshiResolveSummary`)
+Reshaped to event-centric counters per PLAN §Phase 3 line 111:
+- `considered` = number of past-close open events
+- `committed` = events whose plan applied successfully
+- `perChildOutcomes` = per-outcome-kind counts (`resolved_yes`/`resolved_no`/`cancelled_voided`/`cancelled_scalar`/`cancelled_no_settlement`)
+- `skipped` = `{waited, kalshi_event_missing, commit_failed, no_event_ticker}`
+- `commitFailures` and `childErrors` carry per-event / per-market failure reasons
+- `totals.resolved` / `totals.cancelled` aggregates retained so `src/app/api/cron/resolve/route.ts` keeps gating its cache revalidation on them without changes.
+
+### Files changed
+- `src/lib/kalshi/resolve.ts` (driver rewrite; `decideEventCommit` untouched)
+- `src/data/events.ts` (added `commitEvent`)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors. `bun run lint` shows 2 pre-existing warnings unrelated to this change.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `events.ts`).
+
+### Gotchas
+- `data/events.ts` imports `cancelMarket`/`resolveMarket` from `data/markets` (runtime) and `ChildOutcome` from `lib/kalshi/resolve` (type-only via `import type`). `resolve.ts` imports `commitEvent` from `data/events` (runtime). At runtime this is a one-way edge — `events → markets` — because the type import is erased. TypeScript handles the type-only side of the cycle fine; left a comment in `events.ts` so future readers don't try to "fix" what isn't broken.
+- `drizzle-orm.inArray` chokes on an empty list, so the event-id lookup is guarded by the early return when `eventRows.length === 0`.
+- Cron route `route.ts` was left unchanged because the new summary keeps backward-compatible `totals.resolved`/`totals.cancelled` aggregates. Phase 3 may revisit the field shape; for Slice 1 the route's revalidation gate keeps working.

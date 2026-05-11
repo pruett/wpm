@@ -1,13 +1,12 @@
 import "server-only";
 import { isAxiosError } from "axios";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 
-import { cancelMarket, resolveMarket } from "@/data/markets";
+import { commitEvent } from "@/data/events";
 import { db } from "@/lib/db";
-import { markets as marketsTable } from "@/lib/db/schema";
+import { events as eventsTable, markets as marketsTable } from "@/lib/db/schema";
 
 import { KALSHI_SERIES, type KalshiEvent, kalshiEvents, type KalshiSeriesTicker } from "./index";
-import { translateKalshiResolution, type ResolutionTranslation } from "./translator";
 
 // "settled" is included alongside the SDK's MarketStatusEnum terminal values
 // because the live Kalshi API still emits it on the elections host even though
@@ -84,139 +83,218 @@ const SPORT_TO_SERIES: Record<string, KalshiSeriesTicker> = {
   nhl: KALSHI_SERIES.NHL,
 };
 
-const SETTLEMENT_DEADLINE_MS = 48 * 60 * 60 * 1000;
-
-const MARKET_ID_PREFIX = "kalshi-";
+const EVENT_ID_PREFIX = "kalshi-";
 
 // Basic-tier read budget is 200 tokens/sec (~20 reads/sec at 10 tokens per
 // req). 4 in-flight stays comfortably under that across realistic round-trip
 // latencies.
 const KALSHI_FETCH_CONCURRENCY = 4;
 
-type SkipReason =
-  | "not_settled_yet"
-  | "ambiguous"
-  | "kalshi_event_missing"
-  | "already_resolved"
-  | "already_cancelled";
+type ChildOutcomeKind = ChildOutcome["outcome"];
 
-export type AmbiguousSkip = { marketId: string; reason: string };
+type SkipReason = "waited" | "kalshi_event_missing" | "commit_failed" | "no_event_ticker";
+
+export type CommitFailure = { eventId: string; reason: string };
+export type ChildError = { marketId: string; reason: string };
 
 export type SeriesResolveSummary = {
   considered: number;
-  resolved: number;
-  cancelled: number;
+  committed: number;
+  perChildOutcomes: Record<ChildOutcomeKind, number>;
   skipped: Record<SkipReason, number>;
-  ambiguous: AmbiguousSkip[];
+  commitFailures: CommitFailure[];
+  childErrors: ChildError[];
 };
 
 export type KalshiResolveSummary = {
   bySeries: Record<string, SeriesResolveSummary>;
   totals: {
     considered: number;
+    committed: number;
+    perChildOutcomes: Record<ChildOutcomeKind, number>;
+    skipped: Record<SkipReason, number>;
+    commitFailures: (CommitFailure & { series: string })[];
+    childErrors: (ChildError & { series: string })[];
+    // Aggregate convenience counters kept for the cron route (which gates a
+    // cache revalidation on these). `resolved` = `resolved_yes` + `resolved_no`
+    // child outcomes; `cancelled` = sum of `cancelled_*` child outcomes.
     resolved: number;
     cancelled: number;
-    skipped: Record<SkipReason, number>;
-    ambiguous: (AmbiguousSkip & { series: string })[];
   };
 };
 
 function emptySkipCounters(): Record<SkipReason, number> {
   return {
-    not_settled_yet: 0,
-    ambiguous: 0,
+    waited: 0,
     kalshi_event_missing: 0,
-    already_resolved: 0,
-    already_cancelled: 0,
+    commit_failed: 0,
+    no_event_ticker: 0,
+  };
+}
+
+function emptyChildOutcomeCounters(): Record<ChildOutcomeKind, number> {
+  return {
+    resolved_yes: 0,
+    resolved_no: 0,
+    cancelled_voided: 0,
+    cancelled_scalar: 0,
+    cancelled_no_settlement: 0,
   };
 }
 
 function emptySeriesSummary(): SeriesResolveSummary {
   return {
     considered: 0,
-    resolved: 0,
-    cancelled: 0,
+    committed: 0,
+    perChildOutcomes: emptyChildOutcomeCounters(),
     skipped: emptySkipCounters(),
-    ambiguous: [],
+    commitFailures: [],
+    childErrors: [],
   };
 }
 
-function eventTickerFromMarketId(marketId: string): string | null {
-  if (!marketId.startsWith(MARKET_ID_PREFIX)) return null;
-  return marketId.slice(MARKET_ID_PREFIX.length);
+function eventTickerFromEventId(eventId: string): string | null {
+  if (!eventId.startsWith(EVENT_ID_PREFIX)) return null;
+  return eventId.slice(EVENT_ID_PREFIX.length);
 }
 
-type PastCloseMarket = typeof marketsTable.$inferSelect;
+type EventRow = typeof eventsTable.$inferSelect;
+type ChildMarketRow = Pick<typeof marketsTable.$inferSelect, "id" | "eventId" | "ticker">;
+type PastCloseEvent = EventRow & { markets: ChildMarketRow[] };
 
 export async function runKalshiResolve(now: number = Date.now()): Promise<KalshiResolveSummary> {
   const summary: KalshiResolveSummary = {
     bySeries: {},
     totals: {
       considered: 0,
+      committed: 0,
+      perChildOutcomes: emptyChildOutcomeCounters(),
+      skipped: emptySkipCounters(),
+      commitFailures: [],
+      childErrors: [],
       resolved: 0,
       cancelled: 0,
-      skipped: emptySkipCounters(),
-      ambiguous: [],
     },
   };
 
-  const rows = await db
+  const eventRows = await db
     .select()
-    .from(marketsTable)
-    .where(and(eq(marketsTable.status, "open"), lt(marketsTable.closesAt, now)));
+    .from(eventsTable)
+    .where(and(eq(eventsTable.status, "open"), lt(eventsTable.closesAt, now)));
 
-  const bySport = new Map<string, PastCloseMarket[]>();
-  for (const row of rows) {
-    const list = bySport.get(row.sport) ?? [];
-    list.push(row);
-    bySport.set(row.sport, list);
+  if (eventRows.length === 0) return summary;
+
+  const eventIds = eventRows.map((e) => e.id);
+  const childRows = await db
+    .select({
+      id: marketsTable.id,
+      eventId: marketsTable.eventId,
+      ticker: marketsTable.ticker,
+    })
+    .from(marketsTable)
+    .where(inArray(marketsTable.eventId, eventIds));
+
+  const childrenByEventId = new Map<string, ChildMarketRow[]>();
+  for (const child of childRows) {
+    if (!child.eventId) continue;
+    const list = childrenByEventId.get(child.eventId) ?? [];
+    list.push(child);
+    childrenByEventId.set(child.eventId, list);
   }
 
-  for (const [sport, seriesMarkets] of bySport) {
+  const eventsBySport = new Map<string, PastCloseEvent[]>();
+  for (const event of eventRows) {
+    const list = eventsBySport.get(event.sport) ?? [];
+    list.push({ ...event, markets: childrenByEventId.get(event.id) ?? [] });
+    eventsBySport.set(event.sport, list);
+  }
+
+  for (const [sport, seriesEvents] of eventsBySport) {
     const seriesTicker = SPORT_TO_SERIES[sport];
     if (!seriesTicker) continue;
 
-    const seriesSummary = await resolveSeries(seriesTicker, seriesMarkets, now);
+    const seriesSummary = await resolveSeries(seriesTicker, seriesEvents, now);
     summary.bySeries[seriesTicker] = seriesSummary;
     summary.totals.considered += seriesSummary.considered;
-    summary.totals.resolved += seriesSummary.resolved;
-    summary.totals.cancelled += seriesSummary.cancelled;
+    summary.totals.committed += seriesSummary.committed;
+    for (const key of Object.keys(seriesSummary.perChildOutcomes) as ChildOutcomeKind[]) {
+      summary.totals.perChildOutcomes[key] += seriesSummary.perChildOutcomes[key];
+    }
     for (const key of Object.keys(seriesSummary.skipped) as SkipReason[]) {
       summary.totals.skipped[key] += seriesSummary.skipped[key];
     }
-    for (const entry of seriesSummary.ambiguous) {
-      summary.totals.ambiguous.push({ ...entry, series: seriesTicker });
+    for (const entry of seriesSummary.commitFailures) {
+      summary.totals.commitFailures.push({ ...entry, series: seriesTicker });
+    }
+    for (const entry of seriesSummary.childErrors) {
+      summary.totals.childErrors.push({ ...entry, series: seriesTicker });
     }
   }
+
+  const c = summary.totals.perChildOutcomes;
+  summary.totals.resolved = c.resolved_yes + c.resolved_no;
+  summary.totals.cancelled = c.cancelled_voided + c.cancelled_scalar + c.cancelled_no_settlement;
 
   return summary;
 }
 
 async function resolveSeries(
   seriesTicker: KalshiSeriesTicker,
-  rows: PastCloseMarket[],
+  events: PastCloseEvent[],
   now: number,
 ): Promise<SeriesResolveSummary> {
   const summary = emptySeriesSummary();
-  summary.considered = rows.length;
-  if (rows.length === 0) return summary;
+  summary.considered = events.length;
+  if (events.length === 0) return summary;
 
-  const rowsByTicker = new Map<string, PastCloseMarket>();
-  for (const row of rows) {
-    const ticker = eventTickerFromMarketId(row.id);
-    if (!ticker) continue;
-    rowsByTicker.set(ticker, row);
+  const eventsByTicker = new Map<string, PastCloseEvent>();
+  for (const event of events) {
+    const ticker = eventTickerFromEventId(event.id);
+    if (!ticker) {
+      summary.skipped.no_event_ticker++;
+      continue;
+    }
+    eventsByTicker.set(ticker, event);
   }
 
-  const eventsByTicker = await fetchEventsByTicker(seriesTicker, [...rowsByTicker.keys()]);
+  const kalshiByTicker = await fetchEventsByTicker(seriesTicker, [...eventsByTicker.keys()]);
 
-  for (const [ticker, row] of rowsByTicker) {
-    const event = eventsByTicker.get(ticker);
-    const translation: ResolutionTranslation = event
-      ? translateKalshiResolution(event)
-      : { kind: "kalshi_event_missing" };
+  for (const [ticker, wampumEvent] of eventsByTicker) {
+    const kalshiEvent = kalshiByTicker.get(ticker);
+    if (!kalshiEvent) {
+      summary.skipped.kalshi_event_missing++;
+      continue;
+    }
 
-    await dispatch(row, translation, now, summary);
+    const decision = decideEventCommit(
+      {
+        id: wampumEvent.id,
+        closesAt: wampumEvent.closesAt,
+        markets: wampumEvent.markets.map((m) => ({ id: m.id, ticker: m.ticker })),
+      },
+      kalshiEvent,
+      now,
+    );
+
+    if (decision.kind === "wait") {
+      summary.skipped.waited++;
+      continue;
+    }
+
+    const result = await commitEvent({ eventId: wampumEvent.id, perChild: decision.perChild });
+    if (!result.committed) {
+      summary.skipped.commit_failed++;
+      summary.commitFailures.push({ eventId: wampumEvent.id, reason: result.reason });
+      continue;
+    }
+
+    summary.committed++;
+    for (const child of result.perChild) {
+      summary.perChildOutcomes[child.outcome]++;
+      if (child.status.kind === "error") {
+        summary.childErrors.push({ marketId: child.marketId, reason: child.status.reason });
+      }
+    }
   }
 
   return summary;
@@ -257,82 +335,4 @@ async function fetchEventsByTicker(
     }
   }
   return map;
-}
-
-async function dispatch(
-  row: PastCloseMarket,
-  translation: ResolutionTranslation,
-  now: number,
-  summary: SeriesResolveSummary,
-): Promise<void> {
-  switch (translation.kind) {
-    case "resolved_a": {
-      const result = await resolveMarket(row.id, "A");
-      countResolve(row.id, result, summary);
-      return;
-    }
-    case "resolved_b": {
-      const result = await resolveMarket(row.id, "B");
-      countResolve(row.id, result, summary);
-      return;
-    }
-    case "voided": {
-      const result = await cancelMarket(row.id, "kalshi_voided");
-      countCancel(row.id, result, summary);
-      return;
-    }
-    case "scalar_settled": {
-      const result = await cancelMarket(row.id, "kalshi_scalar_settled");
-      countCancel(row.id, result, summary);
-      return;
-    }
-    case "not_settled_yet": {
-      if (now - row.closesAt > SETTLEMENT_DEADLINE_MS) {
-        const result = await cancelMarket(row.id, "kalshi_no_settlement");
-        countCancel(row.id, result, summary);
-      } else {
-        summary.skipped.not_settled_yet++;
-      }
-      return;
-    }
-    case "ambiguous": {
-      recordAmbiguous(row.id, translation.reason, summary);
-      return;
-    }
-    case "kalshi_event_missing": {
-      summary.skipped.kalshi_event_missing++;
-      return;
-    }
-  }
-}
-
-function recordAmbiguous(marketId: string, reason: string, summary: SeriesResolveSummary): void {
-  summary.skipped.ambiguous++;
-  summary.ambiguous.push({ marketId, reason });
-}
-
-function countResolve(
-  marketId: string,
-  result: Awaited<ReturnType<typeof resolveMarket>>,
-  summary: SeriesResolveSummary,
-): void {
-  if (result.resolved) {
-    if (result.alreadyResolved) summary.skipped.already_resolved++;
-    else summary.resolved++;
-  } else {
-    recordAmbiguous(marketId, result.reason, summary);
-  }
-}
-
-function countCancel(
-  marketId: string,
-  result: Awaited<ReturnType<typeof cancelMarket>>,
-  summary: SeriesResolveSummary,
-): void {
-  if (result.cancelled) {
-    if (result.alreadyCancelled) summary.skipped.already_cancelled++;
-    else summary.cancelled++;
-  } else {
-    recordAmbiguous(marketId, result.reason, summary);
-  }
 }

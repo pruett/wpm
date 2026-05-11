@@ -1,8 +1,10 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
 
+import type { ChildOutcome } from "@/lib/kalshi/resolve";
 import type { TranslatedEvent } from "@/lib/kalshi/translator";
 
+import { cancelMarket, resolveMarket } from "@/data/markets";
 import { initializePool } from "@/lib/amm";
 import { db } from "@/lib/db";
 import {
@@ -81,4 +83,82 @@ export async function createEvent(input: TranslatedEvent): Promise<CreateEventRe
 
     return { created: true } as const;
   });
+}
+
+export type CommitEventInput = {
+  eventId: string;
+  perChild: ChildOutcome[];
+};
+
+export type ChildCommitOutcomeStatus =
+  | { kind: "resolved"; alreadyResolved: boolean }
+  | { kind: "cancelled"; alreadyCancelled: boolean }
+  | { kind: "error"; reason: string };
+
+export type ChildCommitResult = {
+  marketId: string;
+  outcome: ChildOutcome["outcome"];
+  status: ChildCommitOutcomeStatus;
+};
+
+export type CommitEventResult =
+  | { committed: true; perChild: ChildCommitResult[] }
+  | { committed: false; reason: "event_not_found" | "event_not_open" };
+
+// Slice 1 stub: dispatches each child outcome to the legacy
+// `resolveMarket`/`cancelMarket` data-layer functions, then flips
+// `events.status = 'terminal'`. Phase 3 rewrites this with `computeSettlement`
+// across all children inside a single DB transaction (see PLAN §Phase 3).
+//
+// YES-first mapping (preserved during the additive transition):
+//   resolved_yes  → legacy `resolveMarket(id, "A")` — A side is YES per
+//                   `createEvent`'s `sharesA → reserveYes` wiring.
+//   resolved_no   → legacy `resolveMarket(id, "B")` — under YES-only trading
+//                   no holder has sharesB, so all payouts compute to 0.
+//   cancelled_*   → legacy `cancelMarket(id, <reason>)`.
+export async function commitEvent(input: CommitEventInput): Promise<CommitEventResult> {
+  const [row] = await db.select().from(eventsTable).where(eq(eventsTable.id, input.eventId));
+  if (!row) return { committed: false, reason: "event_not_found" } as const;
+  if (row.status !== "open") return { committed: false, reason: "event_not_open" } as const;
+
+  const perChild: ChildCommitResult[] = [];
+
+  for (const child of input.perChild) {
+    const status = await applyChildOutcome(child);
+    perChild.push({ marketId: child.marketId, outcome: child.outcome, status });
+  }
+
+  await db.update(eventsTable).set({ status: "terminal" }).where(eq(eventsTable.id, input.eventId));
+
+  return { committed: true, perChild } as const;
+}
+
+async function applyChildOutcome(child: ChildOutcome): Promise<ChildCommitOutcomeStatus> {
+  switch (child.outcome) {
+    case "resolved_yes": {
+      const r = await resolveMarket(child.marketId, "A");
+      if (r.resolved) return { kind: "resolved", alreadyResolved: r.alreadyResolved ?? false };
+      return { kind: "error", reason: r.reason };
+    }
+    case "resolved_no": {
+      const r = await resolveMarket(child.marketId, "B");
+      if (r.resolved) return { kind: "resolved", alreadyResolved: r.alreadyResolved ?? false };
+      return { kind: "error", reason: r.reason };
+    }
+    case "cancelled_voided": {
+      const r = await cancelMarket(child.marketId, "kalshi_voided");
+      if (r.cancelled) return { kind: "cancelled", alreadyCancelled: r.alreadyCancelled ?? false };
+      return { kind: "error", reason: r.reason };
+    }
+    case "cancelled_scalar": {
+      const r = await cancelMarket(child.marketId, "kalshi_scalar_settled");
+      if (r.cancelled) return { kind: "cancelled", alreadyCancelled: r.alreadyCancelled ?? false };
+      return { kind: "error", reason: r.reason };
+    }
+    case "cancelled_no_settlement": {
+      const r = await cancelMarket(child.marketId, "kalshi_no_settlement");
+      if (r.cancelled) return { kind: "cancelled", alreadyCancelled: r.alreadyCancelled ?? false };
+      return { kind: "error", reason: r.reason };
+    }
+  }
 }
