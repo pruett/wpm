@@ -12,6 +12,11 @@ const SEED_AMOUNT = 1000n;
 // multi-outcome model (PRD §Translator).
 const MAX_SPREAD = 0.1;
 
+// Hard cap on child Markets per Event (PRD §Further Notes). Events with more
+// children are rejected wholesale — beyond this point the per-Event UI and
+// commit-time settlement bookkeeping balloon past what v1 is sized for.
+const MAX_MARKETS_PER_EVENT = 30;
+
 type EventInsert = typeof events.$inferInsert;
 type MarketInsert = typeof markets.$inferInsert;
 
@@ -38,6 +43,7 @@ export type TranslationResult =
   | { kind: "ok"; value: TranslatedEvent }
   | { kind: "unparseable_close_time"; raw: string }
   | { kind: "no_initial_price"; eventTicker: string }
+  | { kind: "too_many_markets"; eventTicker: string; count: number }
   | {
       kind: "insufficient_confidence";
       eventTicker: string;
@@ -46,6 +52,14 @@ export type TranslationResult =
 
 export function translateKalshiEvent(event: KalshiEvent, sport: Sport): TranslationResult {
   const nestedMarkets = event.markets ?? [];
+
+  if (nestedMarkets.length > MAX_MARKETS_PER_EVENT) {
+    return {
+      kind: "too_many_markets",
+      eventTicker: event.event_ticker,
+      count: nestedMarkets.length,
+    };
+  }
 
   // Slice 1 happy path: source the Event's closesAt from the first child
   // Market's expected_expiration_time. Phase 2 will add an

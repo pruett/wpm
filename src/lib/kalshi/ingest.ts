@@ -36,6 +36,7 @@ function emptySkipCounters(): Record<SkipReasonKind, number> {
   return {
     unparseable_close_time: 0,
     no_initial_price: 0,
+    too_many_markets: 0,
     insufficient_confidence: 0,
     already_exists: 0,
   };
