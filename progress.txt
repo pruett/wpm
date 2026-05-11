@@ -641,3 +641,77 @@ unit tests that need to import server-only modules just work.
 - Deadline degradation (`cancelled_no_settlement` past the 48h deadline) is
   the next Phase 3 bullet; it's a separate code path that runs before the
   happy-path walk (since it gates on `now` vs `closesAt + 48h`).
+
+## 2026-05-11 — Phase 3: Deadline degradation in `decideEventCommit`
+
+Implemented the 48h Settlement Deadline degradation branch in
+`decideEventCommit`. When `now >= closesAt + 48h` and any child Market is
+non-terminal on Kalshi's side, that child is now committed as
+`cancelled_no_settlement` (cost-basis refund) so the Event commits rather than
+blocking indefinitely. Cleanly-settled siblings still resolve on their actual
+`result` in the same commit plan.
+
+### Implementation notes
+- Added `SETTLEMENT_DEADLINE_MS = 48 * 60 * 60 * 1000` module-level constant
+  (PRD §Further Notes calls it out as baked-in for v1).
+- `deadlineReached = now >= wampumEvent.closesAt + SETTLEMENT_DEADLINE_MS` is
+  computed once at the top of the function. The per-child loop branches on it:
+  - non-terminal child + deadlineReached → push `cancelled_no_settlement`.
+  - non-terminal child + before deadline → return `{kind: 'wait'}` (preserves
+    pre-deadline behaviour).
+  - terminal child + unrecognised result + deadlineReached → also degrade to
+    `cancelled_no_settlement` so a malformed terminal payload past the
+    deadline doesn't stall the Event. This is a small policy extension beyond
+    the strict "non-terminal" reading of the PRD, but matches the deadline's
+    intent: bound the worst-case duration of a stuck position.
+  - terminal child + unrecognised result + before deadline → still returns
+    `wait` so operators have a chance to inspect the malformed payload.
+- Renamed the `_now` parameter to `now` now that the function reads it.
+- Void semantics check (`every === resolved_no`) is unchanged — it sits after
+  the per-child walk, so a commit plan containing any
+  `cancelled_no_settlement` rows can never trigger void (the "all candidates
+  lost" reading requires complete information, which a deadline-cancelled
+  child does not provide).
+
+### Tests added (`src/lib/kalshi/resolve.test.ts`)
+- `waits when any child is non-terminal and the deadline has not been reached`
+  — drives the existing `not-settled-yet.json` fixture (both children
+  `status: 'active'`) at `closesAt + 1h` and asserts `wait`.
+- `degrades unsettled children to cancelled_no_settlement past the deadline
+  alongside cleanly-settled siblings` — constructs a mixed Kalshi payload
+  in-memory by combining one settled child (from `settled-a-wins.json`) and
+  one active child (from `not-settled-yet.json`), driven at `closesAt + 49h`.
+  Asserts the commit plan carries both `resolved_yes` and
+  `cancelled_no_settlement` per child.
+- Pre-existing `voids the event when every child settled no` test updated to
+  use the same `CLOSES_AT`/`BEFORE_DEADLINE` constants for consistency; no
+  behavioural change.
+
+### Why an in-memory mixed payload, not a fixture
+The existing `not-settled-yet.json` and `settled-a-wins.json` cover the
+single-state cases; constructing the mixed payload from them avoids a
+near-duplicate JSON file and keeps the test's intent (mixed state) visible at
+the call site. Same rationale as the in-memory test construction used for
+`too_many_markets` and `inconsistent_close_times`.
+
+### Plan bullets closed
+- Phase 3 Resolver decision core: "Deadline degradation: `now >= closesAt +
+  48h` AND any non-terminal child → unsettled children get
+  `cancelled_no_settlement`, cleanly-settled siblings resolve on their
+  `result`."
+- Phase 3 Resolver decision tests: "`wait` when any child non-terminal and
+  deadline not reached."
+- Phase 3 Resolver decision tests: "`commit` with mixed
+  `cancelled_no_settlement` + `resolved_*` past the deadline."
+
+### Files changed
+- `src/lib/kalshi/resolve.ts`
+- `src/lib/kalshi/resolve.test.ts`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 36/36 unit tests pass (was 34; +2 new resolve tests).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean.
