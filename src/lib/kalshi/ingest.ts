@@ -23,13 +23,19 @@ type SkipReasonKind = Exclude<TranslationResult["kind"], "ok"> | "already_exists
 
 export type SeriesIngestSummary = {
   fetched: number;
-  created: number;
+  createdEvents: number;
+  createdMarkets: number;
   skipped: Record<SkipReasonKind, number>;
 };
 
 export type KalshiIngestSummary = {
   bySeries: Record<string, SeriesIngestSummary>;
-  totals: { fetched: number; created: number; skipped: Record<SkipReasonKind, number> };
+  totals: {
+    fetched: number;
+    createdEvents: number;
+    createdMarkets: number;
+    skipped: Record<SkipReasonKind, number>;
+  };
 };
 
 function emptySkipCounters(): Record<SkipReasonKind, number> {
@@ -46,14 +52,15 @@ function emptySkipCounters(): Record<SkipReasonKind, number> {
 export async function runKalshiIngest(): Promise<KalshiIngestSummary> {
   const summary: KalshiIngestSummary = {
     bySeries: {},
-    totals: { fetched: 0, created: 0, skipped: emptySkipCounters() },
+    totals: { fetched: 0, createdEvents: 0, createdMarkets: 0, skipped: emptySkipCounters() },
   };
 
   for (const seriesTicker of Object.values(KALSHI_SERIES)) {
     const result = await ingestSeries(seriesTicker);
     summary.bySeries[seriesTicker] = result;
     summary.totals.fetched += result.fetched;
-    summary.totals.created += result.created;
+    summary.totals.createdEvents += result.createdEvents;
+    summary.totals.createdMarkets += result.createdMarkets;
     for (const key of Object.keys(result.skipped) as SkipReasonKind[]) {
       summary.totals.skipped[key] += result.skipped[key];
     }
@@ -74,7 +81,8 @@ async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIng
   );
   const sport = SERIES_TO_SPORT[seriesTicker];
 
-  let created = 0;
+  let createdEvents = 0;
+  let createdMarkets = 0;
   const skipped = emptySkipCounters();
 
   for (const event of data.events) {
@@ -85,11 +93,12 @@ async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIng
     }
     const persistence = await createEvent(result.value);
     if (persistence.created) {
-      created++;
+      createdEvents++;
+      createdMarkets += result.value.markets.length;
     } else {
       skipped[persistence.reason]++;
     }
   }
 
-  return { fetched: data.events.length, created, skipped };
+  return { fetched: data.events.length, createdEvents, createdMarkets, skipped };
 }
