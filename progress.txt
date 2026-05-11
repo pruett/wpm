@@ -842,3 +842,44 @@ at the call site: "this is a heterogeneous commit plan, not a void event".
 - This closes the Phase 3 "Resolver decision tests" block entirely; the
   remaining Phase 3 work is the resolver driver bullets and Settlement
   tests (settlement.test.ts updates and event-atomic commit assertions).
+
+## 2026-05-11 — Phase 2: Translator fixture cleanup
+
+Removed the now-unused legacy fixtures `non-binary.json` and
+`pair-inconsistent.json` from `src/lib/kalshi/fixtures/`. Both fixtures
+were holdovers from the binary/A-B model and no longer referenced by any
+source code — confirmed via grep across `src/` and `tests/` (only PRDs
+and PLAN.md mentioned them). The `non_binary` and `pair_inconsistent`
+discriminator variants were already deleted from `translator.ts` in
+earlier Phase 0 work; removing the fixtures closes the loop.
+
+Added `multi-outcome-wide-spread.json` — a 5-child NBA championship
+fixture where one child (OKC) carries a wide bid-ask spread while the
+other four are within `MAX_SPREAD`. Added a paired test case verifying
+that the per-child spread gate calls out *exactly* the offending child's
+ticker in `reasons`, not the whole event. This complements the existing
+2-Market wide-spread test by exercising the all-or-nothing rejection
+shape under the multi-outcome model where most children are healthy.
+
+### Files changed
+- `src/lib/kalshi/fixtures/non-binary.json` (deleted)
+- `src/lib/kalshi/fixtures/pair-inconsistent.json` (deleted)
+- `src/lib/kalshi/fixtures/multi-outcome-wide-spread.json` (new)
+- `src/lib/kalshi/translator.test.ts` (import + new test case)
+- `PLAN.md` (mark Phase 2 fixture-cleanup bullet complete)
+
+### Verification
+- `bun run test` — 40/40 unit tests pass (was 39; +1 new translator test).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt` rewrap of
+  the new test case to a single line).
+
+### Notes
+- The new test asserts `result.reasons` *exactly equals*
+  `[{ ticker: "KXNBACHAMP-27-OKC", reason: "spread_too_wide" }]` rather
+  than using `some(...)`. The stronger contract guards against a future
+  bug where the translator would over-report reasons (e.g. flag healthy
+  siblings as wide-spread) — that would silently pass `some(...)` but
+  break the explicit array equality.
