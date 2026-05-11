@@ -73,7 +73,7 @@
 - [ ] Per-Market spread gate: collect failing `{ ticker, reason }` per child; if any fail return `insufficient_confidence` with aggregated per-Market reasons. Aggregate `no_initial_price` if any child has no usable quote.
 - [ ] Source `events.closesAt` from `markets[0].expected_expiration_time`; verify all siblings match exactly (else `inconsistent_close_times`).
 - [ ] Derive `TranslatedEventRow` and `TranslatedMarketRow` from drizzle `$inferInsert`.
-- [ ] Delete `translateKalshiResolution` from this file — its replacement (`decideEventCommit`) lives in `resolve.ts`.
+- [x] Delete `translateKalshiResolution` from this file — its replacement (`decideEventCommit`) lives in `resolve.ts`.
 
 ### Translator tests (`translator.test.ts`)
 - [ ] Rewrite: 2-Market happy path → one Event + 2 Markets, both `initialProbabilityYes` correct.

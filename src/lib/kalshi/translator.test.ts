@@ -3,17 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { KalshiEvent } from "./index.js";
 
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
-import notSettledYet from "./fixtures/not-settled-yet.json" with { type: "json" };
-import settledAWins from "./fixtures/settled-a-wins.json" with { type: "json" };
-import settledAmbiguous from "./fixtures/settled-ambiguous.json" with { type: "json" };
-import settledBWins from "./fixtures/settled-b-wins.json" with { type: "json" };
-import settledScalar from "./fixtures/settled-scalar.json" with { type: "json" };
-import settledVoided from "./fixtures/settled-voided.json" with { type: "json" };
 import skewedHealthy from "./fixtures/skewed-healthy.json" with { type: "json" };
 import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with { type: "json" };
 import wideSpread from "./fixtures/wide-spread.json" with { type: "json" };
 import zeroSpread from "./fixtures/zero-spread.json" with { type: "json" };
-import { translateKalshiEvent, translateKalshiResolution } from "./translator.js";
+import { translateKalshiEvent } from "./translator.js";
 
 // Fixtures only carry the subset of the SDK's EventData/Market shape that the
 // translator reads — the cast lets us exercise translator behavior without
@@ -93,39 +87,5 @@ describe("translateKalshiEvent", () => {
     const [yankees, redSox] = result.value.markets;
     expect(yankees.initialProbabilityYes).toBeCloseTo(0.56, 5);
     expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
-  });
-});
-
-describe("translateKalshiResolution", () => {
-  it("maps A yes / B no to resolved_a", () => {
-    expect(translateKalshiResolution(eventOf(settledAWins))).toEqual({ kind: "resolved_a" });
-  });
-
-  it("maps A no / B yes to resolved_b", () => {
-    expect(translateKalshiResolution(eventOf(settledBWins))).toEqual({ kind: "resolved_b" });
-  });
-
-  it("maps both-no to voided", () => {
-    expect(translateKalshiResolution(eventOf(settledVoided))).toEqual({ kind: "voided" });
-  });
-
-  it("maps a scalar (partial) settlement to scalar_settled with payout details", () => {
-    const result = translateKalshiResolution(eventOf(settledScalar));
-    expect(result.kind).toBe("scalar_settled");
-    if (result.kind !== "scalar_settled") return;
-    expect(result.reason).toContain("0.5000");
-  });
-
-  it("returns not_settled_yet when either side is non-terminal", () => {
-    expect(translateKalshiResolution(eventOf(notSettledYet))).toEqual({ kind: "not_settled_yet" });
-  });
-
-  it("returns ambiguous when both sides terminal but results are both yes", () => {
-    const result = translateKalshiResolution(eventOf(settledAmbiguous));
-    expect(result.kind).toBe("ambiguous");
-  });
-
-  it("returns not_settled_yet when result fields are empty (pre-settlement)", () => {
-    expect(translateKalshiResolution(eventOf(binaryHealthy))).toEqual({ kind: "not_settled_yet" });
   });
 });
