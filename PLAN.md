@@ -31,7 +31,7 @@
 - [ ] Translator path: iterate all `event.markets`, apply per-Market spread gate independently, build N `markets` rows under one `events` row.
 - [ ] All-or-nothing rejection: if any child fails spread gate, return `insufficient_confidence` with per-child reasons.
 - [ ] Wire ingest driver to handle N children: persist one Event + N Market rows + N pools atomically in a single `db.transaction`.
-- [ ] Smoke test: ingest 5-Market fixture, verify one `events` row and 5 `markets`/`amm_pools` rows are created with correct per-Market `initialProbabilityYes`.
+- [x] Smoke test: ingest 5-Market fixture, verify one `events` row and 5 `markets`/`amm_pools` rows are created with correct per-Market `initialProbabilityYes`.
 
 ---
 

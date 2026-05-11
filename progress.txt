@@ -371,3 +371,44 @@ This fixture will drive the upcoming Slice 2 translator path (iterate `event.mar
 - JSON parses cleanly; spreads = 0.02 each, midpoints sum to 1.0.
 - `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
 - `bun run test` — 45/45 vitest unit tests pass (no change; fixture not yet consumed).
+
+## 2026-05-11 — Phase 0 Slice 2: Multi-outcome ingest smoke test
+
+Added an integration test that exercises the multi-outcome ingest path end-to-end against a real Postgres database, using the 5-Market `multi-outcome-healthy.json` fixture as the driver.
+
+Test flow:
+1. Seed treasury.
+2. Translate the fixture through `translateKalshiEvent` and assert the `ok` translation has 5 child Markets.
+3. Call `createEvent(translation.value)` and verify it returns `{created: true}`.
+4. Assert one `events` row exists with `sport='nba'`, `status='open'`.
+5. Assert five `markets` rows under that event, all `status='open'`.
+6. For each child market, load its `amm_pools` row and assert that
+   `priceYes = reserveNo / (reserveYes + reserveNo)` matches the translator's
+   per-child midpoint within `toBeCloseTo(_, 3)` rounding tolerance.
+
+Added as a second `describe` block in `tests/integration/event-flow.test.ts` to share the existing mocks, db client setup, and TRUNCATE helpers with the Slice 1 smoke test.
+
+### Why this satisfies Slice 2
+
+The other three Slice 2 line items (translator N-Market path, all-or-nothing rejection, single-tx ingest persistence) were already implemented during Slice 1 — see prior progress entries for the translator rewrite and `createEvent`. This smoke test is the only outstanding deliverable that exercises those changes on N>2 children against a real DB, which is what the plan called for.
+
+### Verification probability assertion
+
+`initializePool` derives reserves from `initialProbabilityYes` as:
+- `probBps = round(probYes * 10000)`, `total = 2 * seed`
+- `sharesA = total * (10000 - probBps) / 10000` → `reserveYes`
+- `sharesB = total - sharesA` → `reserveNo`
+
+So `priceYes = reserveNo / (reserveYes + reserveNo) ≈ probYes`. The 3-decimal tolerance absorbs the bps rounding (each bps is 0.0001).
+
+The pool read uses `pool.reserveYes ?? pool.reserveA` (and equivalent for No) to be resilient to the Slice 1 additive transition where both legacy and new reserve columns coexist — in `createEvent` the new columns are populated, but the fallback keeps the test robust if that ever flips.
+
+### Files changed
+- `tests/integration/event-flow.test.ts` (added second `describe` block)
+
+### Verification
+- `bun run test:integration` — 3/3 tests pass (Slice 1 + Slice 2 smoke + legacy `bet-and-resolve`).
+- `bun run test` — 45/45 unit tests still pass.
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint tests/integration/event-flow.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check tests/integration/event-flow.test.ts` — clean (after `oxfmt --write`).
