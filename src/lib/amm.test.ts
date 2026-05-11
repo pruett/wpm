@@ -28,12 +28,6 @@ describe("initializePool", () => {
     expect(high.reserveYes).toBeGreaterThan(0n);
     expect(high.reserveNo).toBeGreaterThan(0n);
   });
-
-  it("defaults to 0.5 when no probability is provided", () => {
-    const pool = initializePool(MARKET, 500n);
-    expect(pool.reserveYes).toBe(500n);
-    expect(pool.reserveNo).toBe(500n);
-  });
 });
 
 describe("calculateBuy", () => {

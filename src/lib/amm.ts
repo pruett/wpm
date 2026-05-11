@@ -7,10 +7,9 @@ const MAX_PROB_BPS = PROB_SCALE - MIN_PROB_BPS;
 export function initializePool(
   marketId: string,
   seedAmount: bigint,
-  initialProbabilityYes?: number,
+  initialProbabilityYes: number,
 ): AMMPool {
-  const raw = initialProbabilityYes ?? 0.5;
-  const probBps = clampProbBps(BigInt(Math.round(raw * Number(PROB_SCALE))));
+  const probBps = clampProbBps(BigInt(Math.round(initialProbabilityYes * Number(PROB_SCALE))));
   const total = 2n * seedAmount;
   const reserveYes = (total * (PROB_SCALE - probBps)) / PROB_SCALE;
   const reserveNo = total - reserveYes;

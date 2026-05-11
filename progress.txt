@@ -1082,3 +1082,47 @@ Slice 1 reshape), so that bullet of PLAN line 50 was already complete.
   references elsewhere (`Market.result`, `SharePosition.outcome`,
   `MarketWithOdds.priceA/B`) are covered by separate PLAN bullets (lines
   51–53) and will land alongside their respective consumer rewrites.
+
+## 2026-05-11 — Phase 1: Make `initialProbabilityYes` required on `initializePool`
+
+PLAN line 58: tightened `initializePool`'s signature from
+`(marketId, seedAmount, initialProbabilityYes?)` with a `?? 0.5` default to
+`(marketId, seedAmount, initialProbabilityYes)` — required. The return shape
+already matched the PLAN spec (`{ marketId, reserveYes, reserveNo, k,
+liquidity }`).
+
+Verified production callers (`data/events.ts:47`, `data/markets.ts:165`) and
+all but one test were already passing the probability explicitly. The lone
+default-relying test ("defaults to 0.5 when no probability is provided") was
+deleted — under the new contract there is no implicit 0.5 to verify, and
+every other test (`clamps probabilities to [0.01, 0.99]`, the pool-seeding
+cases, and the calculateBuy/calculateOdds cases) already pins the
+probability directly.
+
+Rationale: the multi-outcome translator always derives
+`initialProbabilityYes` from each child's own bid/ask midpoint, so there is
+no production code path that would benefit from an implicit default. Making
+the parameter required forces every caller (including future ones) to make
+the seeding choice explicit.
+
+### Files changed
+- `src/lib/amm.ts` (drop `?` from parameter; inline the BigInt conversion;
+  remove the `raw ?? 0.5` indirection)
+- `src/lib/amm.test.ts` (delete the "defaults to 0.5" case)
+- `PLAN.md` (mark Phase 1 line 58 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 39/39 unit tests pass (was 40 with the deleted default
+  case).
+- `bun run test:integration` — 3/3 tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt` on changed files — clean.
+
+### Notes
+- The default-removal could have been kept as a defensive guard, but the
+  PLAN spec explicitly omits the `?` on the signature and we have no
+  caller that wants to seed without an opinion on the YES probability.
+  Better to fail at the type level than silently lie with a 50/50 seed
+  when a translator forgets to thread its midpoint through.
