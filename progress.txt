@@ -1,0 +1,22 @@
+## 2026-05-11 — Phase 0 Slice 1: Add `events` table to schema
+
+Added the new `events` pgTable to `src/lib/db/schema/app.ts` with columns per PRD §Schema:
+- `id` (text PK, will be derived from Kalshi `event_ticker`)
+- `sport` (text enum from SPORTS)
+- `name` (text)
+- `closesAt` (bigint, number mode)
+- `status` (text enum: 'open' | 'terminal')
+- `createdAt` (bigint, number mode)
+- Index `ix_events_status_closes` on (status, closesAt)
+
+Also added `eventRelations` declaring one-to-many `event → markets` (FK + many side will be wired into `markets` in a later task).
+
+Old columns on `markets`/`ammPools`/`positions` deliberately left intact so the codebase still compiles. Schema-level changes (column reshape, FK, enum drops, migration regen) come in subsequent plan tasks.
+
+### Files changed
+- `src/lib/db/schema/app.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only pre-existing `vitest.integration.config.ts` overload error remains (unrelated; present before this change).
+- `bunx oxfmt --check src/lib/db/schema/app.ts` — clean.
+- Lint warnings in repo are all pre-existing in tests, not from this change.
