@@ -548,3 +548,22 @@ Added a translator test case that clones the binary-healthy fixture but rewrites
 - `bun run test` — 32/32 unit tests pass (was 31; +1 new translator case).
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `translator.test.ts`).
+
+## 2026-05-11 — Phase 2: Add 5-Market translator happy-path test
+
+Added the multi-outcome happy-path translator test that the plan called for. Drives `translateKalshiEvent` with the existing `multi-outcome-healthy.json` fixture (5-Market NBA Championship event) and asserts:
+- One `event` row with the correct id, sport, name, and `closesAt` parsed from the shared `expected_expiration_time`.
+- 5 child `markets` rows in fixture order, each carrying the right `id`/`name`/`ticker`/`closesAt`/`seedAmount`.
+- Each child's `initialProbabilityYes` matches its own bid/ask midpoint (0.30, 0.25, 0.20, 0.15, 0.10).
+
+The midpoints sum to 1.0 across the field — coherent multi-outcome distribution — but the translator doesn't enforce that, so the assertion is just per-child equality. No production-code change needed; the translator already handled N>2 children after the Phase 0 Slice 2 work.
+
+### Files changed
+- `src/lib/kalshi/translator.test.ts` (new test case + multi-outcome-healthy fixture import)
+- `PLAN.md` (marked bullet complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 33/33 unit tests pass (was 32; +1 new translator case).
+- `bunx oxlint src/lib/kalshi/translator.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check` — clean (after `oxfmt --write` re-flowed the inline expected-array literal).
