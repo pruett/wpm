@@ -521,3 +521,30 @@ The clone uses `Array.from({ length: 31 }, (_, i) => ({ ...child, ticker: `...-$
 - `bun run test` — 31/31 unit tests pass (was 30; +1 new translator case).
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean.
+
+## 2026-05-11 — Phase 2: Add `inconsistent_close_times` translator variant
+
+Added a new translator reject variant that fires when sibling child Markets carry mismatched `expected_expiration_time` values. The Event-level `closesAt` is still sourced from the first child; any later child whose timestamp differs is collected as an "offender" and the translation rejects the whole Event.
+
+Changes in `src/lib/kalshi/translator.ts`:
+- New `TranslationResult` variant: `{ kind: 'inconsistent_close_times', eventTicker, expected, offenders }`. `offenders` is `{ ticker, raw }[]` so operators can see which children disagreed and with what raw value.
+- Check runs after `unparseable_close_time` (so we know `rawCloseTime` is well-formed) and before per-Market quote/spread checks (rejecting cheaply before walking the heavier validation).
+- `raw: m.expected_expiration_time ?? ""` — the SDK type allows `string | null | undefined`, so coalesce to empty-string for the variant's `raw: string` field.
+
+Changes in `src/lib/kalshi/ingest.ts`:
+- Added `inconsistent_close_times: 0` to `emptySkipCounters()`. The `SkipReasonKind` union picks the new variant up automatically via its `Exclude<TranslationResult["kind"], "ok">` derivation.
+
+### Test
+Added a translator test case that clones the binary-healthy fixture but rewrites the second child's `expected_expiration_time` to a different ISO timestamp, then asserts `kind='inconsistent_close_times'` with the expected `eventTicker`/`expected`/`offenders` fields. Constructed in-memory rather than as a JSON fixture for the same reason as the `too_many_markets` test — the JSON would be near-duplicate of `binary-healthy.json` modulo one field.
+
+### Files changed
+- `src/lib/kalshi/translator.ts`
+- `src/lib/kalshi/ingest.ts`
+- `src/lib/kalshi/translator.test.ts`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 32/32 unit tests pass (was 31; +1 new translator case).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `translator.test.ts`).
