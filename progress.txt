@@ -91,3 +91,46 @@ Continued the Slice 1 additive strategy established in prior tasks: the new colu
 - `bunx oxfmt --check src/lib/db/schema/app.ts` — clean.
 - `bunx oxlint src/lib/db/schema/app.ts` — 0 warnings, 0 errors.
 - `bun run test` — 48/48 vitest unit tests pass (settlement, amm, translator).
+
+## 2026-05-11 — Phase 0 Slice 1: Rewrite `translateKalshiEvent` happy path
+
+Reshaped the translator's output to the new multi-outcome model: a single Kalshi Event now produces one `TranslatedEventRow` plus N `TranslatedMarket` rows (each a YES-side wampum Market) instead of one collapsed A/B Market.
+
+Key changes to `src/lib/kalshi/translator.ts`:
+- New return shape: `{kind: 'ok', value: {event, markets: TranslatedMarket[]}}`.
+- `TranslatedEventRow = Omit<events.$inferInsert, "status" | "createdAt">`.
+- `TranslatedMarketRow = Omit<markets.$inferInsert, "status" | "createdAt" | "eventId">`. `eventId` is set during DB insertion by the consumer.
+- Per-child `initialProbabilityYes` (renamed from the pair-averaged `initialProbabilityA`) sourced from each child's own YES-side bid/ask midpoint.
+- Dropped the `non_binary` reject — translator now iterates `event.markets` instead of destructuring `[a, b]`.
+- Dropped the `pair_inconsistent` reject — under the new model each child is an independent YES/NO contract with no cross-sibling check.
+- `InsufficientConfidenceReason` is now `{ ticker, reason: 'spread_too_wide' }` per failing child, aggregated across siblings (still all-or-nothing at the Event level).
+- `event.id = kalshi-${event_ticker}`; `market.id = kalshi-${market.ticker}` per child.
+- Legacy `teamA`/`teamB`/`tickerA`/`tickerB` columns on `markets` are still NOT NULL during Slice 1's additive transition, so each translated child Market populates them with placeholder values (`teamA = yes_sub_title`, `teamB = ""`). They'll be dropped in Phase 1.
+- `translateKalshiResolution` left intact (it's replaced by `decideEventCommit` in Phase 3).
+
+### Consumer adaptation
+`createMarket` in `src/data/markets.ts` is rewritten to `createEvent` in the next plan task, but it has to keep compiling until then:
+- Inlined a `LegacyCreateMarketInput` type so `data/markets.ts` no longer imports `TranslatedMarket` from the translator. The function body still does the pre-multi-outcome single-row write.
+- In `src/lib/kalshi/ingest.ts`, added a thin Slice 1 shim: take the new translator output, pick the first two child markets, and collapse them back into the legacy A/B input for `createMarket`. The shim is explicitly marked transitional and will be removed when `createEvent` lands.
+- Removed `non_binary` from `SkipReasonKind` and the empty-counters initializer.
+
+Translator tests rewritten (`src/lib/kalshi/translator.test.ts`):
+- Happy path now asserts one `event` row + N child `markets` rows, including per-child `initialProbabilityYes`.
+- Removed `non_binary` and `pair_inconsistent` cases (fixtures stay around for now — deletion is in Phase 6).
+- `insufficient_confidence` test now matches the new per-child reason shape `{ ticker, reason: 'spread_too_wide' }`.
+
+### Files changed
+- `src/lib/kalshi/translator.ts`
+- `src/lib/kalshi/translator.test.ts`
+- `src/lib/kalshi/ingest.ts`
+- `src/data/markets.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass (down from 48; 3 removed test cases: `non_binary`, `pair_inconsistent`, and the redundant pair-averaging assertion).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors. `bun run lint` shows 2 pre-existing warnings unrelated to this change.
+- `bunx oxfmt --check` on changed files — clean.
+
+### Gotcha
+- `TranslatedMarketRow = Omit<MarketInsert, "status" | "createdAt" | "eventId">` must omit `eventId` because the DB layer wires it during insertion (it's the FK to the parent event row created in the same transaction). Including it in the translator output type would force the translator to know its own event ID at row-construction time, which it already does — but keeping the consumer responsible for that wiring matches the pattern used in Phase 1's `createEvent`.
+- The integration test `tests/integration/bet-and-resolve.test.ts` still consumes the legacy `createMarket` shape directly; its `LegacyCreateMarketInput` type is wide enough to accept that shape. It'll be rewritten in Phase 6.

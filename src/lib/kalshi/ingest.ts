@@ -34,7 +34,6 @@ export type KalshiIngestSummary = {
 
 function emptySkipCounters(): Record<SkipReasonKind, number> {
   return {
-    non_binary: 0,
     unparseable_close_time: 0,
     no_initial_price: 0,
     insufficient_confidence: 0,
@@ -82,7 +81,29 @@ async function ingestSeries(seriesTicker: KalshiSeriesTicker): Promise<SeriesIng
       skipped[result.kind]++;
       continue;
     }
-    const persistence = await createMarket(result.value);
+    // Slice 1 shim: the new translator output `{event, markets[]}` is collapsed
+    // back to the legacy single-Market createMarket input until the consumer
+    // is rewritten as createEvent in the next plan task. Slice 1 only handles
+    // the 2-Market binary happy path; multi-outcome (N>2) wiring lands in
+    // Slice 2.
+    const [a, b] = result.value.markets;
+    if (a === undefined || b === undefined) continue;
+    const persistence = await createMarket({
+      market: {
+        id: result.value.event.id,
+        sport,
+        name: result.value.event.name,
+        teamA: a.market.name,
+        teamB: b.market.name,
+        tickerA: a.market.ticker ?? null,
+        tickerB: b.market.ticker ?? null,
+        closesAt: result.value.event.closesAt,
+        resolvedOutcome: null,
+        resolvedAt: null,
+      },
+      seedAmount: a.seedAmount,
+      initialProbabilityA: a.initialProbabilityYes,
+    });
     if (persistence.created) {
       created++;
     } else {

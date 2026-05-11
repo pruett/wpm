@@ -2,7 +2,6 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { TranslatedMarket } from "@/lib/kalshi/translator";
 import type { AMMPool, Market, MarketWithOdds, MarketsResponse } from "@/lib/types";
 
 import { calculateOdds, initializePool } from "@/lib/amm";
@@ -122,7 +121,28 @@ export async function getMarkets(): Promise<MarketsResponse> {
 
 export type CreateMarketResult = { created: true } | { created: false; reason: "already_exists" };
 
-export async function createMarket(input: TranslatedMarket): Promise<CreateMarketResult> {
+// Legacy single-Market input shape kept temporarily during Slice 1: the new
+// translator returns `{event, markets[]}`, but createMarket still does the
+// pre-multi-outcome single-row write. The shim lives in `lib/kalshi/ingest.ts`.
+// Replaced by `createEvent` in the next plan task.
+type LegacyCreateMarketInput = {
+  market: {
+    id: string;
+    sport: "mlb" | "nfl" | "nba" | "nhl";
+    name: string;
+    teamA: string;
+    teamB: string;
+    tickerA: string | null;
+    tickerB: string | null;
+    closesAt: number;
+    resolvedOutcome: "A" | "B" | null;
+    resolvedAt: number | null;
+  };
+  seedAmount: bigint;
+  initialProbabilityA: number;
+};
+
+export async function createMarket(input: LegacyCreateMarketInput): Promise<CreateMarketResult> {
   const { market, seedAmount, initialProbabilityA } = input;
 
   return db.transaction(async (tx) => {
