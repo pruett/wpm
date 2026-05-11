@@ -78,7 +78,16 @@ function enrichMarket(
       bettors,
     };
   }
-  return { ...market, ...calculateOdds(pool), bettorCount, bettors };
+  const odds = calculateOdds(pool);
+  return {
+    ...market,
+    priceA: odds.priceYes,
+    priceB: odds.priceNo,
+    multiplierA: odds.multiplierYes,
+    multiplierB: odds.multiplierNo,
+    bettorCount,
+    bettors,
+  };
 }
 
 export async function getMarket(id: string): Promise<MarketWithOdds> {

@@ -44,28 +44,28 @@ export function calculateBuy(pool: AMMPool, amount: bigint): { shares: bigint; n
   return { shares, newPool };
 }
 
-export function calculatePrices(pool: AMMPool): { priceA: number; priceB: number } {
+export function calculatePrices(pool: AMMPool): { priceYes: number; priceNo: number } {
   const total = pool.reserveYes + pool.reserveNo;
-  if (total === 0n) return { priceA: 0.5, priceB: 0.5 };
+  if (total === 0n) return { priceYes: 0.5, priceNo: 0.5 };
   const totalNum = Number(total);
   return {
-    priceA: Number(pool.reserveNo) / totalNum,
-    priceB: Number(pool.reserveYes) / totalNum,
+    priceYes: Number(pool.reserveNo) / totalNum,
+    priceNo: Number(pool.reserveYes) / totalNum,
   };
 }
 
 export function calculateOdds(pool: AMMPool): {
-  priceA: number;
-  priceB: number;
-  multiplierA: number;
-  multiplierB: number;
+  priceYes: number;
+  priceNo: number;
+  multiplierYes: number;
+  multiplierNo: number;
 } {
-  const { priceA, priceB } = calculatePrices(pool);
+  const { priceYes, priceNo } = calculatePrices(pool);
   return {
-    priceA,
-    priceB,
-    multiplierA: priceA > 0 ? 1 / priceA : 0,
-    multiplierB: priceB > 0 ? 1 / priceB : 0,
+    priceYes,
+    priceNo,
+    multiplierYes: priceYes > 0 ? 1 / priceYes : 0,
+    multiplierNo: priceNo > 0 ? 1 / priceNo : 0,
   };
 }
 
