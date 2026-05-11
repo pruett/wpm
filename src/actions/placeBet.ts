@@ -18,7 +18,10 @@ export async function placeBet(input: z.input<typeof PlaceBetInput>): Promise<Ac
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    const result = await placeBetDAL(parsed.data);
+    const result = await placeBetDAL({
+      marketId: parsed.data.marketId,
+      amount: parsed.data.amount,
+    });
 
     revalidateTag(tags.market(result.marketId), "max");
     revalidateTag(tags.viewer(result.userId), "max");

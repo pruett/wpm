@@ -156,3 +156,35 @@ Created `src/data/events.ts` with the new `createEvent` function that consumes t
 - `bun run test` — 45/45 vitest unit tests pass.
 - `bunx oxlint src/data/events.ts src/lib/kalshi/ingest.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `events.ts`).
+
+## 2026-05-11 — Phase 0 Slice 1: Rewrite `placeBet` (YES-only)
+
+Reshaped `src/data/trading.ts` so the production `placeBet` function follows the multi-outcome YES-only model (ADR-0007). Public signature is now `(input: {marketId, amount})` — the outcome parameter is gone.
+
+Key behaviors of the new `placeBet`:
+- Reads the pool's `reserveYes`/`reserveNo` columns first, falling back to `reserveA`/`reserveB` for any rows still using only the legacy columns. Under the YES-first mapping established in `createEvent`, A ↔ YES and B ↔ NO.
+- Internally still calls the legacy `calculateBuy(pool, "A", amount)` because the AMM rewrite (drop `outcome` param) is scheduled for Phase 1. This task does not touch `lib/amm.ts`.
+- Dual-writes the pool update: both `reserveA/reserveB` (legacy) and `reserveYes/reserveNo` (new) are set from `newPool.sharesA/B`, keeping the two views aligned during the additive transition.
+- Writes both `positions.sharesA` (legacy, since A=YES) and `positions.shares` (new flat column). `sharesB` stays 0 because users only ever hold YES shares now.
+- Drops `outcome` from the `PlaceBet` transaction payload (legacy `sellShares` still records it).
+
+### Legacy adapter for the integration test
+`tests/integration/bet-and-resolve.test.ts` is slated for rewrite in Phase 6 but must keep compiling now. To avoid touching its logic, added `placeBetLegacy({marketId, outcome, amount})` to `data/trading.ts` — verbatim copy of the prior `placeBet` body. The integration test imports it via a rename: `const { placeBetLegacy: placeBet } = await import("@/data/trading")`. Same pattern that `createMarket` follows in `data/markets.ts`.
+
+### Server action
+`src/actions/placeBet.ts` passes `{marketId, amount}` to the DAL instead of `parsed.data` (which still contains an outcome field). The Zod schema continues to validate `outcome` for now; the next plan task — "Update placeBet server action: drop outcome from Zod schema; delete sellShares.ts" — strips it cleanly. Minimal change to keep typecheck green between the two tasks.
+
+### Files changed
+- `src/data/trading.ts`
+- `src/actions/placeBet.ts`
+- `tests/integration/bet-and-resolve.test.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bun run lint` — 2 pre-existing warnings (same as before this change).
+- `bunx oxfmt --check` on changed files — clean.
+
+### Notes
+- `bet-controls.tsx` still passes `outcome` to the server action, but that's a `string` field on a Zod schema that still accepts it, so typecheck stays green. The UI purge of A/B controls is Phase 5 work.
+- The legacy `sellShares` data-layer function is unchanged. ADR-0007 deletes it, but the plan keeps it alongside `placeBetLegacy` until the integration test and `actions/sellShares.ts` are removed in later tasks.
