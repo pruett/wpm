@@ -59,8 +59,12 @@ export const markets = pgTable(
   "markets",
   {
     id: text("id").primaryKey(),
+    eventId: text("event_id").references(() => events.id, {
+      onDelete: "cascade",
+    }),
     sport: text("sport", { enum: SPORTS }).notNull(),
     name: text("name").notNull(),
+    ticker: text("ticker"),
     teamA: text("team_a").notNull(),
     teamB: text("team_b").notNull(),
     tickerA: text("ticker_a"),
@@ -69,6 +73,7 @@ export const markets = pgTable(
     status: text("status", {
       enum: ["open", "resolved", "cancelled"],
     }).notNull(),
+    resolvedAs: text("resolved_as", { enum: ["yes", "no"] }),
     resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
     resolvedAt: bigint("resolved_at", { mode: "number" }),
     createdAt: bigint("created_at", { mode: "number" }).notNull(),
@@ -153,6 +158,10 @@ export const balanceRelations = relations(balances, ({ one }) => ({
 }));
 
 export const marketRelations = relations(markets, ({ one, many }) => ({
+  event: one(events, {
+    fields: [markets.eventId],
+    references: [events.id],
+  }),
   pool: one(ammPools, {
     fields: [markets.id],
     references: [ammPools.marketId],

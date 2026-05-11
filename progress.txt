@@ -20,3 +20,27 @@ Old columns on `markets`/`ammPools`/`positions` deliberately left intact so the 
 - `bunx tsc --noEmit` — only pre-existing `vitest.integration.config.ts` overload error remains (unrelated; present before this change).
 - `bunx oxfmt --check src/lib/db/schema/app.ts` — clean.
 - Lint warnings in repo are all pre-existing in tests, not from this change.
+
+## 2026-05-11 — Phase 0 Slice 1: Reshape `markets` (additive)
+
+Added new columns to the `markets` pgTable in `src/lib/db/schema/app.ts` per PRD §Schema:
+- `eventId` (text, FK to `events.id` with `onDelete: cascade`) — links each Market to its parent Event
+- `ticker` (text, nullable) — Kalshi market ticker
+- `resolvedAs` (text enum: 'yes' | 'no', nullable) — replaces `resolvedOutcome` for YES-only product
+
+Wired `marketRelations` with `event: one(events, { fields: [markets.eventId], references: [events.id] })` so the one-to-many `event → markets` join is reachable from both directions.
+
+Followed the Slice 1 strategy established in the prior task: additive changes only. The old A/B columns (`sport`/`teamA`/`teamB`/`tickerA`/`tickerB`/`closesAt`/`resolvedOutcome`) remain in the schema so the 13 downstream consumers (translator, settlement, AMM, trading/positions/markets data layer, portfolio/bet-controls UI) still compile. Actual drops are deferred to Phase 1 once consumers are rewritten.
+
+### Files changed
+- `src/lib/db/schema/app.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bunx oxfmt --check src/lib/db/schema/app.ts` — clean.
+- `bunx oxlint src/lib/db/schema/app.ts` — 0 warnings, 0 errors.
+- `bun run test` — 48/48 vitest unit tests pass (settlement, amm, translator).
+
+### Notes
+- `eventId` is intentionally nullable in the schema right now: while old A/B columns coexist, existing seeded markets can't satisfy a NOT NULL FK. The migration regen in Phase 1 will tighten this once the full reshape lands and the table is wiped.
+- `name` already existed on `markets` before this task — no add needed.
