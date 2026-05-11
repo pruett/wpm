@@ -256,3 +256,45 @@ Reshaped to event-centric counters per PLAN §Phase 3 line 111:
 - `data/events.ts` imports `cancelMarket`/`resolveMarket` from `data/markets` (runtime) and `ChildOutcome` from `lib/kalshi/resolve` (type-only via `import type`). `resolve.ts` imports `commitEvent` from `data/events` (runtime). At runtime this is a one-way edge — `events → markets` — because the type import is erased. TypeScript handles the type-only side of the cycle fine; left a comment in `events.ts` so future readers don't try to "fix" what isn't broken.
 - `drizzle-orm.inArray` chokes on an empty list, so the event-id lookup is guarded by the early return when `eventRows.length === 0`.
 - Cron route `route.ts` was left unchanged because the new summary keeps backward-compatible `totals.resolved`/`totals.cancelled` aggregates. Phase 3 may revisit the field shape; for Slice 1 the route's revalidation gate keeps working.
+
+## 2026-05-11 — Phase 0 Slice 1: Adapt settlement + inline commitEvent
+
+Folded per-child resolve/cancel work into a single transactional `commitEvent` driven by a new event-level settlement primitive. `commitEvent` no longer dispatches to `resolveMarket`/`cancelMarket` — it loads every child's pool + position rows in one pass, runs the pure decision function `computeEventSettlement`, and applies all balance credits, treasury moves, pool drains, market status flips, and ledger rows inside one `db.transaction`.
+
+### New `computeEventSettlement` (`lib/settlement.ts`)
+Additive — sits alongside the legacy per-child `computeSettlement` (still used by `resolveMarket`/`cancelMarket` for the integration test). Takes `{perChild: EventSettlementChildInput[]}` where each child carries its `outcome` (`resolved_yes`/`resolved_no`/`cancelled_*`), its `wpmReserve`, and a flat YES-only `positions[]` (`{userId, shares, costBasis}`). Returns per-child output bundles with `payouts`, `treasuryDelta`, `backstopAmount`, `finalStatus`, and `resolvedAs`.
+
+Per-child semantics match PRD §Settlement:
+- `resolved_yes`: holders with `shares > 0n` → `win` row of `amount = shares` (since YES shares pay 1 WPM each).
+- `resolved_no`: holders with `shares > 0n` → `loss` row of `amount = 0n` (still emitted per PRD).
+- `cancelled_*`: refund `costBasis` (or `zero` row if `costBasis = 0n`).
+
+The function is pure — no DB I/O, no clock — so it'll slot into the Phase 3 settlement tests without further reshaping.
+
+### Inlined `commitEvent` (`src/data/events.ts`)
+- Opens one `db.transaction` for the whole event.
+- Guards: `event_not_found` / `event_not_open` short-circuit.
+- Loads `markets`/`amm_pools`/`positions` for the child set in parallel via `Promise.all`.
+- Pre-flight pass classifies each child: already-resolved children get `{alreadyResolved: true}` without re-running settlement (idempotency under retry); already-cancelled likewise; missing market/pool emits an error result; remaining children feed into `settleablePlan`.
+- Single call to `computeEventSettlement`.
+- `applyChildSettlement` writes per-child: `balances` credits (only for `amount > 0`), `SettlePayout` rows (always, including loss/zero), `treasury` backstop or sweep with a `TreasuryBackstop` row when backstop fires, zeros `ammPools.wpmReserve`, flips `markets.status` to `resolved`/`cancelled`, and writes the `ResolveMarket`/`CancelMarket` transaction row.
+- Final write flips `events.status='terminal'`.
+
+### Legacy retention
+- `resolveMarket`/`cancelMarket` in `data/markets.ts` are untouched — the integration test still calls them. `computeSettlement` (legacy single-child) is also untouched. Both go away in Phase 6 when the integration test is rewritten.
+- `markets.resolvedOutcome` (A/B) is dual-written alongside `markets.resolvedAs` (yes/no) during the additive transition — A === yes under the YES-first mapping. Phase 1 drops the legacy column.
+
+### Files changed
+- `src/lib/settlement.ts` (added event-level API)
+- `src/data/events.ts` (rewrote `commitEvent`, dropped imports of `cancelMarket`/`resolveMarket`)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass (no settlement tests broke; the new function will be exercised by Phase 3's `Settlement tests`).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors. `bun run lint` shows the same 2 pre-existing warnings.
+- `bunx oxfmt --check` on changed files — clean.
+
+### Gotchas
+- `Promise.all([select, select, select])` inside a `db.transaction` is fine with `postgres-js` — drizzle serialises queries on the underlying transaction object, but the typescript signature returns a tuple so destructuring is ergonomic. The empty-childMarketIds branch returns `[[], [], []]` early because `inArray` chokes on an empty list (same gotcha as the previous resolver-driver task).
+- `cancelReasonFor` had to retain a branch for `resolved_yes`/`resolved_no` to satisfy exhaustiveness — those paths are unreachable at runtime since they take the resolved branch, but the switch needs the cases. Returns `"oracle_cancel"` defensively.
+- The `applyChildSettlement` walks payouts twice mentally (credit + ledger row), but a single loop suffices — the ledger row is emitted for every payout (including zero-amount loss/zero rows) per PRD §Settlement.

@@ -22,7 +22,7 @@
 - [x] Rewrite `placeBet` in `data/trading.ts`: signature `(marketId, amount)` — buy YES only; reads pool with `reserveYes/No`, calls new `calculateBuy(pool, amount)` (YES-only), writes `positions.shares`.
 - [x] Update `decideEventCommit(wampumEvent, kalshiResponse, now)` pure function in `lib/kalshi/resolve.ts`: returns `wait` or `commit` plan; happy path = all children terminal → resolve-per-`result`.
 - [x] Wire resolver: select from `events WHERE status='open' AND closesAt < now`; per-series batch fetch; apply commit plan in one DB transaction per Event.
-- [ ] Adapt `computeSettlement` to operate over a commit plan + cross-child positions/pools → per-child payouts in one batch; rewire `resolveMarket`/`cancelMarket` into a single `commitEvent`.
+- [x] Adapt `computeSettlement` to operate over a commit plan + cross-child positions/pools → per-child payouts in one batch; rewire `resolveMarket`/`cancelMarket` into a single `commitEvent`.
 - [ ] Update `placeBet` server action (`src/actions/placeBet.ts`): drop `outcome` from Zod schema; delete `src/actions/sellShares.ts`.
 - [ ] Smoke test: spin up DB, ingest a 2-Market Kalshi fixture, place a YES buy on one child, force-commit the Event with both children settled, verify balance credit + Event/Market statuses + `SettlePayout` rows.
 
