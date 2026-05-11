@@ -9,6 +9,74 @@ import { markets as marketsTable } from "@/lib/db/schema";
 import { KALSHI_SERIES, type KalshiEvent, kalshiEvents, type KalshiSeriesTicker } from "./index";
 import { translateKalshiResolution, type ResolutionTranslation } from "./translator";
 
+// "settled" is included alongside the SDK's MarketStatusEnum terminal values
+// because the live Kalshi API still emits it on the elections host even though
+// the SDK enum omits it.
+const TERMINAL_KALSHI_STATUSES = new Set<string>(["settled", "finalized", "determined"]);
+
+export type ChildOutcome = {
+  marketId: string;
+  outcome:
+    | "resolved_yes"
+    | "resolved_no"
+    | "cancelled_voided"
+    | "cancelled_scalar"
+    | "cancelled_no_settlement";
+};
+
+export type EventCommitDecision = { kind: "wait" } | { kind: "commit"; perChild: ChildOutcome[] };
+
+export type WampumEventForDecision = {
+  id: string;
+  closesAt: number;
+  markets: { id: string; ticker: string | null }[];
+};
+
+// Pure decision core for Event-level commit. Maps every wampum child Market to
+// an outcome by matching against the Kalshi response's nested markets by
+// ticker. Replaces the per-child `translateKalshiResolution` dispatch under
+// the multi-outcome model (PRD §Resolver).
+//
+// Slice 1 scope: happy path only. Every child must be terminal — otherwise we
+// `wait`. Deadline degradation (cancelled_no_settlement) and Event-level void
+// semantics arrive in Phase 3.
+export function decideEventCommit(
+  wampumEvent: WampumEventForDecision,
+  kalshiResponse: KalshiEvent,
+  _now: number,
+): EventCommitDecision {
+  const nestedKalshi = kalshiResponse.markets ?? [];
+  const kalshiByTicker = new Map<string, (typeof nestedKalshi)[number]>();
+  for (const m of nestedKalshi) {
+    kalshiByTicker.set(m.ticker, m);
+  }
+
+  const perChild: ChildOutcome[] = [];
+  for (const child of wampumEvent.markets) {
+    const kalshiMarket = child.ticker ? kalshiByTicker.get(child.ticker) : undefined;
+    if (!kalshiMarket || !TERMINAL_KALSHI_STATUSES.has(kalshiMarket.status)) {
+      return { kind: "wait" };
+    }
+
+    const result = kalshiMarket.result;
+    if (result === "yes") {
+      perChild.push({ marketId: child.id, outcome: "resolved_yes" });
+    } else if (result === "no") {
+      perChild.push({ marketId: child.id, outcome: "resolved_no" });
+    } else if (result === "scalar") {
+      perChild.push({ marketId: child.id, outcome: "cancelled_scalar" });
+    } else {
+      // Terminal status but unrecognised result — treat as wait so the
+      // resolver driver retries (or surfaces it operationally) rather than
+      // committing on a malformed payload. Phase 3 will tighten this into
+      // an explicit error path.
+      return { kind: "wait" };
+    }
+  }
+
+  return { kind: "commit", perChild };
+}
+
 const SPORT_TO_SERIES: Record<string, KalshiSeriesTicker> = {
   mlb: KALSHI_SERIES.MLB,
   nfl: KALSHI_SERIES.NFL,

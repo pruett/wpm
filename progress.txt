@@ -188,3 +188,34 @@ Key behaviors of the new `placeBet`:
 ### Notes
 - `bet-controls.tsx` still passes `outcome` to the server action, but that's a `string` field on a Zod schema that still accepts it, so typecheck stays green. The UI purge of A/B controls is Phase 5 work.
 - The legacy `sellShares` data-layer function is unchanged. ADR-0007 deletes it, but the plan keeps it alongside `placeBetLegacy` until the integration test and `actions/sellShares.ts` are removed in later tasks.
+
+## 2026-05-11 — Phase 0 Slice 1: Add `decideEventCommit` pure decision core
+
+Added `decideEventCommit(wampumEvent, kalshiResponse, now)` to `src/lib/kalshi/resolve.ts` as the pure decision function that replaces per-child `translateKalshiResolution` under the multi-outcome model. Returns either `{ kind: 'wait' }` or `{ kind: 'commit', perChild: ChildOutcome[] }`.
+
+Slice 1 scope is the happy path only — every child must be terminal, otherwise the function returns `wait`. Mapping is per-child:
+- Kalshi `result: "yes"` → `resolved_yes`
+- Kalshi `result: "no"` → `resolved_no`
+- Kalshi `result: "scalar"` → `cancelled_scalar`
+- Unrecognised result on a terminal market → `wait` (driver retries; Phase 3 will tighten this into an explicit error path)
+
+Event-level void semantics (all children `no` → `cancelled_voided`) and deadline degradation (`cancelled_no_settlement` past 48h) are intentionally deferred to Phase 3 per the plan's explicit "Slice 1 happy path" framing. Both variants are already present in the `ChildOutcome` union so the function signature is forward-compatible.
+
+### Matching wampum children to Kalshi markets
+The function takes a minimal `WampumEventForDecision` shape (`{id, closesAt, markets: {id, ticker}[]}`) instead of a full DB row to keep it pure and unit-testable. Matching is by Kalshi market `ticker` (the wampum child carries the original Kalshi ticker on `markets.ticker` after the Phase 0 reshape). A child without a corresponding terminal Kalshi market triggers `wait`.
+
+### Coexistence with legacy resolver
+The legacy `runKalshiResolve` driver and its per-child `dispatch`/`translateKalshiResolution` plumbing are untouched. The next Slice 1 task ("Wire resolver") swaps the driver over to `decideEventCommit + commitEvent`. The legacy path stays compilable through the transition.
+
+### Files changed
+- `src/lib/kalshi/resolve.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bunx oxlint src/lib/kalshi/resolve.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/kalshi/resolve.ts` — clean (after `oxfmt --write`).
+- `bun run lint` — 2 pre-existing warnings unchanged.
+
+### Gotcha
+- `(typeof kalshiResponse.markets)[number]` does not type-narrow through an inline `??[]` — the `Market[] | undefined` on `EventData.markets` resists indexing. Fix: bind `nestedKalshi = kalshiResponse.markets ?? []` first, then reference `(typeof nestedKalshi)[number]`.
