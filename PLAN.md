@@ -87,8 +87,8 @@
 - [x] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
 
 ### Ingest driver (`lib/kalshi/ingest.ts`)
-- [ ] Update `SkipReasonKind` union: remove `non_binary`; add `too_many_markets`, `inconsistent_close_times`. Keep `unparseable_close_time`, `no_initial_price`, `insufficient_confidence`, `already_exists`.
-- [ ] Call new `createEvent({ event, markets })` from `data/events.ts`; one DB transaction per Event.
+- [x] Update `SkipReasonKind` union: remove `non_binary`; add `too_many_markets`, `inconsistent_close_times`. Keep `unparseable_close_time`, `no_initial_price`, `insufficient_confidence`, `already_exists`.
+- [x] Call new `createEvent({ event, markets })` from `data/events.ts`; one DB transaction per Event.
 - [x] Update summary structure to reflect Event-level counters (`createdEvents` / `createdMarkets`).
 
 ---
