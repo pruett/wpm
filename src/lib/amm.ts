@@ -7,18 +7,18 @@ const MAX_PROB_BPS = PROB_SCALE - MIN_PROB_BPS;
 export function initializePool(
   marketId: string,
   seedAmount: bigint,
-  initialProbabilityA?: number,
+  initialProbabilityYes?: number,
 ): AMMPool {
-  const raw = initialProbabilityA ?? 0.5;
+  const raw = initialProbabilityYes ?? 0.5;
   const probBps = clampProbBps(BigInt(Math.round(raw * Number(PROB_SCALE))));
   const total = 2n * seedAmount;
-  const sharesA = (total * (PROB_SCALE - probBps)) / PROB_SCALE;
-  const sharesB = total - sharesA;
+  const reserveYes = (total * (PROB_SCALE - probBps)) / PROB_SCALE;
+  const reserveNo = total - reserveYes;
   return {
     marketId,
-    sharesA,
-    sharesB,
-    k: sharesA * sharesB,
+    reserveYes,
+    reserveNo,
+    k: reserveYes * reserveNo,
     liquidity: seedAmount,
   };
 }
@@ -29,7 +29,7 @@ export function calculateBuy(
   amount: bigint,
 ): { shares: bigint; newPool: AMMPool } {
   const [target, other] =
-    outcome === "A" ? [pool.sharesA, pool.sharesB] : [pool.sharesB, pool.sharesA];
+    outcome === "A" ? [pool.reserveYes, pool.reserveNo] : [pool.reserveNo, pool.reserveYes];
 
   const newOther = other + amount;
   // Round the pool's retained side UP so newTarget * newOther >= k.
@@ -37,14 +37,14 @@ export function calculateBuy(
   const swapOut = target - newTarget;
   const shares = amount + swapOut;
 
-  const newSharesA = outcome === "A" ? newTarget : newOther;
-  const newSharesB = outcome === "A" ? newOther : newTarget;
+  const newReserveYes = outcome === "A" ? newTarget : newOther;
+  const newReserveNo = outcome === "A" ? newOther : newTarget;
 
   const newPool: AMMPool = {
     marketId: pool.marketId,
-    sharesA: newSharesA,
-    sharesB: newSharesB,
-    k: newSharesA * newSharesB,
+    reserveYes: newReserveYes,
+    reserveNo: newReserveNo,
+    k: newReserveYes * newReserveNo,
     liquidity: pool.liquidity + amount,
   };
 
@@ -52,12 +52,12 @@ export function calculateBuy(
 }
 
 export function calculatePrices(pool: AMMPool): { priceA: number; priceB: number } {
-  const total = pool.sharesA + pool.sharesB;
+  const total = pool.reserveYes + pool.reserveNo;
   if (total === 0n) return { priceA: 0.5, priceB: 0.5 };
   const totalNum = Number(total);
   return {
-    priceA: Number(pool.sharesB) / totalNum,
-    priceB: Number(pool.sharesA) / totalNum,
+    priceA: Number(pool.reserveNo) / totalNum,
+    priceB: Number(pool.reserveYes) / totalNum,
   };
 }
 

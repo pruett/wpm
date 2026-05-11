@@ -54,7 +54,7 @@
 - [ ] Update `SPORTS` array stays on `Event`, not `Market`.
 
 ### AMM rewrite (`lib/amm.ts`)
-- [ ] Rename internal symbols: `sharesA/B` → `reserveYes/No`, `initialProbabilityA` → `initialProbabilityYes`.
+- [x] Rename internal symbols: `sharesA/B` → `reserveYes/No`, `initialProbabilityA` → `initialProbabilityYes`.
 - [ ] `initializePool(marketId, seedAmount, initialProbabilityYes)` returns `{ marketId, reserveYes, reserveNo, k, liquidity }`.
 - [ ] `calculateBuy(pool, amount)` — drop `outcome` param; always buys YES (NO is the retained side). Preserve ceil-div rounding (ADR-0005).
 - [ ] `calculatePrices(pool)` → `{ priceYes, priceNo }` where `priceYes + priceNo = 1`.

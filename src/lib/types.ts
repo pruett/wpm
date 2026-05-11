@@ -67,8 +67,8 @@ export type Market = {
 
 export type AMMPool = {
   marketId: string;
-  sharesA: bigint;
-  sharesB: bigint;
+  reserveYes: bigint;
+  reserveNo: bigint;
   k: bigint;
   liquidity: bigint;
 };

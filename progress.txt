@@ -883,3 +883,61 @@ shape under the multi-outcome model where most children are healthy.
   bug where the translator would over-report reasons (e.g. flag healthy
   siblings as wide-spread) — that would silently pass `some(...)` but
   break the explicit array equality.
+
+## 2026-05-11 — Phase 1: Rename AMM pool symbols to YES/NO
+
+Renamed `AMMPool.sharesA/sharesB` → `reserveYes/reserveNo` and
+`initializePool`'s `initialProbabilityA` parameter → `initialProbabilityYes`.
+This is the internal-rename half of the AMM rewrite — function signatures
+(calculateBuy still takes an `"A" | "B"` outcome, calculatePrices still
+returns `priceA/priceB`) stay stable so UI consumers don't break. The
+remaining AMM-rewrite items (drop the outcome param, switch return shapes
+to priceYes/priceNo) are still pending and need a coordinated UI sweep.
+
+Mapping rationale: under the YES-first model A === YES. `sharesA` was the
+side that *decreases* when A is bought, which corresponds to the side that
+decreases when YES is bought — i.e. `reserveYes`. So `sharesA → reserveYes`
+and `sharesB → reserveNo`. `priceA` is calculated as `reserveNo / total`,
+which is the YES price under the same mapping (consumer return shape
+unchanged for now).
+
+The legacy positions table still uses `sharesA/sharesB` columns — those
+references in `data/trading.ts`, `data/positions.ts`, and
+`lib/settlement.ts` are positions data, not pool data, and are out of
+scope for this task.
+
+### Files changed
+- `src/lib/amm.ts` (rename properties and local vars; rename
+  initializePool parameter)
+- `src/lib/types.ts` (AMMPool type now `reserveYes/reserveNo`)
+- `src/lib/amm.test.ts` (assertions on pool.reserveYes/.reserveNo;
+  invariant checks)
+- `src/data/trading.ts` (placeBet and placeBetLegacy now construct/read
+  AMMPool with reserveYes/reserveNo; dual-write to DB unchanged)
+- `src/data/events.ts` (createEvent reads pool.reserveYes/.reserveNo when
+  writing the ammPools row; drop the now-stale "Slice 1 additive" comment)
+- `src/data/markets.ts` (toPool() and legacy createMarket() use
+  reserveYes/reserveNo)
+- `PLAN.md` (mark Phase 1 line 57 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 40/40 unit tests pass.
+- `bun run test:integration` — 3/3 tests pass (migrations still apply
+  cleanly, placeBetLegacy + bet-and-resolve flow still works through the
+  renamed AMM).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt` rewrap of
+  the ternary in calculateBuy onto one line).
+
+### Notes
+- The `initialProbabilityA` field on the `Transaction` CreateMarket variant
+  in `lib/types.ts` was NOT renamed — that type is dead code (no consumer
+  imports `Transaction`), and the corresponding `legacyCreateMarket`
+  consumer in `data/markets.ts` and `tests/integration/bet-and-resolve.test.ts`
+  still pass `initialProbabilityA` as a payload key. Those callers get
+  cleaned up alongside the legacy `createMarket` removal in Phase 4.
+- This unblocks the rest of Phase 1's AMM-rewrite tasks (drop outcome
+  param, rename calculatePrices/calculateOdds return keys) since the pool
+  data structure now matches the YES-only AMM contract.
