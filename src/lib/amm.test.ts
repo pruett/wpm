@@ -28,6 +28,18 @@ describe("initializePool", () => {
     expect(high.reserveYes).toBeGreaterThan(0n);
     expect(high.reserveNo).toBeGreaterThan(0n);
   });
+
+  it("produces integer YES/NO reserves whose implied probability tracks the seed within one unit", () => {
+    // The implied YES probability is reserveNo / (reserveYes + reserveNo).
+    // Integer truncation of (total * (1 - p)) costs at most one unit, so the
+    // implied probability differs from the requested one by at most 1 / total.
+    for (const p of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+      const pool = initializePool(MARKET, 1000n, p);
+      expect(pool.reserveYes + pool.reserveNo).toBe(2000n);
+      const impliedYes = Number(pool.reserveNo) / Number(pool.reserveYes + pool.reserveNo);
+      expect(Math.abs(impliedYes - p)).toBeLessThanOrEqual(1 / 2000);
+    }
+  });
 });
 
 describe("calculateBuy", () => {
@@ -69,6 +81,42 @@ describe("calculateBuy", () => {
     expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
     expect(newPool.reserveYes).toBeGreaterThan(0n);
     expect(newPool.reserveNo).toBeGreaterThan(0n);
+  });
+
+  it("does not under-pay or panic when the YES reserve is already at the floor", () => {
+    // Seed at the maximum-clamped probability (0.99) so the YES reserve is at
+    // its floor (~20 of 2000). Then sweep the remaining YES inventory with a
+    // huge buy and make sure: (a) the trader still receives strictly more
+    // shares than the deposit (i.e. the AMM honors the swap), (b) the new YES
+    // reserve stays positive, and (c) the constant-product invariant holds.
+    const pool = initializePool(MARKET, 1000n, 0.99);
+    const startingYes = pool.reserveYes;
+    expect(startingYes).toBeGreaterThan(0n);
+
+    const { shares, newPool } = calculateBuy(pool, 100_000n);
+
+    expect(shares).toBeGreaterThan(100_000n);
+    expect(newPool.reserveYes).toBeGreaterThan(0n);
+    expect(newPool.reserveYes).toBeLessThan(startingYes);
+    expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
+  });
+});
+
+describe("calculatePrices", () => {
+  it("returns priceYes + priceNo = 1 within float tolerance across seeded skews", () => {
+    for (const p of [0.01, 0.25, 0.5, 0.75, 0.99]) {
+      const pool = initializePool(MARKET, 1000n, p);
+      const { priceYes, priceNo } = calculatePrices(pool);
+      expect(priceYes + priceNo).toBeCloseTo(1, 10);
+    }
+  });
+
+  it("returns priceYes + priceNo = 1 after a trade shifts the reserves", () => {
+    const pool = initializePool(MARKET, 1000n, 0.5);
+    const { newPool } = calculateBuy(pool, 250n);
+    const { priceYes, priceNo } = calculatePrices(newPool);
+    expect(priceYes + priceNo).toBeCloseTo(1, 10);
+    expect(priceYes).toBeGreaterThan(0.5);
   });
 });
 
