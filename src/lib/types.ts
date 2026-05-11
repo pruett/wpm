@@ -19,7 +19,6 @@ export type Transaction =
   | {
       type: "PlaceBet";
       marketId: string;
-      outcome: "A" | "B";
       amount: number;
       userId: string;
       timestamp: string;
@@ -27,7 +26,7 @@ export type Transaction =
   | {
       type: "ResolveMarket";
       marketId: string;
-      result: "A" | "B";
+      resolvedAs: "yes" | "no";
       timestamp: string;
     }
   | {
