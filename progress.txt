@@ -1431,3 +1431,60 @@ Verification points:
   reasons inside the variant". The variant's shape (`{ kind, eventTicker
   }` with no reasons field) and the existing test
   (`translator.test.ts:128-135`) both back this reading.
+
+## 2026-05-11 — Phase 2: PLAN audit, mark translator tests cluster complete
+
+PLAN lines 79, 81, 82, 83, 84: each of the six translator test bullets had a
+matching test already living in `src/lib/kalshi/translator.test.ts` (line 80,
+the 5-Market happy path, was the only one previously checked). Verified each
+against the current test file and flipped the remaining five to `[x]`.
+
+Verification points:
+- Line 79 (2-Market happy path → one Event + 2 Markets, both
+  `initialProbabilityYes` correct) — `translator.test.ts:43-68` asserts one
+  event row plus two children with `initialProbabilityYes` at 0.56 / 0.44.
+- Line 81 (any child wide spread → `insufficient_confidence` with that
+  child's ticker in reasons) — covered twice: the binary case at
+  `translator.test.ts:143-150` (checks `spread_too_wide` is in reasons) and
+  the multi-outcome case at `translator.test.ts:152-161` (asserts the
+  rejected reasons array is exactly `[{ ticker: "KXNBACHAMP-27-OKC", reason:
+  "spread_too_wide" }]`).
+- Line 82 (any child missing bid/ask → `no_initial_price`) —
+  `translator.test.ts:128-135` against the `zero-spread.json` fixture, whose
+  first child has `yes_bid_dollars: "0.00"` / `yes_ask_dollars: "0.00"`. The
+  translator's `quote()` returns null for bid/ask ≤ 0, which is the same
+  branch as a literally absent bid/ask — so this fixture exercises the
+  PLAN-described case.
+- Line 83 (31 children → `too_many_markets` with count) —
+  `translator.test.ts:269-288` builds a 31-child synthetic event and asserts
+  the exact `{ kind: "too_many_markets", eventTicker, count: 31 }` shape.
+- Line 84 (siblings disagree on `expected_expiration_time` →
+  `inconsistent_close_times`) — `translator.test.ts:223-239` mutates the
+  second child's `expected_expiration_time` and asserts the offenders array
+  contains that child.
+
+### Files changed
+- `PLAN.md` (mark Phase 2 translator tests lines 79, 81, 82, 83, 84 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/lib/kalshi/translator.test.ts` — 0 warnings, 0 errors.
+
+### Notes
+- Same audit pattern as the prior two commits: pick one coherent cluster
+  (all the translator rejection / happy-path test bullets), verify each
+  against the current code, and flip in one batch. The translator
+  implementation cluster (lines 69, 70, 73, 74, 75) was the prior commit's
+  scope; this commit closes out the matching test cluster.
+- Held some ambiguity on line 82's wording: "missing bid/ask" vs the actual
+  fixture (`bid=ask=0.00`). Resolved by reading the translator's `quote()`
+  function — it conflates "absent", "non-numeric", and "≤ 0" into a single
+  null branch that produces `no_initial_price`. So zero-bid/ask is the same
+  code path as missing-bid/ask; the fixture is a valid stand-in.
+- Did not touch the `non-binary.json` / `pair-inconsistent.json` fixture
+  deletion (line 87 — already checked) or the implementation lines beyond
+  what was already flipped in prior audits. Phase 1 schema purge (lines 41,
+  42, 43, 44, 47) and Phase 2 ingest SkipReasonKind update (line 90) remain
+  for future iterations.
