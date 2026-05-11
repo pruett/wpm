@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import binaryHealthy from "@/lib/kalshi/fixtures/binary-healthy.json" with { type: "json" };
+import multiOutcomeHealthy from "@/lib/kalshi/fixtures/multi-outcome-healthy.json" with { type: "json" };
 
 // Mock the auth boundary so we can drive userId from inside the test.
 let currentUserId: string | null = null;
@@ -207,5 +208,57 @@ describe("event-flow: ingest → bet → commit (Slice 1 smoke test)", () => {
       .from(treasury)
       .where(eq(treasury.id, "treasury"));
     expect(treasuryAfter.amount).toBeGreaterThan(treasuryBefore.amount);
+  });
+});
+
+describe("event-flow: multi-outcome ingest (Slice 2 smoke test)", () => {
+  it("translates and persists a 5-Market Event with correct per-Market YES probability", async () => {
+    await db.insert(treasury).values({ id: "treasury", amount: 100_000_000n });
+
+    const kalshiEvent = (multiOutcomeHealthy as { events: KalshiEvent[] }).events[0];
+    const translation = translateKalshiEvent(kalshiEvent, "nba");
+    expect(translation.kind).toBe("ok");
+    if (translation.kind !== "ok") return;
+
+    expect(translation.value.markets).toHaveLength(5);
+
+    const created = await createEvent(translation.value);
+    expect(created.created).toBe(true);
+
+    const eventId = translation.value.event.id;
+
+    // One events row.
+    const eventRows = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+    expect(eventRows).toHaveLength(1);
+    expect(eventRows[0].sport).toBe("nba");
+    expect(eventRows[0].status).toBe("open");
+
+    // Five markets rows under this event.
+    const childMarketRows = await db
+      .select()
+      .from(marketsTable)
+      .where(eq(marketsTable.eventId, eventId));
+    expect(childMarketRows).toHaveLength(5);
+    expect(childMarketRows.every((m) => m.status === "open")).toBe(true);
+
+    // Five amm_pools rows seeded with correct per-Market initialProbabilityYes.
+    // priceYes = reserveNo / (reserveYes + reserveNo) — assert this matches the
+    // translator's per-child midpoint within one bps of rounding error.
+    const expectedByTicker = new Map(
+      translation.value.markets.map((m) => [m.market.ticker as string, m.initialProbabilityYes]),
+    );
+
+    for (const market of childMarketRows) {
+      const [pool] = await db.select().from(ammPools).where(eq(ammPools.marketId, market.id));
+      expect(pool).toBeDefined();
+      const reserveYes = pool.reserveYes ?? pool.reserveA ?? 0n;
+      const reserveNo = pool.reserveNo ?? pool.reserveB ?? 0n;
+      const total = reserveYes + reserveNo;
+      expect(total).toBeGreaterThan(0n);
+      const actualProbYes = Number(reserveNo) / Number(total);
+      const expected = expectedByTicker.get(market.ticker as string);
+      expect(expected).toBeDefined();
+      expect(actualProbYes).toBeCloseTo(expected!, 3);
+    }
   });
 });
