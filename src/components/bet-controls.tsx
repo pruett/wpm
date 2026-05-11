@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import type { MarketWithOdds, SharePosition } from "@/lib/types";
 
 import { placeBet } from "@/actions/placeBet";
-import { sellShares } from "@/actions/sellShares";
 import { useBetConfirm } from "@/components/bet-confirm-provider";
 import { useIsInMarketDrawer } from "@/components/market-drawer";
 import { SportLogo } from "@/components/sport-logo";
@@ -117,7 +116,7 @@ export function BetControls({ market, userId, positions }: Props) {
   function handleBuy() {
     setMessage(null);
     startTransition(async () => {
-      const result = await placeBet({ marketId: market.id, outcome, amount });
+      const result = await placeBet({ marketId: market.id, amount });
       if (result.error) {
         setMessage({ kind: "error", text: result.error });
         return;
@@ -136,23 +135,7 @@ export function BetControls({ market, userId, positions }: Props) {
   }
 
   function handleSell() {
-    setMessage(null);
-    startTransition(async () => {
-      const result = await sellShares({
-        marketId: market.id,
-        outcome,
-        shares: sellShareAmount,
-      });
-      if (result.error) {
-        setMessage({ kind: "error", text: result.error });
-        return;
-      }
-      setMessage({
-        kind: "success",
-        text: `Sold ${sellShareAmount.toFixed(2)} ${outcomeName} shares.`,
-      });
-      setSellShareAmount(0);
-    });
+    setMessage({ kind: "error", text: "Selling is disabled." });
   }
 
   const canBuy = !isClosed && amount > 0 && !isPending;
