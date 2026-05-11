@@ -36,9 +36,8 @@ export type WampumEventForDecision = {
 // ticker. Replaces the per-child `translateKalshiResolution` dispatch under
 // the multi-outcome model (PRD §Resolver).
 //
-// Slice 1 scope: happy path only. Every child must be terminal — otherwise we
-// `wait`. Deadline degradation (cancelled_no_settlement) and Event-level void
-// semantics arrive in Phase 3.
+// Current scope: happy path + Event-level void semantics. Deadline degradation
+// (cancelled_no_settlement past the 48h deadline) is deferred.
 export function decideEventCommit(
   wampumEvent: WampumEventForDecision,
   kalshiResponse: KalshiEvent,
@@ -71,6 +70,16 @@ export function decideEventCommit(
       // an explicit error path.
       return { kind: "wait" };
     }
+  }
+
+  // Void semantics (PRD §Resolver): if every child settled `no`, no candidate
+  // won. Rewrite every outcome to `cancelled_voided` so each holder is refunded
+  // their cost basis rather than booking a loss.
+  if (perChild.length > 0 && perChild.every((c) => c.outcome === "resolved_no")) {
+    return {
+      kind: "commit",
+      perChild: perChild.map((c) => ({ marketId: c.marketId, outcome: "cancelled_voided" })),
+    };
   }
 
   return { kind: "commit", perChild };
