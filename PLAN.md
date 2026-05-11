@@ -84,7 +84,7 @@
 - [ ] Rejection: siblings disagree on `expected_expiration_time` → `inconsistent_close_times`.
 - [ ] Verify `pair_inconsistent` is no longer reachable (children with disagreeing midpoints translate fine).
 - [ ] Output row shapes match schema-derived insert types (compile-time check).
-- [ ] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
+- [x] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
 
 ### Ingest driver (`lib/kalshi/ingest.ts`)
 - [ ] Update `SkipReasonKind` union: remove `non_binary`; add `too_many_markets`, `inconsistent_close_times`. Keep `unparseable_close_time`, `no_initial_price`, `insufficient_confidence`, `already_exists`.

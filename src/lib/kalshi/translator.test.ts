@@ -4,6 +4,7 @@ import type { KalshiEvent } from "./index.js";
 
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
 import multiOutcomeHealthy from "./fixtures/multi-outcome-healthy.json" with { type: "json" };
+import multiOutcomeWideSpread from "./fixtures/multi-outcome-wide-spread.json" with { type: "json" };
 import skewedHealthy from "./fixtures/skewed-healthy.json" with { type: "json" };
 import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with { type: "json" };
 import wideSpread from "./fixtures/wide-spread.json" with { type: "json" };
@@ -123,6 +124,17 @@ describe("translateKalshiEvent", () => {
     if (result.kind !== "insufficient_confidence") return;
     expect(result.eventTicker).toBe("KXMLBGAME-25APR24WIDESPREAD");
     expect(result.reasons.some((r) => r.reason === "spread_too_wide")).toBe(true);
+  });
+
+  it("rejects multi-outcome events where a single child has a wide spread", () => {
+    const result = translateKalshiEvent(eventOf(multiOutcomeWideSpread), "nba");
+
+    expect(result.kind).toBe("insufficient_confidence");
+    if (result.kind !== "insufficient_confidence") return;
+    expect(result.eventTicker).toBe("KXNBACHAMP-27");
+    // Only the OKC child has a wide spread; the others are within MAX_SPREAD,
+    // so the all-or-nothing rejection should call out exactly that ticker.
+    expect(result.reasons).toEqual([{ ticker: "KXNBACHAMP-27-OKC", reason: "spread_too_wide" }]);
   });
 
   it("accepts a skewed but healthy event and seeds each child with its own YES probability", () => {
