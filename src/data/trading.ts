@@ -24,6 +24,7 @@ export type PlaceBetInput = {
 export type PlaceBetResult = {
   userId: string;
   marketId: string;
+  eventId: string | null;
   newBalance: number;
   odds: Odds;
 };
@@ -39,7 +40,7 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
   const amount = BigInt(Math.trunc(input.amount));
   if (amount <= 0n) throw new Error("Amount must be positive");
 
-  const { newBalance, newPool } = await db.transaction(async (tx) => {
+  const { newBalance, newPool, eventId } = await db.transaction(async (tx) => {
     const [market] = await tx.select().from(markets).where(eq(markets.id, marketId));
     if (!market) throw new Error("Market not found");
     if (market.status !== "open") throw new Error("Market is not open");
@@ -57,6 +58,8 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     // mapping established in `createEvent`, A → YES, B → NO.
     const reserveYes = poolRow.reserveYes ?? poolRow.reserveA;
     const reserveNo = poolRow.reserveNo ?? poolRow.reserveB;
+
+    const eventId = market.eventId;
 
     const { shares, newPool } = calculateBuy(
       {
@@ -124,12 +127,13 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     return {
       newBalance: currentBalance - amount,
       newPool,
+      eventId,
     };
   });
 
   const odds = calculateOdds(newPool);
 
-  return { userId, marketId, newBalance: Number(newBalance), odds };
+  return { userId, marketId, eventId, newBalance: Number(newBalance), odds };
 }
 
 // Legacy A/B placeBet retained for the pre-multi-outcome integration test
@@ -149,7 +153,7 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
   const amount = BigInt(Math.trunc(input.amount));
   if (amount <= 0n) throw new Error("Amount must be positive");
 
-  const { newBalance, newPool } = await db.transaction(async (tx) => {
+  const { newBalance, newPool, eventId } = await db.transaction(async (tx) => {
     const [market] = await tx.select().from(markets).where(eq(markets.id, marketId));
     if (!market) throw new Error("Market not found");
     if (market.status !== "open") throw new Error("Market is not open");
@@ -161,6 +165,8 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
 
     const [poolRow] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!poolRow) throw new Error("AMM pool missing");
+
+    const eventId = market.eventId;
 
     // Legacy adapter: outcome "A" buys YES directly; outcome "B" buys the NO
     // side, which we model by flipping the pool's YES/NO reserves before the
@@ -239,10 +245,11 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
     return {
       newBalance: currentBalance - amount,
       newPool,
+      eventId,
     };
   });
 
   const odds = calculateOdds(newPool);
 
-  return { userId, marketId, newBalance: Number(newBalance), odds };
+  return { userId, marketId, eventId, newBalance: Number(newBalance), odds };
 }

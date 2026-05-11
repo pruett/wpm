@@ -1488,3 +1488,52 @@ Verification points:
   what was already flipped in prior audits. Phase 1 schema purge (lines 41,
   42, 43, 44, 47) and Phase 2 ingest SkipReasonKind update (line 90) remain
   for future iterations.
+
+## 2026-05-11 — Phase 4: placeBet action revalidates event tag (PLAN line 159)
+
+Completed PLAN line 159 (`src/actions/placeBet.ts`: drop `outcome` from Zod
+schema; revalidate market + event + viewer tags). The Zod drop was already in
+place from earlier work; the missing piece was the event-tag revalidation,
+which required threading `eventId` through the data layer.
+
+### What changed
+- `src/data/tags.ts` — added `event(id: string)` helper alongside the
+  existing `market(id)` helper. Tag namespace: `event:${id}`.
+- `src/data/trading.ts` — `PlaceBetResult` now exposes `eventId: string | null`
+  (nullable because `markets.eventId` is still nullable during the Phase 1
+  schema transition). Both `placeBet` and the legacy `placeBetLegacy` adapter
+  read `market.eventId` inside the transaction and propagate it out.
+- `src/actions/placeBet.ts` — after a successful bet, revalidates
+  `tags.event(result.eventId)` (when non-null) in addition to the existing
+  market + viewer tag revalidations.
+
+### Files changed
+- `src/data/tags.ts`
+- `src/data/trading.ts`
+- `src/actions/placeBet.ts`
+- `PLAN.md` (mark line 159 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/data/tags.ts src/data/trading.ts src/actions/placeBet.ts`
+  — 0 warnings, 0 errors.
+- `bunx oxfmt` — formatted clean.
+
+### Notes
+- Held some ambiguity on PLAN line 156 ("Update cache tags: `tags.event(id)`
+  alongside `tags.market(id)`; revalidate both on bet placement and Event
+  commit"). The bet-placement half is now done, but the Event-commit half
+  (cron resolve route revalidating `tags.event(id)` per committed event)
+  still needs the resolve summary extended to expose committed event IDs.
+  Left line 156 unchecked since it's only half-complete; a follow-up task
+  should add committed-event-ID tracking to `KalshiResolveSummary` and wire
+  per-event revalidation in `src/app/api/cron/resolve/route.ts`.
+- `eventId` is typed `string | null` rather than `string` because
+  `markets.eventId` is still a nullable FK in the schema (Phase 1 line 43
+  would tighten it to NOT NULL when the legacy columns are dropped). The
+  action guards with `if (result.eventId)` so it's safe either way.
+- `placeBetLegacy` got the same treatment to keep its return type
+  compatible — the integration test that depends on it doesn't read
+  `eventId`, but the shared `PlaceBetResult` type forces consistency.

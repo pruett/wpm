@@ -156,7 +156,7 @@
 - [ ] Update cache tags: `tags.event(id)` alongside `tags.market(id)`; revalidate both on bet placement and Event commit.
 
 ### Server actions
-- [ ] `src/actions/placeBet.ts`: drop `outcome` from Zod schema; revalidate market + event + viewer tags.
+- [x] `src/actions/placeBet.ts`: drop `outcome` from Zod schema; revalidate market + event + viewer tags.
 - [ ] Delete `src/actions/sellShares.ts`.
 - [ ] No new resolver action exposed externally (cron stays the entry point).
 
