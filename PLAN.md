@@ -83,7 +83,7 @@
 - [ ] Rejection: 31 children → `too_many_markets` with count.
 - [ ] Rejection: siblings disagree on `expected_expiration_time` → `inconsistent_close_times`.
 - [x] Verify `pair_inconsistent` is no longer reachable (children with disagreeing midpoints translate fine).
-- [ ] Output row shapes match schema-derived insert types (compile-time check).
+- [x] Output row shapes match schema-derived insert types (compile-time check).
 - [x] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
 
 ### Ingest driver (`lib/kalshi/ingest.ts`)
