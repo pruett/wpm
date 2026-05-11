@@ -1537,3 +1537,54 @@ which required threading `eventId` through the data layer.
 - `placeBetLegacy` got the same treatment to keep its return type
   compatible — the integration test that depends on it doesn't read
   `eventId`, but the shared `PlaceBetResult` type forces consistency.
+
+## 2026-05-11 — Phase 2: PLAN audit, mark ingest driver cluster complete
+
+PLAN lines 90, 91 (Phase 2 ingest driver): both were already implemented in
+code but the boxes hadn't been flipped. Audited each against the current
+source and marked them complete.
+
+Verification points:
+- Line 90 (Update `SkipReasonKind` union: remove `non_binary`; add
+  `too_many_markets`, `inconsistent_close_times`. Keep the other four) —
+  `ingest.ts:22` defines `SkipReasonKind = Exclude<TranslationResult["kind"],
+  "ok"> | "already_exists"`. The translator's union (`translator.ts:42-57`)
+  already covers `unparseable_close_time`, `no_initial_price`,
+  `too_many_markets`, `inconsistent_close_times`, `insufficient_confidence`
+  (no `non_binary`/`pair_inconsistent`), so the exclude produces exactly the
+  PLAN-required six keys. `emptySkipCounters()` at `ingest.ts:41-50`
+  enumerates the same six keys explicitly.
+- Line 91 (Call new `createEvent({ event, markets })` from `data/events.ts`;
+  one DB transaction per Event) — `ingest.ts:94` calls
+  `createEvent(result.value)` where `result.value` is the
+  `TranslatedEvent = { event, markets: TranslatedMarket[] }` shape. The
+  `createEvent` implementation at `events.ts:30` wraps everything (event
+  insert, per-child market + pool + treasury debit + CreateMarket tx row) in
+  a single `db.transaction`.
+
+### Files changed
+- `PLAN.md` (mark Phase 2 ingest driver lines 90, 91 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+
+### Notes
+- Continuing the audit pattern from the prior three commits: pick a coherent
+  cluster of done-but-unchecked PLAN lines, verify each against the current
+  source, flip the boxes in one batch. This commit closes out the Phase 2
+  ingest driver lines that the previous progress entry flagged as
+  "remain for future iterations".
+- Did not pick up line 92 (summary structure for Event-level counters) —
+  already checked in an earlier commit.
+- Remaining unchecked work in nearby phases: Phase 1 schema purge
+  (lines 41-44, 47), Phase 1 type purges (lines 51-54), Phase 3 resolver
+  driver wiring (lines 107-111), Phase 3 settlement implementation/tests
+  (lines 122-128, 131, 136), Phase 4 data layer reshape (lines 151, 152,
+  154, 155), and all of Phase 5/6. The Phase 1 schema purge is the
+  load-bearing prerequisite for most of the Phase 4 reshape and is the
+  natural next cluster — but it cascades into multiple consumer files
+  (positions.ts, bet-controls.tsx, market-detail.tsx, the integration test)
+  so it warrants its own dedicated commit rather than being folded into an
+  audit pass.
