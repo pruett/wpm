@@ -326,3 +326,29 @@ The plan explicitly defers the A/B toggle and sell-tab removal to Phase 5 ("Bet 
 ### Notes
 - The `sellShares` DAL function in `src/data/trading.ts` is intentionally untouched — it's still called by `tests/integration/bet-and-resolve.test.ts` via `placeBetLegacy`'s sibling export, and Phase 6 rewrites that integration test. Same retention rationale as `placeBetLegacy` and `createMarket`.
 - The `SellShares` enum value in `transactionTypes` similarly stays for now — its drop is tied to the trading.ts DAL purge in Phase 4.
+
+## 2026-05-11 — Phase 0 Slice 1: End-to-end smoke test
+
+Added `tests/integration/event-flow.test.ts` exercising the full Slice 1 flow against a real Postgres database:
+
+1. Seeds treasury + two users with starting balances.
+2. Runs `binary-healthy.json` through `translateKalshiEvent` to produce the new `{event, markets[]}` shape.
+3. Calls `createEvent(translation.value)` and asserts both child Markets + pools land in one transaction.
+4. Bumps the child `closesAt` past `Date.now()` (fixture timestamp is in the past relative to live `placeBet`'s "betting has closed" check) and places a YES bet via the production `placeBet` on the first child.
+5. Force-commits the Event with `commitEvent({eventId, perChild: [{resolved_yes}, {resolved_no}]})`.
+6. Verifies: `events.status='terminal'`, both `markets.status='resolved'` with correct `resolvedAs`, winner's balance credited by exactly `shares` WPM, loser balance untouched, `SettlePayout` row emitted for the winner with `kind='win'` and `amount=shares`, one `ResolveMarket` row per child, both pools drained, and treasury grew.
+
+### Files changed
+- `tests/integration/event-flow.test.ts` (new)
+
+### Verification
+- `bun run test:integration` — both `event-flow.test.ts` and the legacy `bet-and-resolve.test.ts` pass (2/2 tests).
+- `bun run test` — 45/45 unit tests still pass.
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint tests/integration/event-flow.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check tests/integration/event-flow.test.ts` — clean.
+
+### Gotchas
+- The translator hardcodes the Event's `closesAt` to the fixture's `expected_expiration_time` (2026-04-25). That timestamp is in the past relative to "today" (2026-05-11), so the production `placeBet` would reject any bet against the just-created markets. The test bumps the child Markets' `closesAt` forward one hour after `createEvent` returns, before driving the bet. `commitEvent` does not consult `closesAt`, so no further patching is needed for the commit step.
+- `TRUNCATE TABLE` list extended to include `events` (the existing `bet-and-resolve.test.ts` omits it; harmless there because that test never inserts events). CASCADE handles ordering automatically.
+- Mocks for `@/data/auth` and `next/cache` reuse the same pattern as `bet-and-resolve.test.ts`. `vi.mock` calls are hoisted; runtime imports use top-level `await import(...)` to defer module eval until after the mocks register.
