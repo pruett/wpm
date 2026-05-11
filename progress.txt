@@ -134,3 +134,25 @@ Translator tests rewritten (`src/lib/kalshi/translator.test.ts`):
 ### Gotcha
 - `TranslatedMarketRow = Omit<MarketInsert, "status" | "createdAt" | "eventId">` must omit `eventId` because the DB layer wires it during insertion (it's the FK to the parent event row created in the same transaction). Including it in the translator output type would force the translator to know its own event ID at row-construction time, which it already does — but keeping the consumer responsible for that wiring matches the pattern used in Phase 1's `createEvent`.
 - The integration test `tests/integration/bet-and-resolve.test.ts` still consumes the legacy `createMarket` shape directly; its `LegacyCreateMarketInput` type is wide enough to accept that shape. It'll be rewritten in Phase 6.
+
+## 2026-05-11 — Phase 0 Slice 1: Add `createEvent` in `data/events.ts`
+
+Created `src/data/events.ts` with the new `createEvent` function that consumes the translator's `TranslatedEvent` shape (`{event, markets[]}`) and persists one `events` row + N `markets` rows + N `ammPools` rows in a single DB transaction. Per-Market `initializePool` seeding debits the treasury once per child Market and emits one `CreateMarket` transaction row per child.
+
+`ingest.ts` now calls `createEvent(result.value)` directly, replacing the Slice 1 A/B-collapsing shim that wrapped the legacy `createMarket`. The ingest driver is now N-Market-capable for the happy path (Slice 2 still needs the rejection variants `too_many_markets` and `inconsistent_close_times`).
+
+### Mapping legacy AMM reserves to YES-first reserves
+`initializePool` (still in legacy A/B form during Slice 1) returns `sharesA`/`sharesB`. Under the YES-first model, `sharesA → reserveYes` and `sharesB → reserveNo`. The mapping holds because the legacy `calculatePrices` defines `priceA = sharesB / total` — so feeding `initialProbabilityYes` directly as the `initialProbabilityA` argument makes `priceA = priceYes` and therefore the "A" reserve is the YES reserve. The `ammPools` insert populates both legacy (`reserveA/B`) and new (`reserveYes/No`) columns to keep downstream consumers compiling until Phase 1 drops the legacy pair.
+
+### Legacy `createMarket` retention
+`createMarket` in `src/data/markets.ts` is kept (not deleted) because `tests/integration/bet-and-resolve.test.ts` still imports and calls it. The integration test is slated for rewrite in Phase 6; removing `createMarket` now would break the typecheck on a file outside the Slice 1 scope.
+
+### Files changed
+- `src/data/events.ts` (new)
+- `src/lib/kalshi/ingest.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bunx oxlint src/data/events.ts src/lib/kalshi/ingest.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `events.ts`).
