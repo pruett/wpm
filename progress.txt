@@ -806,3 +806,39 @@ Followed the same procedure as the prior regen:
 - `bunx oxlint src/lib/db/schema/app.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean (after `oxfmt --write`
   on snapshot + journal).
+
+## 2026-05-11 — Phase 3: Decision test for 5-child mixed commit
+
+Added the final outstanding `decideEventCommit` resolver decision test:
+a 5-child Event past the 48h deadline that combines three cleanly-resolved
+children (`resolved_yes` / `resolved_no` / `resolved_yes`), one
+`cancelled_scalar`, and one `cancelled_no_settlement` (still-active child
+past deadline). Asserts the commit plan emits all five outcomes in order.
+
+Constructed in-memory by combining fixture children from `settled-a-wins`,
+`settled-scalar`, and `not-settled-yet`. The third clean child is a clone
+of the yes-settled NYY market with `-CLONE` appended to its ticker so the
+wampum-side ticker match remains unambiguous.
+
+The yes/no/yes mix on the cleanly-settled trio is intentional — three
+`resolved_no` children alongside a scalar + pending would NOT trip the
+void-semantics post-pass (since `every === resolved_no` requires every
+outcome be `resolved_no`, and the pending child commits as
+`cancelled_no_settlement`), but using a mix keeps the test's intent visible
+at the call site: "this is a heterogeneous commit plan, not a void event".
+
+### Files changed
+- `src/lib/kalshi/resolve.test.ts` (new test case)
+- `PLAN.md` (mark Phase 3 line 119 complete)
+
+### Verification
+- `bun run test` — 39/39 unit tests pass (was 38; +1 new resolve test).
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bunx oxlint src/lib/kalshi/resolve.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/kalshi/resolve.test.ts` — clean.
+
+### Notes
+- This closes the Phase 3 "Resolver decision tests" block entirely; the
+  remaining Phase 3 work is the resolver driver bullets and Settlement
+  tests (settlement.test.ts updates and event-atomic commit assertions).

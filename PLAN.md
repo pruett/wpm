@@ -116,7 +116,7 @@
 - [x] `commit` with mixed `cancelled_no_settlement` + `resolved_*` past the deadline.
 - [x] `commit` with all `cancelled_voided` when every child settled `no`.
 - [x] `commit` with `cancelled_scalar` on a single child alongside normally-resolved siblings.
-- [ ] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
+- [x] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
 
 ### Settlement (`lib/settlement.ts`)
 - [ ] `computeSettlement` takes commit plan + per-child positions + per-child pools → returns per-child payouts list, per-child backstop deltas, and final statuses.
