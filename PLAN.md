@@ -136,11 +136,11 @@
 - [ ] Simulated mid-commit failure leaves no rows behind (DB transaction rollback).
 
 ### AMM tests (`amm.test.ts`)
-- [ ] Adapt existing tests to `reserveYes/No` naming; drop `outcome` param from `calculateBuy` cases.
-- [ ] `initializePool` produces integer YES/NO reserves matching `initialProbabilityYes` to within one unit.
-- [ ] `calculateBuy` preserves/grows `k` across every trade.
-- [ ] `calculateBuy` against degenerate pool (one reserve at floor) does not under-pay/panic.
-- [ ] `calculatePrices` returns `priceYes + priceNo = 1` within float tolerance.
+- [x] Adapt existing tests to `reserveYes/No` naming; drop `outcome` param from `calculateBuy` cases.
+- [x] `initializePool` produces integer YES/NO reserves matching `initialProbabilityYes` to within one unit.
+- [x] `calculateBuy` preserves/grows `k` across every trade.
+- [x] `calculateBuy` against degenerate pool (one reserve at floor) does not under-pay/panic.
+- [x] `calculatePrices` returns `priceYes + priceNo = 1` within float tolerance.
 - [x] Remove `calculateSell` and `isqrt` test cases (their absence is the type contract).
 
 ---

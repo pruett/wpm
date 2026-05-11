@@ -1181,3 +1181,59 @@ in the Phase 6 integration test bucket, not in `settlement.test.ts`.
   (transactions, balance row writes, status flips) and belongs in
   `tests/integration/`. The pure settlement function is the right
   surface for these property assertions.
+
+## 2026-05-11 — Phase 3: AMM tests cleanup
+
+PLAN lines 139–143: filled in the four missing AMM unit tests called for by
+the multi-outcome plan and confirmed line 139 (reserveYes/No naming, no
+`outcome` param on `calculateBuy`) was already true of every existing case.
+
+Coverage added:
+- `initializePool` "implied probability tracks the seed within one unit":
+  parameterised over five YES probabilities, confirms total reserves equal
+  `2 * seed` (no rounding leak) and that `reserveNo / total` reproduces the
+  requested probability within `1/total` — i.e. the integer truncation cost
+  is bounded by exactly one unit.
+- `calculateBuy` "does not under-pay or panic when YES reserve is at the
+  floor": seeds at the clamped extreme (0.99 → reserveYes ≈ 20) and sweeps
+  with a 100k buy. Asserts shares > deposit (the AMM still honours a swap
+  out), reserveYes stays positive but strictly shrinks, and `k` is preserved
+  via the constant-product invariant.
+- `calculatePrices` describe block (new): one parameterised case across five
+  skews verifying `priceYes + priceNo === 1` to ten decimal places, plus a
+  post-trade case asserting the sum still holds and `priceYes` moved past
+  0.5 after a YES buy.
+
+The four "calculateOdds" tests already covered the prices-sum-to-1 invariant
+indirectly (since `calculateOdds` wraps `calculatePrices`), but the PLAN
+asks for an explicit test on `calculatePrices` itself — added rather than
+just leaning on the wrapper.
+
+### Files changed
+- `src/lib/amm.test.ts` (added "implied probability" case in initializePool;
+  added degenerate-pool case in calculateBuy; added new `calculatePrices`
+  describe block with two cases)
+- `PLAN.md` (mark Phase 3 AMM tests lines 139–143 complete)
+
+### Verification
+- `bun run test` — 47/47 pass (was 43; +4 new cases).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/lib/amm.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/amm.test.ts` — clean.
+
+### Notes
+- The "within one unit" wording in PLAN line 140 is about the implied
+  probability, not the reserve magnitudes — `floor((2*seed * (1-p)))` can be
+  off by at most 1 from the real-valued target, which translates to a
+  probability error of at most `1/total`. Pinned exactly that bound rather
+  than a looser tolerance so the test would fail loudly if anyone widened
+  the rounding (e.g. by switching to ceil-div on init).
+- Picked `0.99` for the degenerate test because the clamp pushes any
+  `p >= 0.99` into the same MIN_PROB_BPS edge — no need to test 1.0
+  separately, since clampProbBps collapses both inputs to the same pool.
+- `calculateBuy` against an extreme pool: 100k WPM into reserveNo ≈ 1980
+  drives newReserveYes via `ceilDiv(k, newReserveNo)` to a tiny number but
+  never zero, since k > 0 and ceil-div rounds the retained YES side UP. The
+  test pins both invariants so a future refactor can't silently switch to
+  floor-div or non-bigint math.
