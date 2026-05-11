@@ -4,6 +4,7 @@ import type { KalshiEvent } from "./index.js";
 
 import notSettledYet from "./fixtures/not-settled-yet.json" with { type: "json" };
 import settledAWins from "./fixtures/settled-a-wins.json" with { type: "json" };
+import settledScalar from "./fixtures/settled-scalar.json" with { type: "json" };
 import settledVoided from "./fixtures/settled-voided.json" with { type: "json" };
 import { decideEventCommit, type WampumEventForDecision } from "./resolve.js";
 
@@ -73,6 +74,39 @@ describe("decideEventCommit", () => {
     const decision = decideEventCommit(wampum, kalshi, BEFORE_DEADLINE);
 
     expect(decision).toEqual({ kind: "wait" });
+  });
+
+  it("commits cancelled_scalar for a scalar child alongside cleanly-resolved siblings", () => {
+    // Mixed payload: a yes-settled child from one event paired with a
+    // scalar-settled child from another. The scalar child should commit as
+    // `cancelled_scalar` while the sibling resolves normally on its `result`.
+    const settledA = eventOf(settledAWins);
+    const scalar = eventOf(settledScalar);
+    const yesChild = (settledA.markets ?? [])[0];
+    const scalarChild = (scalar.markets ?? [])[0];
+
+    const kalshi: KalshiEvent = {
+      ...settledA,
+      markets: [yesChild, scalarChild],
+    };
+
+    const wampum: WampumEventForDecision = {
+      id: `kalshi-${kalshi.event_ticker}`,
+      closesAt: CLOSES_AT,
+      markets: [
+        { id: `kalshi-${yesChild.ticker}`, ticker: yesChild.ticker },
+        { id: `kalshi-${scalarChild.ticker}`, ticker: scalarChild.ticker },
+      ],
+    };
+
+    const decision = decideEventCommit(wampum, kalshi, BEFORE_DEADLINE);
+
+    expect(decision.kind).toBe("commit");
+    if (decision.kind !== "commit") return;
+    expect(decision.perChild).toEqual([
+      { marketId: `kalshi-${yesChild.ticker}`, outcome: "resolved_yes" },
+      { marketId: `kalshi-${scalarChild.ticker}`, outcome: "cancelled_scalar" },
+    ]);
   });
 
   it("degrades unsettled children to cancelled_no_settlement past the deadline alongside cleanly-settled siblings", () => {
