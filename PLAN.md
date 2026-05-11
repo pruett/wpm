@@ -76,12 +76,12 @@
 - [x] Delete `translateKalshiResolution` from this file — its replacement (`decideEventCommit`) lives in `resolve.ts`.
 
 ### Translator tests (`translator.test.ts`)
-- [ ] Rewrite: 2-Market happy path → one Event + 2 Markets, both `initialProbabilityYes` correct.
+- [x] Rewrite: 2-Market happy path → one Event + 2 Markets, both `initialProbabilityYes` correct.
 - [x] Rewrite: 5-Market happy path → one Event + 5 Markets, all consistent.
-- [ ] Rejection: any child wide spread → `insufficient_confidence` with that child's ticker in reasons.
-- [ ] Rejection: any child missing bid/ask → `no_initial_price`.
-- [ ] Rejection: 31 children → `too_many_markets` with count.
-- [ ] Rejection: siblings disagree on `expected_expiration_time` → `inconsistent_close_times`.
+- [x] Rejection: any child wide spread → `insufficient_confidence` with that child's ticker in reasons.
+- [x] Rejection: any child missing bid/ask → `no_initial_price`.
+- [x] Rejection: 31 children → `too_many_markets` with count.
+- [x] Rejection: siblings disagree on `expected_expiration_time` → `inconsistent_close_times`.
 - [x] Verify `pair_inconsistent` is no longer reachable (children with disagreeing midpoints translate fine).
 - [x] Output row shapes match schema-derived insert types (compile-time check).
 - [x] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
