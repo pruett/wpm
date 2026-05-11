@@ -128,6 +128,7 @@ export type ChildError = { marketId: string; reason: string };
 export type SeriesResolveSummary = {
   considered: number;
   committed: number;
+  committedEventIds: string[];
   perChildOutcomes: Record<ChildOutcomeKind, number>;
   skipped: Record<SkipReason, number>;
   commitFailures: CommitFailure[];
@@ -139,6 +140,7 @@ export type KalshiResolveSummary = {
   totals: {
     considered: number;
     committed: number;
+    committedEventIds: string[];
     perChildOutcomes: Record<ChildOutcomeKind, number>;
     skipped: Record<SkipReason, number>;
     commitFailures: (CommitFailure & { series: string })[];
@@ -174,6 +176,7 @@ function emptySeriesSummary(): SeriesResolveSummary {
   return {
     considered: 0,
     committed: 0,
+    committedEventIds: [],
     perChildOutcomes: emptyChildOutcomeCounters(),
     skipped: emptySkipCounters(),
     commitFailures: [],
@@ -196,6 +199,7 @@ export async function runKalshiResolve(now: number = Date.now()): Promise<Kalshi
     totals: {
       considered: 0,
       committed: 0,
+      committedEventIds: [],
       perChildOutcomes: emptyChildOutcomeCounters(),
       skipped: emptySkipCounters(),
       commitFailures: [],
@@ -245,6 +249,7 @@ export async function runKalshiResolve(now: number = Date.now()): Promise<Kalshi
     summary.bySeries[seriesTicker] = seriesSummary;
     summary.totals.considered += seriesSummary.considered;
     summary.totals.committed += seriesSummary.committed;
+    summary.totals.committedEventIds.push(...seriesSummary.committedEventIds);
     for (const key of Object.keys(seriesSummary.perChildOutcomes) as ChildOutcomeKind[]) {
       summary.totals.perChildOutcomes[key] += seriesSummary.perChildOutcomes[key];
     }
@@ -317,6 +322,7 @@ async function resolveSeries(
     }
 
     summary.committed++;
+    summary.committedEventIds.push(wampumEvent.id);
     for (const child of result.perChild) {
       summary.perChildOutcomes[child.outcome]++;
       if (child.status.kind === "error") {

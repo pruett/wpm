@@ -1641,3 +1641,52 @@ Verification points:
 - Did not touch the Phase 1 schema purge (lines 41-44, 47) since the prior
   progress entry already flagged it as load-bearing and deserving a dedicated
   commit due to cascade into UI + positions.ts + integration test.
+
+## 2026-05-11 — Phase 4: per-event cache revalidation on commit
+
+PLAN line 156 (Update cache tags: `tags.event(id)` alongside `tags.market(id)`;
+revalidate both on bet placement and Event commit) was half-done: bet placement
+already revalidated `tags.event(...)`, but the cron `/resolve` route only
+revalidated the coarse `tags.marketsAll()` tag, never the per-event tag for
+events it had just committed. Finished the second half by threading committed
+event IDs through the resolver summary and revalidating each one in the cron
+route.
+
+### What changed
+- `src/lib/kalshi/resolve.ts` — added `committedEventIds: string[]` to both
+  `SeriesResolveSummary` and `KalshiResolveSummary.totals`. Populated in
+  `emptySeriesSummary`, in the empty totals object in `runKalshiResolve`,
+  appended in `resolveSeries` after a successful `commitEvent` call, and
+  rolled up from each series summary into `summary.totals.committedEventIds`.
+- `src/app/api/cron/resolve/route.ts` — after the existing
+  `tags.marketsAll()` revalidation, iterate `summary.totals.committedEventIds`
+  and call `revalidateTag(tags.event(eventId), "max")` for each one.
+
+### Files changed
+- `src/lib/kalshi/resolve.ts`
+- `src/app/api/cron/resolve/route.ts`
+- `PLAN.md` (mark line 156 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint` on the two changed files — 0 warnings, 0 errors.
+- `bunx oxfmt` — formatted clean.
+
+### Notes
+- The committed-event ID list is a flat `string[]` (not a `Set`), since
+  duplicates are impossible: each event ID appears at most once in the
+  `events WHERE status='open' AND closesAt < now` query result, and the
+  resolver only pushes after a successful commit. The cron route iterates it
+  directly without dedup.
+- Used `"max"` as the revalidate strength to mirror the existing
+  `revalidateTag(tags.marketsAll(), "max")` call. Same call shape, same
+  semantics.
+- Closes out the follow-up flagged in the prior bet-placement entry
+  ("a follow-up task should add committed-event-ID tracking to
+  `KalshiResolveSummary` and wire per-event revalidation in
+  `src/app/api/cron/resolve/route.ts`").
+- Resolver tests don't assert on summary shape, so no test changes were
+  required. The integration tests (which would exercise the cron route)
+  remain on the Phase 6 to-do list.

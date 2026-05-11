@@ -18,6 +18,9 @@ export async function GET(request: Request) {
     if (summary.totals.resolved > 0 || summary.totals.cancelled > 0) {
       revalidateTag(tags.marketsAll(), "max");
     }
+    for (const eventId of summary.totals.committedEventIds) {
+      revalidateTag(tags.event(eventId), "max");
+    }
     return NextResponse.json(summary);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Kalshi resolve failed";
