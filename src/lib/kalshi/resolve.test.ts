@@ -109,6 +109,50 @@ describe("decideEventCommit", () => {
     ]);
   });
 
+  it("commits mixed outcomes (cancelled_scalar + cancelled_no_settlement + three resolved_*) past the deadline", () => {
+    // Synthesise a 5-child event combining: one yes-settled child, one
+    // no-settled child, another yes-settled child (so void semantics doesn't
+    // trip), one scalar-settled child, and one still-active child. Past the
+    // deadline, the active child degrades to cancelled_no_settlement; the
+    // others commit on their respective Kalshi results.
+    const settledA = eventOf(settledAWins);
+    const scalar = eventOf(settledScalar);
+    const pending = eventOf(notSettledYet);
+    const yesChild = (settledA.markets ?? [])[0];
+    const noChild = (settledA.markets ?? [])[1];
+    const scalarChild = (scalar.markets ?? [])[0];
+    const pendingChild = (pending.markets ?? [])[0];
+
+    // Clone yesChild with a fresh ticker so the third clean child has a
+    // distinct match key on the wampum side.
+    const yesChild2 = { ...yesChild, ticker: `${yesChild.ticker}-CLONE` };
+
+    const children = [yesChild, noChild, yesChild2, scalarChild, pendingChild];
+
+    const kalshi: KalshiEvent = {
+      ...settledA,
+      markets: children,
+    };
+
+    const wampum: WampumEventForDecision = {
+      id: `kalshi-${kalshi.event_ticker}`,
+      closesAt: CLOSES_AT,
+      markets: children.map((m) => ({ id: `kalshi-${m.ticker}`, ticker: m.ticker })),
+    };
+
+    const decision = decideEventCommit(wampum, kalshi, AFTER_DEADLINE);
+
+    expect(decision.kind).toBe("commit");
+    if (decision.kind !== "commit") return;
+    expect(decision.perChild).toEqual([
+      { marketId: `kalshi-${yesChild.ticker}`, outcome: "resolved_yes" },
+      { marketId: `kalshi-${noChild.ticker}`, outcome: "resolved_no" },
+      { marketId: `kalshi-${yesChild2.ticker}`, outcome: "resolved_yes" },
+      { marketId: `kalshi-${scalarChild.ticker}`, outcome: "cancelled_scalar" },
+      { marketId: `kalshi-${pendingChild.ticker}`, outcome: "cancelled_no_settlement" },
+    ]);
+  });
+
   it("degrades unsettled children to cancelled_no_settlement past the deadline alongside cleanly-settled siblings", () => {
     // Mixed payload: child A is settled with result=yes, child B is still active.
     const settledA = eventOf(settledAWins);
