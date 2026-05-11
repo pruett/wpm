@@ -737,3 +737,28 @@ canonical happy path; void/wait/deadline cases follow.
   overload error remains.
 - `bunx oxlint src/lib/kalshi/resolve.test.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check src/lib/kalshi/resolve.test.ts` — clean.
+
+## 2026-05-11 — Phase 3: Decision test for cancelled_scalar with normally-resolved siblings
+
+Added the missing `decideEventCommit` test case for a mixed commit where one
+child settles `scalar` (refund-on-costBasis) alongside a sibling that resolves
+normally on its Kalshi `result`. Constructs the payload in-memory by combining
+the first child from `settled-a-wins.json` (yes) with the first child from
+`settled-scalar.json` (scalar), then asserts the commit plan emits
+`[resolved_yes, cancelled_scalar]`.
+
+Same in-memory mix pattern as the deadline-degradation test — keeps the test's
+intent (mixed scalar/clean state) visible at the call site without fabricating
+a near-duplicate JSON fixture.
+
+### Files changed
+- `src/lib/kalshi/resolve.test.ts` (new test case + `settled-scalar.json`
+  fixture import)
+- `PLAN.md` (mark Phase 3 resolver decision test bullet complete)
+
+### Verification
+- `bun run test` — 38/38 unit tests pass (was 37; +1 new resolve test).
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bunx oxlint src/lib/kalshi/resolve.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/kalshi/resolve.test.ts` — clean.

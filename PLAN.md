@@ -115,7 +115,7 @@
 - [x] `commit` with all children `resolved_yes`/`resolved_no` when every child terminal.
 - [x] `commit` with mixed `cancelled_no_settlement` + `resolved_*` past the deadline.
 - [x] `commit` with all `cancelled_voided` when every child settled `no`.
-- [ ] `commit` with `cancelled_scalar` on a single child alongside normally-resolved siblings.
+- [x] `commit` with `cancelled_scalar` on a single child alongside normally-resolved siblings.
 - [ ] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
 
 ### Settlement (`lib/settlement.ts`)
