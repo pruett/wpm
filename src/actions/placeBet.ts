@@ -20,6 +20,7 @@ export async function placeBet(input: z.input<typeof PlaceBetInput>): Promise<Ac
     const result = await placeBetDAL(parsed.data);
 
     revalidateTag(tags.market(result.marketId), "max");
+    if (result.eventId) revalidateTag(tags.event(result.eventId), "max");
     revalidateTag(tags.viewer(result.userId), "max");
 
     return { success: true };
