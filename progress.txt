@@ -44,3 +44,23 @@ Followed the Slice 1 strategy established in the prior task: additive changes on
 ### Notes
 - `eventId` is intentionally nullable in the schema right now: while old A/B columns coexist, existing seeded markets can't satisfy a NOT NULL FK. The migration regen in Phase 1 will tighten this once the full reshape lands and the table is wiped.
 - `name` already existed on `markets` before this task — no add needed.
+
+## 2026-05-11 — Phase 0 Slice 1: Reshape `ammPools` & `positions` (additive)
+
+Added the new YES-oriented columns to the `ammPools` and `positions` pgTables in `src/lib/db/schema/app.ts` per PRD §Schema:
+- `ammPools.reserveYes` (bigint, nullable) — YES-side reserve, replaces `reserveA`
+- `ammPools.reserveNo` (bigint, nullable) — NO-side reserve, replaces `reserveB`
+- `positions.shares` (bigint, default 0) — collapsed YES-only share count, replaces `sharesA`/`sharesB`
+
+Continued the Slice 1 additive strategy established in prior tasks: the new columns sit alongside `reserveA/B` and `sharesA/sharesB` so the existing AMM/settlement/trading/positions consumers still compile. The actual drop of the old columns is deferred to Phase 1 (per PLAN §Phase 1 "Delete obsolete columns from `app.ts`"), where the migration regen will wipe and recreate the affected tables.
+
+`SellShares` is also deliberately left in `transactionTypes` for now. Dropping that enum value would immediately break `src/data/trading.ts:sellShares` and `src/actions/sellShares.ts`, both of which are slated for deletion in a later Slice 1 task ("Update placeBet server action … delete `src/actions/sellShares.ts`"). The drop will land together with the consumer removal so we never have a partial-compile state.
+
+### Files changed
+- `src/lib/db/schema/app.ts`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bunx oxfmt --check src/lib/db/schema/app.ts` — clean.
+- `bunx oxlint src/lib/db/schema/app.ts` — 0 warnings, 0 errors.
+- `bun run test` — 48/48 vitest unit tests pass (settlement, amm, translator).
