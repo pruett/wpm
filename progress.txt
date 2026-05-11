@@ -587,3 +587,57 @@ The Markets count is derived from `result.value.markets.length` for each success
 - `bun run test` — 33/33 unit tests pass.
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean.
+
+## 2026-05-11 — Phase 3: Void semantics in `decideEventCommit`
+
+Extended the resolver decision core's happy path with Event-level void semantics
+(PRD §Resolver). When every child Market in a terminal Event has Kalshi
+`result: "no"`, the decision now rewrites every child's outcome from
+`resolved_no` to `cancelled_voided` so each holder is refunded their cost basis
+rather than booking a loss. Single post-pass over the assembled `perChild`
+array — no change to the per-child walk or the wait/scalar/unknown branches.
+
+`commitEvent`/`computeEventSettlement` already handle `cancelled_voided` as a
+refund-on-costBasis branch (added in Phase 0 Slice 1), so no downstream wiring
+needed.
+
+### New test file: `src/lib/kalshi/resolve.test.ts`
+
+Drives `decideEventCommit` with the existing `settled-voided.json` fixture
+(2-Market rainout where both children settle "no"). Builds a minimal
+`WampumEventForDecision` whose child tickers/ids mirror the Kalshi event, then
+asserts the decision is `commit` with both children carrying
+`outcome: 'cancelled_voided'`.
+
+### Vitest config: `server-only` and `@/` aliases for unit tests
+
+`resolve.ts` imports `"server-only"` at the top and uses `@/` path aliases.
+The integration vitest config already had these aliased; the unit config did
+not, so the new resolve test failed on module load. Added both aliases to
+`vitest.config.ts` (mirroring the integration setup — same `server-only` stub
+file under `tests/integration/stubs/`). With the alias in place, any future
+unit tests that need to import server-only modules just work.
+
+### Files changed
+- `src/lib/kalshi/resolve.ts` (void-semantics post-pass)
+- `src/lib/kalshi/resolve.test.ts` (new)
+- `vitest.config.ts` (server-only + @ aliases)
+- `PLAN.md` (mark two bullets complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bun run test` — 34/34 unit tests pass (was 33; +1 new resolve test).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on the
+  new test file).
+
+### Notes
+- The decision is structured so void semantics only triggers when every child
+  resolved to `no` — siblings that hit `cancelled_scalar` or `resolved_yes`
+  keep their outcomes and the Event commits normally. The `perChild.length > 0`
+  guard is defensive against an Event with zero children (shouldn't happen in
+  practice — the translator rejects those via `unparseable_close_time`).
+- Deadline degradation (`cancelled_no_settlement` past the 48h deadline) is
+  the next Phase 3 bullet; it's a separate code path that runs before the
+  happy-path walk (since it gates on `now` vs `closesAt + 48h`).

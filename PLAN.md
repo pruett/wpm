@@ -99,7 +99,7 @@
 - [ ] Extract pure `decideEventCommit(wampumEvent, kalshiResponse, now)` returning `{ kind: 'wait' } | { kind: 'commit', perChild: ChildOutcome[] }`.
 - [ ] `ChildOutcome` = `{ marketId, outcome: 'resolved_yes' | 'resolved_no' | 'cancelled_voided' | 'cancelled_scalar' | 'cancelled_no_settlement' }`.
 - [ ] Happy path: every child terminal → map each child's Kalshi `result` to `resolved_yes`/`resolved_no`/`cancelled_scalar`.
-- [ ] Void semantics: all children settled `no` → all `cancelled_voided`.
+- [x] Void semantics: all children settled `no` → all `cancelled_voided`.
 - [ ] Deadline degradation: `now >= closesAt + 48h` AND any non-terminal child → unsettled children get `cancelled_no_settlement`, cleanly-settled siblings resolve on their `result`.
 - [ ] Wait: at least one non-terminal child AND deadline not reached → `{ kind: 'wait' }`.
 
@@ -114,7 +114,7 @@
 - [ ] `wait` when any child non-terminal and deadline not reached.
 - [ ] `commit` with all children `resolved_yes`/`resolved_no` when every child terminal.
 - [ ] `commit` with mixed `cancelled_no_settlement` + `resolved_*` past the deadline.
-- [ ] `commit` with all `cancelled_voided` when every child settled `no`.
+- [x] `commit` with all `cancelled_voided` when every child settled `no`.
 - [ ] `commit` with `cancelled_scalar` on a single child alongside normally-resolved siblings.
 - [ ] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
 
