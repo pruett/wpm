@@ -20,7 +20,7 @@
 - [x] Rewrite `translateKalshiEvent` happy path: 2-Market Kalshi Event → `{ event: EventInsertRow, markets: [{market, seedAmount, initialProbabilityYes}, ...] }` discriminated union (no `non_binary` rejection).
 - [x] Update `createMarket` (rename to `createEvent` in `data/events.ts`): insert one `events` row + N `markets` rows + N `ammPools` rows in a single DB transaction; per-Market `initializePool` seeding.
 - [x] Rewrite `placeBet` in `data/trading.ts`: signature `(marketId, amount)` — buy YES only; reads pool with `reserveYes/No`, calls new `calculateBuy(pool, amount)` (YES-only), writes `positions.shares`.
-- [ ] Update `decideEventCommit(wampumEvent, kalshiResponse, now)` pure function in `lib/kalshi/resolve.ts`: returns `wait` or `commit` plan; happy path = all children terminal → resolve-per-`result`.
+- [x] Update `decideEventCommit(wampumEvent, kalshiResponse, now)` pure function in `lib/kalshi/resolve.ts`: returns `wait` or `commit` plan; happy path = all children terminal → resolve-per-`result`.
 - [ ] Wire resolver: select from `events WHERE status='open' AND closesAt < now`; per-series batch fetch; apply commit plan in one DB transaction per Event.
 - [ ] Adapt `computeSettlement` to operate over a commit plan + cross-child positions/pools → per-child payouts in one batch; rewire `resolveMarket`/`cancelMarket` into a single `commitEvent`.
 - [ ] Update `placeBet` server action (`src/actions/placeBet.ts`): drop `outcome` from Zod schema; delete `src/actions/sellShares.ts`.
