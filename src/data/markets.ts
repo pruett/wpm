@@ -40,8 +40,8 @@ function toMarket(row: MarketRow): Market {
 function toPool(row: PoolRow): AMMPool {
   return {
     marketId: row.marketId,
-    sharesA: row.reserveA,
-    sharesB: row.reserveB,
+    reserveYes: row.reserveA,
+    reserveNo: row.reserveB,
     k: row.reserveA * row.reserveB,
     liquidity: row.wpmReserve,
   };
@@ -168,8 +168,8 @@ export async function createMarket(input: LegacyCreateMarketInput): Promise<Crea
 
     await tx.insert(ammPools).values({
       marketId: market.id,
-      reserveA: pool.sharesA,
-      reserveB: pool.sharesB,
+      reserveA: pool.reserveYes,
+      reserveB: pool.reserveNo,
       wpmReserve: pool.liquidity,
       seedAmount,
     });

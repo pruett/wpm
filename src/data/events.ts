@@ -44,10 +44,6 @@ export async function createEvent(input: TranslatedEvent): Promise<CreateEventRe
 
     for (const child of childMarkets) {
       const { market, seedAmount, initialProbabilityYes } = child;
-      // initializePool returns sharesA/sharesB in the legacy AMM. Under the
-      // YES-first model (Slice 1 additive): sharesA → reserveYes (the retained
-      // YES side), sharesB → reserveNo. priceYes = sharesB/total, which
-      // matches `initialProbabilityYes` when we pass it as the probability.
       const pool = initializePool(market.id, seedAmount, initialProbabilityYes);
 
       await tx
@@ -64,10 +60,10 @@ export async function createEvent(input: TranslatedEvent): Promise<CreateEventRe
 
       await tx.insert(ammPools).values({
         marketId: market.id,
-        reserveA: pool.sharesA,
-        reserveB: pool.sharesB,
-        reserveYes: pool.sharesA,
-        reserveNo: pool.sharesB,
+        reserveA: pool.reserveYes,
+        reserveB: pool.reserveNo,
+        reserveYes: pool.reserveYes,
+        reserveNo: pool.reserveNo,
         wpmReserve: pool.liquidity,
         seedAmount,
       });

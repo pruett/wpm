@@ -62,8 +62,8 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     const { shares, newPool } = calculateBuy(
       {
         marketId,
-        sharesA: reserveYes,
-        sharesB: reserveNo,
+        reserveYes,
+        reserveNo,
         k: reserveYes * reserveNo,
         liquidity: poolRow.wpmReserve,
       },
@@ -81,10 +81,10 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     await tx
       .update(ammPools)
       .set({
-        reserveA: newPool.sharesA,
-        reserveB: newPool.sharesB,
-        reserveYes: newPool.sharesA,
-        reserveNo: newPool.sharesB,
+        reserveA: newPool.reserveYes,
+        reserveB: newPool.reserveNo,
+        reserveYes: newPool.reserveYes,
+        reserveNo: newPool.reserveNo,
         wpmReserve: sql`${ammPools.wpmReserve} + ${amount}`,
       })
       .where(eq(ammPools.marketId, marketId));
@@ -167,8 +167,8 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
     const { shares, newPool } = calculateBuy(
       {
         marketId,
-        sharesA: poolRow.reserveA,
-        sharesB: poolRow.reserveB,
+        reserveYes: poolRow.reserveA,
+        reserveNo: poolRow.reserveB,
         k: poolRow.reserveA * poolRow.reserveB,
         liquidity: poolRow.wpmReserve,
       },
@@ -184,8 +184,8 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
     await tx
       .update(ammPools)
       .set({
-        reserveA: newPool.sharesA,
-        reserveB: newPool.sharesB,
+        reserveA: newPool.reserveYes,
+        reserveB: newPool.reserveNo,
         wpmReserve: sql`${ammPools.wpmReserve} + ${amount}`,
       })
       .where(eq(ammPools.marketId, marketId));
