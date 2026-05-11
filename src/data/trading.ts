@@ -1,6 +1,8 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
 
+import type { AMMPool } from "@/lib/types";
+
 import { calculateBuy, calculateOdds } from "@/lib/amm";
 import { db } from "@/lib/db";
 import { ammPools, balances, markets, positions, transactions } from "@/lib/db/schema";
@@ -56,9 +58,6 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     const reserveYes = poolRow.reserveYes ?? poolRow.reserveA;
     const reserveNo = poolRow.reserveNo ?? poolRow.reserveB;
 
-    // The legacy AMM still takes an outcome; A === YES, so we hardcode "A".
-    // The dedicated YES-only `calculateBuy(pool, amount)` lands in Phase 1
-    // when the AMM is rewritten.
     const { shares, newPool } = calculateBuy(
       {
         marketId,
@@ -67,7 +66,6 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
         k: reserveYes * reserveNo,
         liquidity: poolRow.wpmReserve,
       },
-      "A",
       amount,
     );
 
@@ -164,17 +162,29 @@ export async function placeBetLegacy(input: PlaceBetLegacyInput): Promise<PlaceB
     const [poolRow] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!poolRow) throw new Error("AMM pool missing");
 
-    const { shares, newPool } = calculateBuy(
+    // Legacy adapter: outcome "A" buys YES directly; outcome "B" buys the NO
+    // side, which we model by flipping the pool's YES/NO reserves before the
+    // YES-only `calculateBuy`, then flipping the resulting reserves back.
+    const flip = outcome === "B";
+    const inReserveYes = flip ? poolRow.reserveB : poolRow.reserveA;
+    const inReserveNo = flip ? poolRow.reserveA : poolRow.reserveB;
+    const { shares, newPool: rawNewPool } = calculateBuy(
       {
         marketId,
-        reserveYes: poolRow.reserveA,
-        reserveNo: poolRow.reserveB,
-        k: poolRow.reserveA * poolRow.reserveB,
+        reserveYes: inReserveYes,
+        reserveNo: inReserveNo,
+        k: inReserveYes * inReserveNo,
         liquidity: poolRow.wpmReserve,
       },
-      outcome,
       amount,
     );
+    const newPool: AMMPool = flip
+      ? {
+          ...rawNewPool,
+          reserveYes: rawNewPool.reserveNo,
+          reserveNo: rawNewPool.reserveYes,
+        }
+      : rawNewPool;
 
     await tx
       .update(balances)

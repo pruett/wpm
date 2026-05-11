@@ -941,3 +941,48 @@ scope for this task.
 - This unblocks the rest of Phase 1's AMM-rewrite tasks (drop outcome
   param, rename calculatePrices/calculateOdds return keys) since the pool
   data structure now matches the YES-only AMM contract.
+
+## 2026-05-11 — Phase 1: Drop `outcome` param from `calculateBuy`
+
+Rewrote `calculateBuy` to a YES-only signature `(pool, amount)`, dropping the
+`"A" | "B"` outcome param per ADR-0007. The function now always treats
+`reserveNo` as the deposited side (grows by `amount`) and `reserveYes` as the
+retained side (shrinks via the constant-product invariant), so callers no
+longer need to thread "which side is being bought" through the AMM.
+
+`placeBet` in `data/trading.ts` simplifies — the hardcoded `"A"` arg goes
+away. `placeBetLegacy` (kept for the pre-multi-outcome integration test)
+adapts by flipping the pool's YES/NO reserves before the call when outcome
+is "B" and flipping the result back; same numerical behavior, just expressed
+on a YES-only kernel. AMM unit tests updated to the new signature, including
+the existing large-trade case (formerly outcome="B") which is now expressed
+directly as a YES buy.
+
+### Files changed
+- `src/lib/amm.ts` (drop `outcome` param; rename target/other locals to
+  `newReserveYes/No`)
+- `src/data/trading.ts` (drop "A" arg in placeBet; flip-pool adapter in
+  placeBetLegacy; import `AMMPool` for the flipped-newPool typing)
+- `src/lib/amm.test.ts` (drop `outcome` arg from all `calculateBuy` calls;
+  rewrite "large trade" case to use YES-buy directly)
+- `PLAN.md` (mark Phase 1 line 59 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 40/40 unit tests pass.
+- `bun run test:integration` — 3/3 tests pass (placeBetLegacy "A" path still
+  works through the new flip adapter).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean (after `oxfmt` rewrap of
+  the calculateBuy signature onto one line).
+
+### Notes
+- The flip-pool trick in `placeBetLegacy` is a temporary scaffold — the
+  legacy adapter (and its sole consumer
+  `tests/integration/bet-and-resolve.test.ts`) gets deleted in Phase 6 when
+  the integration test is rewritten against the new YES-only `placeBet`.
+- The `priceA/priceB` return shape of `calculatePrices`/`calculateOdds` is
+  intentionally untouched here — that rename (Phase 1 lines 60–61) needs a
+  coordinated UI sweep across `bet-controls`, `market-card`, `market-item`,
+  `portfolio`, and `live-odds`.

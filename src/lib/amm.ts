@@ -23,22 +23,15 @@ export function initializePool(
   };
 }
 
-export function calculateBuy(
-  pool: AMMPool,
-  outcome: "A" | "B",
-  amount: bigint,
-): { shares: bigint; newPool: AMMPool } {
-  const [target, other] =
-    outcome === "A" ? [pool.reserveYes, pool.reserveNo] : [pool.reserveNo, pool.reserveYes];
-
-  const newOther = other + amount;
-  // Round the pool's retained side UP so newTarget * newOther >= k.
-  const newTarget = ceilDiv(pool.k, newOther);
-  const swapOut = target - newTarget;
+// YES-only buy under ADR-0007. The buyer deposits `amount` WPM; the NO-side
+// reserve grows by that amount, and the YES-side reserve shrinks via the
+// constant-product invariant. The buyer receives `amount + swapOut` YES shares.
+export function calculateBuy(pool: AMMPool, amount: bigint): { shares: bigint; newPool: AMMPool } {
+  const newReserveNo = pool.reserveNo + amount;
+  // Round the pool's retained YES side UP so newReserveYes * newReserveNo >= k.
+  const newReserveYes = ceilDiv(pool.k, newReserveNo);
+  const swapOut = pool.reserveYes - newReserveYes;
   const shares = amount + swapOut;
-
-  const newReserveYes = outcome === "A" ? newTarget : newOther;
-  const newReserveNo = outcome === "A" ? newOther : newTarget;
 
   const newPool: AMMPool = {
     marketId: pool.marketId,

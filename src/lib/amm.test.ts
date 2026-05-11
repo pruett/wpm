@@ -39,39 +39,39 @@ describe("initializePool", () => {
 describe("calculateBuy", () => {
   it("preserves the constant product invariant (k never shrinks)", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
-    const { newPool } = calculateBuy(pool, "A", 100n);
+    const { newPool } = calculateBuy(pool, 100n);
     expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
   });
 
-  it("increases priceA (YES price) when A is bought (monotonicity)", () => {
+  it("increases priceA (YES price) when YES is bought (monotonicity)", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
-    const { newPool } = calculateBuy(pool, "A", 200n);
+    const { newPool } = calculateBuy(pool, 200n);
     expect(calculatePrices(newPool).priceA).toBeGreaterThan(calculatePrices(pool).priceA);
   });
 
   it("credits liquidity by exactly the amount deposited", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
-    const { newPool } = calculateBuy(pool, "A", 100n);
+    const { newPool } = calculateBuy(pool, 100n);
     expect(newPool.liquidity - pool.liquidity).toBe(100n);
   });
 
   it("rounds against the trader: shares received ≤ float-math fair value", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
-    const { shares } = calculateBuy(pool, "A", 100n);
-    // Float math: newOther=1100, newTarget=1000000/1100=909.09..., swap=90.909..., total=190.909...
+    const { shares } = calculateBuy(pool, 100n);
+    // Float math: newReserveNo=1100, newReserveYes=1000000/1100=909.09..., swap=90.909..., total=190.909...
     const floatFair = 100 + (1000 - 1_000_000 / 1100);
     expect(Number(shares)).toBeLessThanOrEqual(floatFair + 1e-9);
   });
 
   it("handles extreme skew (p=0.99) without losing the invariant", () => {
     const pool = initializePool(MARKET, 1000n, 0.99);
-    const { newPool } = calculateBuy(pool, "A", 500n);
+    const { newPool } = calculateBuy(pool, 500n);
     expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
   });
 
   it("handles large trades relative to liquidity", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
-    const { newPool } = calculateBuy(pool, "B", 10000n);
+    const { newPool } = calculateBuy(pool, 10000n);
     expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
     expect(newPool.reserveYes).toBeGreaterThan(0n);
     expect(newPool.reserveNo).toBeGreaterThan(0n);
