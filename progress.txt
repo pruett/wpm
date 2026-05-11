@@ -1126,3 +1126,58 @@ the seeding choice explicit.
   caller that wants to seed without an opinion on the YES probability.
   Better to fail at the type level than silently lie with a 50/50 seed
   when a translator forgets to thread its midpoint through.
+
+## 2026-05-11 — Phase 3: Pure unit tests for `computeEventSettlement`
+
+PLAN lines 132–135: added four `describe("computeEventSettlement –
+per-child outcomes")` tests covering the pure-logic per-child outcomes
+of the new event-level settlement function. Until now `settlement.test.ts`
+only exercised the legacy `computeSettlement` (sharesA/sharesB) — the new
+YES-only event-level path had zero direct unit coverage.
+
+Coverage added:
+- `resolved_yes` → YES holders get `amount = shares` win rows;
+  `finalStatus = "resolved"`; `resolvedAs = "yes"`.
+- `resolved_no` → every holder gets a zero-amount loss row (still emitted
+  so the audit ledger shows the position cleared); `resolvedAs = "no"`.
+- `cancelled_voided | cancelled_scalar | cancelled_no_settlement` →
+  `costBasis` refund rows (or `zero` rows when costBasis was 0); covered
+  via a loop over all three cancel outcomes since they share the same
+  payout shape per ADR-0004.
+- Per-child treasury backstop: a two-child input with one healthy and
+  one under-collateralised child verifies the backstop fires only on the
+  short child — `m-healthy.backstopAmount === 0n` while
+  `m-short.backstopAmount === 300n`. Confirms the per-child accounting
+  is isolated rather than netted across siblings.
+
+PLAN lines 131 and 136 stay open because they describe the DB-transaction
+effects of `commitEvent` (row counts, rollback semantics) — those belong
+in the Phase 6 integration test bucket, not in `settlement.test.ts`.
+
+### Files changed
+- `src/lib/settlement.test.ts` (added `computeEventSettlement` describe
+  block with four test cases + local `epos`/`child` helpers)
+- `PLAN.md` (mark Phase 3 settlement tests lines 132–135 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 43/43 unit tests pass (was 39 before; +4 new cases).
+- `bunx oxlint src/lib/settlement.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt src/lib/settlement.test.ts` — clean (formatter
+  consolidated one wrapped line in the cancelled_* case).
+
+### Notes
+- Kept the cancelled_* test parameterised over all three outcomes via a
+  loop. The settlement logic treats them identically (they all map to
+  `isCancel`), so a single test verifies the contract without three
+  copy-paste cases drifting apart over time.
+- The under-collateralisation test specifically asserts independent
+  per-child `backstopAmount` values rather than just a positive total —
+  this catches a regression where siblings might net their wpmReserve
+  against each other's payouts, which would violate the per-child
+  accounting in `settleChild`.
+- Did not test `commitEvent` directly because that requires DB plumbing
+  (transactions, balance row writes, status flips) and belongs in
+  `tests/integration/`. The pure settlement function is the right
+  surface for these property assertions.

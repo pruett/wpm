@@ -129,10 +129,10 @@
 
 ### Settlement tests (`settlement.test.ts`)
 - [ ] Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket` rows + one `SettlePayout` per (holder, child-with-position) + correct credits + correct statuses.
-- [ ] Winner on `resolved_yes`: `amount = shares` WPM.
-- [ ] Loser on `resolved_no`: `amount = 0` `SettlePayout` row present.
-- [ ] Holder on `cancelled_*`: `amount = costBasis` refund.
-- [ ] Per-child treasury backstop fires only on under-collateralised child; sibling with healthy reserves does not trigger.
+- [x] Winner on `resolved_yes`: `amount = shares` WPM.
+- [x] Loser on `resolved_no`: `amount = 0` `SettlePayout` row present.
+- [x] Holder on `cancelled_*`: `amount = costBasis` refund.
+- [x] Per-child treasury backstop fires only on under-collateralised child; sibling with healthy reserves does not trigger.
 - [ ] Simulated mid-commit failure leaves no rows behind (DB transaction rollback).
 
 ### AMM tests (`amm.test.ts`)
