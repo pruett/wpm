@@ -19,7 +19,7 @@ const { db, client } = await import("@/lib/db");
 const { ammPools, balances, markets, positions, transactions, treasury, user } =
   await import("@/lib/db/schema");
 const { createMarket, resolveMarket } = await import("@/data/markets");
-const { placeBet } = await import("@/data/trading");
+const { placeBetLegacy: placeBet } = await import("@/data/trading");
 
 const MARKET_ID = "MKT-INT-1";
 const SEED_AMOUNT = 1_000_000n;
