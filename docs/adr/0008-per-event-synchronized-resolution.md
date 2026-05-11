@@ -1,0 +1,27 @@
+# Per-Event synchronized resolution with per-Market deadline degradation
+
+Under the grouped-binaries model (ADR-0006), a Wampum **Event** holds N child **Markets** that each have their own underlying Kalshi Market. Wampum waits for *every* child Kalshi Market to reach terminal status before committing the Event's resolution — at which point all N children are resolved (or cancelled) atomically in one DB transaction. If the 48-hour **Settlement Deadline** elapses before all children have settled, the deadline forces commit: cleanly-settled siblings resolve normally on their actual Kalshi `result`, and unsettled stragglers cancel as `kalshi_no_settlement`.
+
+## Why
+
+- **Mixed-state Events are rare in the contests we ingest.** Sports games have a single moment-of-truth where every nested Kalshi Market settles together (one winner, the rest losers). Multi-outcome shows like the Grammys announce all categories in one window. Golf tournaments finish for all participants together. The "wait for siblings" rule almost never delays the common case meaningfully.
+- **Event-as-unit is the right user mental model.** A user betting on "the Grammys" thinks of one Event with multiple bets, not five independent contracts that happen to be related. UI shows "Event resolved" with per-Market outcomes side-by-side, not a slow drip of one-at-a-time payouts as Kalshi settles each child.
+- **One DB transaction per Event-commit cleanly extends ADR-0002.** Resolution and Settlement still commit atomically — at the Event level now. Every holder still gets exactly one `SettlePayout` row per Market they held in. There is no intermediate "resolved-but-unpaid" state at any granularity.
+- **The deadline still bounds user lockup.** ADR-0002's 48-hour invariant is preserved: no user position remains locked indefinitely. The deadline simply forces a terminal commit when patience runs out — without punishing users on cleanly-settled siblings.
+
+## Considered options
+
+- **Per-Market eager resolution.** As soon as a single Kalshi Market reaches terminal status, resolve and pay out that Wampum Market immediately; siblings stay open until each settles independently. *Rejected:* exposes "partially resolved Event" UI states that almost never reflect a real divergence in the wild, and surrenders the Event-as-unit story for negligible time-to-payout gain in the common case. Mirrors Kalshi 1:1 but doesn't match how users actually think about Events.
+- **Blanket-cancel-on-deadline (Option 2-β).** If the deadline fires with any unsettled sibling, force-cancel *all* children — refund every holder their `costBasis` regardless of how their specific Market would have resolved. *Rejected:* user-hostile. Inverts the deadline's purpose. A user holding YES-shares of a Market whose Kalshi Market settled cleanly within hour 1 would lose their winnings because a *different* sibling Market lagged.
+- **Indefinite wait when any sibling has settled (Option 2-γ).** Treat any settled sibling as proof the Event is real and progressing; wait forever. *Rejected:* violates ADR-0002's deadline invariant. Indefinite lockup is the failure mode the deadline exists to prevent.
+- **Per-Event synchronized with per-Market deadline degradation** (chosen, "Option 2-α").
+
+## Consequences
+
+- **`events.status`** is a 2-state lifecycle: `open | terminal`. `markets.status` carries the per-child terminal state: `open | resolved | cancelled`. The Event commits to `terminal` in the same DB transaction that flips every child Market's status from `open` to either `resolved` or `cancelled` based on its individual Kalshi `result` (or absence thereof past the deadline).
+- **The resolver loop is Event-driven.** Selection: `events WHERE status = 'open' AND closesAt < now`. For each, the resolver fetches the Kalshi Event with all nested Kalshi Markets and either (a) commits the Event terminally if all children are settled, (b) commits terminally with deadline degradation if `now >= closesAt + 48h`, or (c) leaves the Event open and re-checks on the next cron tick.
+- **A single Event-commit DB transaction touches N Markets, N or fewer Pool reserves, and one `SettlePayout` row per holding user per child Market.** The transaction grows with `N × holders`, larger than the per-Market commits of the old design. Acceptable at our scale; revisit if Events with large N and many users introduce contention.
+- **Per-Market `ResolveMarket` and per-holder `SettlePayout` transaction rows still exist** within the Event-commit, sharing the same `createdAt`. No new `ResolveEvent` transaction type — the same-timestamp grouping of per-Market rows tells the Event-commit story without introducing a redundant log entry.
+- **Deadline degradation can produce a mixed terminal Event** — some children `resolved`, some `cancelled`. UI and downstream consumers must accept this honestly rather than try to coerce a single Event-level "resolved vs. cancelled" answer.
+- **Treasury backstop continues to apply per-Market.** Each child Market that resolves YES draws on its own pool's `wpmReserve` for winning-share payouts; if that pool is short, the treasury covers the gap for that Market specifically. ADR-0005's "treasury backstop is high-signal" still holds — per-Market, not per-Event.
+- **ADR-0002 is updated, not superseded.** Its core decision (Kalshi is the sole resolution oracle, our-side-driven polling, 48h Settlement Deadline) is unchanged. This ADR refines *how* that oracle's outputs are committed into Wampum under the new Event/Market shape.

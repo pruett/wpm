@@ -91,6 +91,8 @@ export const ammPools = pgTable("amm_pools", {
     .references(() => markets.id, { onDelete: "cascade" }),
   reserveA: bigint("reserve_a", { mode: "bigint" }).notNull(),
   reserveB: bigint("reserve_b", { mode: "bigint" }).notNull(),
+  reserveYes: bigint("reserve_yes", { mode: "bigint" }),
+  reserveNo: bigint("reserve_no", { mode: "bigint" }),
   wpmReserve: bigint("wpm_reserve", { mode: "bigint" }).notNull(),
   seedAmount: bigint("seed_amount", { mode: "bigint" }).notNull(),
 });
@@ -108,6 +110,9 @@ export const positions = pgTable(
       .notNull()
       .default(sql`0`),
     sharesB: bigint("shares_b", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    shares: bigint("shares", { mode: "bigint" })
       .notNull()
       .default(sql`0`),
     costBasis: bigint("cost_basis", { mode: "bigint" })
