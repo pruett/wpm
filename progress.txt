@@ -442,3 +442,22 @@ Marked three Slice 2 plan bullets complete that were verified done by prior Slic
 ### Notes
 - The DAL function had no DB-migration concern because the `transactions.type` column is plain TEXT with a TS-side enum hint, not a Postgres ENUM type. Historical rows with `type='SellShares'` (if any existed) would still load and serialize as raw text, but in practice there are none — the function never ran in production.
 - `calculateSell` and `isqrt` in `lib/amm.ts` are now both fully orphaned, but their deletion is scheduled as a separate Phase 1 AMM rewrite bullet ("Delete `calculateSell` and `isqrt`") and is not part of this change.
+
+## 2026-05-11 — Phase 1: Delete `calculateSell` and `isqrt` from AMM
+
+Removed the two orphaned legacy AMM functions from `src/lib/amm.ts` and their corresponding test cases from `src/lib/amm.test.ts`. Both functions had zero production consumers — `calculateSell` was last referenced by `data/trading.ts:sellShares`, which was deleted in the prior "Drop SellShares" task, and `isqrt` was a private dependency of `calculateSell`.
+
+Closes two plan bullets:
+- Phase 1 AMM rewrite: "Delete `calculateSell` and `isqrt`. Remove their exports from any consumer."
+- Phase 3 AMM tests: "Remove `calculateSell` and `isqrt` test cases (their absence is the type contract)."
+
+### Files changed
+- `src/lib/amm.ts` (delete `calculateSell` and `isqrt`)
+- `src/lib/amm.test.ts` (delete describe blocks for both)
+- `PLAN.md` (mark two bullets complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 37/37 unit tests pass (was 45 before; 8 deleted: 4 isqrt + 4 calculateSell).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt` on changed files — clean (after `oxfmt --write` on `amm.ts`).

@@ -1,41 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  calculateBuy,
-  calculateOdds,
-  calculatePrices,
-  calculateSell,
-  initializePool,
-  isqrt,
-} from "./amm";
+import { calculateBuy, calculateOdds, calculatePrices, initializePool } from "./amm";
 
 const MARKET = "m1";
-
-describe("isqrt", () => {
-  it("returns 0 and 1 correctly", () => {
-    expect(isqrt(0n)).toBe(0n);
-    expect(isqrt(1n)).toBe(1n);
-  });
-
-  it("returns the integer floor of sqrt for perfect squares", () => {
-    expect(isqrt(4n)).toBe(2n);
-    expect(isqrt(9n)).toBe(3n);
-    expect(isqrt(10000n)).toBe(100n);
-    expect(isqrt(1_000_000n)).toBe(1000n);
-  });
-
-  it("returns the integer floor of sqrt for non-squares", () => {
-    expect(isqrt(2n)).toBe(1n);
-    expect(isqrt(3n)).toBe(1n);
-    expect(isqrt(8n)).toBe(2n);
-    expect(isqrt(99n)).toBe(9n);
-    expect(isqrt(10n ** 18n)).toBe(10n ** 9n);
-  });
-
-  it("throws on negative input", () => {
-    expect(() => isqrt(-1n)).toThrow();
-  });
-});
 
 describe("initializePool", () => {
   it("seeds a 50/50 pool symmetrically", () => {
@@ -108,37 +75,6 @@ describe("calculateBuy", () => {
     expect(newPool.sharesA * newPool.sharesB).toBeGreaterThanOrEqual(pool.k);
     expect(newPool.sharesA).toBeGreaterThan(0n);
     expect(newPool.sharesB).toBeGreaterThan(0n);
-  });
-});
-
-describe("calculateSell", () => {
-  it("preserves the constant product invariant (k never shrinks)", () => {
-    const pool = initializePool(MARKET, 1000n, 0.5);
-    const bought = calculateBuy(pool, "A", 100n);
-    const { newPool } = calculateSell(bought.newPool, "A", bought.shares);
-    expect(newPool.sharesA * newPool.sharesB).toBeGreaterThanOrEqual(bought.newPool.k);
-  });
-
-  it("returns ≤ the original WPM across a buy-then-sell round trip", () => {
-    const pool = initializePool(MARKET, 1000n, 0.5);
-    const amount = 100n;
-    const { shares, newPool: afterBuy } = calculateBuy(pool, "A", amount);
-    const { wpmReturned } = calculateSell(afterBuy, "A", shares);
-    expect(wpmReturned).toBeLessThanOrEqual(amount);
-  });
-
-  it("decreases pool liquidity by exactly wpmReturned", () => {
-    const pool = initializePool(MARKET, 1000n, 0.5);
-    const bought = calculateBuy(pool, "A", 100n);
-    const { wpmReturned, newPool } = calculateSell(bought.newPool, "A", bought.shares);
-    expect(bought.newPool.liquidity - newPool.liquidity).toBe(wpmReturned);
-  });
-
-  it("handles extreme skew sells without violating invariant", () => {
-    const pool = initializePool(MARKET, 1000n, 0.01);
-    const { shares, newPool: afterBuy } = calculateBuy(pool, "A", 50n);
-    const { newPool } = calculateSell(afterBuy, "A", shares);
-    expect(newPool.sharesA * newPool.sharesB).toBeGreaterThanOrEqual(afterBuy.k);
   });
 });
 
