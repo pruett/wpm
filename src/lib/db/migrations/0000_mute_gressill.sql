@@ -143,7 +143,6 @@ ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "passkey" ADD CONSTRAINT "passkey_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "ix_events_status_closes" ON "events" USING btree ("status","closes_at");--> statement-breakpoint
-CREATE INDEX "ix_markets_status_closes" ON "markets" USING btree ("status","closes_at");--> statement-breakpoint
 CREATE INDEX "ix_positions_market" ON "positions" USING btree ("market_id");--> statement-breakpoint
 CREATE INDEX "ix_tx_user" ON "transactions" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "ix_tx_market" ON "transactions" USING btree ("market_id","created_at");--> statement-breakpoint

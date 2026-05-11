@@ -55,31 +55,27 @@ export const events = pgTable(
   (t) => [index("ix_events_status_closes").on(t.status, t.closesAt)],
 );
 
-export const markets = pgTable(
-  "markets",
-  {
-    id: text("id").primaryKey(),
-    eventId: text("event_id").references(() => events.id, {
-      onDelete: "cascade",
-    }),
-    sport: text("sport", { enum: SPORTS }).notNull(),
-    name: text("name").notNull(),
-    ticker: text("ticker"),
-    teamA: text("team_a").notNull(),
-    teamB: text("team_b").notNull(),
-    tickerA: text("ticker_a"),
-    tickerB: text("ticker_b"),
-    closesAt: bigint("closes_at", { mode: "number" }).notNull(),
-    status: text("status", {
-      enum: ["open", "resolved", "cancelled"],
-    }).notNull(),
-    resolvedAs: text("resolved_as", { enum: ["yes", "no"] }),
-    resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
-    resolvedAt: bigint("resolved_at", { mode: "number" }),
-    createdAt: bigint("created_at", { mode: "number" }).notNull(),
-  },
-  (t) => [index("ix_markets_status_closes").on(t.status, t.closesAt)],
-);
+export const markets = pgTable("markets", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").references(() => events.id, {
+    onDelete: "cascade",
+  }),
+  sport: text("sport", { enum: SPORTS }).notNull(),
+  name: text("name").notNull(),
+  ticker: text("ticker"),
+  teamA: text("team_a").notNull(),
+  teamB: text("team_b").notNull(),
+  tickerA: text("ticker_a"),
+  tickerB: text("ticker_b"),
+  closesAt: bigint("closes_at", { mode: "number" }).notNull(),
+  status: text("status", {
+    enum: ["open", "resolved", "cancelled"],
+  }).notNull(),
+  resolvedAs: text("resolved_as", { enum: ["yes", "no"] }),
+  resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
+  resolvedAt: bigint("resolved_at", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
 
 export const eventRelations = relations(events, ({ many }) => ({
   markets: many(markets),
