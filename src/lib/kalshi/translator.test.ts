@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { KalshiEvent } from "./index.js";
 
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
+import multiOutcomeHealthy from "./fixtures/multi-outcome-healthy.json" with { type: "json" };
 import skewedHealthy from "./fixtures/skewed-healthy.json" with { type: "json" };
 import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with { type: "json" };
 import wideSpread from "./fixtures/wide-spread.json" with { type: "json" };
@@ -40,6 +41,64 @@ describe("translateKalshiEvent", () => {
     expect(redSox.market.name).toBe("Red Sox");
     expect(redSox.market.ticker).toBe("KXMLBGAME-25APR24NYYBOS-BOS");
     expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
+  });
+
+  it("translates a healthy 5-Market multi-outcome event into one Event row + five Market rows", () => {
+    const result = translateKalshiEvent(eventOf(multiOutcomeHealthy), "nba");
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+
+    const { event, markets } = result.value;
+    expect(event.id).toBe("kalshi-KXNBACHAMP-26");
+    expect(event.sport).toBe("nba");
+    expect(event.name).toBe("Who will win the 2026 NBA Championship?");
+    expect(event.closesAt).toBe(Date.parse("2026-06-21T03:00:00Z"));
+
+    expect(markets).toHaveLength(5);
+
+    const expected: { id: string; name: string; ticker: string; prob: number }[] = [
+      {
+        id: "kalshi-KXNBACHAMP-26-BOS",
+        name: "Boston Celtics",
+        ticker: "KXNBACHAMP-26-BOS",
+        prob: 0.3,
+      },
+      {
+        id: "kalshi-KXNBACHAMP-26-DEN",
+        name: "Denver Nuggets",
+        ticker: "KXNBACHAMP-26-DEN",
+        prob: 0.25,
+      },
+      {
+        id: "kalshi-KXNBACHAMP-26-OKC",
+        name: "Oklahoma City Thunder",
+        ticker: "KXNBACHAMP-26-OKC",
+        prob: 0.2,
+      },
+      {
+        id: "kalshi-KXNBACHAMP-26-MIN",
+        name: "Minnesota Timberwolves",
+        ticker: "KXNBACHAMP-26-MIN",
+        prob: 0.15,
+      },
+      {
+        id: "kalshi-KXNBACHAMP-26-NYK",
+        name: "New York Knicks",
+        ticker: "KXNBACHAMP-26-NYK",
+        prob: 0.1,
+      },
+    ];
+
+    for (const [i, want] of expected.entries()) {
+      const child = markets[i];
+      expect(child.market.id).toBe(want.id);
+      expect(child.market.name).toBe(want.name);
+      expect(child.market.ticker).toBe(want.ticker);
+      expect(child.market.closesAt).toBe(event.closesAt);
+      expect(child.seedAmount).toBe(1000n);
+      expect(child.initialProbabilityYes).toBeCloseTo(want.prob, 5);
+    }
   });
 
   it("skips events with zero-spread on any child", () => {

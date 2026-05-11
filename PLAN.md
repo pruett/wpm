@@ -77,7 +77,7 @@
 
 ### Translator tests (`translator.test.ts`)
 - [ ] Rewrite: 2-Market happy path → one Event + 2 Markets, both `initialProbabilityYes` correct.
-- [ ] Rewrite: 5-Market happy path → one Event + 5 Markets, all consistent.
+- [x] Rewrite: 5-Market happy path → one Event + 5 Markets, all consistent.
 - [ ] Rejection: any child wide spread → `insufficient_confidence` with that child's ticker in reasons.
 - [ ] Rejection: any child missing bid/ask → `no_initial_price`.
 - [ ] Rejection: 31 children → `too_many_markets` with count.
