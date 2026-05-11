@@ -160,6 +160,43 @@ describe("translateKalshiEvent", () => {
     expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
   });
 
+  it("translates events with arbitrage-prone midpoints (formerly pair_inconsistent)", () => {
+    // Under the old binary model, two children whose YES midpoints summed to
+    // more than 1.0 (e.g. both at 0.70) were rejected as `pair_inconsistent`
+    // because the binary book had to imply a single shared probability. Under
+    // the multi-outcome model each child is an independent YES/NO contract —
+    // disagreement between siblings is no longer a fatal inconsistency and the
+    // translator simply seeds each child at its own midpoint.
+    const base = eventOf(binaryHealthy);
+    const [first, second] = base.markets ?? [];
+    const arbitrage: KalshiEvent = {
+      ...base,
+      event_ticker: "KXMLBGAME-ARBITRAGE",
+      markets: [
+        {
+          ...first,
+          ticker: "KXMLBGAME-ARBITRAGE-A",
+          yes_bid_dollars: "0.69",
+          yes_ask_dollars: "0.71",
+        },
+        {
+          ...second,
+          ticker: "KXMLBGAME-ARBITRAGE-B",
+          yes_bid_dollars: "0.69",
+          yes_ask_dollars: "0.71",
+        },
+      ],
+    };
+
+    const result = translateKalshiEvent(arbitrage, "mlb");
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    const [a, b] = result.value.markets;
+    expect(a.initialProbabilityYes).toBeCloseTo(0.7, 5);
+    expect(b.initialProbabilityYes).toBeCloseTo(0.7, 5);
+  });
+
   it("rejects events where siblings disagree on expected_expiration_time", () => {
     const base = eventOf(binaryHealthy);
     const [first, second] = base.markets ?? [];

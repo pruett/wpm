@@ -1237,3 +1237,42 @@ just leaning on the wrapper.
   never zero, since k > 0 and ceil-div rounds the retained YES side UP. The
   test pins both invariants so a future refactor can't silently switch to
   floor-div or non-bigint math.
+
+## 2026-05-11 — Phase 2: Translator test for arbitrage-prone midpoints
+
+PLAN line 85: added explicit test verifying that two children with
+arbitrage-prone YES midpoints (both at 0.70 — implied probabilities summing
+to 1.40) translate to `ok` rather than being rejected. Under the old binary
+model this was the canonical `pair_inconsistent` case; under the new
+multi-outcome model each child is an independent YES/NO contract and the
+disagreement is not a fatal inconsistency.
+
+The existing `accepts a skewed but healthy event` test (using
+`skewed-healthy.json` at 0.86 / 0.14, summing to 1.00) already exercised
+the skewed-but-consistent path, but didn't cover the disagreement case
+that would have tripped `pair_inconsistent`. The new test pins that
+behavior down with an inline-mutated fixture so future translator changes
+can't silently re-introduce a binary-style consistency check.
+
+### Files changed
+- `src/lib/kalshi/translator.test.ts` (added one `it` block constructing
+  an inline arbitrage event derived from `binary-healthy.json`)
+- `PLAN.md` (mark Phase 2 translator tests line 85 complete)
+
+### Verification
+- `bunx vitest run src/lib/kalshi/translator.test.ts` — 11/11 pass (was 10).
+- `bun run test` — 48/48 unit tests pass (was 47).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/lib/kalshi/translator.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/kalshi/translator.test.ts` — clean.
+
+### Notes
+- Chose 0.70 / 0.70 (mid 1.40) rather than the symmetric 0.86 / 0.14 of
+  `skewed-healthy.json` because the test's purpose is to pin the
+  *disagreement* path, not the skew path. Two children both claiming 70%
+  is the textbook arbitrage scenario the old `pair_inconsistent` check
+  was guarding against.
+- Built the fixture inline (mutating `binary-healthy.json`) rather than
+  adding a new JSON file. The test exercises one specific number tuple
+  and a standalone fixture would be over-engineered.
