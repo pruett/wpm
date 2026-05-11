@@ -13,6 +13,9 @@ import { KALSHI_SERIES, type KalshiEvent, kalshiEvents, type KalshiSeriesTicker 
 // the SDK enum omits it.
 const TERMINAL_KALSHI_STATUSES = new Set<string>(["settled", "finalized", "determined"]);
 
+// PRD §Further Notes — baked-in constant for v1.
+const SETTLEMENT_DEADLINE_MS = 48 * 60 * 60 * 1000;
+
 export type ChildOutcome = {
   marketId: string;
   outcome:
@@ -36,12 +39,12 @@ export type WampumEventForDecision = {
 // ticker. Replaces the per-child `translateKalshiResolution` dispatch under
 // the multi-outcome model (PRD §Resolver).
 //
-// Current scope: happy path + Event-level void semantics. Deadline degradation
-// (cancelled_no_settlement past the 48h deadline) is deferred.
+// Scope: happy path, Event-level void semantics, and deadline degradation
+// (cancelled_no_settlement past the 48h deadline).
 export function decideEventCommit(
   wampumEvent: WampumEventForDecision,
   kalshiResponse: KalshiEvent,
-  _now: number,
+  now: number,
 ): EventCommitDecision {
   const nestedKalshi = kalshiResponse.markets ?? [];
   const kalshiByTicker = new Map<string, (typeof nestedKalshi)[number]>();
@@ -49,10 +52,22 @@ export function decideEventCommit(
     kalshiByTicker.set(m.ticker, m);
   }
 
+  const deadlineReached = now >= wampumEvent.closesAt + SETTLEMENT_DEADLINE_MS;
+
   const perChild: ChildOutcome[] = [];
   for (const child of wampumEvent.markets) {
     const kalshiMarket = child.ticker ? kalshiByTicker.get(child.ticker) : undefined;
-    if (!kalshiMarket || !TERMINAL_KALSHI_STATUSES.has(kalshiMarket.status)) {
+    const isTerminal = !!kalshiMarket && TERMINAL_KALSHI_STATUSES.has(kalshiMarket.status);
+
+    if (!isTerminal) {
+      // Deadline degradation (PRD §Resolver): past the 48h deadline, any
+      // non-terminal child is cancelled-no-settlement so holders get a
+      // cost-basis refund rather than locked positions. Cleanly-settled
+      // siblings still resolve on their actual `result`.
+      if (deadlineReached) {
+        perChild.push({ marketId: child.id, outcome: "cancelled_no_settlement" });
+        continue;
+      }
       return { kind: "wait" };
     }
 
@@ -63,11 +78,15 @@ export function decideEventCommit(
       perChild.push({ marketId: child.id, outcome: "resolved_no" });
     } else if (result === "scalar") {
       perChild.push({ marketId: child.id, outcome: "cancelled_scalar" });
+    } else if (deadlineReached) {
+      // Terminal status but unrecognised result past the deadline — degrade
+      // to cancelled_no_settlement so the Event commits rather than stalling
+      // indefinitely on a malformed payload.
+      perChild.push({ marketId: child.id, outcome: "cancelled_no_settlement" });
     } else {
-      // Terminal status but unrecognised result — treat as wait so the
-      // resolver driver retries (or surfaces it operationally) rather than
-      // committing on a malformed payload. Phase 3 will tighten this into
-      // an explicit error path.
+      // Terminal status but unrecognised result — wait so the resolver driver
+      // retries (or surfaces it operationally) rather than committing on a
+      // malformed payload before the deadline.
       return { kind: "wait" };
     }
   }
