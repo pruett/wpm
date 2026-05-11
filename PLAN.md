@@ -96,12 +96,12 @@
 ## Phase 3 — Resolver & Settlement
 
 ### Resolver decision core (`lib/kalshi/resolve.ts`)
-- [ ] Extract pure `decideEventCommit(wampumEvent, kalshiResponse, now)` returning `{ kind: 'wait' } | { kind: 'commit', perChild: ChildOutcome[] }`.
-- [ ] `ChildOutcome` = `{ marketId, outcome: 'resolved_yes' | 'resolved_no' | 'cancelled_voided' | 'cancelled_scalar' | 'cancelled_no_settlement' }`.
-- [ ] Happy path: every child terminal → map each child's Kalshi `result` to `resolved_yes`/`resolved_no`/`cancelled_scalar`.
+- [x] Extract pure `decideEventCommit(wampumEvent, kalshiResponse, now)` returning `{ kind: 'wait' } | { kind: 'commit', perChild: ChildOutcome[] }`.
+- [x] `ChildOutcome` = `{ marketId, outcome: 'resolved_yes' | 'resolved_no' | 'cancelled_voided' | 'cancelled_scalar' | 'cancelled_no_settlement' }`.
+- [x] Happy path: every child terminal → map each child's Kalshi `result` to `resolved_yes`/`resolved_no`/`cancelled_scalar`.
 - [x] Void semantics: all children settled `no` → all `cancelled_voided`.
 - [x] Deadline degradation: `now >= closesAt + 48h` AND any non-terminal child → unsettled children get `cancelled_no_settlement`, cleanly-settled siblings resolve on their `result`.
-- [ ] Wait: at least one non-terminal child AND deadline not reached → `{ kind: 'wait' }`.
+- [x] Wait: at least one non-terminal child AND deadline not reached → `{ kind: 'wait' }`.
 
 ### Resolver driver
 - [ ] Selection: `events WHERE status='open' AND closesAt < now`.

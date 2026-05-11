@@ -1332,3 +1332,47 @@ conventional pattern for compile-time-only assertions in vitest files.
   distributive equality check needed here (`toEqualTypeOf` accepts subtypes).
   The `<T>() => T extends X ? 1 : 2` trick is the standard rigorous
   alternative.
+
+## 2026-05-11 — Phase 3: PLAN audit, mark resolver decision core complete
+
+PLAN lines 99, 100, 101, 104: the resolver decision core in
+`src/lib/kalshi/resolve.ts` was already implemented (the corresponding test
+checkboxes at lines 114–119 were marked complete back when the
+`decideEventCommit` tests landed), but the implementation lines for the
+function itself had been left unchecked. Verified line-by-line against the
+current code and flipped them to `[x]`.
+
+Verification points:
+- Line 99 (`decideEventCommit` pure function with `wait | commit` return) —
+  `resolve.ts:44-105` matches the exact signature and discriminated union.
+- Line 100 (`ChildOutcome` shape with five outcome kinds) — `resolve.ts:19-27`
+  declares the full union.
+- Line 101 (happy-path mapping of Kalshi `result` to
+  `resolved_yes`/`resolved_no`/`cancelled_scalar`) — `resolve.ts:74-92`
+  implements the switch with a `wait`-fallback for unrecognised pre-deadline
+  results.
+- Line 104 (wait when any child non-terminal and deadline not reached) —
+  `resolve.ts:62-72` returns `{ kind: 'wait' }` exactly in that case.
+
+### Files changed
+- `PLAN.md` (mark Phase 3 resolver decision core lines 99/100/101/104
+  complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxfmt --check PLAN.md` — fails, but the failure pre-dates this
+  edit (PLAN.md has long-standing formatter drift; not in scope here).
+
+### Notes
+- Scoped this audit to a single coherent cluster (one function's contract +
+  its decision-tree branches) rather than sweeping all of Phase 2/3 in one
+  pass. Several other PLAN items also appear to be done-but-unchecked
+  (Phase 2 translator return type, Phase 2 ingest SkipReasonKind union,
+  Phase 3 resolver driver, Phase 3 settlement core) — leaving those for
+  future iterations to verify and flip individually so each commit stays
+  small and auditable.
+- The void-semantics line 102 was already `[x]`. Re-verified against
+  `resolve.ts:97-102` (rewrites every outcome to `cancelled_voided` when
+  every child settled `no`); kept as-is.
