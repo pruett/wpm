@@ -59,7 +59,7 @@
 - [ ] `calculateBuy(pool, amount)` — drop `outcome` param; always buys YES (NO is the retained side). Preserve ceil-div rounding (ADR-0005).
 - [ ] `calculatePrices(pool)` → `{ priceYes, priceNo }` where `priceYes + priceNo = 1`.
 - [ ] `calculateOdds(pool)` → `{ priceYes, priceNo, multiplierYes, multiplierNo }`.
-- [ ] Delete `calculateSell` and `isqrt`. Remove their exports from any consumer.
+- [x] Delete `calculateSell` and `isqrt`. Remove their exports from any consumer.
 
 ---
 
@@ -141,7 +141,7 @@
 - [ ] `calculateBuy` preserves/grows `k` across every trade.
 - [ ] `calculateBuy` against degenerate pool (one reserve at floor) does not under-pay/panic.
 - [ ] `calculatePrices` returns `priceYes + priceNo = 1` within float tolerance.
-- [ ] Remove `calculateSell` and `isqrt` test cases (their absence is the type contract).
+- [x] Remove `calculateSell` and `isqrt` test cases (their absence is the type contract).
 
 ---
 
