@@ -57,8 +57,8 @@
 - [x] Rename internal symbols: `sharesA/B` → `reserveYes/No`, `initialProbabilityA` → `initialProbabilityYes`.
 - [ ] `initializePool(marketId, seedAmount, initialProbabilityYes)` returns `{ marketId, reserveYes, reserveNo, k, liquidity }`.
 - [x] `calculateBuy(pool, amount)` — drop `outcome` param; always buys YES (NO is the retained side). Preserve ceil-div rounding (ADR-0005).
-- [ ] `calculatePrices(pool)` → `{ priceYes, priceNo }` where `priceYes + priceNo = 1`.
-- [ ] `calculateOdds(pool)` → `{ priceYes, priceNo, multiplierYes, multiplierNo }`.
+- [x] `calculatePrices(pool)` → `{ priceYes, priceNo }` where `priceYes + priceNo = 1`.
+- [x] `calculateOdds(pool)` → `{ priceYes, priceNo, multiplierYes, multiplierNo }`.
 - [x] Delete `calculateSell` and `isqrt`. Remove their exports from any consumer.
 
 ---

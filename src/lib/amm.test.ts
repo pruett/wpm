@@ -43,10 +43,10 @@ describe("calculateBuy", () => {
     expect(newPool.reserveYes * newPool.reserveNo).toBeGreaterThanOrEqual(pool.k);
   });
 
-  it("increases priceA (YES price) when YES is bought (monotonicity)", () => {
+  it("increases priceYes when YES is bought (monotonicity)", () => {
     const pool = initializePool(MARKET, 1000n, 0.5);
     const { newPool } = calculateBuy(pool, 200n);
-    expect(calculatePrices(newPool).priceA).toBeGreaterThan(calculatePrices(pool).priceA);
+    expect(calculatePrices(newPool).priceYes).toBeGreaterThan(calculatePrices(pool).priceYes);
   });
 
   it("credits liquidity by exactly the amount deposited", () => {
@@ -81,15 +81,15 @@ describe("calculateBuy", () => {
 describe("calculateOdds", () => {
   it("returns floats in [0, 1] that sum to 1", () => {
     const pool = initializePool(MARKET, 1000n, 0.7);
-    const { priceA, priceB } = calculateOdds(pool);
-    expect(priceA + priceB).toBeCloseTo(1, 10);
-    expect(priceA).toBeGreaterThan(0);
-    expect(priceB).toBeGreaterThan(0);
+    const { priceYes, priceNo } = calculateOdds(pool);
+    expect(priceYes + priceNo).toBeCloseTo(1, 10);
+    expect(priceYes).toBeGreaterThan(0);
+    expect(priceNo).toBeGreaterThan(0);
   });
 
   it("reflects the seeded probability", () => {
     const pool = initializePool(MARKET, 1000n, 0.7);
-    const { priceA } = calculateOdds(pool);
-    expect(priceA).toBeCloseTo(0.7, 2);
+    const { priceYes } = calculateOdds(pool);
+    expect(priceYes).toBeCloseTo(0.7, 2);
   });
 });

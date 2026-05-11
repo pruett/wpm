@@ -986,3 +986,51 @@ directly as a YES buy.
   intentionally untouched here — that rename (Phase 1 lines 60–61) needs a
   coordinated UI sweep across `bet-controls`, `market-card`, `market-item`,
   `portfolio`, and `live-odds`.
+
+## 2026-05-11 — Phase 1: Rename `calculatePrices`/`calculateOdds` to YES/NO
+
+Renamed the display-only AMM return-shape keys from `priceA`/`priceB`/
+`multiplierA`/`multiplierB` to `priceYes`/`priceNo`/`multiplierYes`/
+`multiplierNo`. Under the YES-first mapping this is a pure key rename —
+the underlying math was already correct (`priceA = reserveNo / total` is
+the YES price; `priceB = reserveYes / total` is the NO price).
+
+Scope was kept narrow per the "ONLY WORK ON A SINGLE TASK" instruction:
+the AMM internal contract flips, but the consumer-facing `MarketWithOdds`
+type (used across UI components) still carries `priceA/priceB`. The
+boundary is `enrichMarket` in `data/markets.ts`, which now destructures
+the new keys and remaps them back to A/B when building `MarketWithOdds`.
+That keeps the UI rewiring (PLAN Phase 5) as a separate, coordinated
+sweep instead of cascading 8 file edits into this task.
+
+The internal `Odds` type in `data/trading.ts` (return-shape of `placeBet`)
+was updated to the new YES/NO keys outright — confirmed via grep that
+`PlaceBetResult.odds` has no external consumers, so flipping the field
+names is safe.
+
+### Files changed
+- `src/lib/amm.ts` (calculatePrices and calculateOdds return YES/NO keys)
+- `src/lib/amm.test.ts` (destructure priceYes/priceNo instead of priceA/B)
+- `src/data/markets.ts` (enrichMarket explicitly maps calculateOdds keys
+  to MarketWithOdds priceA/priceB/multiplierA/multiplierB)
+- `src/data/trading.ts` (Odds type now { priceYes, priceNo, multiplierYes,
+  multiplierNo })
+- `PLAN.md` (mark Phase 1 lines 60-61 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bun run test` — 40/40 unit tests pass.
+- `bun run test:integration` — 3/3 tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean.
+
+### Notes
+- The two PLAN bullets (`calculatePrices` rename + `calculateOdds` rename)
+  were treated as one task because `calculateOdds` calls `calculatePrices`
+  internally — splitting them would leave the intermediate state with a
+  type mismatch.
+- The boundary mapping in `enrichMarket` is intentional scaffolding. When
+  Phase 5 UI rewiring lands, the mapping disappears: `MarketWithOdds`
+  drops to `{ priceYes, multiplierYes, ... }` and components consume the
+  YES-side directly (NO price is `1 - priceYes`).

@@ -10,10 +10,10 @@ import { ammPools, balances, markets, positions, transactions } from "@/lib/db/s
 import { requireUser } from "./auth";
 
 export type Odds = {
-  priceA: number;
-  priceB: number;
-  multiplierA: number;
-  multiplierB: number;
+  priceYes: number;
+  priceNo: number;
+  multiplierYes: number;
+  multiplierNo: number;
 };
 
 export type PlaceBetInput = {
