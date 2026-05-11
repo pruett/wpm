@@ -715,3 +715,25 @@ the call site. Same rationale as the in-memory test construction used for
 - `bun run test` — 36/36 unit tests pass (was 34; +2 new resolve tests).
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean.
+
+## 2026-05-11 — Phase 3: Decision test for clean per-child resolutions
+
+Added the missing `decideEventCommit` test case for the basic happy path where
+every child Market settles cleanly to `yes` or `no` (no void, no degradation).
+Drives the existing `settled-a-wins.json` fixture (2-Market NYY-vs-BOS event,
+NYY child settled `yes`, BOS child settled `no`) and asserts the commit plan
+emits one `resolved_yes` and one `resolved_no` per child in fixture order.
+
+Sits as the first test in `describe("decideEventCommit", ...)` since it's the
+canonical happy path; void/wait/deadline cases follow.
+
+### Files changed
+- `src/lib/kalshi/resolve.test.ts`
+- `PLAN.md`
+
+### Verification
+- `bun run test` — 37/37 unit tests pass (was 36; +1 new resolve test).
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  overload error remains.
+- `bunx oxlint src/lib/kalshi/resolve.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --check src/lib/kalshi/resolve.test.ts` — clean.

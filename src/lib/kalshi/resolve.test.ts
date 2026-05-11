@@ -17,6 +17,27 @@ const BEFORE_DEADLINE = CLOSES_AT + 60 * 60 * 1000; // closesAt + 1h
 const AFTER_DEADLINE = CLOSES_AT + 49 * 60 * 60 * 1000; // closesAt + 49h
 
 describe("decideEventCommit", () => {
+  it("commits with resolved_yes/resolved_no when every child settles cleanly", () => {
+    const kalshi = eventOf(settledAWins);
+    const wampum: WampumEventForDecision = {
+      id: `kalshi-${kalshi.event_ticker}`,
+      closesAt: CLOSES_AT,
+      markets: (kalshi.markets ?? []).map((m) => ({
+        id: `kalshi-${m.ticker}`,
+        ticker: m.ticker,
+      })),
+    };
+
+    const decision = decideEventCommit(wampum, kalshi, BEFORE_DEADLINE);
+
+    expect(decision.kind).toBe("commit");
+    if (decision.kind !== "commit") return;
+    expect(decision.perChild).toEqual([
+      { marketId: "kalshi-KXMLBGAME-25APR24NYYBOS-NYY", outcome: "resolved_yes" },
+      { marketId: "kalshi-KXMLBGAME-25APR24NYYBOS-BOS", outcome: "resolved_no" },
+    ]);
+  });
+
   it("voids the event when every child settled `no`", () => {
     const kalshi = eventOf(settledVoided);
     const wampum: WampumEventForDecision = {

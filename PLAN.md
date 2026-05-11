@@ -112,7 +112,7 @@
 
 ### Resolver decision tests
 - [x] `wait` when any child non-terminal and deadline not reached.
-- [ ] `commit` with all children `resolved_yes`/`resolved_no` when every child terminal.
+- [x] `commit` with all children `resolved_yes`/`resolved_no` when every child terminal.
 - [x] `commit` with mixed `cancelled_no_settlement` + `resolved_*` past the deadline.
 - [x] `commit` with all `cancelled_voided` when every child settled `no`.
 - [ ] `commit` with `cancelled_scalar` on a single child alongside normally-resolved siblings.
