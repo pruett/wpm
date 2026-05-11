@@ -25,14 +25,6 @@ export type Transaction =
       timestamp: string;
     }
   | {
-      type: "SellShares";
-      marketId: string;
-      outcome: "A" | "B";
-      shares: number;
-      userId: string;
-      timestamp: string;
-    }
-  | {
       type: "ResolveMarket";
       marketId: string;
       result: "A" | "B";

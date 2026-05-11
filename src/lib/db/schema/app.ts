@@ -129,7 +129,6 @@ export const transactionTypes = [
   "Distribute",
   "CreateMarket",
   "PlaceBet",
-  "SellShares",
   "ResolveMarket",
   "SettlePayout",
   "TreasuryBackstop",

@@ -412,3 +412,33 @@ The pool read uses `pool.reserveYes ?? pool.reserveA` (and equivalent for No) to
 - `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
 - `bunx oxlint tests/integration/event-flow.test.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check tests/integration/event-flow.test.ts` — clean (after `oxfmt --write`).
+
+## 2026-05-11 — Phase 1: Drop `SellShares` (dead-code purge)
+
+Removed all references to `SellShares` from the codebase. The `sellShares` data-layer function in `src/data/trading.ts` had zero remaining callers (verified by grep for `sellShares(`) — Phase 0 Slice 1 already deleted the `actions/sellShares.ts` server action and `bet-controls.tsx` handler, so the DAL function was already orphaned. Closing it out is a pure deletion with no behavioural cascade.
+
+### Three plan bullets closed by this change
+- Phase 1 Schema migration: "Drop `SellShares` from `transactionTypes`" — removed from the enum array in `src/lib/db/schema/app.ts`. No DB migration needed: drizzle's `text("type", { enum: [...] })` is TypeScript-only on text columns (no Postgres-side enum exists).
+- Phase 1 Type purges: `SellShares` variant in the `Transaction` union (`src/lib/types.ts`) deleted.
+- Phase 4 Data layer: `sellShares` function + `SellSharesInput`/`SellSharesResult` types deleted from `src/data/trading.ts`. With the function gone, `calculateSell` is now unimported there; cleaned up the `@/lib/amm` import to drop it (the function itself stays in `lib/amm.ts` for now — its deletion is a separate Phase 1 AMM rewrite bullet).
+- Also cleaned up an unused `and` import from drizzle-orm in `trading.ts` (the function that used it was the deleted `sellShares`).
+
+### Phase 0 Slice 2 admin
+Marked three Slice 2 plan bullets complete that were verified done by prior Slice 1 work but never struck through: translator iterates `event.markets`, all-or-nothing rejection with per-child reasons, ingest driver persists one Event + N markets/pools atomically. Confirmed by reading the current `translator.ts`, `ingest.ts`, and `createEvent` in `data/events.ts`.
+
+### Files changed
+- `src/data/trading.ts` (delete sellShares fn + types; clean up imports)
+- `src/lib/types.ts` (delete SellShares variant from Transaction union)
+- `src/lib/db/schema/app.ts` (delete "SellShares" from transactionTypes)
+- `PLAN.md` (mark four bullets complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bun run test:integration` — 3/3 tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors. `bun run lint` shows the same 2 pre-existing warnings.
+- `bunx oxfmt --check` on changed files — clean.
+
+### Notes
+- The DAL function had no DB-migration concern because the `transactions.type` column is plain TEXT with a TS-side enum hint, not a Postgres ENUM type. Historical rows with `type='SellShares'` (if any existed) would still load and serialize as raw text, but in practice there are none — the function never ran in production.
+- `calculateSell` and `isqrt` in `lib/amm.ts` are now both fully orphaned, but their deletion is scheduled as a separate Phase 1 AMM rewrite bullet ("Delete `calculateSell` and `isqrt`") and is not part of this change.
