@@ -27,7 +27,7 @@
 - [x] Smoke test: spin up DB, ingest a 2-Market Kalshi fixture, place a YES buy on one child, force-commit the Event with both children settled, verify balance credit + Event/Market statuses + `SettlePayout` rows.
 
 ### Slice 2: Multi-outcome Kalshi Event ingest (N>2)
-- [ ] Author a new fixture `src/lib/kalshi/fixtures/multi-outcome-healthy.json` with 5 nested Kalshi Markets sharing one `expected_expiration_time`.
+- [x] Author a new fixture `src/lib/kalshi/fixtures/multi-outcome-healthy.json` with 5 nested Kalshi Markets sharing one `expected_expiration_time`.
 - [ ] Translator path: iterate all `event.markets`, apply per-Market spread gate independently, build N `markets` rows under one `events` row.
 - [ ] All-or-nothing rejection: if any child fails spread gate, return `insufficient_confidence` with per-child reasons.
 - [ ] Wire ingest driver to handle N children: persist one Event + N Market rows + N pools atomically in a single `db.transaction`.

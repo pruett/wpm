@@ -352,3 +352,22 @@ Added `tests/integration/event-flow.test.ts` exercising the full Slice 1 flow ag
 - The translator hardcodes the Event's `closesAt` to the fixture's `expected_expiration_time` (2026-04-25). That timestamp is in the past relative to "today" (2026-05-11), so the production `placeBet` would reject any bet against the just-created markets. The test bumps the child Markets' `closesAt` forward one hour after `createEvent` returns, before driving the bet. `commitEvent` does not consult `closesAt`, so no further patching is needed for the commit step.
 - `TRUNCATE TABLE` list extended to include `events` (the existing `bet-and-resolve.test.ts` omits it; harmless there because that test never inserts events). CASCADE handles ordering automatically.
 - Mocks for `@/data/auth` and `next/cache` reuse the same pattern as `bet-and-resolve.test.ts`. `vi.mock` calls are hoisted; runtime imports use top-level `await import(...)` to defer module eval until after the mocks register.
+
+## 2026-05-11 — Phase 0 Slice 2: Author multi-outcome fixture
+
+Added `src/lib/kalshi/fixtures/multi-outcome-healthy.json` — a 5-Market Kalshi Event modelled as the 2026 NBA Championship winner (5 candidate teams). All five child Markets share `expected_expiration_time = 2026-06-21T03:00:00Z` so the upcoming `inconsistent_close_times` gate has nothing to flag on the happy path.
+
+Quote shapes are calibrated so the translator's per-Market checks all pass:
+- Each child's `yes_ask - yes_bid = 0.02`, well under `MAX_SPREAD = 0.1`.
+- Midpoints sum to ~1.0 across the field (0.30 + 0.25 + 0.20 + 0.15 + 0.10), modelling a coherent multi-outcome distribution where exactly one candidate wins. Translator does not enforce this sum — it's just realistic — so future fixtures can be skewed without breaking gates.
+
+This fixture will drive the upcoming Slice 2 translator path (iterate `event.markets`, build N rows) and ingest test (one `events` row + 5 `markets`/`ammPools` rows).
+
+### Files changed
+- `src/lib/kalshi/fixtures/multi-outcome-healthy.json` (new)
+
+### Verification
+- `bunx oxfmt --check` on the new fixture — clean.
+- JSON parses cleanly; spreads = 0.02 each, midpoints sum to 1.0.
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass (no change; fixture not yet consumed).

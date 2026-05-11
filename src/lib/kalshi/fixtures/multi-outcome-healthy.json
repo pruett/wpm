@@ -1,0 +1,67 @@
+{
+  "events": [
+    {
+      "event_ticker": "KXNBACHAMP-26",
+      "series_ticker": "KXNBACHAMP",
+      "title": "Who will win the 2026 NBA Championship?",
+      "strike_date": "2026-06-20",
+      "markets": [
+        {
+          "ticker": "KXNBACHAMP-26-BOS",
+          "status": "active",
+          "yes_sub_title": "Boston Celtics",
+          "yes_bid_dollars": "0.29",
+          "yes_ask_dollars": "0.31",
+          "no_bid_dollars": "0.69",
+          "no_ask_dollars": "0.71",
+          "volume_24h_fp": "54321",
+          "expected_expiration_time": "2026-06-21T03:00:00Z"
+        },
+        {
+          "ticker": "KXNBACHAMP-26-DEN",
+          "status": "active",
+          "yes_sub_title": "Denver Nuggets",
+          "yes_bid_dollars": "0.24",
+          "yes_ask_dollars": "0.26",
+          "no_bid_dollars": "0.74",
+          "no_ask_dollars": "0.76",
+          "volume_24h_fp": "43210",
+          "expected_expiration_time": "2026-06-21T03:00:00Z"
+        },
+        {
+          "ticker": "KXNBACHAMP-26-OKC",
+          "status": "active",
+          "yes_sub_title": "Oklahoma City Thunder",
+          "yes_bid_dollars": "0.19",
+          "yes_ask_dollars": "0.21",
+          "no_bid_dollars": "0.79",
+          "no_ask_dollars": "0.81",
+          "volume_24h_fp": "32109",
+          "expected_expiration_time": "2026-06-21T03:00:00Z"
+        },
+        {
+          "ticker": "KXNBACHAMP-26-MIN",
+          "status": "active",
+          "yes_sub_title": "Minnesota Timberwolves",
+          "yes_bid_dollars": "0.14",
+          "yes_ask_dollars": "0.16",
+          "no_bid_dollars": "0.84",
+          "no_ask_dollars": "0.86",
+          "volume_24h_fp": "21098",
+          "expected_expiration_time": "2026-06-21T03:00:00Z"
+        },
+        {
+          "ticker": "KXNBACHAMP-26-NYK",
+          "status": "active",
+          "yes_sub_title": "New York Knicks",
+          "yes_bid_dollars": "0.09",
+          "yes_ask_dollars": "0.11",
+          "no_bid_dollars": "0.89",
+          "no_ask_dollars": "0.91",
+          "volume_24h_fp": "10987",
+          "expected_expiration_time": "2026-06-21T03:00:00Z"
+        }
+      ]
+    }
+  ]
+}
