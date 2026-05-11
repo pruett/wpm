@@ -1376,3 +1376,58 @@ Verification points:
 - The void-semantics line 102 was already `[x]`. Re-verified against
   `resolve.ts:97-102` (rewrites every outcome to `cancelled_voided` when
   every child settled `no`); kept as-is.
+
+## 2026-05-11 — Phase 2: PLAN audit, mark translator implementation cluster complete
+
+PLAN lines 69, 70, 73, 74, 75: the translator implementation at
+`src/lib/kalshi/translator.ts` already matched the PRD §Translator spec
+(the corresponding test checkboxes are partly checked too — see lines 85,
+86, 87 — but the implementation lines themselves had been left unchecked).
+Verified each against the current code and flipped them to `[x]`.
+
+Verification points:
+- Line 69 (new return type with `{ kind: 'ok', value: { event, markets:
+  TranslatedMarket[] } }`) — `translator.ts:26-43` declares
+  `TranslatedMarket`, `TranslatedEvent`, and the `ok` variant exactly.
+- Line 70 (drop `non_binary` and `pair_inconsistent` variants) —
+  `TranslationResult` at `translator.ts:42-57` contains only the six
+  variants the new model uses; the two legacy variants are absent.
+- Line 73 (per-Market spread gate aggregating reasons; event-level
+  `no_initial_price`) — `translator.ts:89-106` collects per-market
+  `{ ticker, reason: 'spread_too_wide' }` tuples and returns
+  `insufficient_confidence` with the aggregated array; the no-quote case
+  returns `no_initial_price` at the event level (the variant shape has no
+  per-child reasons field — collective signal is the contract).
+- Line 74 (closesAt sourced from `markets[0].expected_expiration_time`,
+  siblings must match) — `translator.ts:70` reads the first child's
+  timestamp; `translator.ts:76-87` verifies siblings and returns
+  `inconsistent_close_times` with offender tickers if any disagree.
+- Line 75 (derive `TranslatedEventRow`/`TranslatedMarketRow` from drizzle
+  `$inferInsert`) — `translator.ts:20-24` defines both via `$inferInsert`
+  on the schema tables, with the `Omit` keys (`status`/`createdAt`,
+  plus `eventId` for markets) matching the ingest-fills-it-in contract.
+
+### Files changed
+- `PLAN.md` (mark Phase 2 translator implementation lines 69, 70, 73, 74,
+  75 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/lib/kalshi/translator.ts` — 0 warnings, 0 errors.
+
+### Notes
+- Followed the prev-turn audit pattern: pick one coherent cluster (the
+  translator's complete return-type / variant-set / spec-derived row types)
+  rather than sweeping every Phase 2 line. Several other PLAN items are
+  also done-but-unchecked (Phase 2 translator tests lines 79, 81-84;
+  Phase 2 ingest SkipReasonKind union at line 90; Phase 3 settlement
+  core) — leaving those for future iterations so each commit stays small
+  and auditable.
+- Held some ambiguity on line 73's "Aggregate `no_initial_price` if any
+  child has no usable quote" — read it as "the gate's collective outcome
+  is `no_initial_price`" (event-level signal), not "aggregate per-child
+  reasons inside the variant". The variant's shape (`{ kind, eventTicker
+  }` with no reasons field) and the existing test
+  (`translator.test.ts:128-135`) both back this reading.
