@@ -28,9 +28,9 @@
 
 ### Slice 2: Multi-outcome Kalshi Event ingest (N>2)
 - [x] Author a new fixture `src/lib/kalshi/fixtures/multi-outcome-healthy.json` with 5 nested Kalshi Markets sharing one `expected_expiration_time`.
-- [ ] Translator path: iterate all `event.markets`, apply per-Market spread gate independently, build N `markets` rows under one `events` row.
-- [ ] All-or-nothing rejection: if any child fails spread gate, return `insufficient_confidence` with per-child reasons.
-- [ ] Wire ingest driver to handle N children: persist one Event + N Market rows + N pools atomically in a single `db.transaction`.
+- [x] Translator path: iterate all `event.markets`, apply per-Market spread gate independently, build N `markets` rows under one `events` row.
+- [x] All-or-nothing rejection: if any child fails spread gate, return `insufficient_confidence` with per-child reasons.
+- [x] Wire ingest driver to handle N children: persist one Event + N Market rows + N pools atomically in a single `db.transaction`.
 - [x] Smoke test: ingest 5-Market fixture, verify one `events` row and 5 `markets`/`amm_pools` rows are created with correct per-Market `initialProbabilityYes`.
 
 ---
@@ -43,7 +43,7 @@
 - [ ] Update `markets`: `eventId` FK, `name`, `ticker`, `status: 'open' | 'resolved' | 'cancelled'`, `resolvedAs: 'yes' | 'no' | null`, `resolvedAt`, `createdAt`.
 - [ ] Add `eventRelations` and update `marketRelations` to one-to-many `event → markets`.
 - [ ] Replace `ix_markets_status_closes` with `ix_events_status_closes` on `(events.status, events.closesAt)`. Keep `ix_positions_market`.
-- [ ] Drop `SellShares` from `transactionTypes`.
+- [x] Drop `SellShares` from `transactionTypes`.
 - [ ] Regenerate migration SQL; verify `bun drizzle-kit generate` produces a clean single-file migration. Append `treasury` seed to the new migration via `src/lib/db/seeds/append-to-migrations.ts`.
 
 ### Type purges
@@ -150,7 +150,7 @@
 ### Data layer
 - [ ] Create `src/data/events.ts`: `getEvent(id)` (with child markets + pools), `getEvents()` (homepage list), `createEvent({event, markets})`, `commitEvent(plan)`.
 - [ ] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
-- [ ] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
+- [x] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
 - [ ] `src/data/positions.ts`: collapse `getPositions` to one row per `(user, market)` with non-zero shares; filter to `markets.status = 'open'` for live positions.
 - [ ] `getBetHistory`: replace `sharesA`/`sharesB`/`outcomes`/`resolvedOutcome` with `shares`/`marketName`/`resolvedAs`; join through `events` for `closesAt`/`sport`.
 - [ ] Update cache tags: `tags.event(id)` alongside `tags.market(id)`; revalidate both on bet placement and Event commit.
