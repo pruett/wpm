@@ -66,13 +66,13 @@
 ## Phase 2 — Translator & Ingest
 
 ### Translator (`lib/kalshi/translator.ts`)
-- [ ] New return type: `{ kind: 'ok', value: { event, markets: TranslatedMarket[] } }` where `TranslatedMarket = { market, seedAmount, initialProbabilityYes }`.
-- [ ] Drop `non_binary` and `pair_inconsistent` variants entirely.
+- [x] New return type: `{ kind: 'ok', value: { event, markets: TranslatedMarket[] } }` where `TranslatedMarket = { market, seedAmount, initialProbabilityYes }`.
+- [x] Drop `non_binary` and `pair_inconsistent` variants entirely.
 - [x] Add `too_many_markets` variant: `{ kind: 'too_many_markets', count: number }` when `markets.length > 30`.
 - [x] Add `inconsistent_close_times` variant when any child's `expected_expiration_time` differs from first.
-- [ ] Per-Market spread gate: collect failing `{ ticker, reason }` per child; if any fail return `insufficient_confidence` with aggregated per-Market reasons. Aggregate `no_initial_price` if any child has no usable quote.
-- [ ] Source `events.closesAt` from `markets[0].expected_expiration_time`; verify all siblings match exactly (else `inconsistent_close_times`).
-- [ ] Derive `TranslatedEventRow` and `TranslatedMarketRow` from drizzle `$inferInsert`.
+- [x] Per-Market spread gate: collect failing `{ ticker, reason }` per child; if any fail return `insufficient_confidence` with aggregated per-Market reasons. Aggregate `no_initial_price` if any child has no usable quote.
+- [x] Source `events.closesAt` from `markets[0].expected_expiration_time`; verify all siblings match exactly (else `inconsistent_close_times`).
+- [x] Derive `TranslatedEventRow` and `TranslatedMarketRow` from drizzle `$inferInsert`.
 - [x] Delete `translateKalshiResolution` from this file — its replacement (`decideEventCommit`) lives in `resolve.ts`.
 
 ### Translator tests (`translator.test.ts`)
