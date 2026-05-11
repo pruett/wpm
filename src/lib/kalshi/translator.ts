@@ -45,6 +45,12 @@ export type TranslationResult =
   | { kind: "no_initial_price"; eventTicker: string }
   | { kind: "too_many_markets"; eventTicker: string; count: number }
   | {
+      kind: "inconsistent_close_times";
+      eventTicker: string;
+      expected: string;
+      offenders: { ticker: string; raw: string }[];
+    }
+  | {
       kind: "insufficient_confidence";
       eventTicker: string;
       reasons: InsufficientConfidenceReason[];
@@ -61,13 +67,23 @@ export function translateKalshiEvent(event: KalshiEvent, sport: Sport): Translat
     };
   }
 
-  // Slice 1 happy path: source the Event's closesAt from the first child
-  // Market's expected_expiration_time. Phase 2 will add an
-  // `inconsistent_close_times` reject for siblings that disagree.
   const rawCloseTime = nestedMarkets[0]?.expected_expiration_time ?? "";
   const closesAt = Date.parse(rawCloseTime);
   if (!Number.isFinite(closesAt)) {
     return { kind: "unparseable_close_time", raw: rawCloseTime };
+  }
+
+  const offenders = nestedMarkets
+    .slice(1)
+    .filter((m) => m.expected_expiration_time !== rawCloseTime)
+    .map((m) => ({ ticker: m.ticker, raw: m.expected_expiration_time ?? "" }));
+  if (offenders.length > 0) {
+    return {
+      kind: "inconsistent_close_times",
+      eventTicker: event.event_ticker,
+      expected: rawCloseTime,
+      offenders,
+    };
   }
 
   const quoted: { quote: Quote; market: KalshiMarket }[] = [];

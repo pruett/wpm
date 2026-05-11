@@ -89,6 +89,24 @@ describe("translateKalshiEvent", () => {
     expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
   });
 
+  it("rejects events where siblings disagree on expected_expiration_time", () => {
+    const base = eventOf(binaryHealthy);
+    const [first, second] = base.markets ?? [];
+    const mismatched: KalshiEvent = {
+      ...base,
+      event_ticker: "KXMLBGAME-MISMATCHED-CLOSE",
+      markets: [first, { ...second, expected_expiration_time: "2026-05-01T02:00:00Z" }],
+    };
+
+    const result = translateKalshiEvent(mismatched, "mlb");
+
+    expect(result.kind).toBe("inconsistent_close_times");
+    if (result.kind !== "inconsistent_close_times") return;
+    expect(result.eventTicker).toBe("KXMLBGAME-MISMATCHED-CLOSE");
+    expect(result.expected).toBe(first.expected_expiration_time);
+    expect(result.offenders).toEqual([{ ticker: second.ticker, raw: "2026-05-01T02:00:00Z" }]);
+  });
+
   it("rejects events with more than 30 child markets", () => {
     const base = eventOf(binaryHealthy);
     const [child] = base.markets ?? [];
