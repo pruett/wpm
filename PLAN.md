@@ -18,7 +18,7 @@
 - [x] Rename `ammPools.reserveA/B` → `reserveYes/No`; collapse `positions` to `(userId, marketId, shares, costBasis)`; drop `SellShares` from `transactionTypes`.
 - [x] Regenerate single migration `src/lib/db/migrations/0000_*.sql` (full wipe of the 5 tables) and update `0000_snapshot.json`/`_journal.json`.
 - [x] Rewrite `translateKalshiEvent` happy path: 2-Market Kalshi Event → `{ event: EventInsertRow, markets: [{market, seedAmount, initialProbabilityYes}, ...] }` discriminated union (no `non_binary` rejection).
-- [ ] Update `createMarket` (rename to `createEvent` in `data/events.ts`): insert one `events` row + N `markets` rows + N `ammPools` rows in a single DB transaction; per-Market `initializePool` seeding.
+- [x] Update `createMarket` (rename to `createEvent` in `data/events.ts`): insert one `events` row + N `markets` rows + N `ammPools` rows in a single DB transaction; per-Market `initializePool` seeding.
 - [ ] Rewrite `placeBet` in `data/trading.ts`: signature `(marketId, amount)` — buy YES only; reads pool with `reserveYes/No`, calls new `calculateBuy(pool, amount)` (YES-only), writes `positions.shares`.
 - [ ] Update `decideEventCommit(wampumEvent, kalshiResponse, now)` pure function in `lib/kalshi/resolve.ts`: returns `wait` or `commit` plan; happy path = all children terminal → resolve-per-`result`.
 - [ ] Wire resolver: select from `events WHERE status='open' AND closesAt < now`; per-series batch fetch; apply commit plan in one DB transaction per Event.
