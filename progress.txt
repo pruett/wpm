@@ -1276,3 +1276,59 @@ can't silently re-introduce a binary-style consistency check.
 - Built the fixture inline (mutating `binary-healthy.json`) rather than
   adding a new JSON file. The test exercises one specific number tuple
   and a standalone fixture would be over-engineered.
+
+## 2026-05-11 — Phase 2: Translator row shapes pinned to schema insert types
+
+PLAN line 86: added compile-time + runtime checks that the translator's
+`TranslatedEventRow` and `TranslatedMarketRow` stay aligned with the drizzle
+`$inferInsert` shapes for `events` and `markets`. Two layers:
+
+- Top-of-file `AssertEqual<A,B>` type identity checks pin the translator's
+  exported row types to `Omit<events.$inferInsert, "status" | "createdAt">`
+  and `Omit<markets.$inferInsert, "status" | "createdAt" | "eventId">`. The
+  identity helper is the standard distributive `<T>() => T extends X ? 1 : 2`
+  trick, which detects narrowing or widening in either direction (e.g. a
+  schema column renamed but translator unchanged, or vice versa).
+- A new runtime test feeds a real `translateKalshiEvent` output through the
+  ingest-shaped composition (translator row + `status`/`createdAt` + `eventId`
+  for child markets) and assigns it to `typeof eventsTable.$inferInsert` /
+  `typeof marketsTable.$inferInsert`. If anyone reshapes the translator
+  without updating the schema (or vice versa), tsc fails this test file before
+  vitest collects.
+
+The type-only `AssertEqual` constants are bound to runtime variables and
+discharged via `void` so oxlint doesn't flag them as unused. This is the
+conventional pattern for compile-time-only assertions in vitest files.
+
+### Files changed
+- `src/lib/kalshi/translator.test.ts` (added `AssertEqual` type identities for
+  both row types and a runtime "produces row shapes that satisfy the
+  schema-derived insert types" test case)
+- `PLAN.md` (mark Phase 2 translator tests line 86 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx vitest run src/lib/kalshi/translator.test.ts` — 12/12 pass (was 11).
+- `bun run test` — 49/49 unit tests pass (was 48).
+- `bunx oxlint src/lib/kalshi/translator.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt src/lib/kalshi/translator.test.ts` — clean (formatter
+  reordered the new `events`/`markets` schema import into the right block).
+
+### Notes
+- Chose two complementary assertion styles deliberately. The type-only
+  `AssertEqual` catches structural drift even if no test ever runs the
+  translator (e.g. a column rename in `app.ts` that breaks the `Omit` math).
+  The runtime assignment additionally verifies that a real translator output
+  literal (post-composition with the ingest-added fields) is assignable to
+  the insert type — which catches drift in the opposite direction (translator
+  producing a value that's wider than its declared row type).
+- The `Omit` keys (`"status" | "createdAt"` and `"status" | "createdAt" |
+  "eventId"`) intentionally match the literal omits in `translator.ts`. If
+  someone later moves `closesAt` or `sport` out of the translator's output
+  (say, into the ingest driver), the assertion forces them to update both
+  sides in lockstep — exactly the contract the PLAN wanted pinned down.
+- Did not use vitest's `expectTypeOf` because it doesn't ship with the
+  distributive equality check needed here (`toEqualTypeOf` accepts subtypes).
+  The `<T>() => T extends X ? 1 : 2` trick is the standard rigorous
+  alternative.

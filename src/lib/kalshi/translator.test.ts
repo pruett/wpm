@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { events, markets } from "@/lib/db/schema";
+
 import type { KalshiEvent } from "./index.js";
+import type { TranslatedEventRow, TranslatedMarketRow } from "./translator.js";
 
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
 import multiOutcomeHealthy from "./fixtures/multi-outcome-healthy.json" with { type: "json" };
@@ -10,6 +13,26 @@ import unparseableCloseTime from "./fixtures/unparseable-close-time.json" with {
 import wideSpread from "./fixtures/wide-spread.json" with { type: "json" };
 import zeroSpread from "./fixtures/zero-spread.json" with { type: "json" };
 import { translateKalshiEvent } from "./translator.js";
+
+// Compile-time contract: the translator's row types must stay aligned with the
+// drizzle `$inferInsert` shapes, modulo the fields the ingest driver fills in
+// at write time (`status`, `createdAt`, and `eventId` for child markets). If
+// anyone widens, narrows, or renames a column on either side without updating
+// the other, tsc will fail at this assertion before tests ever run.
+type AssertEqual<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+
+const _translatedEventRowMatchesSchema: AssertEqual<
+  TranslatedEventRow,
+  Omit<typeof events.$inferInsert, "status" | "createdAt">
+> = true;
+void _translatedEventRowMatchesSchema;
+
+const _translatedMarketRowMatchesSchema: AssertEqual<
+  TranslatedMarketRow,
+  Omit<typeof markets.$inferInsert, "status" | "createdAt" | "eventId">
+> = true;
+void _translatedMarketRowMatchesSchema;
 
 // Fixtures only carry the subset of the SDK's EventData/Market shape that the
 // translator reads — the cast lets us exercise translator behavior without
@@ -213,6 +236,34 @@ describe("translateKalshiEvent", () => {
     expect(result.eventTicker).toBe("KXMLBGAME-MISMATCHED-CLOSE");
     expect(result.expected).toBe(first.expected_expiration_time);
     expect(result.offenders).toEqual([{ ticker: second.ticker, raw: "2026-05-01T02:00:00Z" }]);
+  });
+
+  it("produces row shapes that satisfy the schema-derived insert types", () => {
+    // Runtime companion to the top-level `AssertEqual` type assertions: feeds a
+    // real translator output through the same shape ingest uses (translator row
+    // + status/createdAt/eventId) and assigns it to the drizzle `$inferInsert`
+    // types. Any drift between translator output and the schema fails tsc here.
+    const result = translateKalshiEvent(eventOf(binaryHealthy), "mlb");
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+
+    const now = Date.now();
+    const eventInsert: typeof events.$inferInsert = {
+      ...result.value.event,
+      status: "open",
+      createdAt: now,
+    };
+    const marketInserts: (typeof markets.$inferInsert)[] = result.value.markets.map((m) => ({
+      ...m.market,
+      eventId: result.value.event.id,
+      status: "open",
+      createdAt: now,
+    }));
+
+    expect(eventInsert.id).toBe("kalshi-KXMLBGAME-25APR24NYYBOS");
+    expect(marketInserts).toHaveLength(2);
+    expect(marketInserts[0].eventId).toBe(eventInsert.id);
   });
 
   it("rejects events with more than 30 child markets", () => {
