@@ -45,6 +45,33 @@ Followed the Slice 1 strategy established in the prior task: additive changes on
 - `eventId` is intentionally nullable in the schema right now: while old A/B columns coexist, existing seeded markets can't satisfy a NOT NULL FK. The migration regen in Phase 1 will tighten this once the full reshape lands and the table is wiped.
 - `name` already existed on `markets` before this task — no add needed.
 
+## 2026-05-11 — Phase 0 Slice 1: Regenerate migration
+
+Regenerated the single drizzle migration so it reflects the current additive schema state (new `events` table + `eventId`/`ticker`/`resolvedAs` on `markets` + `reserveYes`/`reserveNo` on `ammPools` + `shares` on `positions`, all alongside the legacy A/B columns).
+
+Procedure:
+1. Deleted the old `0000_giant_triton.sql`, `meta/0000_snapshot.json`, and `meta/_journal.json`.
+2. Recreated `meta/_journal.json` with an empty `entries: []` array so `drizzle-kit generate` could compute the prevId/idx for a fresh first-migration emit. Without this stub, drizzle-kit panics with `ENOENT` on the journal file.
+3. Ran `bun run db:generate`, which produced `0000_petite_grey_gargoyle.sql` plus updated snapshot+journal. The wrapper script `append-to-migrations.ts` then appended the treasury seed `INSERT` at the tail of the SQL — verified present.
+4. Ran `oxfmt --write` on the regenerated `_journal.json` to match the project's trailing-newline expectation (drizzle-kit emits without one; pre-existing snapshot in the repo had been re-formatted at some prior point).
+
+The new migration intentionally still creates the legacy `team_a`/`team_b`/`ticker_a`/`ticker_b`/`closes_at` (on `markets`), `reserve_a`/`reserve_b`, and `shares_a`/`shares_b` columns. Slice 1 is additive — the actual drops happen in Phase 1.
+
+### Files changed
+- `src/lib/db/migrations/0000_giant_triton.sql` (deleted)
+- `src/lib/db/migrations/0000_petite_grey_gargoyle.sql` (new)
+- `src/lib/db/migrations/meta/0000_snapshot.json` (regenerated)
+- `src/lib/db/migrations/meta/_journal.json` (regenerated)
+
+### Verification
+- `bunx tsc --noEmit` — only pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 48/48 vitest unit tests pass.
+- `bun run lint` — 2 pre-existing warnings in `tests/integration/bet-and-resolve.test.ts`; 0 introduced by this change.
+- `bun run fmt:check` — 31 pre-existing format issues (same count as before regen, after formatting `_journal.json`).
+
+### Gotcha
+- `drizzle-kit generate` will not run if `meta/_journal.json` is absent — it tries to read the file before it figures out it's a first-migration scenario. Workaround: stub the file with `{"version":"7","dialect":"postgresql","entries":[]}` before running generate. drizzle-kit overwrites it on success.
+
 ## 2026-05-11 — Phase 0 Slice 1: Reshape `ammPools` & `positions` (additive)
 
 Added the new YES-oriented columns to the `ammPools` and `positions` pgTables in `src/lib/db/schema/app.ts` per PRD §Schema:
