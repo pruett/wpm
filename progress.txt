@@ -490,3 +490,34 @@ Left the `settled-*.json` and `not-settled-yet.json` Kalshi fixtures in `src/lib
 - `bun run test:integration` — 3/3 tests pass.
 - `bunx oxlint` on changed files — 0 warnings, 0 errors.
 - `bunx oxfmt --check` on changed files — clean (after `oxfmt --write` on `translator.test.ts`).
+
+## 2026-05-11 — Phase 2: Add `too_many_markets` translator variant
+
+Added a hard cap on child Markets per Event in the translator. Events with >30 children are now rejected wholesale via a new `too_many_markets` discriminated-union variant, before any other validation runs.
+
+Changes in `src/lib/kalshi/translator.ts`:
+- Added `MAX_MARKETS_PER_EVENT = 30` constant, sourced from PRD §Further Notes (also documented as an assumption at the top of `PLAN.md`).
+- New `TranslationResult` variant: `{ kind: 'too_many_markets', eventTicker, count }`. Carries both the event ticker (for logging consistency with sibling variants) and the actual market count (so operators can see how badly the cap was breached).
+- Check runs first in `translateKalshiEvent`, before close-time parsing and per-Market quote/spread checks. Failing fast keeps oversized payloads out of the heavier downstream validation.
+
+Changes in `src/lib/kalshi/ingest.ts`:
+- `SkipReasonKind` automatically picks up the new variant via its `Exclude<TranslationResult["kind"], "ok">` definition, but `emptySkipCounters()` had to be updated to initialise the new `too_many_markets: 0` field — `Record<SkipReasonKind, number>` enforces exhaustiveness.
+
+### Test fixture choice
+Instead of authoring a 31-market JSON fixture, the new test case constructs the oversized event in-memory by cloning a child from `binary-healthy.json` 31 times. Two reasons:
+1. The JSON would be ~31× redundant — every child carries the same shape, only the ticker varies.
+2. A real 31-Market Kalshi Event doesn't exist for any current series; an in-memory construction is more honest about the test's purpose (cap enforcement) than a fabricated fixture.
+
+The clone uses `Array.from({ length: 31 }, (_, i) => ({ ...child, ticker: `...-${i}` }))` so each child has a distinct ticker (translator does not currently dedupe, but giving each child a unique ticker matches the production shape).
+
+### Files changed
+- `src/lib/kalshi/translator.ts` (added constant, new variant, check)
+- `src/lib/kalshi/ingest.ts` (extended `emptySkipCounters`)
+- `src/lib/kalshi/translator.test.ts` (new test case)
+- `PLAN.md` (marked bullet complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 31/31 unit tests pass (was 30; +1 new translator case).
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean.

@@ -88,4 +88,25 @@ describe("translateKalshiEvent", () => {
     expect(yankees.initialProbabilityYes).toBeCloseTo(0.56, 5);
     expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
   });
+
+  it("rejects events with more than 30 child markets", () => {
+    const base = eventOf(binaryHealthy);
+    const [child] = base.markets ?? [];
+    const oversized: KalshiEvent = {
+      ...base,
+      event_ticker: "KXMLBGAME-OVERSIZED",
+      markets: Array.from({ length: 31 }, (_, i) => ({
+        ...child,
+        ticker: `KXMLBGAME-OVERSIZED-${i}`,
+      })),
+    };
+
+    const result = translateKalshiEvent(oversized, "mlb");
+
+    expect(result).toEqual({
+      kind: "too_many_markets",
+      eventTicker: "KXMLBGAME-OVERSIZED",
+      count: 31,
+    });
+  });
 });
