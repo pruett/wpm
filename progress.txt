@@ -298,3 +298,31 @@ The function is pure — no DB I/O, no clock — so it'll slot into the Phase 3 
 - `Promise.all([select, select, select])` inside a `db.transaction` is fine with `postgres-js` — drizzle serialises queries on the underlying transaction object, but the typescript signature returns a tuple so destructuring is ergonomic. The empty-childMarketIds branch returns `[[], [], []]` early because `inArray` chokes on an empty list (same gotcha as the previous resolver-driver task).
 - `cancelReasonFor` had to retain a branch for `resolved_yes`/`resolved_no` to satisfy exhaustiveness — those paths are unreachable at runtime since they take the resolved branch, but the switch needs the cases. Returns `"oracle_cancel"` defensively.
 - The `applyChildSettlement` walks payouts twice mentally (credit + ledger row), but a single loop suffices — the ledger row is emitted for every payout (including zero-amount loss/zero rows) per PRD §Settlement.
+
+## 2026-05-11 — Phase 0 Slice 1: Drop `outcome` from `placeBet` action; delete `sellShares` action
+
+Removed the legacy A/B `outcome` parameter from the `placeBet` server action's Zod schema and deleted `src/actions/sellShares.ts` outright. The action now passes the parsed `{marketId, amount}` straight through to the DAL — no key-picking required since the schema matches the DAL signature.
+
+### Consumer cascade in `bet-controls.tsx`
+The only consumer of either action was `src/components/bet-controls.tsx`, which had to be adjusted minimally to keep typecheck green ahead of the Phase 5 UI rewrite:
+- Removed `import { sellShares } from "@/actions/sellShares"`.
+- Changed `placeBet({ marketId, outcome, amount })` → `placeBet({ marketId, amount })`. The `outcome` state variable still drives display (which side is highlighted, which position is shown), but it no longer participates in the bet payload — the server always buys YES under the new model.
+- Replaced `handleSell`'s body with an inline "Selling is disabled." error message so the surrounding sell-tab UI keeps compiling. The tab, related state (`sellShareAmount`, `tab`, `pickTab`), and presets are intentionally left in place — Phase 5 will remove the entire toggle/tab apparatus when it rewrites the bet form.
+
+### Why a minimal UI patch instead of a full purge
+The plan explicitly defers the A/B toggle and sell-tab removal to Phase 5 ("Bet controls / drawer: remove A/B toggle; single 'Buy YES' button per Market"). Excising the sell UI now would have rippled into `<Tabs>`/`<TabsList>`/`<TabsContent>` deletions and forced state cleanup beyond the scope of "delete the action file" — so the surgical replacement keeps the diff tight and lets the Phase 5 task own the structural redesign.
+
+### Files changed
+- `src/actions/placeBet.ts`
+- `src/actions/sellShares.ts` (deleted)
+- `src/components/bet-controls.tsx`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 45/45 vitest unit tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors. `bun run lint` shows the same 2 pre-existing warnings unrelated to this change.
+- `bunx oxfmt --check` on changed files — clean.
+
+### Notes
+- The `sellShares` DAL function in `src/data/trading.ts` is intentionally untouched — it's still called by `tests/integration/bet-and-resolve.test.ts` via `placeBetLegacy`'s sibling export, and Phase 6 rewrites that integration test. Same retention rationale as `placeBetLegacy` and `createMarket`.
+- The `SellShares` enum value in `transactionTypes` similarly stays for now — its drop is tied to the trading.ts DAL purge in Phase 4.

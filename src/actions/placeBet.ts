@@ -9,7 +9,6 @@ import { placeBet as placeBetDAL } from "@/data/trading";
 
 const PlaceBetInput = z.object({
   marketId: z.string().min(1),
-  outcome: z.enum(["A", "B"]),
   amount: z.number().positive(),
 });
 
@@ -18,10 +17,7 @@ export async function placeBet(input: z.input<typeof PlaceBetInput>): Promise<Ac
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    const result = await placeBetDAL({
-      marketId: parsed.data.marketId,
-      amount: parsed.data.amount,
-    });
+    const result = await placeBetDAL(parsed.data);
 
     revalidateTag(tags.market(result.marketId), "max");
     revalidateTag(tags.viewer(result.userId), "max");
