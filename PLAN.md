@@ -104,11 +104,11 @@
 - [x] Wait: at least one non-terminal child AND deadline not reached → `{ kind: 'wait' }`.
 
 ### Resolver driver
-- [ ] Selection: `events WHERE status='open' AND closesAt < now`.
-- [ ] Group selected Events by Kalshi series. One bulk call per series via `getEvents({ event_tickers: [...] })` — if SDK lacks bulk param, keep concurrent per-ticker fan-out and document the limitation.
-- [ ] Per Event: call `decideEventCommit`; on `commit`, pass plan + cross-child positions + cross-child pools to `commitEvent` in `data/events.ts`.
-- [ ] Drop `dispatch` switch in favor of plan-driven `commitEvent`.
-- [ ] Summary counters: per-Event statuses (`waited`/`committed`) plus per-child outcome counts (`resolved_yes`/`resolved_no`/`cancelled_*`).
+- [x] Selection: `events WHERE status='open' AND closesAt < now`.
+- [x] Group selected Events by Kalshi series. One bulk call per series via `getEvents({ event_tickers: [...] })` — if SDK lacks bulk param, keep concurrent per-ticker fan-out and document the limitation.
+- [x] Per Event: call `decideEventCommit`; on `commit`, pass plan + cross-child positions + cross-child pools to `commitEvent` in `data/events.ts`.
+- [x] Drop `dispatch` switch in favor of plan-driven `commitEvent`.
+- [x] Summary counters: per-Event statuses (`waited`/`committed`) plus per-child outcome counts (`resolved_yes`/`resolved_no`/`cancelled_*`).
 
 ### Resolver decision tests
 - [x] `wait` when any child non-terminal and deadline not reached.

@@ -1588,3 +1588,56 @@ Verification points:
   (positions.ts, bet-controls.tsx, market-detail.tsx, the integration test)
   so it warrants its own dedicated commit rather than being folded into an
   audit pass.
+
+## 2026-05-11 — Phase 3: PLAN audit, mark resolver driver cluster complete
+
+PLAN lines 107-111 (Phase 3 resolver driver): all five were already implemented
+in `src/lib/kalshi/resolve.ts`. Audited each against the current source and
+marked them complete.
+
+Verification points:
+- Line 107 (Selection: `events WHERE status='open' AND closesAt < now`) —
+  `resolve.ts:208-211` selects exactly this:
+  `db.select().from(eventsTable).where(and(eq(status,'open'), lt(closesAt, now)))`.
+- Line 108 (Group selected Events by Kalshi series; bulk call per series,
+  fan out + document limitation if SDK lacks bulk param) — events are bucketed
+  by `event.sport` at `resolve.ts:233-238`, then each series goes through
+  `resolveSeries`. `fetchEventsByTicker` (lines 331-366) fans out to per-ticker
+  `getEvent` calls with `KALSHI_FETCH_CONCURRENCY = 4`; the bulk-API
+  limitation is documented inline at lines 338-340.
+- Line 109 (Per Event: call `decideEventCommit`; on commit pass plan +
+  cross-child positions + cross-child pools to `commitEvent`) —
+  `resolve.ts:297-312` calls `decideEventCommit`, and on `commit` passes the
+  full per-child plan into `commitEvent({ eventId, perChild: decision.perChild })`.
+  `commitEvent` itself (`events.ts:119-227`) loads cross-child positions and
+  pools in one pass and feeds them into `computeEventSettlement`.
+- Line 110 (Drop `dispatch` switch in favor of plan-driven `commitEvent`) —
+  there is no `dispatch` switch in `resolve.ts`; the driver is plan-driven
+  through `decideEventCommit` → `commitEvent`. Grep confirms no leftover
+  dispatch references in the resolver path.
+- Line 111 (Summary counters: per-Event statuses `waited`/`committed` plus
+  per-child outcome counts `resolved_yes`/`resolved_no`/`cancelled_*`) —
+  `SeriesResolveSummary` (lines 128-135) has `considered`, `committed`, and
+  `skipped.waited` for Event statuses, plus `perChildOutcomes:
+  Record<ChildOutcomeKind, number>` for the per-child outcome counts. The
+  aggregator `KalshiResolveSummary` (lines 137-152) rolls the same counters
+  up across series.
+
+### Files changed
+- `PLAN.md` (mark Phase 3 resolver driver lines 107-111 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+
+### Notes
+- Continuing the audit pattern from the prior four commits: pick a coherent
+  cluster of done-but-unchecked PLAN lines, verify each against the current
+  source, flip the boxes in one batch. This commit closes out the Phase 3
+  resolver driver — settlement implementation/tests (lines 122-128, 131, 136)
+  and Phase 4 data layer reshape (lines 151-156) are the next natural
+  clusters but each warrants its own commit.
+- Did not touch the Phase 1 schema purge (lines 41-44, 47) since the prior
+  progress entry already flagged it as load-bearing and deserving a dedicated
+  commit due to cascade into UI + positions.ts + integration test.
