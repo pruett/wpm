@@ -3,9 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { KalshiEvent } from "./index.js";
 
 import binaryHealthy from "./fixtures/binary-healthy.json" with { type: "json" };
-import nonBinary from "./fixtures/non-binary.json" with { type: "json" };
 import notSettledYet from "./fixtures/not-settled-yet.json" with { type: "json" };
-import pairInconsistent from "./fixtures/pair-inconsistent.json" with { type: "json" };
 import settledAWins from "./fixtures/settled-a-wins.json" with { type: "json" };
 import settledAmbiguous from "./fixtures/settled-ambiguous.json" with { type: "json" };
 import settledBWins from "./fixtures/settled-b-wins.json" with { type: "json" };
@@ -23,26 +21,34 @@ import { translateKalshiEvent, translateKalshiResolution } from "./translator.js
 const eventOf = (fixture: unknown): KalshiEvent => (fixture as { events: KalshiEvent[] }).events[0];
 
 describe("translateKalshiEvent", () => {
-  it("translates a healthy binary event", () => {
+  it("translates a healthy 2-Market event into one Event row + two Market rows", () => {
     const result = translateKalshiEvent(eventOf(binaryHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
 
-    const { market, seedAmount, initialProbabilityA } = result.value;
-    expect(market.id).toBe("kalshi-KXMLBGAME-25APR24NYYBOS");
-    expect(market.sport).toBe("mlb");
-    expect(market.name).toBe("New York Yankees at Boston Red Sox");
-    expect(market.teamA).toBe("Yankees");
-    expect(market.teamB).toBe("Red Sox");
-    expect(market.tickerA).toBe("KXMLBGAME-25APR24NYYBOS-NYY");
-    expect(market.tickerB).toBe("KXMLBGAME-25APR24NYYBOS-BOS");
-    expect(market.closesAt).toBe(Date.parse("2026-04-25T02:00:00Z"));
-    expect(seedAmount).toBe(1000n);
-    expect(initialProbabilityA).toBeCloseTo(0.56, 5);
+    const { event, markets } = result.value;
+    expect(event.id).toBe("kalshi-KXMLBGAME-25APR24NYYBOS");
+    expect(event.sport).toBe("mlb");
+    expect(event.name).toBe("New York Yankees at Boston Red Sox");
+    expect(event.closesAt).toBe(Date.parse("2026-04-25T02:00:00Z"));
+
+    expect(markets).toHaveLength(2);
+
+    const [yankees, redSox] = markets;
+    expect(yankees.market.id).toBe("kalshi-KXMLBGAME-25APR24NYYBOS-NYY");
+    expect(yankees.market.name).toBe("Yankees");
+    expect(yankees.market.ticker).toBe("KXMLBGAME-25APR24NYYBOS-NYY");
+    expect(yankees.seedAmount).toBe(1000n);
+    expect(yankees.initialProbabilityYes).toBeCloseTo(0.56, 5);
+
+    expect(redSox.market.id).toBe("kalshi-KXMLBGAME-25APR24NYYBOS-BOS");
+    expect(redSox.market.name).toBe("Red Sox");
+    expect(redSox.market.ticker).toBe("KXMLBGAME-25APR24NYYBOS-BOS");
+    expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
   });
 
-  it("skips events with zero-spread on either side", () => {
+  it("skips events with zero-spread on any child", () => {
     const result = translateKalshiEvent(eventOf(zeroSpread), "mlb");
 
     expect(result).toEqual({
@@ -51,51 +57,42 @@ describe("translateKalshiEvent", () => {
     });
   });
 
-  it("skips events with more than two nested markets", () => {
-    const result = translateKalshiEvent(eventOf(nonBinary), "mlb");
-
-    expect(result).toEqual({ kind: "non_binary", count: 3 });
-  });
-
   it("skips events with an unparseable close timestamp", () => {
     const result = translateKalshiEvent(eventOf(unparseableCloseTime), "mlb");
 
     expect(result).toEqual({ kind: "unparseable_close_time", raw: "not-a-timestamp" });
   });
 
-  it("rejects events where one Kalshi Market has a wide bid-ask spread", () => {
+  it("rejects events where any child Kalshi Market has a wide bid-ask spread", () => {
     const result = translateKalshiEvent(eventOf(wideSpread), "mlb");
 
     expect(result.kind).toBe("insufficient_confidence");
     if (result.kind !== "insufficient_confidence") return;
     expect(result.eventTicker).toBe("KXMLBGAME-25APR24WIDESPREAD");
-    expect(result.reasons).toContain("spread_a_too_wide");
+    expect(result.reasons.some((r) => r.reason === "spread_too_wide")).toBe(true);
   });
 
-  it("rejects events where the two Kalshi Markets disagree beyond the pair threshold", () => {
-    const result = translateKalshiEvent(eventOf(pairInconsistent), "mlb");
-
-    expect(result.kind).toBe("insufficient_confidence");
-    if (result.kind !== "insufficient_confidence") return;
-    expect(result.reasons).toContain("pair_inconsistent");
-  });
-
-  it("accepts a skewed but consistent event and seeds with the averaged probability", () => {
+  it("accepts a skewed but healthy event and seeds each child with its own YES probability", () => {
     const result = translateKalshiEvent(eventOf(skewedHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    // midProb_a = 0.86, 1 - midProb_b = 1 - 0.14 = 0.86 → average = 0.86
-    expect(result.value.initialProbabilityA).toBeCloseTo(0.86, 5);
+    // Each child Market's initialProbabilityYes is now its own YES midpoint —
+    // no pair-averaging, since under the multi-outcome model each Market is
+    // an independent YES/NO contract.
+    const [first, second] = result.value.markets;
+    expect(first.initialProbabilityYes).toBeCloseTo(0.86, 5);
+    expect(second.initialProbabilityYes).toBeCloseTo(0.14, 5);
   });
 
-  it("computes initialProbabilityA as the average of midProb_a and 1 - midProb_b", () => {
+  it("computes per-child initialProbabilityYes from that child's own bid/ask midpoint", () => {
     const result = translateKalshiEvent(eventOf(binaryHealthy), "mlb");
 
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
-    // midProb_a = 0.56, 1 - midProb_b = 1 - 0.44 = 0.56 → average = 0.56
-    expect(result.value.initialProbabilityA).toBeCloseTo(0.56, 5);
+    const [yankees, redSox] = result.value.markets;
+    expect(yankees.initialProbabilityYes).toBeCloseTo(0.56, 5);
+    expect(redSox.initialProbabilityYes).toBeCloseTo(0.44, 5);
   });
 });
 
@@ -130,10 +127,5 @@ describe("translateKalshiResolution", () => {
 
   it("returns not_settled_yet when result fields are empty (pre-settlement)", () => {
     expect(translateKalshiResolution(eventOf(binaryHealthy))).toEqual({ kind: "not_settled_yet" });
-  });
-
-  it("returns ambiguous for non-binary events", () => {
-    const result = translateKalshiResolution(eventOf(nonBinary));
-    expect(result.kind).toBe("ambiguous");
   });
 });
