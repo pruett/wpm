@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   try {
     const summary = await runKalshiIngest();
-    if (summary.totals.created > 0) {
+    if (summary.totals.createdEvents > 0) {
       revalidateTag(tags.marketsAll(), "max");
     }
     return NextResponse.json(summary);

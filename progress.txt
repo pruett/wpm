@@ -567,3 +567,23 @@ The midpoints sum to 1.0 across the field — coherent multi-outcome distributio
 - `bun run test` — 33/33 unit tests pass (was 32; +1 new translator case).
 - `bunx oxlint src/lib/kalshi/translator.test.ts` — 0 warnings, 0 errors.
 - `bunx oxfmt --check` — clean (after `oxfmt --write` re-flowed the inline expected-array literal).
+
+## 2026-05-11 — Phase 2: Event-level ingest summary counters
+
+Split the ingest driver's single `created` counter into two distinct counters per the PRD's Event/Market vocabulary: `createdEvents` (number of `events` rows written) and `createdMarkets` (sum of child Markets across those events). Both surface in `SeriesIngestSummary` and the top-level `totals` rollup.
+
+The Markets count is derived from `result.value.markets.length` for each successful translation — `createEvent` doesn't need a richer return shape because the translator output is already in hand at the call site.
+
+### Cron route revalidation gate
+`src/app/api/cron/ingest/route.ts` was gated on `summary.totals.created > 0`. Now gates on `summary.totals.createdEvents > 0` — semantically the same boolean (every created Event implies at least one Market) but matches the new naming. Could equivalently gate on `createdMarkets`; picked `createdEvents` because the homepage groups by Event and the revalidation is for the markets-list view that walks Event rows.
+
+### Files changed
+- `src/lib/kalshi/ingest.ts`
+- `src/app/api/cron/ingest/route.ts`
+- `PLAN.md` (mark Phase 2 line 92 complete)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 33/33 unit tests pass.
+- `bunx oxlint` on changed files — 0 warnings, 0 errors.
+- `bunx oxfmt --check` on changed files — clean.
