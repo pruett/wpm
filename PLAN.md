@@ -16,7 +16,7 @@
 - [x] Add new `events` table to `src/lib/db/schema/app.ts` with columns per PRD §Schema; keep old columns reachable temporarily for compile.
 - [x] Reshape `markets` table in the schema: drop `sport`/`teamA`/`teamB`/`tickerA`/`tickerB`/`closesAt`/`resolvedOutcome`; add `eventId`/`name`/`ticker`/`resolvedAs`. Move `sport` to `events`.
 - [x] Rename `ammPools.reserveA/B` → `reserveYes/No`; collapse `positions` to `(userId, marketId, shares, costBasis)`; drop `SellShares` from `transactionTypes`.
-- [ ] Regenerate single migration `src/lib/db/migrations/0000_*.sql` (full wipe of the 5 tables) and update `0000_snapshot.json`/`_journal.json`.
+- [x] Regenerate single migration `src/lib/db/migrations/0000_*.sql` (full wipe of the 5 tables) and update `0000_snapshot.json`/`_journal.json`.
 - [ ] Rewrite `translateKalshiEvent` happy path: 2-Market Kalshi Event → `{ event: EventInsertRow, markets: [{market, seedAmount, initialProbabilityYes}, ...] }` discriminated union (no `non_binary` rejection).
 - [ ] Update `createMarket` (rename to `createEvent` in `data/events.ts`): insert one `events` row + N `markets` rows + N `ammPools` rows in a single DB transaction; per-Market `initializePool` seeding.
 - [ ] Rewrite `placeBet` in `data/trading.ts`: signature `(marketId, amount)` — buy YES only; reads pool with `reserveYes/No`, calls new `calculateBuy(pool, amount)` (YES-only), writes `positions.shares`.

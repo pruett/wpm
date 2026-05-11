@@ -2,6 +2,8 @@ CREATE TABLE "amm_pools" (
 	"market_id" text PRIMARY KEY NOT NULL,
 	"reserve_a" bigint NOT NULL,
 	"reserve_b" bigint NOT NULL,
+	"reserve_yes" bigint,
+	"reserve_no" bigint,
 	"wpm_reserve" bigint NOT NULL,
 	"seed_amount" bigint NOT NULL
 );
@@ -12,16 +14,28 @@ CREATE TABLE "balances" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "markets" (
+CREATE TABLE "events" (
 	"id" text PRIMARY KEY NOT NULL,
 	"sport" text NOT NULL,
 	"name" text NOT NULL,
+	"closes_at" bigint NOT NULL,
+	"status" text NOT NULL,
+	"created_at" bigint NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "markets" (
+	"id" text PRIMARY KEY NOT NULL,
+	"event_id" text,
+	"sport" text NOT NULL,
+	"name" text NOT NULL,
+	"ticker" text,
 	"team_a" text NOT NULL,
 	"team_b" text NOT NULL,
 	"ticker_a" text,
 	"ticker_b" text,
 	"closes_at" bigint NOT NULL,
 	"status" text NOT NULL,
+	"resolved_as" text,
 	"resolved_outcome" text,
 	"resolved_at" bigint,
 	"created_at" bigint NOT NULL
@@ -32,6 +46,7 @@ CREATE TABLE "positions" (
 	"market_id" text NOT NULL,
 	"shares_a" bigint DEFAULT 0 NOT NULL,
 	"shares_b" bigint DEFAULT 0 NOT NULL,
+	"shares" bigint DEFAULT 0 NOT NULL,
 	"cost_basis" bigint DEFAULT 0 NOT NULL,
 	CONSTRAINT "positions_user_id_market_id_pk" PRIMARY KEY("user_id","market_id")
 );
@@ -119,6 +134,7 @@ CREATE TABLE "verification" (
 --> statement-breakpoint
 ALTER TABLE "amm_pools" ADD CONSTRAINT "amm_pools_market_id_markets_id_fk" FOREIGN KEY ("market_id") REFERENCES "public"."markets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "balances" ADD CONSTRAINT "balances_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "markets" ADD CONSTRAINT "markets_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "positions" ADD CONSTRAINT "positions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "positions" ADD CONSTRAINT "positions_market_id_markets_id_fk" FOREIGN KEY ("market_id") REFERENCES "public"."markets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -126,6 +142,7 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_market_id_markets_id_fk"
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "passkey" ADD CONSTRAINT "passkey_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "ix_events_status_closes" ON "events" USING btree ("status","closes_at");--> statement-breakpoint
 CREATE INDEX "ix_markets_status_closes" ON "markets" USING btree ("status","closes_at");--> statement-breakpoint
 CREATE INDEX "ix_positions_market" ON "positions" USING btree ("market_id");--> statement-breakpoint
 CREATE INDEX "ix_tx_user" ON "transactions" USING btree ("user_id","created_at");--> statement-breakpoint

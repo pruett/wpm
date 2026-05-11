@@ -1,5 +1,5 @@
 {
-  "id": "1770ae88-5564-428a-aeec-84c2fcb894bc",
+  "id": "8b6dca2a-a646-4a83-acb3-8be747510cb0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -25,6 +25,18 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "reserve_yes": {
+          "name": "reserve_yes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reserve_no": {
+          "name": "reserve_no",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "wpm_reserve": {
           "name": "wpm_reserve",
@@ -107,8 +119,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.markets": {
-      "name": "markets",
+    "public.events": {
+      "name": "events",
       "schema": "",
       "columns": {
         "id": {
@@ -128,6 +140,89 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "ix_events_status_closes": {
+          "name": "ix_events_status_closes",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "closes_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.markets": {
+      "name": "markets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sport": {
+          "name": "sport",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ticker": {
+          "name": "ticker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "team_a": {
           "name": "team_a",
@@ -164,6 +259,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "resolved_as": {
+          "name": "resolved_as",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "resolved_outcome": {
           "name": "resolved_outcome",
@@ -207,7 +308,21 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "markets_event_id_events_id_fk": {
+          "name": "markets_event_id_events_id_fk",
+          "tableFrom": "markets",
+          "tableTo": "events",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -239,6 +354,13 @@
         },
         "shares_b": {
           "name": "shares_b",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "shares": {
+          "name": "shares",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
