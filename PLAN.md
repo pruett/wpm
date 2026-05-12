@@ -190,9 +190,9 @@
 
 ### Market list / homepage
 
-- [ ] Update `src/components/market-list.tsx` to group `MarketWithOdds[]` by `eventId`. Render one card per Event.
-- [ ] Binary Event card: two child Markets side-by-side.
-- [ ] Multi-outcome Event card: top N children by liquidity/probability with overflow count.
+- [x] Update `src/components/market-list.tsx` to group `MarketWithOdds[]` by `eventId`. Render one card per Event.
+- [x] Binary Event card: two child Markets side-by-side.
+- [x] Multi-outcome Event card: top N children by liquidity/probability with overflow count.
 
 ### Bet controls / drawer
 

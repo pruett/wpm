@@ -2876,3 +2876,82 @@ without touching the cascade.
   residual-grep purge), line 235 (final clean typecheck + tests run).
   Lines 234-235 are coupled with the Phase 1 schema purge and will
   fall out of that bundle.
+
+## 2026-05-12 — Phase 5: Homepage Event grouping (lines 194–196)
+
+Phase 5 UI task. The homepage `MarketList` was a flat grid of
+`MarketCard`s — one per Market. Per PRD §UI, the homepage should
+present **Events** as the primary unit: one card per Event, with
+binary Events showing both children side-by-side and multi-outcome
+Events showing the top N children plus an overflow count.
+
+### What changed
+- New `src/components/event-card.tsx` — `EventCard({ eventId, markets })`
+  rendering variants based on child count:
+  - **1 child** (or `eventId=null`): delegates to existing `MarketCard`
+    (no visual regression for legacy/unattached markets).
+  - **2 children** (binary): single card, header (sport logo + "2
+    markets" badge), two `ChildTile`s in a `grid-cols-2`, each showing
+    the child's name, `priceYes%`, and `multiplierYes` `x`. Sorted
+    by `priceYes` desc.
+  - **3+ children** (multi-outcome): single card, top 3 by
+    `priceYes` desc as `ChildRow`s (name + `%`), with `+N more`
+    overflow tail.
+  - Footer aggregates bettors across children (deduped by user id),
+    shows aggregate count + close time.
+  - Card click → `/event/{eventId}` (matches existing `MarketCard`
+    href pattern).
+- `src/components/market-list.tsx` — replaced flat map with
+  `groupByEvent(markets)` returning `{ grouped, unattached }`.
+  Grouped entries render `EventCard`, unattached (eventId=null)
+  render legacy `MarketCard`.
+- `PLAN.md` lines 194, 195, 196 → `[x]`.
+
+### Files changed
+- `src/components/event-card.tsx` (new)
+- `src/components/market-list.tsx`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated, in
+  `tests/e2e/fixtures.ts:11` empty destructure).
+- `bunx oxfmt` (touched files) — clean.
+- `bun run test:integration` — skipped (EPERM on localhost:5433
+  inside the agent sandbox; not a regression from this change).
+
+### Scope decision: bundle lines 194-196 in one task
+Splitting 194 (group) from 195 (binary layout) and 196 (multi-outcome
+layout) would have produced three near-empty commits: each variant
+needs the grouping in place to render anything, and the grouping is
+the entire point of the variants. Bundled them; mark all three done.
+
+### Notes
+- Sort key for children is `priceYes` desc (highest probability
+  first). PRD line wording was "top N by liquidity/probability";
+  liquidity-as-bettor-count is also available
+  (`MarketWithOdds.bettorCount`) but probability ranking is more
+  meaningful to a bettor scanning the card — and matches the natural
+  reading order ("the favorite is on top"). Easy to swap if needed.
+- `TOP_N = 3` for multi-outcome. PRD didn't specify; 3 fits the
+  card vertical budget without competing with the bettor footer.
+- Binary card uses `grid-cols-2` tiles rather than a vertical list so
+  the two complementary children read as a head-to-head matchup
+  (priceYes_A + priceNo_B ≈ 1). Tile shows multiplier too since
+  there's room; multi-outcome rows skip multiplier to keep density.
+- Card header drops the market name (binary needs no event-level
+  title because the two child names are the contest; multi-outcome
+  has no event name on `MarketWithOdds` yet — see below). Sport
+  logo + market count badge serves as the header.
+- **Followup**: `MarketWithOdds` carries no event name today
+  (it's flat-joined to the market row). When the Phase 1 schema
+  purge lands (PLAN line 41 onward) and `Market` is reshaped to
+  `{ id, eventId, name, status, resolvedAs }`, we should consider
+  surfacing the parent event name (e.g. via `getEvents` on the
+  homepage instead of `getMarkets`). For v1 the card reads fine
+  without a title.
+- `Search` still filters on `MarketWithOdds.outcomes[0/1]` (team
+  names) which is unaffected — group rendering is a presentation-
+  only change downstream of the search filter.
