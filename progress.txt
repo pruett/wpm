@@ -2076,3 +2076,63 @@ child — including cancellations — rather than splitting into
   legacy removal), Phase 5 UI rewrite (lines 168-189), Phase 3 line 136
   (mid-commit failure rollback test). The schema cluster remains the
   natural prerequisite for line 152's full cleanup.
+
+## 2026-05-11 — Phase 3: mid-commit failure rollback test (line 136)
+
+PLAN line 136 — "Simulated mid-commit failure leaves no rows behind (DB
+transaction rollback)." This was the last unchecked item under Phase 3
+Settlement tests. It must be an integration-level test (real Postgres) since
+DB transaction rollback is a runtime guarantee not visible at the pure-function
+unit level — `settlement.test.ts` couldn't host it. The natural home is
+`tests/integration/`, alongside the existing `event-flow` smoke tests.
+
+### What changed
+- New file `tests/integration/event-commit-rollback.test.ts` — single-test
+  file scoped to mid-commit rollback so its mocks don't leak into other
+  integration suites.
+  - Mocks `@/lib/settlement` via `vi.mock` to wrap the real
+    `computeEventSettlement` and append a `userId: "u-ghost"` payout to the
+    second child's `payouts` list. That ghost user does not exist in the
+    `user` table.
+  - When `applyChildSettlement` reaches the second child, the
+    `tx.insert(balances).values({ userId: "u-ghost", amount: 1n })` upsert
+    trips the `balances.user_id → user.id` foreign-key constraint. Postgres
+    aborts; drizzle's `db.transaction` rolls every write — including the
+    cleanly-applied first child — back.
+  - The test snapshots balances/treasury/positions/transactions/pools before
+    the commit attempt, asserts `commitEvent` rejects, then verifies *every*
+    pre-commit invariant still holds: event status `open`, both child markets
+    `open` with null `resolvedAs`/`resolvedAt`, bettor balance unchanged,
+    treasury unchanged, no `u-ghost` row in balances, position rows
+    deep-equal, zero `SettlePayout`/`ResolveMarket`/`TreasuryBackstop`
+    transactions appended, and pool `wpmReserve` un-drained on both children.
+
+### Files changed
+- `tests/integration/event-commit-rollback.test.ts` (new)
+- `PLAN.md` (line 136 → `[x]`)
+
+### Verification
+- `bun run test:integration` — 4/4 tests pass (1 new rollback + 1 existing
+  bet-and-resolve + 2 existing event-flow scenarios).
+- `bun run test` — 50/50 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing `vitest.integration.config.ts`
+  `fileParallel` overload error remains.
+- `bun run lint` — 0 errors, 2 pre-existing warnings.
+- `bunx oxfmt --check tests/integration/event-commit-rollback.test.ts` — clean.
+
+### Notes
+- Placing the rollback test in its own file rather than appending to
+  `event-flow.test.ts` was deliberate: `vi.mock("@/lib/settlement", …)` hoists
+  to module scope and would corrupt the in-place commit assertions in the
+  Slice 1 / Slice 2 tests. Co-locating only the rollback scenario keeps the
+  poison contained to where it's needed.
+- The poisoning mechanism — appending a payout row to an already-computed
+  settlement output — is intentionally minimal-invasive: it leaves
+  `treasuryDelta` / `backstopAmount` from the real computation untouched, so
+  the test fails for the right reason (FK violation mid-transaction) and not
+  because of a contrived settlement shape that would also fail validation
+  elsewhere.
+- Remaining substantive work clusters are unchanged from prior progress
+  notes: Phase 1 schema purge (lines 41–44, 47), Phase 4 line 151 (events.ts
+  read APIs) / 152 (markets.ts legacy removal), and Phase 5 UI rewrite
+  (lines 168–189). Phase 3 is now fully checked.

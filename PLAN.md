@@ -133,7 +133,7 @@
 - [x] Loser on `resolved_no`: `amount = 0` `SettlePayout` row present.
 - [x] Holder on `cancelled_*`: `amount = costBasis` refund.
 - [x] Per-child treasury backstop fires only on under-collateralised child; sibling with healthy reserves does not trigger.
-- [ ] Simulated mid-commit failure leaves no rows behind (DB transaction rollback).
+- [x] Simulated mid-commit failure leaves no rows behind (DB transaction rollback).
 
 ### AMM tests (`amm.test.ts`)
 - [x] Adapt existing tests to `reserveYes/No` naming; drop `outcome` param from `calculateBuy` cases.
