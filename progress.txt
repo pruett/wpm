@@ -2690,3 +2690,86 @@ inside a `TabsContent`.
   (portfolio/bets-history reshape). The portfolio `priceA` legacy
   fallback comment in `src/components/portfolio.tsx:35-37` is a known
   transition shim that disappears with line 53 + line 184.
+
+## 2026-05-12 — Phase 1/5: Reshape MarketWithOdds to single-side YES (lines 53 + 181)
+
+Bundled PLAN line 53 (type reshape) with line 181 (purge legacy A/B
+fields from market-card/market-item/live-odds). Once `MarketWithOdds`
+drops `priceA`/`priceB`/`multiplierA`/`multiplierB`, every consumer
+breaks until rewired — splitting the work would leave a non-compiling
+intermediate state.
+
+### What changed
+- `src/lib/types.ts` — `MarketWithOdds` now has `priceYes` +
+  `multiplierYes` only. `priceNo` derived as `1 - priceYes` at the
+  consumer; `multiplierNo` was unused outside the legacy bet-controls
+  toggle (already deleted with line 178), so it isn't carried forward.
+- `src/data/markets.ts` — `enrichMarket` produces single-side fields.
+  Resolved-market branch uses `market.result === "A"` (legacy column
+  on `Market.result` still encodes YES-wins-as-A) to pick `winYes`.
+  When the schema column rename lands in Phase 1 (line 41+, drop
+  `resolvedOutcome`), this will read `market.resolvedAs === "yes"`
+  instead. Open-market branch reads `calculateOdds(pool)` directly.
+- `src/components/live-odds.tsx` — props collapsed from
+  `{ outcomes: [string, string], priceA, priceB }` to `{ priceYes }`.
+  Renders two `OddsBar`s labelled `YES`/`NO`, with `NO` price
+  computed as `1 - priceYes`. The dual-bar visual stays the same —
+  only the labels change (no more team names since the legacy
+  `outcomes: [string, string]` lived on `Market`, not the odds
+  envelope).
+- `src/components/market-card.tsx` — `<LiveOdds>` invocation reduced
+  to `<LiveOdds priceYes={market.priceYes} />`.
+- `src/components/market-item.tsx` — `pctA`/`pctB` → `pctYes`/`pctNo`.
+  The two-team label `{outcomes[0]} vs {outcomes[1]}` collapsed to
+  `YES vs NO` (the row already shows the market name in `ItemTitle`).
+- `src/components/portfolio.tsx` — `buildOpenRow` reads
+  `market?.priceYes` directly; the transition-shim comment
+  (`MarketWithOdds.priceA still encodes priceYes...`) is gone.
+- `PLAN.md` (lines 53, 181 → `[x]`).
+
+### Files changed
+- `src/lib/types.ts`
+- `src/data/markets.ts`
+- `src/components/live-odds.tsx`
+- `src/components/market-card.tsx`
+- `src/components/market-item.tsx`
+- `src/components/portfolio.tsx`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run test:integration` — 5/5 integration tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated).
+- `bunx oxfmt --check` (touched files) — clean.
+
+### Scope decision: drop `multiplierNo` rather than carry it forward
+PLAN line 53 says "single-side: `priceYes`/`multiplierYes` (no NO
+needed since `priceNo = 1 - priceYes`)". `multiplierNo` was only
+consumed by the legacy A/B toggle in `BetControls`, which was deleted
+when line 178 landed. Carrying it forward would be a vestige with no
+caller. If a UI ever needs the NO multiplier, it can compute it from
+`priceNo = 1 - priceYes` and `multiplierNo = 1 / priceNo`.
+
+### Notes
+- `Market.outcomes: [string, string]` and `Market.result: "A" | "B"`
+  still live on the `Market` type — neither was in scope for this
+  change. PLAN line 51 ("Reshape `Market` to `{ id, eventId, name,
+  status, resolvedAs }` (no `sport`/`outcomes`/`result`)") is the
+  follow-up that purges them; until then, `data/markets.ts:toMarket`
+  keeps reading the legacy DB columns (`teamA`/`teamB`/
+  `resolvedOutcome`) into the legacy type fields.
+- `Search`'s filter still searches `m.outcomes[0]`/`m.outcomes[1]`
+  (team names). That filter contract is unaffected by this change
+  since `outcomes` lives on `Market`, not `MarketWithOdds`-specific
+  fields. It will rewire when line 51 lands.
+- `LiveOdds` now hardcodes `YES`/`NO` labels. The market name lives
+  on the parent card (`market-card.tsx` header / `market-item.tsx`
+  `ItemTitle`), so duplicating it inside `LiveOdds` would be visual
+  noise — kept the labels generic.
+- Remaining Phase 5 work: lines 174-176 (homepage event grouping +
+  binary/multi-outcome event cards), line 180 (`market-drawer.tsx`
+  child-Markets render), lines 183-189 (portfolio Event aggregation
+  view + bets-history reshape). Phase 1 schema purge (lines 41-47)
+  is still pending and is the largest remaining foundational task.

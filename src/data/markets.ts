@@ -58,14 +58,11 @@ function enrichMarket(
 ): MarketWithOdds {
   const bettorCount = bettors.length;
   if (market.status === "resolved") {
-    const winA = market.result === "A" ? 1 : 0;
-    const winB = market.result === "B" ? 1 : 0;
+    const winYes = market.result === "A" ? 1 : 0;
     return {
       ...market,
-      priceA: winA,
-      priceB: winB,
-      multiplierA: winA > 0 ? 1 / winA : 0,
-      multiplierB: winB > 0 ? 1 / winB : 0,
+      priceYes: winYes,
+      multiplierYes: winYes > 0 ? 1 / winYes : 0,
       bettorCount,
       bettors,
     };
@@ -73,10 +70,8 @@ function enrichMarket(
   const odds = calculateOdds(pool);
   return {
     ...market,
-    priceA: odds.priceYes,
-    priceB: odds.priceNo,
-    multiplierA: odds.multiplierYes,
-    multiplierB: odds.multiplierNo,
+    priceYes: odds.priceYes,
+    multiplierYes: odds.multiplierYes,
     bettorCount,
     bettors,
   };

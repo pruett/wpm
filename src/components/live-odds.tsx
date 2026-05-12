@@ -1,14 +1,13 @@
 type LiveOddsProps = {
-  outcomes: [string, string];
-  priceA: number;
-  priceB: number;
+  priceYes: number;
 };
 
-export function LiveOdds({ outcomes, priceA, priceB }: LiveOddsProps) {
+export function LiveOdds({ priceYes }: LiveOddsProps) {
+  const priceNo = 1 - priceYes;
   return (
     <div className="grid grid-cols-2 gap-2">
-      <OddsBar label={outcomes[0]} price={priceA} />
-      <OddsBar label={outcomes[1]} price={priceB} />
+      <OddsBar label="YES" price={priceYes} />
+      <OddsBar label="NO" price={priceNo} />
     </div>
   );
 }

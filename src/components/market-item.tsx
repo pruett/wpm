@@ -6,8 +6,8 @@ import { SportLogo } from "@/components/sport-logo";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 
 export function MarketItem({ market }: { market: MarketWithOdds }) {
-  const pctA = (market.priceA * 100).toFixed(0);
-  const pctB = (market.priceB * 100).toFixed(0);
+  const pctYes = (market.priceYes * 100).toFixed(0);
+  const pctNo = ((1 - market.priceYes) * 100).toFixed(0);
   const closesAt = new Date(market.closesAt);
 
   return (
@@ -19,13 +19,11 @@ export function MarketItem({ market }: { market: MarketWithOdds }) {
           <SportLogo sport={market.sport} className="text-muted-foreground" />
           <ItemContent>
             <ItemTitle className="line-clamp-1">{market.name}</ItemTitle>
-            <ItemDescription>
-              {market.outcomes[0]} vs {market.outcomes[1]}
-            </ItemDescription>
+            <ItemDescription>YES vs NO</ItemDescription>
           </ItemContent>
           <ItemContent className="flex-none text-center">
             <ItemTitle className="font-mono tabular-nums">
-              {pctA}% &ndash; {pctB}%
+              {pctYes}% &ndash; {pctNo}%
             </ItemTitle>
             <ItemDescription>
               {market.bettorCount} {market.bettorCount === 1 ? "bettor" : "bettors"} &middot;{" "}
