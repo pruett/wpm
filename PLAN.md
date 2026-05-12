@@ -197,7 +197,7 @@
 ### Bet controls / drawer
 
 - [x] `src/components/bet-controls.tsx`: remove A/B toggle; single "Buy YES" button per Market.
-- [ ] `src/components/market-drawer.tsx`: render child Markets list with per-Market buy affordances.
+- [x] `src/components/market-drawer.tsx`: render child Markets list with per-Market buy affordances.
 - [x] `src/components/market-card.tsx`, `market-detail.tsx`, `market-item.tsx`, `live-odds.tsx`: purge `priceA/B`/`multiplierA/B`/`teamA/B`/`outcome` and rewire to `priceYes`/`multiplierYes`/`name`.
 
 ### Position list / portfolio

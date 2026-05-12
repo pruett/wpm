@@ -3084,3 +3084,60 @@ prior loop and stands cleanly on its own.
   line 200 (`market-drawer.tsx` child-list affordances) appears
   effectively complete via the `EventDetail` rendered inside the
   drawer — needs a final spot-check then checkbox flip.
+
+## 2026-05-12 — Phase 5: MarketDrawer child-list verification (line 200)
+
+Phase 5 verification task. PLAN line 200 — `market-drawer.tsx: render
+child Markets list with per-Market buy affordances` — needed
+confirmation that the drawer renders an Event's child markets with
+per-Market buy controls.
+
+### What changed
+- `PLAN.md` line 200 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `src/components/market-drawer.tsx` is a generic Drawer shell (no
+  knowledge of markets/events; just `children` + open/close routing).
+- `src/app/(app)/@modal/(.)event/[id]/page.tsx` is the only consumer
+  of `MarketDrawer`; it renders `<EventDetail id userId>` inside.
+- `src/components/event-detail.tsx:21-43` maps `event.markets` to an
+  `<ol>` with one `<li>` per child, each rendering `<BetControls>`
+  with that child's id/name/status/priceYes/multiplierYes.
+- `src/components/bet-controls.tsx:81-269` is YES-only (no A/B
+  toggle) and uses `useIsInMarketDrawer()` to switch its success
+  message to a `betConfirm.confirmBet({...})` call inside the drawer.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked this single Phase 5 verification rather than the upstream
+Phase 1 schema/type purge cascade (lines 45-47, 51, 56, 59) — that
+cascade still ripples through ~10 files and exceeds the one-task
+budget. Line 200 was flagged in the prior loop as "effectively
+complete via the EventDetail rendered inside the drawer — needs a
+final spot-check then checkbox flip", and the spot-check confirmed
+no drawer-specific changes are required.
+
+### Notes
+- The architectural shape is correct: `MarketDrawer` stays a generic
+  shell (it could host any content), and child-list rendering lives
+  in `EventDetail`. PRD wording for line 200 reads as "the drawer
+  surface should show child markets with per-market buys" rather
+  than "put the rendering in `market-drawer.tsx` specifically", so
+  composition via the modal route satisfies the intent.
+- `BetControls.useIsInMarketDrawer()` is the only place the drawer
+  context surfaces — it switches the post-bet feedback from an
+  inline `<Alert>` to a confirmation toast/drawer (`betConfirm`).
+  That's the per-Market buy affordance behaving correctly in the
+  drawer context.
+- Remaining Phase 5 unchecked items: line 205 (portfolio one-row-
+  per-(user,market)) and lines 210-211 (bets page rewrite +
+  no-sell verification). Phase 6 cleanup items (lines 233-235) are
+  still gated by the Phase 1 schema/type purge cascade.
