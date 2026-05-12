@@ -3334,3 +3334,76 @@ the one-task budget. Line 211 was flagged in the prior loop as
   `SPORTS` move (line 59). Lines 46-48 (`events` table, reshaped
   `markets`, `eventRelations`) are entangled with line 45 and may
   already be partially done — needs a schema audit before claiming.
+
+## 2026-05-12 — Phase 1: Regenerate migration SQL (line 51)
+
+Phase 1 schema-migration task. PLAN line 51 — `Regenerate migration
+SQL; verify bun drizzle-kit generate produces a clean single-file
+migration. Append treasury seed to the new migration via
+src/lib/db/seeds/append-to-migrations.ts.` — needed the on-disk
+migration to match the post-purge schema (events table, reshaped
+markets, reserveYes/No, flat positions).
+
+### What changed
+- Deleted stale `src/lib/db/migrations/0000_mute_gressill.sql` and
+  its snapshot `meta/0000_snapshot.json`.
+- Reset `meta/_journal.json` to an empty `entries: []` array so
+  drizzle-kit treats the regen as a fresh first migration.
+- Ran `bun run db:generate` (which chains `drizzle-kit generate`
+  + `append-to-migrations.ts`). Drizzle emitted
+  `0000_volatile_slyde.sql` (12 tables, clean) and the append step
+  injected the `treasury` singleton seed at the tail.
+- `PLAN.md` line 51 → `[x]`.
+
+### Files changed
+- `src/lib/db/migrations/0000_mute_gressill.sql` (deleted)
+- `src/lib/db/migrations/0000_volatile_slyde.sql` (new)
+- `src/lib/db/migrations/meta/0000_snapshot.json` (regenerated)
+- `src/lib/db/migrations/meta/_journal.json` (new entry for
+  `0000_volatile_slyde`)
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- New migration is a single-file create of all 12 tables — no
+  `reserve_a/b`, no `team_a/b`, no `ticker_a/b`, no `shares_a/b`,
+  no `resolved_outcome`, no `closes_at` on markets. Matches the
+  current `src/lib/db/schema/app.ts`.
+- Append script added `-- seed: treasury` block with the
+  `INSERT INTO treasury ... ON CONFLICT DO NOTHING` statement.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`).
+- `bunx tsc --noEmit` — the pre-existing `vitest.integration.config.ts`
+  `fileParallel` overload error remains, plus a cluster of errors
+  in `tests/integration/{bet-and-resolve,event-commit-rollback,
+  event-flow}.test.ts` that reference dropped columns (`closesAt` on
+  markets, `reserveA/B` on amm_pools). Confirmed via `git stash` that
+  these test errors pre-date this session — they were introduced by
+  the earlier schema purge in this WIP and are queued for Phase 6
+  cleanup (line 234, "grep codebase for residual ... and eliminate
+  every match"). The migration regeneration touches only `.sql` and
+  `.json` files, which are not in the typecheck input set.
+
+### Scope decision
+Picked line 51 because it was the lowest-cost Phase 1 task with no
+dependencies on the still-pending type/test purge cascade. Lines
+45-48 (schema column purge) were already implemented in the WIP
+before this session — `app.ts` matches the PRD spec exactly — they
+just need the docs flip. I deliberately did NOT flip those today
+because each one should get its own verification loop (matches the
+prior session pattern). Lines 233-235 (Phase 6 cleanup) are the
+correct destination for the integration-test fallout from the
+schema purge.
+
+### Notes
+- Drizzle-kit picks the migration filename slug randomly
+  (`volatile_slyde` this time). The slug isn't referenced anywhere
+  in production code — it's purely a journal tag. If we ever want a
+  deterministic name we'd have to rename the file + journal entry
+  by hand.
+- `append-to-migrations.ts` is idempotent via its `seed.sql`
+  substring check, so re-running `db:generate` won't double-append.
+- The "destructive migration" assumption from the PLAN preamble
+  still holds — there's no production data to preserve, so a clean
+  single-file CREATE is fine.
