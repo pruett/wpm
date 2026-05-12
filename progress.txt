@@ -2955,3 +2955,53 @@ the entire point of the variants. Bundled them; mark all three done.
 - `Search` still filters on `MarketWithOdds.outcomes[0/1]` (team
   names) which is unaffected — group rendering is a presentation-
   only change downstream of the search filter.
+
+## 2026-05-12 — Phase 4: No external resolver action (line 178)
+
+Phase 4 verification task. PLAN line 178 — "No new resolver action
+exposed externally (cron stays the entry point)" — needed confirmation
+that the resolver pipeline (`runKalshiResolve` / `commitEvent` /
+`decideEventCommit`) is reachable only via the cron route handler,
+never as a `"use server"` action.
+
+### What changed
+- `PLAN.md` line 178 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+
+### Verification
+- `ls src/actions/` → only `placeBet.ts`. No `resolve.ts`/`commitEvent.ts`
+  or similar.
+- `grep -n "use server" src/` → single match in `src/actions/placeBet.ts:1`.
+- `grep "runKalshiResolve|commitEvent|decideEventCommit" src/actions/`
+  → no matches.
+- `src/app/api/cron/resolve/route.ts` is the sole entry point; it
+  guards on `CRON_SECRET` bearer token and calls `runKalshiResolve()`.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (`tests/e2e/fixtures.ts:11`
+  empty destructure — Playwright fixture idiom, unrelated).
+
+### Scope decision
+Picked this single Phase 4 verification rather than the upstream Phase 1
+schema/type purge (lines 45-47, 51, 56, 59). The Phase 1 cascade still
+ripples through ~10 files (schema + 4 data-layer files + translator +
+settlement + 3 components + 2 integration tests) and forces a coupled
+`Market` type reshape — exceeds the one-task budget. Line 178 is the
+earliest-phase remaining unchecked item that fits cleanly in a single
+loop.
+
+### Notes
+- The cron route at `src/app/api/cron/resolve/route.ts:9` is a `GET`
+  handler with bearer-token auth; `revalidateTag` cache busts run after
+  each commit. This is the entire externally-reachable resolver
+  surface.
+- Remaining Phase 5/6 verification items (lines 200, 205, 211, 233)
+  are similarly small and could be batched in future loops, but the
+  one-task rule keeps each in its own commit for traceability.
+- The next-largest unblocked task is still the Phase 1 schema/type
+  purge cascade. Phase 5 line 206 (Event aggregation in portfolio) is
+  the next substantive UI task — needs `getBetHistory` to also surface
+  `eventId`/`eventName`, then portfolio grouping.
