@@ -166,7 +166,7 @@ A page should look like: `await Promise.all([getX(), getY()])` then render. No D
 **Rule 4.3 — Route groups encode access boundaries, not features.**
 `(app)` = authenticated app, `(auth)` = auth flows, `welcome/` = public. Don't add a route group to organize features — use folder nesting.
 
-**Rule 4.4 — Parallel routes (`@modal`) and intercepting routes (`(.)`) are the standard for modal flows.** See `app/(app)/@modal/(.)market/[id]/` for the reference pattern. Don't reach for client-only modals when the route can express it.
+**Rule 4.4 — Parallel routes (`@modal`) and intercepting routes (`(.)`) are the standard for modal flows.** See `app/(app)/@modal/(.)event/[id]/` for the reference pattern. Don't reach for client-only modals when the route can express it.
 
 ---
 

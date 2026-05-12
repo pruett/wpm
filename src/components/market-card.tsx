@@ -15,7 +15,7 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
   const isClosingSoon = closesAt.getTime() - now.getTime() < 60 * 60 * 1000;
 
   return (
-    <Link href={`/market/${market.id}`} className="block">
+    <Link href={`/event/${market.id}`} className="block">
       <Card className="flex flex-col transition-colors hover:border-foreground/25">
         <CardHeader className="flex flex-row items-start gap-2 pb-3">
           <SportLogo sport={market.sport} className="mt-0.5 text-muted-foreground" />

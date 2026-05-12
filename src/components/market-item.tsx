@@ -15,7 +15,7 @@ export function MarketItem({ market }: { market: MarketWithOdds }) {
       variant="outline"
       role="listitem"
       render={
-        <Link href={`/market/${market.id}`}>
+        <Link href={`/event/${market.id}`}>
           <SportLogo sport={market.sport} className="text-muted-foreground" />
           <ItemContent>
             <ItemTitle className="line-clamp-1">{market.name}</ItemTitle>

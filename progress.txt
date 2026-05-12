@@ -2435,3 +2435,50 @@ into `events.ts`) is fully satisfied by the deletion half on its own.
 - Remaining substantive work clusters: Phase 1 schema purge (PLAN lines
   41-44, 47), Phase 5 UI rewrite (lines 168-189), Phase 6 doc/grep
   cleanup (lines 196-209).
+
+## 2026-05-12 — Phase 5: rename market route to event route (line 168)
+
+PLAN line 168 — rename `src/app/(app)/market/[id]/page.tsx` → `event/[id]/page.tsx`
+and the parallel intercepting route `(.)market/[id]` → `(.)event/[id]`. This is
+the structural starter for Phase 5 UI rewrite: the route directories now
+reflect the Event vocabulary even though the page content still renders a
+single-Market `MarketDetail`. Reshaping the page to render an Event with N
+child Markets is bundled into PLAN lines 169-189 (subsequent Phase 5 work).
+
+### What changed
+- `src/app/(app)/market/[id]/page.tsx` → `src/app/(app)/event/[id]/page.tsx`
+  (renamed via `git mv`; contents unchanged).
+- `src/app/(app)/@modal/(.)market/[id]/page.tsx` →
+  `src/app/(app)/@modal/(.)event/[id]/page.tsx` (renamed via `git mv`;
+  contents unchanged).
+- `src/components/market-card.tsx` — `href={`/market/${market.id}`}` →
+  `href={`/event/${market.id}`}`.
+- `src/components/market-item.tsx` — same href update.
+- `docs/conventions.md` line 169 — Rule 4.4's reference pattern path
+  updated from `(.)market/[id]` to `(.)event/[id]`.
+- `PLAN.md` (line 168 → `[x]`).
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning.
+- `bunx oxfmt --check src/components/market-card.tsx src/components/market-item.tsx`
+  — clean.
+
+### Notes
+- The route receives a *market* id (not an event id) for now — the
+  `MarketCard`/`MarketItem` link targets still pass `market.id` because
+  `Market` doesn't yet expose `eventId` in `lib/types.ts` (PLAN line 51
+  reshape pending). The page semantics will flip to event-id lookup once
+  PLAN line 169 ("render parent Event header + N child Markets") lands
+  alongside the type reshape. For now the URL is `/event/<marketId>` and
+  renders the single market — a deliberate intermediate state per the
+  PLAN's task decomposition.
+- No other consumers of `/market/` paths remained in the codebase
+  (verified by grep across `src/` and `docs/`). The only matches were the
+  PLAN line itself and the just-updated `docs/conventions.md` Rule 4.4.
+- Remaining Phase 5 work: lines 169-189 (page content rewrite to render
+  Event header + child Markets, list grouping by `eventId`, single-side
+  YES-only bet controls, portfolio Event aggregation, bets history
+  reshape).
