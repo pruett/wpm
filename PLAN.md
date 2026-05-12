@@ -165,7 +165,7 @@
 ## Phase 5 — UI
 
 ### Event detail page
-- [ ] Rename `src/app/(app)/market/[id]/page.tsx` → `event/[id]/page.tsx`. Update parallel intercepting route `(.)market/[id]` → `(.)event/[id]`.
+- [x] Rename `src/app/(app)/market/[id]/page.tsx` → `event/[id]/page.tsx`. Update parallel intercepting route `(.)market/[id]` → `(.)event/[id]`.
 - [ ] Render parent Event header (name, sport, closesAt, status) + N child Markets in a vertical list.
 - [ ] Each child Market row shows YES-side name (`yes_sub_title`), price/multiplier, and a single "Buy YES" affordance.
 - [ ] Drop outcome toggle in bet form; bet form takes only `marketId` + `amount`.
