@@ -3407,3 +3407,55 @@ schema purge.
 - The "destructive migration" assumption from the PLAN preamble
   still holds — there's no production data to preserve, so a clean
   single-file CREATE is fine.
+
+## 2026-05-12 — Phase 1: Verify obsolete columns removed from app.ts (line 45)
+
+Phase 1 schema task — PLAN line 45: `Delete obsolete columns from
+app.ts: markets.sport/teamA/teamB/tickerA/tickerB/closesAt/resolvedOutcome,
+ammPools.reserveA/B, positions.sharesA/B`. Per the prior session pattern,
+the schema purge was already implemented in this WIP; this loop is the
+verification-and-docs-flip pass.
+
+### What changed
+- `PLAN.md` line 45 → `[x]`. Nothing else.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- Read `src/lib/db/schema/app.ts` end-to-end. Confirmed:
+  - `markets` table (lines 58-71): no `sport`, no `teamA/teamB`, no
+    `tickerA/tickerB`, no `closesAt`, no `resolvedOutcome`. Columns are
+    `id/eventId/name/ticker/status/resolvedAs/resolvedAt/createdAt`.
+  - `ammPools` (lines 77-85): no `reserveA/B`. Columns are
+    `marketId/reserveYes/reserveNo/wpmReserve/seedAmount`.
+  - `positions` (lines 87-107): no `sharesA/B`. Columns are
+    `userId/marketId/shares/costBasis`.
+- `Grep teamA|teamB|tickerA|tickerB|reserveA|reserveB|sharesA|sharesB|
+  resolvedOutcome` in `src/lib/db/schema/` → no matches.
+- `Grep markets\.(sport|teamA|teamB|tickerA|tickerB|closesAt|
+  resolvedOutcome)|ammPools\.(reserveA|reserveB)|positions\.(sharesA|
+  sharesB)` across `src/` → no matches. No source code references the
+  dropped columns.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`).
+
+### Scope decision
+Picked line 45 because it is the lowest-numbered unchecked Phase 1
+task and a pure docs flip — no code change needed. Following the prior
+session's convention of giving each Phase 1 schema item its own
+verification loop rather than batching. Remaining Phase 1: lines 46
+(events table), 47 (markets reshape), 48 (relations), 56 (Event domain
+type), 59 (SPORTS array stays on Event). Lines 46-48 are already
+implemented in the WIP per the same audit — they each need their own
+spot-check loop. Lines 56 and 59 still need substantive verification
+in `src/lib/types.ts`.
+
+### Notes
+- The previous loop (`Phase 1: Regenerate migration SQL (line 51)`)
+  already noted that "lines 45-48 (schema column purge) were already
+  implemented in the WIP before this session — `app.ts` matches the
+  PRD spec exactly". This loop simply executes the docs-flip half of
+  that observation for line 45.
