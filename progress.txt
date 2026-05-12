@@ -3691,3 +3691,51 @@ next loop.
   (from `@/lib/kalshi`) and the translator's `TranslatedEvent`, but
   those are namespaced (`Kalshi`/`Translated` prefixes), so `Event`
   unambiguously refers to the wampum domain object.
+
+## 2026-05-12 — Phase 1: Verify SPORTS stays on Event, not Market (line 59)
+
+Phase 1 type-purge task — PLAN line 59: `Update SPORTS array stays on
+Event, not Market`. Pure verification — closing the last unchecked
+Phase 1 item.
+
+### What changed
+- `PLAN.md` line 59 → `[x]`. Nothing else.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `src/lib/types.ts:62-63` — `SPORTS` array and `Sport` type defined
+  once at module top.
+- `src/lib/types.ts:65-71` — domain `Market` type has no `sport` field.
+- `src/lib/types.ts:73-80` — domain `Event` type carries `sport: Sport`.
+- `src/lib/db/schema/app.ts:47` — `events.sport` column uses
+  `text("sport", { enum: SPORTS }).notNull()`.
+- `src/lib/db/schema/app.ts:58-71` — `markets` table has no sport
+  column.
+- `MarketWithOdds.sport` (types.ts:98) is a denormalized view type
+  populated via join from `events.sport` (see `data/markets.ts:105`
+  `row.event.sport` and `data/markets.ts:131` same pattern). UI
+  consumers (`market-card.tsx`, `event-card.tsx`, `market-item.tsx`,
+  `bet-controls.tsx`, `portfolio.tsx`, `search.tsx`) all read `sport`
+  off these projections, not off the domain `Market` type.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked line 59 because it is the last unchecked Phase 1 item.
+Phase 1 ("Schema, Types, AMM Core") is now fully closed. Remaining
+open work is Phase 6 cleanup: PLAN lines 233-235 (fixture deletes,
+residual grep, final typecheck/test sweep).
+
+### Notes
+- The denormalized `MarketWithOdds.sport` is intentional — the
+  homepage `MarketList`/`Search` UIs filter by sport at the
+  market level for ergonomics, but the source of truth is
+  `events.sport`. The projection is one-way; no UI writes back to
+  a market-level sport because no such column exists.
+- `Sport` and `SPORTS` are imported by the schema (`app.ts:13`) from
+  `@/lib/types`, so the enum is the single source of truth across
+  the domain type, DB schema, and UI.
