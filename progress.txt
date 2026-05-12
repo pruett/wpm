@@ -3141,3 +3141,66 @@ no drawer-specific changes are required.
   per-(user,market)) and lines 210-211 (bets page rewrite +
   no-sell verification). Phase 6 cleanup items (lines 233-235) are
   still gated by the Phase 1 schema/type purge cascade.
+
+## 2026-05-12 — Phase 5: Portfolio one-row-per-(user,market) verification (line 205)
+
+Phase 5 verification task. PLAN line 205 — `src/components/portfolio.tsx:
+one row per (user, market) with non-zero shares` — needed a final spot-
+check that the portfolio surface honours the per-(user, market) row
+invariant the PRD calls out.
+
+### What changed
+- `PLAN.md` line 205 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `positions` table (`src/lib/db/schema/app.ts:96-122`) has PK
+  `(userId, marketId)` — the DB physically enforces one row per pair.
+- `getBetHistory` (`src/data/positions.ts:62-122`) selects from
+  `positions` with INNER JOINs through `markets` and `events` (so one
+  row per `positions` row), aggregates `SettlePayout` amounts by
+  `marketId`, and emits one `BetHistoryEntry` per row. Open-status
+  rows with zero shares are filtered (`positions.ts:103`) — covers the
+  defensive case where a position is zeroed (closed-status rows keep
+  their original share count per ADR-0004, so the non-zero invariant
+  holds naturally there).
+- `Portfolio` (`src/components/portfolio.tsx:62-159`) consumes that
+  list and renders one `OpenCard`/`ClosedCard` per `BetHistoryEntry`
+  via `buildOpenRow` / direct map — no fan-out, no merging across
+  markets. The Event-group wrapper added in the prior loop (line 206)
+  groups *by event* but each child row still maps 1:1 to a
+  `(user, market)` pair.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked this single Phase 5 verification rather than the upstream
+Phase 1 schema/type purge cascade (lines 45, 51, 56, 59) — that
+cascade still ripples through ~5 production files (settlement.ts,
+markets.ts, trading.ts, events.ts, translator.ts) plus the schema
+migration and exceeds the one-task budget. Line 205 was flagged in
+the prior loop as one of the remaining contained Phase 5
+verifications, and the spot-check confirmed no portfolio-side changes
+are required.
+
+### Notes
+- The per-(user, market) invariant is enforced at three layers: the
+  DB primary key, the `getBetHistory` query shape, and the
+  `Portfolio` render. No deduplication step is needed in the
+  component — the PK does the work upstream.
+- The zero-share filter (`positions.ts:103`) only fires for open
+  markets. With the YES-only model there's no `sellShares` path
+  anymore, so an open position should never legitimately reach zero
+  shares — the filter is a defensive guard rather than a hot path.
+- Remaining Phase 5 unchecked items: lines 210 and 211 (bets-page
+  flat-list verification and no-sell affordance check) — both look
+  effectively done via the Portfolio component, similar to this one,
+  but each needs its own spot-check loop. Phase 6 cleanup items
+  (lines 233-235) are still gated on the Phase 1 schema/type purge
+  cascade.
