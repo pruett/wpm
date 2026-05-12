@@ -49,7 +49,7 @@
 ### Type purges
 - [x] `src/lib/types.ts`: delete `SellShares` transaction variant; remove `"A" | "B"` from `PlaceBet`/`SettlePayout`/`ResolveMarket` payloads.
 - [ ] Add `Event` domain type with `markets: Market[]`. Reshape `Market` to `{ id, eventId, name, status, resolvedAs }` (no `sport`/`outcomes`/`result`).
-- [ ] Replace `AMMPool.sharesA/B` with `reserveYes/No`; update `SharePosition` to flat `{ userId, marketId, shares, costBasis }`.
+- [x] Replace `AMMPool.sharesA/B` with `reserveYes/No`; update `SharePosition` to flat `{ userId, marketId, shares, costBasis }`.
 - [ ] Update `MarketWithOdds` to single-side: `priceYes`/`multiplierYes` (no NO needed since `priceNo = 1 - priceYes`).
 - [ ] Update `SPORTS` array stays on `Event`, not `Market`.
 
@@ -151,7 +151,7 @@
 - [ ] Create `src/data/events.ts`: `getEvent(id)` (with child markets + pools), `getEvents()` (homepage list), `createEvent({event, markets})`, `commitEvent(plan)`.
 - [ ] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
 - [x] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
-- [ ] `src/data/positions.ts`: collapse `getPositions` to one row per `(user, market)` with non-zero shares; filter to `markets.status = 'open'` for live positions.
+- [x] `src/data/positions.ts`: collapse `getPositions` to one row per `(user, market)` with non-zero shares; filter to `markets.status = 'open'` for live positions.
 - [ ] `getBetHistory`: replace `sharesA`/`sharesB`/`outcomes`/`resolvedOutcome` with `shares`/`marketName`/`resolvedAs`; join through `events` for `closesAt`/`sport`.
 - [x] Update cache tags: `tags.event(id)` alongside `tags.market(id)`; revalidate both on bet placement and Event commit.
 
