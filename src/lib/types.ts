@@ -26,7 +26,15 @@ export type Transaction =
   | {
       type: "ResolveMarket";
       marketId: string;
-      resolvedAs: "yes" | "no";
+      outcome:
+        | "resolved_yes"
+        | "resolved_no"
+        | "cancelled_voided"
+        | "cancelled_scalar"
+        | "cancelled_no_settlement";
+      finalStatus: "resolved" | "cancelled";
+      resolvedAs: "yes" | "no" | null;
+      reason?: string;
       timestamp: string;
     }
   | {

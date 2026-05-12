@@ -124,7 +124,7 @@
 - [x] Per child: `resolved_no` → all holders `amount=0` (emit row).
 - [x] Per child: `cancelled_*` → refund `costBasis` per holder.
 - [x] Per-child `TreasuryBackstop` row when `wpmReserve < totalWinningPayouts` for that child only.
-- [ ] One `ResolveMarket` row per child (regardless of outcome variant — including cancellations? clarify in PRD: PRD §Settlement says "one ResolveMarket per child Market in the commit").
+- [x] One `ResolveMarket` row per child (regardless of outcome variant — including cancellations? clarify in PRD: PRD §Settlement says "one ResolveMarket per child Market in the commit").
 - [x] Final status updates: `events.status='terminal'`; per-child `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved children, `resolvedAt=now`.
 
 ### Settlement tests (`settlement.test.ts`)
