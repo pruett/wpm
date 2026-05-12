@@ -2773,3 +2773,106 @@ caller. If a UI ever needs the NO multiplier, it can compute it from
   child-Markets render), lines 183-189 (portfolio Event aggregation
   view + bets-history reshape). Phase 1 schema purge (lines 41-47)
   is still pending and is the largest remaining foundational task.
+
+## 2026-05-12 — Phase 6: CONTEXT.md vocabulary alignment + ADR confirmation (lines 196–197)
+
+Phase 6 documentation cleanup. CONTEXT.md was already largely rewritten
+to the Event/Market/YES-only model; the only remaining anachronism was
+a "pending design" note for per-Event gating semantics, which was
+resolved by the translator's all-or-nothing rejection (PLAN line 73,
+already shipped). Confirmed ADRs 0006/0007/0008 are committed (commit
+4f67cea).
+
+### What changed
+- `CONTEXT.md` line 116 (Ingestion invariants) — replaced the
+  "pending design" / "open question" bullet with the resolved policy:
+  if any child fails any ingestion check, the whole Event is rejected
+  with `insufficient_confidence` and the failing tickers are reported
+  per-child. We do not partially ingest; all-or-nothing.
+- `PLAN.md` lines 196, 197 → `[x]`.
+
+### Files changed
+- `CONTEXT.md`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated, in
+  `tests/e2e/fixtures.ts`).
+- `bunx oxfmt` (touched files) — clean.
+
+### Scope decision
+Chose a single, contained docs task rather than the larger Phase 1
+schema-column purge (line 41) because the latter cascades through
+~10 files (schema + 4 data-layer files + translator + 3 components +
+2 integration tests) and forces a coupled `Market` type reshape
+(line 51). That bundle is the next obvious task; doing it alone now
+would have blown the "one task per loop" budget.
+
+### Notes
+- The "all-or-nothing" wording matches the translator's actual
+  behaviour: `translateKalshiEvent` aggregates per-child spread/quote
+  failures into a single `insufficient_confidence` variant rather
+  than partial-ingesting the passing children. The CONTEXT.md note
+  was the last doc-side reference to the unresolved policy.
+- ADRs 0006/0007/0008 were committed in 4f67cea (`feat(schema): add
+  reserveYes/reserveNo and shares columns`) — verified via
+  `git log docs/adr/0006-*.md docs/adr/0007-*.md docs/adr/0008-*.md`.
+- The next-largest unblocked task is PLAN line 41 (drop legacy
+  schema columns: `markets.sport/teamA/teamB/tickerA/tickerB/closesAt/
+  resolvedOutcome`, `ammPools.reserveA/B`, `positions.sharesA/B`).
+  This needs to bundle with line 51 (`Market` type reshape) and
+  rippling consumer updates in `data/markets.ts`, `data/trading.ts`,
+  `data/events.ts`, `lib/kalshi/translator.ts`, `lib/settlement.ts`/
+  `settlement.test.ts`, plus the two integration tests that still
+  read `pool.reserveA/B` and the `Search` component that reads
+  `market.outcomes`/`market.sport`.
+
+## 2026-05-12 — Phase 6: E2E spot-check (line 229)
+
+Phase 6 verification task. Spot-checked the only E2E spec
+(`tests/e2e/signup-airdrop.spec.ts`) for stale market/A-B references
+left over from the binary-Market era. Found none — the test exercises
+only the signup → airdrop → `Distribute` transaction path and never
+touches markets, positions, pools, or A/B vocabulary. No fixture
+updates needed.
+
+### What changed
+- `PLAN.md` line 229 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+
+### Verification
+- `grep -E 'teamA|teamB|sharesA|sharesB|outcome.*"A"|"A"\s*\|\s*"B"|SellShares|calculateSell|isqrt|reserveA|reserveB'`
+  over `tests/e2e/**` — no matches.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated, in
+  `tests/e2e/fixtures.ts:11` empty destructure).
+
+### Scope decision
+Chose this single verification task rather than the upstream Phase 1
+schema/type purge (lines 45-47, 51, 56) — that bundle still cascades
+through ~10 files (schema + 4 data-layer files + translator +
+settlement + 3 components + 2 integration tests) and forces a coupled
+`Market` type reshape. The E2E spot-check unblocks Phase 6 line-by-line
+without touching the cascade.
+
+### Notes
+- E2E suite has only one spec today; the global-setup recreates the
+  database and runs migrations, but does no market seeding. Nothing to
+  shim when the schema purge eventually lands.
+- The lint warning at `tests/e2e/fixtures.ts:11` (`({}, use) => {}`)
+  is a Playwright fixture idiom — the empty destructure is intentional
+  to satisfy the fixture signature without consuming a dependency. Not
+  in scope for this task; flagged here for visibility.
+- Remaining Phase 6 items: line 233 (delete `non-binary.json`/
+  `pair-inconsistent.json` — already gone from disk, just needs the
+  checkbox flip after a final verification), line 234 (codebase-wide
+  residual-grep purge), line 235 (final clean typecheck + tests run).
+  Lines 234-235 are coupled with the Phase 1 schema purge and will
+  fall out of that bundle.

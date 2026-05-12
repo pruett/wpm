@@ -10,9 +10,11 @@
 ---
 
 ## Phase 0 — Tracer Bullet(s)
+
 > Two thinnest end-to-end slices, exercising the two distinct subsystems: (1) ingest → bet → resolve loop for a single 2-Market binary Event; (2) translator handling of an N>2 Kalshi Event.
 
 ### Slice 1: Binary Event end-to-end (ingest → bet YES → Event-commit)
+
 - [x] Add new `events` table to `src/lib/db/schema/app.ts` with columns per PRD §Schema; keep old columns reachable temporarily for compile.
 - [x] Reshape `markets` table in the schema: drop `sport`/`teamA`/`teamB`/`tickerA`/`tickerB`/`closesAt`/`resolvedOutcome`; add `eventId`/`name`/`ticker`/`resolvedAs`. Move `sport` to `events`.
 - [x] Rename `ammPools.reserveA/B` → `reserveYes/No`; collapse `positions` to `(userId, marketId, shares, costBasis)`; drop `SellShares` from `transactionTypes`.
@@ -27,6 +29,7 @@
 - [x] Smoke test: spin up DB, ingest a 2-Market Kalshi fixture, place a YES buy on one child, force-commit the Event with both children settled, verify balance credit + Event/Market statuses + `SettlePayout` rows.
 
 ### Slice 2: Multi-outcome Kalshi Event ingest (N>2)
+
 - [x] Author a new fixture `src/lib/kalshi/fixtures/multi-outcome-healthy.json` with 5 nested Kalshi Markets sharing one `expected_expiration_time`.
 - [x] Translator path: iterate all `event.markets`, apply per-Market spread gate independently, build N `markets` rows under one `events` row.
 - [x] All-or-nothing rejection: if any child fails spread gate, return `insufficient_confidence` with per-child reasons.
@@ -38,6 +41,7 @@
 ## Phase 1 — Schema, Types, AMM Core
 
 ### Schema migration
+
 - [ ] Delete obsolete columns from `app.ts`: `markets.sport/teamA/teamB/tickerA/tickerB/closesAt/resolvedOutcome`, `ammPools.reserveA/B`, `positions.sharesA/B`.
 - [ ] Add `events` table: `id`/`sport`/`name`/`closesAt` (bigint)/`status: 'open' | 'terminal'`/`createdAt`.
 - [ ] Update `markets`: `eventId` FK, `name`, `ticker`, `status: 'open' | 'resolved' | 'cancelled'`, `resolvedAs: 'yes' | 'no' | null`, `resolvedAt`, `createdAt`.
@@ -47,6 +51,7 @@
 - [ ] Regenerate migration SQL; verify `bun drizzle-kit generate` produces a clean single-file migration. Append `treasury` seed to the new migration via `src/lib/db/seeds/append-to-migrations.ts`.
 
 ### Type purges
+
 - [x] `src/lib/types.ts`: delete `SellShares` transaction variant; remove `"A" | "B"` from `PlaceBet`/`SettlePayout`/`ResolveMarket` payloads.
 - [ ] Add `Event` domain type with `markets: Market[]`. Reshape `Market` to `{ id, eventId, name, status, resolvedAs }` (no `sport`/`outcomes`/`result`).
 - [x] Replace `AMMPool.sharesA/B` with `reserveYes/No`; update `SharePosition` to flat `{ userId, marketId, shares, costBasis }`.
@@ -54,6 +59,7 @@
 - [ ] Update `SPORTS` array stays on `Event`, not `Market`.
 
 ### AMM rewrite (`lib/amm.ts`)
+
 - [x] Rename internal symbols: `sharesA/B` → `reserveYes/No`, `initialProbabilityA` → `initialProbabilityYes`.
 - [x] `initializePool(marketId, seedAmount, initialProbabilityYes)` returns `{ marketId, reserveYes, reserveNo, k, liquidity }`.
 - [x] `calculateBuy(pool, amount)` — drop `outcome` param; always buys YES (NO is the retained side). Preserve ceil-div rounding (ADR-0005).
@@ -66,6 +72,7 @@
 ## Phase 2 — Translator & Ingest
 
 ### Translator (`lib/kalshi/translator.ts`)
+
 - [x] New return type: `{ kind: 'ok', value: { event, markets: TranslatedMarket[] } }` where `TranslatedMarket = { market, seedAmount, initialProbabilityYes }`.
 - [x] Drop `non_binary` and `pair_inconsistent` variants entirely.
 - [x] Add `too_many_markets` variant: `{ kind: 'too_many_markets', count: number }` when `markets.length > 30`.
@@ -76,6 +83,7 @@
 - [x] Delete `translateKalshiResolution` from this file — its replacement (`decideEventCommit`) lives in `resolve.ts`.
 
 ### Translator tests (`translator.test.ts`)
+
 - [x] Rewrite: 2-Market happy path → one Event + 2 Markets, both `initialProbabilityYes` correct.
 - [x] Rewrite: 5-Market happy path → one Event + 5 Markets, all consistent.
 - [x] Rejection: any child wide spread → `insufficient_confidence` with that child's ticker in reasons.
@@ -87,6 +95,7 @@
 - [x] Remove fixtures `non-binary.json` and `pair-inconsistent.json`; add `multi-outcome-healthy.json` and `multi-outcome-wide-spread.json`.
 
 ### Ingest driver (`lib/kalshi/ingest.ts`)
+
 - [x] Update `SkipReasonKind` union: remove `non_binary`; add `too_many_markets`, `inconsistent_close_times`. Keep `unparseable_close_time`, `no_initial_price`, `insufficient_confidence`, `already_exists`.
 - [x] Call new `createEvent({ event, markets })` from `data/events.ts`; one DB transaction per Event.
 - [x] Update summary structure to reflect Event-level counters (`createdEvents` / `createdMarkets`).
@@ -96,6 +105,7 @@
 ## Phase 3 — Resolver & Settlement
 
 ### Resolver decision core (`lib/kalshi/resolve.ts`)
+
 - [x] Extract pure `decideEventCommit(wampumEvent, kalshiResponse, now)` returning `{ kind: 'wait' } | { kind: 'commit', perChild: ChildOutcome[] }`.
 - [x] `ChildOutcome` = `{ marketId, outcome: 'resolved_yes' | 'resolved_no' | 'cancelled_voided' | 'cancelled_scalar' | 'cancelled_no_settlement' }`.
 - [x] Happy path: every child terminal → map each child's Kalshi `result` to `resolved_yes`/`resolved_no`/`cancelled_scalar`.
@@ -104,6 +114,7 @@
 - [x] Wait: at least one non-terminal child AND deadline not reached → `{ kind: 'wait' }`.
 
 ### Resolver driver
+
 - [x] Selection: `events WHERE status='open' AND closesAt < now`.
 - [x] Group selected Events by Kalshi series. One bulk call per series via `getEvents({ event_tickers: [...] })` — if SDK lacks bulk param, keep concurrent per-ticker fan-out and document the limitation.
 - [x] Per Event: call `decideEventCommit`; on `commit`, pass plan + cross-child positions + cross-child pools to `commitEvent` in `data/events.ts`.
@@ -111,6 +122,7 @@
 - [x] Summary counters: per-Event statuses (`waited`/`committed`) plus per-child outcome counts (`resolved_yes`/`resolved_no`/`cancelled_*`).
 
 ### Resolver decision tests
+
 - [x] `wait` when any child non-terminal and deadline not reached.
 - [x] `commit` with all children `resolved_yes`/`resolved_no` when every child terminal.
 - [x] `commit` with mixed `cancelled_no_settlement` + `resolved_*` past the deadline.
@@ -119,6 +131,7 @@
 - [x] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
 
 ### Settlement (`lib/settlement.ts`)
+
 - [x] `computeSettlement` takes commit plan + per-child positions + per-child pools → returns per-child payouts list, per-child backstop deltas, and final statuses.
 - [x] Per child: `resolved_yes` → 1 WPM per share for YES-holders, 0 for losers (still emit `SettlePayout` row with `amount=0`).
 - [x] Per child: `resolved_no` → all holders `amount=0` (emit row).
@@ -128,6 +141,7 @@
 - [x] Final status updates: `events.status='terminal'`; per-child `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved children, `resolvedAt=now`.
 
 ### Settlement tests (`settlement.test.ts`)
+
 - [x] Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket` rows + one `SettlePayout` per (holder, child-with-position) + correct credits + correct statuses.
 - [x] Winner on `resolved_yes`: `amount = shares` WPM.
 - [x] Loser on `resolved_no`: `amount = 0` `SettlePayout` row present.
@@ -136,6 +150,7 @@
 - [x] Simulated mid-commit failure leaves no rows behind (DB transaction rollback).
 
 ### AMM tests (`amm.test.ts`)
+
 - [x] Adapt existing tests to `reserveYes/No` naming; drop `outcome` param from `calculateBuy` cases.
 - [x] `initializePool` produces integer YES/NO reserves matching `initialProbabilityYes` to within one unit.
 - [x] `calculateBuy` preserves/grows `k` across every trade.
@@ -148,6 +163,7 @@
 ## Phase 4 — Data Layer & Server Actions
 
 ### Data layer
+
 - [x] Create `src/data/events.ts`: `getEvent(id)` (with child markets + pools), `getEvents()` (homepage list), `createEvent({event, markets})`, `commitEvent(plan)`.
 - [x] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
 - [x] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
@@ -156,6 +172,7 @@
 - [x] Update cache tags: `tags.event(id)` alongside `tags.market(id)`; revalidate both on bet placement and Event commit.
 
 ### Server actions
+
 - [x] `src/actions/placeBet.ts`: drop `outcome` from Zod schema; revalidate market + event + viewer tags.
 - [x] Delete `src/actions/sellShares.ts`.
 - [ ] No new resolver action exposed externally (cron stays the entry point).
@@ -165,26 +182,31 @@
 ## Phase 5 — UI
 
 ### Event detail page
+
 - [x] Rename `src/app/(app)/market/[id]/page.tsx` → `event/[id]/page.tsx`. Update parallel intercepting route `(.)market/[id]` → `(.)event/[id]`.
 - [x] Render parent Event header (name, sport, closesAt, status) + N child Markets in a vertical list.
 - [x] Each child Market row shows YES-side name (`yes_sub_title`), price/multiplier, and a single "Buy YES" affordance.
 - [x] Drop outcome toggle in bet form; bet form takes only `marketId` + `amount`.
 
 ### Market list / homepage
+
 - [ ] Update `src/components/market-list.tsx` to group `MarketWithOdds[]` by `eventId`. Render one card per Event.
 - [ ] Binary Event card: two child Markets side-by-side.
 - [ ] Multi-outcome Event card: top N children by liquidity/probability with overflow count.
 
 ### Bet controls / drawer
+
 - [x] `src/components/bet-controls.tsx`: remove A/B toggle; single "Buy YES" button per Market.
 - [ ] `src/components/market-drawer.tsx`: render child Markets list with per-Market buy affordances.
 - [x] `src/components/market-card.tsx`, `market-detail.tsx`, `market-item.tsx`, `live-odds.tsx`: purge `priceA/B`/`multiplierA/B`/`teamA/B`/`outcome` and rewire to `priceYes`/`multiplierYes`/`name`.
 
 ### Position list / portfolio
+
 - [ ] `src/components/portfolio.tsx`: one row per `(user, market)` with non-zero shares.
 - [ ] Add Event aggregation view: group child rows under a parent Event header showing total stake.
 
 ### Bets history page
+
 - [ ] `src/app/(app)/bets/page.tsx`: render flat list per Market with `marketName`, `resolvedAs`, `shares`, `costBasis`, `settledAmount`.
 - [ ] No "sell" button anywhere — verify no UI affordance survives the refactor.
 
@@ -193,17 +215,21 @@
 ## Phase 6 — Cleanup & Integration
 
 ### Documentation
-- [ ] Update `CONTEXT.md` to reflect new vocabulary (Event/Market/YES-only).
-- [ ] Confirm ADRs 0006/0007/0008 are committed (already in worktree as untracked files per `git status`).
+
+- [x] Update `CONTEXT.md` to reflect new vocabulary (Event/Market/YES-only).
+- [x] Confirm ADRs 0006/0007/0008 are committed (already in worktree as untracked files per `git status`).
 
 ### Integration test
+
 - [x] Update `tests/integration/bet-and-resolve.test.ts` to: ingest a 2-Market fixture → place YES bet → Event-commit at deadline → verify balance, payout rows, Event/Market statuses.
 - [x] Add second integration scenario: 3-Market multi-outcome Event with one `cancelled_scalar` child and two normally-resolved children.
 
 ### E2E
-- [ ] Spot-check `tests/e2e/signup-airdrop.spec.ts` for stale market/A-B references; update fixtures only if needed.
+
+- [x] Spot-check `tests/e2e/signup-airdrop.spec.ts` for stale market/A-B references; update fixtures only if needed.
 
 ### Fixture & dead-code purge
+
 - [ ] Delete `src/lib/kalshi/fixtures/non-binary.json` and `pair-inconsistent.json`.
 - [ ] Grep codebase for residual `teamA`/`teamB`/`sharesA`/`sharesB`/`outcome: "A"`/`"A" | "B"`/`SellShares`/`calculateSell`/`isqrt` and eliminate every match.
 - [ ] Re-run `bun typecheck` and `bun test` until clean.
