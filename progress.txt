@@ -2482,3 +2482,211 @@ child Markets is bundled into PLAN lines 169-189 (subsequent Phase 5 work).
   Event header + child Markets, list grouping by `eventId`, single-side
   YES-only bet controls, portfolio Event aggregation, bets history
   reshape).
+
+## 2026-05-12 — Phase 5: render Event header + N child Markets (line 169)
+
+PLAN line 169 — the event detail page now renders the parent Event header
+(name, sport, closesAt countdown, status) followed by a vertical list of
+child Markets. The URL semantic flipped from market-id to event-id; the
+homepage `MarketCard`/`MarketItem` links route through `market.eventId`
+instead of `market.id`.
+
+### What changed
+- `src/components/event-detail.tsx` (new) — server component that calls
+  `getEvent(id)` + `getPositions(userId)`, renders an `EventHeader`
+  (sport logo, name, status/close-countdown badge, market-count badge),
+  and below it an ordered list of child Markets. Each child renders the
+  existing `BetControls` so betting stays functional through the
+  transition. A `synthesizeMarket` helper widens `EventChildMarket` +
+  parent event into the legacy `MarketWithOdds` shape (`priceA/priceB`
+  bound to `priceYes/priceNo`, `outcomes: [child.name || "Yes", "No"]`,
+  parent `event.sport`/`event.closesAt`, `eventId: event.id`). The
+  synthesis shim disappears when PLAN line 178 reshapes `BetControls`
+  to single-side YES-only and line 53 reshapes `MarketWithOdds`.
+- `src/lib/types.ts` — added `eventId: string | null` to `Market`.
+- `src/data/markets.ts` — `toMarket` now reads `eventId` from the row.
+- `src/components/market-card.tsx`,
+  `src/components/market-item.tsx` — `href` now points to
+  `/event/${market.eventId}` (falls back to `#` for the type-system's
+  legacy `null` case; in practice no rows currently have a null event
+  link).
+- `src/app/(app)/event/[id]/page.tsx` — uses `EventDetail` instead of
+  `MarketDetail`; renamed component + Suspense label from "market" to
+  "event".
+- `src/app/(app)/@modal/(.)event/[id]/page.tsx` — mirrors the page
+  route: `EventModal` / `EventModalContent` rendering `EventDetail`.
+- `src/components/market-detail.tsx` — deleted; orphan after the
+  EventDetail rewire (no remaining consumers anywhere in the tree).
+- `PLAN.md` (line 169 → `[x]`).
+
+### Files changed
+- `src/components/event-detail.tsx` (new)
+- `src/components/market-detail.tsx` (deleted)
+- `src/components/market-card.tsx`
+- `src/components/market-item.tsx`
+- `src/lib/types.ts`
+- `src/data/markets.ts`
+- `src/app/(app)/event/[id]/page.tsx`
+- `src/app/(app)/@modal/(.)event/[id]/page.tsx`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run test:integration` — 5/5 integration tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning.
+- `bunx oxfmt --check` (touched files) — clean.
+
+### Scope decision: kept BetControls in-page via synthesis shim
+PLAN line 169 is *just* "render the event header + N child Markets in a
+vertical list". The literal scope doesn't require any bet UI; that's
+line 170 ("YES-side affordance per child") and line 178 ("single Buy YES
+button"). However, the homepage `MarketCard` link now routes through
+`/event/<eventId>` — without inline bet UI on the new event page, users
+would lose the ability to bet entirely until lines 170/178 land.
+
+Three options considered:
+1. **Strip bet UI from the event page** — clean, but breaks user flow
+   for one or more commits.
+2. **Reshape `BetControls` to single-Buy-YES now** — bundles lines 170,
+   171, 178 with 169. Larger commit, touches more types
+   (`MarketWithOdds` line 53), risks scope creep.
+3. **Synthesize `MarketWithOdds` per child and reuse `BetControls`
+   as-is** — temporary shim, no consumer-of-consumer changes, betting
+   stays alive. Picked this.
+
+The synthesis shim (`synthesizeMarket` in `event-detail.tsx`) is
+explicitly transitional. For new event-shaped markets the synthesized
+`outcomes` is `[child.name, "No"]` — `child.name` is the
+`yes_sub_title` written by the translator, so the existing A/B toggle in
+`BetControls` reads as "<child name> · No". That's a degenerate-but-not-
+broken UI that lines 170/178 will replace with a single Buy-YES button
+per child.
+
+### Notes
+- `MarketWithOdds.bettors` is passed as `[]` in the synthesis because
+  `getEvent` doesn't include per-position user details (the
+  `EventChildMarket.bettorCount` is fine, but the avatar group needs
+  `bettors[]`). `BetControls` never renders the bettors list — only the
+  count — so this is loss-free in practice. If line 174's homepage
+  rewrite later switches grouping to events too, we can extend
+  `EventChildMarket` to include bettor details rather than adding a
+  second query path.
+- `Market.eventId` is typed as `string | null` because the DB column is
+  nullable (no FK NOT-NULL constraint exists). In practice every
+  market row carries an event id because `createEvent` always writes
+  it; the nullable handling is a type-system concession the schema-
+  purge in Phase 1 can tighten (drop nullability when the legacy
+  market-without-event path is removed).
+- `MarketDetail` deletion was bundled because it became unreferenced
+  after the event-page rewire. Per the project rule against leaving
+  dead code/back-compat shims, no reason to keep a single-Market view
+  helper that no caller imports.
+- Remaining Phase 5 work: lines 170-189. Of those, lines 170/171/178
+  ("Buy YES" affordance + single-button bet form) are the next
+  natural cluster — once they land, the `synthesizeMarket` shim and
+  the `BetControls` A/B toggle disappear together. Lines 174-176 group
+  the homepage by event, and lines 183-188 reshape the portfolio +
+  bets-history pages.
+
+## 2026-05-12 — Phase 5: YES-only BetControls (lines 170/171/178)
+
+Bundled PLAN lines 170 (per-child YES affordance), 171 (drop outcome
+toggle in bet form), and 178 (single Buy YES button) into one logical
+unit: BetControls is now YES-only with no A/B state, no sell tab, and
+takes a child-Market shape directly — eliminating the `synthesizeMarket`
+shim in `event-detail.tsx` introduced for line 169.
+
+### What changed
+- `src/components/bet-controls.tsx` — rewritten:
+  - Props reshaped from `{ market: MarketWithOdds, positions: SharePosition[] }`
+    to `{ market: BetControlsMarket, sport, closesAt, position? }` where
+    `BetControlsMarket = { id, name, status, priceYes, multiplierYes,
+    bettorCount }`.
+  - Removed `outcome: "A" | "B"` state, the `ToggleGroup` A/B selector,
+    and the `outcomes`/`priceA`/`priceB`/`multiplierA`/`multiplierB`
+    reads.
+  - Removed the entire sell `Tabs` panel (already non-functional —
+    `handleSell` was a no-op showing "Selling is disabled"; per the
+    project rule against half-finished implementations and PLAN line 188
+    "no sell button anywhere", scrubbed entirely).
+  - Removed `Tabs`/`TabsContent`/`TabsList`/`TabsTrigger` and
+    `ToggleGroup`/`ToggleGroupItem` imports.
+  - Removed `ItemGroup` import (was used for the positions list); kept
+    `Item`/`ItemContent`/`ItemDescription`/`ItemMedia`/`ItemTitle`/
+    `ItemActions` for the position card.
+  - Header now shows `yes_sub_title` (market name), close-countdown
+    badge, a single `priceYes%`/`multiplierYes`x badge, and bettor count
+    badge — replacing the dual-team avatar toggle.
+  - Bet form: single amount input + slider + presets + estimated
+    shares/payout, then a single `Buy YES · {amount} WPM` button.
+  - Position card collapsed to a single `Item` (was an iterated
+    `ItemGroup`) showing the user's YES shares + cost basis + PnL badge.
+    Now uses `priceYes` directly (no more `priceA` legacy field).
+  - Input id namespaced as `buy-amount-${market.id}` so the same form
+    on multiple child Markets in an Event page each have unique label
+    targets.
+- `src/components/event-detail.tsx` — synthesis shim deleted:
+  - Removed `synthesizeMarket(event, child): MarketWithOdds` helper and
+    its `MarketWithOdds` import.
+  - `BetControls` invocation now passes a literal child-Market object
+    (`{ id, name, status, priceYes, multiplierYes, bettorCount }`) plus
+    `sport`/`closesAt` from the parent event and a single `position`
+    (the first matching `childPositions` entry, since `getPositions`
+    yields one row per `(user, market)` per the Phase 4 contract).
+- `PLAN.md` — lines 170, 171, 178 → `[x]`.
+
+### Files changed
+- `src/components/bet-controls.tsx`
+- `src/components/event-detail.tsx`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run test:integration` — 5/5 integration tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated, in
+  `tests/e2e/fixtures.ts`).
+- `bunx oxfmt --check` (touched files) — clean.
+
+### Scope decision: sell tab removed
+The sell tab was already non-functional — `handleSell` only set an
+error message "Selling is disabled." Keeping it would have left a dead
+affordance in the UI inviting users to click and discover the
+non-feature. PLAN line 188 explicitly mandates "No 'sell' button
+anywhere — verify no UI affordance survives the refactor", and the
+project rules against half-finished features make keeping it a clear
+loss. Removed entirely (no buy/sell tab wrapper, no
+`SELL_PCT_PRESETS`, no `sellShareAmount` state, no `Tabs` imports). The
+"Buy YES" button is now top-level inside the userId branch, not nested
+inside a `TabsContent`.
+
+### Notes
+- The previous `BetControls` accepted `positions: SharePosition[]` and
+  iterated them into a position list at the bottom. After the reshape,
+  each `BetControls` instance corresponds to exactly one child Market,
+  so it takes `position?: SharePosition` (the single applicable row).
+  This matches the Phase 4 promise that `getPositions` yields one row
+  per `(user, market)`.
+- `MarketWithOdds` type itself stays as-is (PLAN line 53 — reshape to
+  single-side `priceYes`/`multiplierYes` — is a separate task, blocked
+  on Phase 5 lines 174-176 reshaping `market-list`/`market-card`/
+  `market-item`/`live-odds`).
+- `useIsInMarketDrawer` + `useBetConfirm` integration preserved — the
+  drawer flow still triggers the confirmation dialog with
+  `outcomeName: yesName`.
+- `MarketDrawer` itself still has hardcoded "Market Detail" /
+  "Market odds, pool state, and trading controls" sr-only header text;
+  not in scope for line 178 but flagged for the line 180 work
+  (`market-drawer.tsx` reshape for child Markets list).
+- Remaining Phase 5 work: lines 174-176 (homepage event grouping +
+  binary/multi-outcome event cards), line 180 (`market-drawer.tsx`
+  child-Markets render — actually the drawer just hosts `EventDetail`
+  now, which already renders the child list; verify whether line 180 is
+  satisfied by the line 169 work), lines 181 (purge legacy A/B fields
+  across `market-card`/`market-item`/`live-odds`) and 183-189
+  (portfolio/bets-history reshape). The portfolio `priceA` legacy
+  fallback comment in `src/components/portfolio.tsx:35-37` is a known
+  transition shim that disappears with line 53 + line 184.

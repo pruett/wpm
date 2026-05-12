@@ -64,6 +64,7 @@ export type Sport = (typeof SPORTS)[number];
 
 export type Market = {
   id: string;
+  eventId: string | null;
   name: string;
   sport: Sport;
   outcomes: [string, string];
