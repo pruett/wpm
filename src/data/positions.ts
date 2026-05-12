@@ -47,6 +47,8 @@ export async function getPositions(userId: string): Promise<SharePosition[]> {
 export type BetHistoryEntry = {
   marketId: string;
   marketName: string;
+  eventId: string;
+  eventName: string;
   sport: Sport;
   closesAt: string;
   marketStatus: "open" | "resolved" | "cancelled";
@@ -71,6 +73,8 @@ export async function getBetHistory(userId: string): Promise<BetHistoryEntry[]> 
       marketStatus: marketsTable.status,
       resolvedAs: marketsTable.resolvedAs,
       resolvedAt: marketsTable.resolvedAt,
+      eventId: eventsTable.id,
+      eventName: eventsTable.name,
       sport: eventsTable.sport,
       closesAt: eventsTable.closesAt,
     })
@@ -101,6 +105,8 @@ export async function getBetHistory(userId: string): Promise<BetHistoryEntry[]> 
     result.push({
       marketId: row.marketId,
       marketName: row.marketName,
+      eventId: row.eventId,
+      eventName: row.eventName,
       sport: row.sport,
       closesAt: new Date(row.closesAt).toISOString(),
       marketStatus: row.marketStatus,

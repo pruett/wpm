@@ -203,7 +203,7 @@
 ### Position list / portfolio
 
 - [ ] `src/components/portfolio.tsx`: one row per `(user, market)` with non-zero shares.
-- [ ] Add Event aggregation view: group child rows under a parent Event header showing total stake.
+- [x] Add Event aggregation view: group child rows under a parent Event header showing total stake.
 
 ### Bets history page
 

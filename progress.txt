@@ -3005,3 +3005,82 @@ loop.
   purge cascade. Phase 5 line 206 (Event aggregation in portfolio) is
   the next substantive UI task — needs `getBetHistory` to also surface
   `eventId`/`eventName`, then portfolio grouping.
+
+## 2026-05-12 — Phase 5: Portfolio Event aggregation (line 206)
+
+Phase 5 UI task. The portfolio previously rendered a flat list of
+per-Market OpenCard/ClosedCard entries. Per PRD §UI, child rows on
+the bets page should group under a parent Event header that shows
+the event name + aggregated stake across all of its child markets.
+
+### What changed
+- `src/data/positions.ts` — `BetHistoryEntry` gains `eventId` and
+  `eventName` (both `string`, since the existing query already
+  INNER JOINs through `events`, so legacy market rows without an
+  event were already filtered out). `getBetHistory` now selects
+  `events.id` and `events.name` alongside `events.sport`/`closesAt`.
+- `src/components/portfolio.tsx`:
+  - New generic `groupByEvent<Row>` over rows whose entry carries
+    an `eventId` — preserves the parent row order coming in (so the
+    upstream chronological sort is the within-group order too).
+  - Open and Closed sections now render an `EventGroupSection` per
+    event with a small header (sport logo + event name + optional
+    `N markets` badge when >1 child) and a right-aligned `Stake`
+    total summing `costBasis` across that event's rows.
+  - Group sort: open groups by earliest child `closesAt` asc;
+    closed groups by latest child `resolvedAt` desc — matches the
+    prior flat-list sort semantics so the visual top-to-bottom
+    reading order is unchanged for single-market events.
+  - OpenCard/ClosedCard internals unchanged — the per-row card still
+    shows the child market name + sport logo so multi-market events
+    read cleanly (the duplication on single-market events is the
+    minor cost of keeping the cards self-contained).
+- `PLAN.md` line 206 → `[x]`.
+
+### Files changed
+- `src/data/positions.ts`
+- `src/components/portfolio.tsx`
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning (unrelated, in
+  `tests/e2e/fixtures.ts:11` empty destructure).
+- `bunx oxfmt` (touched files) — clean.
+
+### Scope decision
+Picked the single contained Phase 5 task (line 206) rather than the
+upstream Phase 1 schema/type purge (lines 45-47, 51, 56, 59). The
+Phase 1 cascade still ripples through ~10 files (schema + 4 data-layer
+files + translator + settlement + 3 components + 2 integration tests)
+and forces a coupled `Market` type reshape — exceeds the one-task
+budget. Line 206 was the next substantive UI task identified in the
+prior loop and stands cleanly on its own.
+
+### Notes
+- Considered widening `BetHistoryEntry.eventId/eventName` to nullable
+  for legacy data without an event row — decided against it because
+  the INNER JOIN already drops those rows from history. Keeping the
+  fields non-null simplifies the grouping code (no "untracked"
+  bucket). If we ever need to surface ungrouped legacy positions we
+  can switch the join to a LEFT JOIN and reintroduce nullability.
+- The card-level `SportLogo` + `marketName` is now technically
+  redundant with the event header for single-market events. Left it
+  in to keep `OpenCard`/`ClosedCard` self-contained (they're reused
+  across the layout and the visual weight of the duplicate is small).
+  If we trim them later, the event header is the right anchor since
+  the card already lives under it.
+- `space-y-4` between groups, `space-y-2` within a group — gives a
+  visible "event boundary" gap without a heavy separator.
+- The "N markets" badge only renders for events with >1 child row in
+  *this user's* history. A user with a position on only one child of
+  a binary event will see no badge — which is the right read (they
+  haven't bet the other side).
+- Followup: next-largest unblocked task remains the Phase 1
+  schema/type purge cascade (lines 45-47, 51, 56, 59). Phase 5
+  line 200 (`market-drawer.tsx` child-list affordances) appears
+  effectively complete via the `EventDetail` rendered inside the
+  drawer — needs a final spot-check then checkbox flip.
