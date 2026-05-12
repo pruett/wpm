@@ -2273,3 +2273,82 @@ Verified it passes against the real test Postgres and committed it.
   remaining work clusters are unchanged: Phase 1 schema purge
   (lines 41–44, 47), Phase 4 line 152, Phase 5 UI rewrite (lines 168–189),
   and Phase 6 line 200 plus the doc/grep cleanup items.
+
+## 2026-05-12 — Phase 6: rewrite bet-and-resolve integration test (line 200)
+
+PLAN line 200 — rewrite `tests/integration/bet-and-resolve.test.ts` to ingest
+a 2-Market fixture via the real translator, drive YES bets via the new
+`placeBet` (no `outcome` param), commit the Event, and verify balances /
+payouts / Event-Market statuses. The previous incarnation drove the legacy
+A/B `createMarket` + `placeBetLegacy` + `resolveMarket` path and was the last
+consumer of those legacy adapters.
+
+### What changed
+- `tests/integration/bet-and-resolve.test.ts` — full rewrite:
+  - Translates `binary-healthy.json` through the real `translateKalshiEvent`,
+    creates the Event via `createEvent`, then bumps each child Market's
+    `closesAt` forward so live `placeBet` accepts wagers (the fixture's close
+    is in 2026-04-25, already past).
+  - Five bettors, each placing one YES bet on one of the two child Markets
+    (three on the "winner-child" / NYY ticker, two on the "loser-child" /
+    BOS ticker). This preserves the original test's multi-bettor coverage
+    while remapping "outcome A vs B" to "buy YES on sibling Market" under
+    the new YES-only contract model.
+  - Commits the Event with the winner child `resolved_yes` + loser child
+    `resolved_no` via `commitEvent`.
+  - Asserts: per-bettor balance debited correctly pre-commit, each pool's
+    pre-commit `wpmReserve = seed + sum(inflows routed to it)`, winners
+    credited `shares` WPM post-commit, losers flat, Event terminal +
+    per-child statuses `resolved` with correct `resolvedAs`, both pools
+    fully drained, one `ResolveMarket` row per child, one `SettlePayout`
+    per (bettor, position) with `kind: "win"`/`"loss"` matching the
+    bettor's side, treasury non-decreasing, and the *global* conservation
+    invariant: `treasury_initial + Σ(starting balances) =
+    treasury_after + Σ(all balances) + Σ(pool_after)`.
+- `src/data/trading.ts` — removed `placeBetLegacy` + `PlaceBetLegacyInput`
+  (no remaining consumers) and the now-unused `AMMPool` import. The
+  inline comment had already flagged this for Phase 6 removal alongside
+  the test rewrite.
+- `PLAN.md` (line 200 → `[x]`).
+
+### Files changed
+- `tests/integration/bet-and-resolve.test.ts`
+- `src/data/trading.ts`
+- `PLAN.md`
+
+### Verification
+- `bun run test:integration` — 5/5 tests pass (1 new bet-and-resolve + 3
+  event-flow + 1 event-commit-rollback).
+- `bun run test` — 50/50 unit tests pass.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run lint` — 0 errors, 1 pre-existing warning (down from 2; the
+  removal of `placeBetLegacy` eliminated one unused-variable warning).
+- `bunx oxfmt --check tests/integration/bet-and-resolve.test.ts
+  src/data/trading.ts` — clean.
+
+### Notes
+- The old A/B model mapped naturally onto two child Markets: "bet A" → buy
+  YES on the first child; "bet B" → buy YES on the second child. This kept
+  the 5-bettor / multi-position coverage from the previous test while
+  exercising the new commit path. The winner/loser labels track *which
+  child wins*, not which side of a within-Market YES/NO contract — each
+  Market is independently YES-or-NO under ADR-0007.
+- Two assertions from the old test could not be carried over 1:1:
+  - Treasury delta no longer equals `wpmReserve − totalWinningShares`
+    because each child has its own pool draining independently; the
+    loser child's entire `wpmReserve` flows to treasury (no winners
+    there) on top of the winner child's residual. The global conservation
+    invariant subsumes this and is asserted directly.
+  - The old `market.resolvedOutcome === "A"` check is replaced by
+    per-child `status === "resolved"` + `resolvedAs === "yes"|"no"`.
+- Removing `placeBetLegacy` was bundled with this PLAN line because its
+  in-source comment already declared "Phase 6 rewrites that test … and
+  removes this adapter." No consumers remained outside the test being
+  rewritten.
+- Remaining substantive work clusters: Phase 1 schema purge (lines
+  41-44, 47), Phase 4 line 152 (`markets.ts` legacy `createMarket` /
+  `resolveMarket` / `cancelMarket` removal — now unblocked since the
+  last consuming integration test is rewritten), Phase 5 UI rewrite
+  (lines 168-189), plus the Phase 6 documentation/fixture/grep cleanup
+  items (lines 196-209).

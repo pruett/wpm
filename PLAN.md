@@ -197,7 +197,7 @@
 - [ ] Confirm ADRs 0006/0007/0008 are committed (already in worktree as untracked files per `git status`).
 
 ### Integration test
-- [ ] Update `tests/integration/bet-and-resolve.test.ts` to: ingest a 2-Market fixture → place YES bet → Event-commit at deadline → verify balance, payout rows, Event/Market statuses.
+- [x] Update `tests/integration/bet-and-resolve.test.ts` to: ingest a 2-Market fixture → place YES bet → Event-commit at deadline → verify balance, payout rows, Event/Market statuses.
 - [x] Add second integration scenario: 3-Market multi-outcome Event with one `cancelled_scalar` child and two normally-resolved children.
 
 ### E2E
