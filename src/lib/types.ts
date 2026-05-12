@@ -89,10 +89,8 @@ export type SharePosition = {
 };
 
 export type MarketWithOdds = Market & {
-  priceA: number;
-  priceB: number;
-  multiplierA: number;
-  multiplierB: number;
+  priceYes: number;
+  multiplierYes: number;
   bettorCount: number;
   bettors: {
     id: string;

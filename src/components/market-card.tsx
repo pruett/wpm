@@ -22,7 +22,7 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
           <CardTitle className="font-mono text-sm leading-snug font-bold">{market.name}</CardTitle>
         </CardHeader>
         <CardContent className="flex-1">
-          <LiveOdds outcomes={market.outcomes} priceA={market.priceA} priceB={market.priceB} />
+          <LiveOdds priceYes={market.priceYes} />
         </CardContent>
         <CardFooter className="justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex min-w-0 items-center gap-2">

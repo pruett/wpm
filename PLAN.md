@@ -50,7 +50,7 @@
 - [x] `src/lib/types.ts`: delete `SellShares` transaction variant; remove `"A" | "B"` from `PlaceBet`/`SettlePayout`/`ResolveMarket` payloads.
 - [ ] Add `Event` domain type with `markets: Market[]`. Reshape `Market` to `{ id, eventId, name, status, resolvedAs }` (no `sport`/`outcomes`/`result`).
 - [x] Replace `AMMPool.sharesA/B` with `reserveYes/No`; update `SharePosition` to flat `{ userId, marketId, shares, costBasis }`.
-- [ ] Update `MarketWithOdds` to single-side: `priceYes`/`multiplierYes` (no NO needed since `priceNo = 1 - priceYes`).
+- [x] Update `MarketWithOdds` to single-side: `priceYes`/`multiplierYes` (no NO needed since `priceNo = 1 - priceYes`).
 - [ ] Update `SPORTS` array stays on `Event`, not `Market`.
 
 ### AMM rewrite (`lib/amm.ts`)
@@ -178,7 +178,7 @@
 ### Bet controls / drawer
 - [x] `src/components/bet-controls.tsx`: remove A/B toggle; single "Buy YES" button per Market.
 - [ ] `src/components/market-drawer.tsx`: render child Markets list with per-Market buy affordances.
-- [ ] `src/components/market-card.tsx`, `market-detail.tsx`, `market-item.tsx`, `live-odds.tsx`: purge `priceA/B`/`multiplierA/B`/`teamA/B`/`outcome` and rewire to `priceYes`/`multiplierYes`/`name`.
+- [x] `src/components/market-card.tsx`, `market-detail.tsx`, `market-item.tsx`, `live-odds.tsx`: purge `priceA/B`/`multiplierA/B`/`teamA/B`/`outcome` and rewire to `priceYes`/`multiplierYes`/`name`.
 
 ### Position list / portfolio
 - [ ] `src/components/portfolio.tsx`: one row per `(user, market)` with non-zero shares.

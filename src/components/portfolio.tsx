@@ -32,9 +32,7 @@ type ClosedRow = {
 };
 
 function buildOpenRow(entry: BetHistoryEntry, market: MarketWithOdds | undefined): OpenRow {
-  // MarketWithOdds.priceA still encodes priceYes during the Phase 5 transition
-  // (see data/markets.ts:enrichMarket).
-  const priceYes = market?.priceA ?? 0;
+  const priceYes = market?.priceYes ?? 0;
   const value = entry.shares * priceYes;
   const pnl = value - entry.costBasis;
   return { entry, value, pnl };
