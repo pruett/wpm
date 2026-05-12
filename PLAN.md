@@ -207,7 +207,7 @@
 
 ### Bets history page
 
-- [ ] `src/app/(app)/bets/page.tsx`: render flat list per Market with `marketName`, `resolvedAs`, `shares`, `costBasis`, `settledAmount`.
+- [x] `src/app/(app)/bets/page.tsx`: render flat list per Market with `marketName`, `resolvedAs`, `shares`, `costBasis`, `settledAmount`.
 - [ ] No "sell" button anywhere — verify no UI affordance survives the refactor.
 
 ---

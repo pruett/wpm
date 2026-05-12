@@ -3204,3 +3204,77 @@ are required.
   but each needs its own spot-check loop. Phase 6 cleanup items
   (lines 233-235) are still gated on the Phase 1 schema/type purge
   cascade.
+
+## 2026-05-12 — Phase 5: Bets page flat-list verification (line 210)
+
+Phase 5 verification task. PLAN line 210 — `src/app/(app)/bets/page.tsx:
+render flat list per Market with marketName, resolvedAs, shares,
+costBasis, settledAmount` — needed a final spot-check that the bets
+page surfaces all five required fields per child Market row.
+
+### What changed
+- `PLAN.md` line 210 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `src/app/(app)/bets/page.tsx` is a thin Suspense wrapper that
+  renders `<Header />` + `<Portfolio userId>` — no per-row layout
+  lives in the page itself; it delegates entirely to Portfolio.
+- `src/data/positions.ts:47-60` — `BetHistoryEntry` already exposes
+  `marketName`, `resolvedAs`, `shares`, `costBasis`, `settledAmount`
+  (plus event metadata for grouping). The INNER JOIN through
+  `markets` + `events` guarantees one row per `positions` PK pair.
+- `src/components/portfolio.tsx`:
+  - `OpenCard` (line 200) renders `entry.marketName`, `entry.shares`
+    (`.toFixed(2) shares`), `entry.costBasis` (as `Cost`).
+    `settledAmount` is 0 for open rows so the card hides it — matches
+    the PRD's "settledAmount" semantic (paid-out amount).
+  - `ClosedCard` (line 261) renders `entry.marketName`,
+    `entry.resolvedAs` (drives the Won·YES / Lost·NO won / Refunded
+    badge + leg-class colour at lines 240-253), `entry.shares`
+    (line 277), `entry.costBasis` (line 285), `entry.settledAmount`
+    (line 289, labelled `Paid`).
+  - One card per `BetHistoryEntry`; cards grouped under an
+    EventGroupSection header but each row is 1:1 with a
+    `(user, market)` pair (PK-enforced upstream).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked this single Phase 5 verification rather than the upstream
+Phase 1 schema/type purge cascade (lines 45, 51, 56, 59) — that
+cascade still ripples through ~5 production files plus the schema
+migration and exceeds the one-task budget. Line 210 was flagged in
+the prior loop as "effectively done via the Portfolio component,
+needs its own spot-check loop", and the spot-check confirms all five
+PRD-required fields are rendered per child row.
+
+### Notes
+- The PRD's "flat list per Market" wording is honoured by the Card
+  layout: one Card per (user, market) row, all five fields surfaced.
+  The Event-group header (added in the line 206 task) doesn't break
+  the flat-list invariant — it's a layout scope wrapper around an
+  otherwise flat list of child rows.
+- "settledAmount" rendering only shows on closed cards (labelled
+  `Paid`). For open positions `settledAmount` is always 0, so the
+  open card hides it to reduce noise. This is consistent with the
+  data shape (`getBetHistory` returns `settledAmount: 0` for open
+  rows when no SettlePayout transactions exist for that market).
+- `resolvedAs` is rendered indirectly via the badge label and leg
+  styling rather than as a raw `yes`/`no` string — that's the
+  user-facing presentation (Won·YES / Lost·NO won). The raw value
+  feeds the conditional at line 240. A future a11y pass could add
+  an aria-label exposing the raw value, but the PRD doesn't call
+  that out.
+- Remaining Phase 5 unchecked item: line 211 (no-sell affordance
+  check) — the grep at `src/` returned only one comment match in
+  `translator.ts:10` ("buyers and sellers have not agreed on a price"),
+  no sell button/affordance survives. Could be flipped in a sibling
+  loop. Phase 6 cleanup items (lines 233-235) are still gated on
+  the Phase 1 schema/type purge cascade.
