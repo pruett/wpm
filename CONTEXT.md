@@ -45,7 +45,7 @@ The current cost in WPM to acquire one YES-share of a **Market**, always between
 _Avoid_: "odds" unqualified (reserved for the multiplier form), "cents" (Kalshi-side; we denominate in WPM).
 
 **Implied Probability**:
-The probability the market assigns to YES, equal to its **Price** in WPM. *Within* a single **Market**, YES-probability + NO-probability = 1 by construction of the pool. *Across* the **Markets** of a multi-outcome Event, the sum of YES-probabilities is **not** enforced to equal 1 — each Market prices independently and arbitrage by new buyers is the only convergence force. Drift between sibling Markets is a market-inefficiency feature, not a bug.
+The probability the market assigns to YES, equal to its **Price** in WPM. _Within_ a single **Market**, YES-probability + NO-probability = 1 by construction of the pool. _Across_ the **Markets** of a multi-outcome Event, the sum of YES-probabilities is **not** enforced to equal 1 — each Market prices independently and arbitrage by new buyers is the only convergence force. Drift between sibling Markets is a market-inefficiency feature, not a bug.
 _Avoid_: "chance", "confidence".
 
 **Multiplier** (decimal odds):
@@ -110,10 +110,10 @@ _Avoid_: "void" as a Wampum term (void is a Kalshi-side input, not a Wampum stat
 
 ## Ingestion invariants
 
-- **Ingestion is one-shot discovery.** Kalshi data is consulted exactly once per **Market** — at creation — to seed the AMM's initial probability. After creation, the **Market** is an independent Wampum entity; Kalshi is never re-queried for *pricing*. Live Kalshi price movement does not touch our rows.
+- **Ingestion is one-shot discovery.** Kalshi data is consulted exactly once per **Market** — at creation — to seed the AMM's initial probability. After creation, the **Market** is an independent Wampum entity; Kalshi is never re-queried for _pricing_. Live Kalshi price movement does not touch our rows.
 - **The AMM is the sole source of truth for prices** after creation.
-- **Ingestion gates per-Market on Kalshi confidence.** The translator rejects a **Kalshi Market** whose bid-ask spread exceeds a threshold — a wide spread means buyers and sellers have not consolidated on a price and the midpoint is a phantom. The gate asks "has Kalshi agreed on *a* number?"; it never filters on *which* number.
-- **Per-Event gating semantics for multi-Market events are pending design.** Open question: if some Markets in an Event pass confidence and others fail, do we ingest the passing ones, drop the whole Event, or use a sum-to-1 cross-check? Resolved in upcoming work.
+- **Ingestion gates per-Market on Kalshi confidence.** The translator rejects a **Kalshi Market** whose bid-ask spread exceeds a threshold — a wide spread means buyers and sellers have not consolidated on a price and the midpoint is a phantom. The gate asks "has Kalshi agreed on _a_ number?"; it never filters on _which_ number.
+- **Per-Event gating is all-or-nothing.** If any child **Kalshi Market** fails the spread gate (or any other ingestion check), the whole **Event** is rejected with `insufficient_confidence` and the failing tickers reported per-child. We do not partially ingest the passing children; every Market under an Event shares the same fate at ingest.
 
 ## Resolution invariants
 
@@ -139,12 +139,12 @@ _Avoid_: "void" as a Wampum term (void is a Kalshi-side input, not a Wampum stat
 > **Domain expert:** "They buy YES-shares of the `Lakers-WIN` **Market**. The **Pool**'s YES reserve shrinks, NO reserve grows, the user receives YES-shares at an average price below 1 WPM. Their **Position** in that Market gets `shares += received` and `costBasis += 100`. Their **Position** in the sibling `Celtics-WIN` Market is untouched — those are independent Markets with independent pools."
 
 > **Dev:** "Can the YES-prices of `Lakers-WIN` and `Celtics-WIN` add up to more than 1?"
-> **Domain expert:** "Yes. They're independent pools. The constraint that complementary outcomes' prices sum to 1 is *no longer* an AMM-enforced invariant — it's an arbitrage-driven convergence. New buyers will tend to push toward sum-to-1 by buying the under-priced side. Drift on small pools is expected."
+> **Domain expert:** "Yes. They're independent pools. The constraint that complementary outcomes' prices sum to 1 is _no longer_ an AMM-enforced invariant — it's an arbitrage-driven convergence. New buyers will tend to push toward sum-to-1 by buying the under-priced side. Drift on small pools is expected."
 
 ## Flagged ambiguities
 
 - **"Market"** once meant a Wampum A/B contest with two outcomes sharing one pool. It now means a single binary YES/NO contract with its own pool. The A/B model is retired.
-- **"Event"** was previously avoided unqualified because of theoretical collision with domain events. Domain events in this codebase are called *transactions*, so the collision was theoretical, not real. **Event** is now a first-class Wampum noun. Always say **Wampum Event** when distinguishing from **Kalshi Event** in code; bare "Event" is fine in unambiguous prose.
+- **"Event"** was previously avoided unqualified because of theoretical collision with domain events. Domain events in this codebase are called _transactions_, so the collision was theoretical, not real. **Event** is now a first-class Wampum noun. Always say **Wampum Event** when distinguishing from **Kalshi Event** in code; bare "Event" is fine in unambiguous prose.
 - **"Outcome"** is retired as a domain noun. Markets resolve YES or NO; we don't need a separate noun for "the slot."
 - **"Sell"** / **"SellShares"** is retired as a product capability. Wampum is buy-YES-only by design.
-- **"Settlement"** still collides with Kalshi vocabulary (their Markets *settle* with a `result`). Resolved as before: **Kalshi Settlement** = external signal; bare **Settlement** = Wampum payout. **Resolution** = Wampum status transition that Kalshi Settlement triggers.
+- **"Settlement"** still collides with Kalshi vocabulary (their Markets _settle_ with a `result`). Resolved as before: **Kalshi Settlement** = external signal; bare **Settlement** = Wampum payout. **Resolution** = Wampum status transition that Kalshi Settlement triggers.
