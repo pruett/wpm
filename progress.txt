@@ -3612,3 +3612,82 @@ next.
 - `markets.eventId` carries `onDelete: "cascade"` (line 62), so the
   relation also enforces orphan-prevention at the DB level, not just
   in the relations map.
+
+## 2026-05-12 — Phase 1: Add Event domain type (line 56)
+
+Phase 1 type-purge task — PLAN line 56: `Add Event domain type with
+markets: Market[]. Reshape Market to { id, eventId, name, status,
+resolvedAs } (no sport/outcomes/result)`.
+
+### What changed
+- Added `Event` domain type to `src/lib/types.ts`:
+  ```ts
+  export type Event = {
+    id: string;
+    sport: Sport;
+    name: string;
+    closesAt: string;
+    status: "open" | "terminal";
+    markets: Market[];
+  };
+  ```
+- Confirmed `Market` type already matches the PRD spec (no `sport`/
+  `outcomes`/`result`); only the `Event` half of line 56 required code.
+- PLAN.md line 56 → `[x]`.
+
+### Files changed
+- `src/lib/types.ts`
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- Read `src/lib/types.ts` end-to-end. Confirmed `Market` shape =
+  `{ id, eventId, name, status, resolvedAs }`. New `Event` type sits
+  directly below it with the spec-mandated fields.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+- `bunx tsc --noEmit` — the only failures are pre-existing integration-
+  test errors (`tests/integration/*.test.ts` referencing stale
+  `closesAt`/`reserveA`/`reserveB` on markets/amm_pools, plus
+  `vitest.integration.config.ts` `fileParallel` typo). These are queued
+  for Phase 6 (PLAN line 224-225); no regressions from this change.
+- `bun run fmt:check src/lib/types.ts` — file not in the list of files
+  needing formatting (the format issues reported are all pre-existing
+  in skills/docs/migrations).
+
+### Scope decision
+Picked line 56 because it is the next-lowest-numbered unchecked Phase 1
+task after the docs-flip cluster (lines 45–48) closed in the prior
+loops, and is the next substantive code change in the type-purge block.
+Kept the scope narrow: added the domain `Event` type only. Did NOT
+touch the `Transaction.CreateMarket` variant — its `outcomes`/`closesAt`/
+`initialProbabilityA` fields are stale relative to what `data/events.ts`
+actually writes, but that is a separate cleanup (the ledger-payload
+shape was not called out in line 56, and the variant's fields aren't
+read anywhere — they're write-only metadata).
+
+Remaining Phase 1: line 59 (SPORTS array stays on Event, not Market) —
+substantive verification only; `SPORTS` is already homed on `events`
+in the schema and on `Event`/`Sport` in `types.ts`. Queued for the
+next loop.
+
+### Notes
+- Chose `closesAt: string` (ISO) over `number` to match the existing
+  `MarketWithOdds.closesAt: string` convention in the same file.
+  The data layer's `EventWithMarkets` projection in `src/data/events.ts`
+  also stringifies `closesAt` before exposing it to consumers, so the
+  domain type is consistent with what UI/server code already sees.
+- Did NOT add `createdAt` to the domain `Event` — the `Market` type
+  also omits `createdAt`. Domain types stay bare; projections in
+  `src/data/events.ts` (e.g. `EventWithMarkets`) add view-specific
+  fields like `createdAt`/`priceYes`/`bettorCount` as needed.
+- No other source file imports `Event` from `@/lib/types` yet; the new
+  type is purely additive. Consumers like `src/data/events.ts` continue
+  to use their own richer `EventWithMarkets` projection (which carries
+  per-child price/multiplier/bettorCount fields not in the bare
+  domain type).
+- The new type also overlaps in name with Kalshi's `KalshiEvent`
+  (from `@/lib/kalshi`) and the translator's `TranslatedEvent`, but
+  those are namespaced (`Kalshi`/`Translated` prefixes), so `Event`
+  unambiguously refers to the wampum domain object.

@@ -53,7 +53,7 @@
 ### Type purges
 
 - [x] `src/lib/types.ts`: delete `SellShares` transaction variant; remove `"A" | "B"` from `PlaceBet`/`SettlePayout`/`ResolveMarket` payloads.
-- [ ] Add `Event` domain type with `markets: Market[]`. Reshape `Market` to `{ id, eventId, name, status, resolvedAs }` (no `sport`/`outcomes`/`result`).
+- [x] Add `Event` domain type with `markets: Market[]`. Reshape `Market` to `{ id, eventId, name, status, resolvedAs }` (no `sport`/`outcomes`/`result`).
 - [x] Replace `AMMPool.sharesA/B` with `reserveYes/No`; update `SharePosition` to flat `{ userId, marketId, shares, costBasis }`.
 - [x] Update `MarketWithOdds` to single-side: `priceYes`/`multiplierYes` (no NO needed since `priceNo = 1 - priceYes`).
 - [ ] Update `SPORTS` array stays on `Event`, not `Market`.
