@@ -1,5 +1,5 @@
 import type { BetHistoryEntry } from "@/data/positions";
-import type { MarketWithOdds } from "@/lib/types";
+import type { MarketWithOdds, Sport } from "@/lib/types";
 
 import { SportLogo } from "@/components/sport-logo";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,27 @@ type ClosedRow = {
   entry: BetHistoryEntry;
   pnl: number;
 };
+
+type EventGroup<Row extends { entry: BetHistoryEntry }> = {
+  eventId: string;
+  eventName: string;
+  sport: Sport;
+  rows: Row[];
+};
+
+function groupByEvent<Row extends { entry: BetHistoryEntry }>(rows: Row[]): EventGroup<Row>[] {
+  const byId = new Map<string, EventGroup<Row>>();
+  for (const row of rows) {
+    const { eventId, eventName, sport } = row.entry;
+    const group = byId.get(eventId);
+    if (group) {
+      group.rows.push(row);
+    } else {
+      byId.set(eventId, { eventId, eventName, sport, rows: [row] });
+    }
+  }
+  return [...byId.values()];
+}
 
 function buildOpenRow(entry: BetHistoryEntry, market: MarketWithOdds | undefined): OpenRow {
   const priceYes = market?.priceYes ?? 0;
@@ -69,9 +90,16 @@ export async function Portfolio({ userId }: { userId: string }) {
   const openPnl = openValue - openCost;
   const realizedPnl = closedRows.reduce((sum, r) => sum + r.pnl, 0);
 
+  const openGroups = groupByEvent(openRows).sort(
+    (a, b) => Date.parse(a.rows[0].entry.closesAt) - Date.parse(b.rows[0].entry.closesAt),
+  );
+  const closedGroups = groupByEvent(closedRows).sort(
+    (a, b) => (b.rows[0].entry.resolvedAt ?? 0) - (a.rows[0].entry.resolvedAt ?? 0),
+  );
+
   return (
     <section className="mt-8 space-y-8">
-      {openRows.length > 0 ? (
+      {openGroups.length > 0 ? (
         <div>
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="font-mono text-lg font-bold tracking-wider uppercase">Open</h2>
@@ -84,15 +112,23 @@ export async function Portfolio({ userId }: { userId: string }) {
               </span>
             </div>
           </div>
-          <div className="space-y-2">
-            {openRows.map((row) => (
-              <OpenCard key={row.entry.marketId} row={row} />
+          <div className="space-y-4">
+            {openGroups.map((group) => (
+              <EventGroupSection
+                key={group.eventId}
+                group={group}
+                totalStake={group.rows.reduce((sum, r) => sum + r.entry.costBasis, 0)}
+              >
+                {group.rows.map((row) => (
+                  <OpenCard key={row.entry.marketId} row={row} />
+                ))}
+              </EventGroupSection>
             ))}
           </div>
         </div>
       ) : null}
 
-      {closedRows.length > 0 ? (
+      {closedGroups.length > 0 ? (
         <div>
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="font-mono text-lg font-bold tracking-wider uppercase">History</h2>
@@ -103,14 +139,52 @@ export async function Portfolio({ userId }: { userId: string }) {
               <span className="tabular-nums">{formatSigned(realizedPnl)}</span>
             </span>
           </div>
-          <div className="space-y-2">
-            {closedRows.map((row) => (
-              <ClosedCard key={row.entry.marketId} row={row} />
+          <div className="space-y-4">
+            {closedGroups.map((group) => (
+              <EventGroupSection
+                key={group.eventId}
+                group={group}
+                totalStake={group.rows.reduce((sum, r) => sum + r.entry.costBasis, 0)}
+              >
+                {group.rows.map((row) => (
+                  <ClosedCard key={row.entry.marketId} row={row} />
+                ))}
+              </EventGroupSection>
             ))}
           </div>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function EventGroupSection<Row extends { entry: BetHistoryEntry }>({
+  group,
+  totalStake,
+  children,
+}: {
+  group: EventGroup<Row>;
+  totalStake: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <header className="flex items-baseline justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <SportLogo sport={group.sport} size={14} className="text-muted-foreground" />
+          <h3 className="truncate font-mono text-sm font-semibold">{group.eventName}</h3>
+          {group.rows.length > 1 ? (
+            <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
+              {group.rows.length} markets
+            </Badge>
+          ) : null}
+        </div>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+          Stake <span className="text-foreground tabular-nums">{totalStake.toFixed(2)}</span>
+        </span>
+      </header>
+      <div className="space-y-2">{children}</div>
+    </div>
   );
 }
 
