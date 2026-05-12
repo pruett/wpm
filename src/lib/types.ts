@@ -64,13 +64,19 @@ export type Sport = (typeof SPORTS)[number];
 
 export type Market = {
   id: string;
-  eventId: string | null;
+  eventId: string;
   name: string;
-  sport: Sport;
-  outcomes: [string, string];
-  closesAt: string;
   status: "open" | "resolved" | "cancelled";
-  result?: "A" | "B";
+  resolvedAs: "yes" | "no" | null;
+};
+
+export type Event = {
+  id: string;
+  sport: Sport;
+  name: string;
+  closesAt: string;
+  status: "open" | "terminal";
+  markets: Market[];
 };
 
 export type AMMPool = {
@@ -89,6 +95,8 @@ export type SharePosition = {
 };
 
 export type MarketWithOdds = Market & {
+  sport: Sport;
+  closesAt: string;
   priceYes: number;
   multiplierYes: number;
   bettorCount: number;
