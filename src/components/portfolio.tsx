@@ -22,8 +22,7 @@ function formatDate(ms: number): string {
 
 type OpenRow = {
   entry: BetHistoryEntry;
-  valueA: number;
-  valueB: number;
+  value: number;
   pnl: number;
 };
 
@@ -33,12 +32,12 @@ type ClosedRow = {
 };
 
 function buildOpenRow(entry: BetHistoryEntry, market: MarketWithOdds | undefined): OpenRow {
-  const priceA = market?.priceA ?? 0;
-  const priceB = market?.priceB ?? 0;
-  const valueA = entry.sharesA * priceA;
-  const valueB = entry.sharesB * priceB;
-  const pnl = valueA + valueB - entry.costBasis;
-  return { entry, valueA, valueB, pnl };
+  // MarketWithOdds.priceA still encodes priceYes during the Phase 5 transition
+  // (see data/markets.ts:enrichMarket).
+  const priceYes = market?.priceA ?? 0;
+  const value = entry.shares * priceYes;
+  const pnl = value - entry.costBasis;
+  return { entry, value, pnl };
 }
 
 export async function Portfolio({ userId }: { userId: string }) {
@@ -67,7 +66,7 @@ export async function Portfolio({ userId }: { userId: string }) {
     .map((entry) => ({ entry, pnl: entry.settledAmount - entry.costBasis }))
     .sort((a, b) => (b.entry.resolvedAt ?? 0) - (a.entry.resolvedAt ?? 0));
 
-  const openValue = openRows.reduce((sum, r) => sum + r.valueA + r.valueB, 0);
+  const openValue = openRows.reduce((sum, r) => sum + r.value, 0);
   const openCost = openRows.reduce((sum, r) => sum + r.entry.costBasis, 0);
   const openPnl = openValue - openCost;
   const realizedPnl = closedRows.reduce((sum, r) => sum + r.pnl, 0);
@@ -118,11 +117,7 @@ export async function Portfolio({ userId }: { userId: string }) {
 }
 
 function OpenCard({ row }: { row: OpenRow }) {
-  const { entry, pnl } = row;
-  const [nameA, nameB] = entry.outcomes;
-  const legs: { name: string; shares: number; value: number }[] = [];
-  if (entry.sharesA > 0) legs.push({ name: nameA, shares: entry.sharesA, value: row.valueA });
-  if (entry.sharesB > 0) legs.push({ name: nameB, shares: entry.sharesB, value: row.valueB });
+  const { entry, value, pnl } = row;
 
   return (
     <Card>
@@ -140,23 +135,17 @@ function OpenCard({ row }: { row: OpenRow }) {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        <div className="space-y-1.5">
-          {legs.map((leg) => (
-            <div key={leg.name} className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium">
-                  {leg.name}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {leg.shares.toFixed(2)} shares
-                </span>
-              </div>
-              <div className="font-mono text-xs">
-                <span className="tabular-nums">{leg.value.toFixed(2)}</span>
-                <span className="ml-1 text-muted-foreground">val</span>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium">YES</span>
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {entry.shares.toFixed(2)} shares
+            </span>
+          </div>
+          <div className="font-mono text-xs">
+            <span className="tabular-nums">{value.toFixed(2)}</span>
+            <span className="ml-1 text-muted-foreground">val</span>
+          </div>
         </div>
         <div className="mt-3 flex items-baseline justify-between border-t border-border pt-2 font-mono text-xs">
           <span className="text-muted-foreground">
@@ -175,34 +164,20 @@ function OpenCard({ row }: { row: OpenRow }) {
 
 function ClosedCard({ row }: { row: ClosedRow }) {
   const { entry, pnl } = row;
-  const [nameA, nameB] = entry.outcomes;
   const isCancelled = entry.marketStatus === "cancelled";
-  const won =
-    !isCancelled &&
-    entry.resolvedOutcome != null &&
-    (entry.resolvedOutcome === "A" ? entry.sharesA > 0 : entry.sharesB > 0);
-
-  const legs: { name: string; shares: number; isWinner: boolean }[] = [];
-  if (entry.sharesA > 0) {
-    legs.push({ name: nameA, shares: entry.sharesA, isWinner: entry.resolvedOutcome === "A" });
-  }
-  if (entry.sharesB > 0) {
-    legs.push({ name: nameB, shares: entry.sharesB, isWinner: entry.resolvedOutcome === "B" });
-  }
+  const won = !isCancelled && entry.resolvedAs === "yes";
 
   let statusBadge: { label: string; variant: "default" | "destructive" | "secondary" };
+  let legClass: string;
   if (isCancelled) {
     statusBadge = { label: "Refunded", variant: "secondary" };
+    legClass = "bg-muted";
   } else if (won) {
-    statusBadge = {
-      label: `Won · ${entry.resolvedOutcome === "A" ? nameA : nameB}`,
-      variant: "default",
-    };
+    statusBadge = { label: "Won · YES", variant: "default" };
+    legClass = "bg-green-500/15 text-green-500";
   } else {
-    statusBadge = {
-      label: `Lost · ${entry.resolvedOutcome === "A" ? nameA : nameB} won`,
-      variant: "destructive",
-    };
+    statusBadge = { label: "Lost · NO won", variant: "destructive" };
+    legClass = "bg-destructive/10 text-destructive";
   }
 
   return (
@@ -221,27 +196,15 @@ function ClosedCard({ row }: { row: ClosedRow }) {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        <div className="space-y-1.5">
-          {legs.map((leg) => (
-            <div key={leg.name} className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span
-                  className={`rounded px-2 py-0.5 font-mono text-xs font-medium ${
-                    leg.isWinner
-                      ? "bg-green-500/15 text-green-500"
-                      : isCancelled
-                        ? "bg-muted"
-                        : "bg-destructive/10 text-destructive"
-                  }`}
-                >
-                  {leg.name}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {leg.shares.toFixed(2)} shares
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className={`rounded px-2 py-0.5 font-mono text-xs font-medium ${legClass}`}>
+              YES
+            </span>
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {entry.shares.toFixed(2)} shares
+            </span>
+          </div>
         </div>
         <div className="mt-3 flex items-baseline justify-between border-t border-border pt-2 font-mono text-xs">
           <div className="flex items-baseline gap-3 text-muted-foreground">

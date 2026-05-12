@@ -152,7 +152,7 @@
 - [ ] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
 - [x] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
 - [x] `src/data/positions.ts`: collapse `getPositions` to one row per `(user, market)` with non-zero shares; filter to `markets.status = 'open'` for live positions.
-- [ ] `getBetHistory`: replace `sharesA`/`sharesB`/`outcomes`/`resolvedOutcome` with `shares`/`marketName`/`resolvedAs`; join through `events` for `closesAt`/`sport`.
+- [x] `getBetHistory`: replace `sharesA`/`sharesB`/`outcomes`/`resolvedOutcome` with `shares`/`marketName`/`resolvedAs`; join through `events` for `closesAt`/`sport`.
 - [x] Update cache tags: `tags.event(id)` alongside `tags.market(id)`; revalidate both on bet placement and Event commit.
 
 ### Server actions

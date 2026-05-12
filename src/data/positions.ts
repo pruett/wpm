@@ -5,7 +5,12 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { SharePosition, Sport } from "@/lib/types";
 
 import { db } from "@/lib/db";
-import { markets as marketsTable, positions, transactions } from "@/lib/db/schema";
+import {
+  events as eventsTable,
+  markets as marketsTable,
+  positions,
+  transactions,
+} from "@/lib/db/schema";
 
 import { tags } from "./tags";
 
@@ -43,13 +48,11 @@ export type BetHistoryEntry = {
   marketId: string;
   marketName: string;
   sport: Sport;
-  outcomes: [string, string];
   closesAt: string;
   marketStatus: "open" | "resolved" | "cancelled";
-  resolvedOutcome: "A" | "B" | null;
+  resolvedAs: "yes" | "no" | null;
   resolvedAt: number | null;
-  sharesA: number;
-  sharesB: number;
+  shares: number;
   costBasis: number;
   settledAmount: number;
 };
@@ -62,20 +65,18 @@ export async function getBetHistory(userId: string): Promise<BetHistoryEntry[]> 
   const rows = await db
     .select({
       marketId: positions.marketId,
-      sharesA: positions.sharesA,
-      sharesB: positions.sharesB,
+      shares: positions.shares,
       costBasis: positions.costBasis,
       marketName: marketsTable.name,
-      sport: marketsTable.sport,
-      teamA: marketsTable.teamA,
-      teamB: marketsTable.teamB,
-      closesAt: marketsTable.closesAt,
       marketStatus: marketsTable.status,
-      resolvedOutcome: marketsTable.resolvedOutcome,
+      resolvedAs: marketsTable.resolvedAs,
       resolvedAt: marketsTable.resolvedAt,
+      sport: eventsTable.sport,
+      closesAt: eventsTable.closesAt,
     })
     .from(positions)
     .innerJoin(marketsTable, eq(marketsTable.id, positions.marketId))
+    .innerJoin(eventsTable, eq(eventsTable.id, marketsTable.eventId))
     .where(eq(positions.userId, userId));
 
   const settlements = await db
@@ -95,19 +96,17 @@ export async function getBetHistory(userId: string): Promise<BetHistoryEntry[]> 
   for (const row of rows) {
     // Resolved/cancelled positions stay on the ledger at non-zero shares (ADR-0004),
     // so a zero-share row on an open market means the user has fully sold out — skip it.
-    if (row.marketStatus === "open" && row.sharesA === 0n && row.sharesB === 0n) continue;
+    if (row.marketStatus === "open" && row.shares === 0n) continue;
 
     result.push({
       marketId: row.marketId,
       marketName: row.marketName,
       sport: row.sport,
-      outcomes: [row.teamA, row.teamB],
       closesAt: new Date(row.closesAt).toISOString(),
       marketStatus: row.marketStatus,
-      resolvedOutcome: row.resolvedOutcome,
+      resolvedAs: row.resolvedAs,
       resolvedAt: row.resolvedAt,
-      sharesA: Number(row.sharesA),
-      sharesB: Number(row.sharesB),
+      shares: Number(row.shares),
       costBasis: Number(row.costBasis),
       settledAmount: settledByMarket.get(row.marketId) ?? 0,
     });
