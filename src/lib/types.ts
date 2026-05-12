@@ -75,7 +75,6 @@ export type AMMPool = {
 export type SharePosition = {
   userId: string;
   marketId: string;
-  outcome: "A" | "B";
   shares: number;
   costBasis: number;
 };

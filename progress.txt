@@ -1836,3 +1836,66 @@ already; this test fills the unit-level coverage gap.
 - Phase 1 schema purge (lines 41-44, 47) and Phase 4 data layer reshape
   (lines 151, 152, 154, 155) remain the next natural clusters — both
   cascading into multiple consumer files.
+
+## 2026-05-11 — Phase 1/4: flatten SharePosition + collapse getPositions
+
+PLAN lines 52 and 154 form a single coherent vertical slice — the type-level
+flattening of `SharePosition` and the query-level collapse of `getPositions`
+share the same surface and can't be done independently without compile
+breakage. Did both together.
+
+### What changed
+- `src/lib/types.ts` — `SharePosition` is now flat:
+  `{ userId, marketId, shares, costBasis }` (dropped `outcome: "A" | "B"`).
+  Removes the last "A"/"B" leakage from the domain types per the YES-only
+  product stance (ADR-0007).
+- `src/data/positions.ts` — `getPositions` rewritten:
+  - Selects `positions.shares` directly (no longer reconstructs from
+    `sharesA + sharesB` with a basis allocation).
+  - Filters at the SQL layer to `markets.status = 'open'` via a joined
+    `AND` clause (was an in-memory filter before).
+  - Skips rows with `shares === 0n` (post-cancel/post-resolve ledger rows
+    stay in the table per ADR-0004; the live-positions view excludes them).
+  - Returns at most one row per `(user, market)` — the prior code emitted
+    two rows when both `sharesA` and `sharesB` were positive.
+- `src/components/bet-controls.tsx` — minimum accommodation to keep the
+  legacy A/B UI compiling:
+  - `positionForOutcome` → `marketPosition` (looked up by `marketId`).
+  - "Your positions" panel (now "Your position") renders one Item per
+    market position (was per outcome). PnL still uses `priceA` because the
+    A/B UI hasn't been gutted yet — that's Phase 5 work (`market-card`,
+    `market-detail`, `live-odds`, drawer, etc.). The shape is correct;
+    the labels are not. Acceptable: this whole control is slated for
+    rewrite when `MarketWithOdds` flips to `priceYes`/`multiplierYes`.
+
+### Files changed
+- `src/lib/types.ts`
+- `src/data/positions.ts`
+- `src/components/bet-controls.tsx`
+- `PLAN.md` (lines 52, 154 → `[x]`)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 50/50 unit tests pass (unchanged).
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+- `bunx oxfmt --check` on the three touched files — clean.
+
+### Notes
+- The schema columns `positions.sharesA` and `positions.sharesB` are still
+  present and written by `placeBet`/legacy paths. Dropping them is
+  Phase 1 line 41 — a separate task that requires a migration regeneration
+  (line 47) and additional consumer updates in `getBetHistory` (line 155)
+  and the legacy `createMarket`/`resolveMarket` paths in `data/markets.ts`
+  (line 152). The current change is a pure read-side switch.
+- `getBetHistory` still reads `sharesA`/`sharesB`/`resolvedOutcome` and
+  emits the old shape. That's PLAN line 155, deferred.
+- `bet-controls.tsx` retains the outcome toggle and A/B price plumbing.
+  It compiles cleanly but the displayed PnL on the "Your position" panel
+  is mis-priced because it uses `priceA` regardless of which side the
+  position is on. In the YES-only model post-Phase-5 there's no "which
+  side" — every position is YES on a specific Market — so this becomes
+  trivially correct once `MarketWithOdds` flips to single-side.
+- Phase 4 line 155 (`getBetHistory` reshape) is the next natural follow-up
+  in this cluster — same file, similar shape change, but cascades into
+  `portfolio.tsx` which still consumes `outcomes`/`resolvedOutcome`.

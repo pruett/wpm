@@ -94,8 +94,8 @@ export function BetControls({ market, userId, positions }: Props) {
   const multiplier = outcome === "A" ? multiplierA : multiplierB;
   const outcomeName = outcome === "A" ? teamA : teamB;
 
-  const positionForOutcome = positions.find((p) => p.outcome === outcome);
-  const ownedShares = positionForOutcome?.shares ?? 0;
+  const marketPosition = positions.find((p) => p.marketId === market.id);
+  const ownedShares = marketPosition?.shares ?? 0;
 
   const estShares = amount > 0 && price > 0 ? amount / price : 0;
   const estPayout = amount > 0 ? amount * multiplier : 0;
@@ -396,22 +396,20 @@ export function BetControls({ market, userId, positions }: Props) {
 
       {userId && positions.length > 0 ? (
         <FieldSet>
-          <FieldLegend variant="label">Your positions</FieldLegend>
+          <FieldLegend variant="label">Your position</FieldLegend>
           <ItemGroup>
             {positions.map((pos) => {
-              const posName = pos.outcome === "A" ? teamA : teamB;
-              const posPrice = pos.outcome === "A" ? priceA : priceB;
-              const value = pos.shares * posPrice;
+              const value = pos.shares * priceA;
               const pnl = value - pos.costBasis;
               return (
-                <Item key={pos.outcome} variant="outline" size="sm">
+                <Item key={pos.marketId} variant="outline" size="sm">
                   <ItemMedia>
                     <Avatar size="sm">
-                      <AvatarFallback>{initials(posName)}</AvatarFallback>
+                      <AvatarFallback>{initials(market.name)}</AvatarFallback>
                     </Avatar>
                   </ItemMedia>
                   <ItemContent>
-                    <ItemTitle>{posName}</ItemTitle>
+                    <ItemTitle>{market.name}</ItemTitle>
                     <ItemDescription>
                       {pos.shares.toFixed(2)} shares · cost {pos.costBasis.toFixed(0)}
                     </ItemDescription>
