@@ -3278,3 +3278,59 @@ PRD-required fields are rendered per child row.
   no sell button/affordance survives. Could be flipped in a sibling
   loop. Phase 6 cleanup items (lines 233-235) are still gated on
   the Phase 1 schema/type purge cascade.
+
+## 2026-05-12 — Phase 5: No sell button affordance verification (line 211)
+
+Phase 5 final verification. PLAN line 211 — `No "sell" button anywhere
+— verify no UI affordance survives the refactor` — needed an
+exhaustive grep across `src/` for any sell-related surface (button,
+copy, handler, action) plus adjacent vocab ("Cash Out", "Redeem",
+"Exit", "Close Position").
+
+### What changed
+- `PLAN.md` line 211 → `[x]`.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `Grep [Ss]ell src/` → exactly one match,
+  `src/lib/kalshi/translator.ts:10` — a comment ("buyers and sellers
+  have not agreed on a price") explaining the spread gate. Not a UI
+  affordance.
+- `Grep sellShares|SellShares|calculateSell` across the worktree →
+  matches only in docs (`PLAN.md`, `CONTEXT.md`, `progress.txt`,
+  `docs/adr/0004`, `docs/adr/0007`, `docs/prd/*.md`,
+  `docs/conventions.md`). All historical/aspirational references —
+  no production source.
+- `Grep -i "Sell|sell\b" src/` → same single comment match in
+  `translator.ts:10`. No `Sell` button, no `<Button>Sell</Button>`,
+  no `onSell` handler.
+- `Grep "Cash\s*[Oo]ut|Redeem|Exit|Close [Pp]osition" src/` →
+  zero matches. Confirms no euphemism survives either.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked this single Phase 5 verification rather than the upstream
+Phase 1 schema/type purge cascade (lines 45, 46, 47, 48, 51, 56, 59)
+— that cascade is the only remaining substantive work and exceeds
+the one-task budget. Line 211 was flagged in the prior loop as
+"effectively done, needs its own spot-check loop" — confirmed.
+
+### Notes
+- This closes out all Phase 5 (UI) items. Remaining unchecked work
+  is entirely in Phase 1 (schema/type purges) and Phase 6 (fixture
+  & dead-code purge). Phase 6 lines 233-235 are gated on Phase 1
+  completion — they're the cleanup pass after the schema/type cascade
+  finishes.
+- Phase 1 still has substantive cascading work: dropping obsolete
+  columns from `app.ts` (line 45), regenerating the migration SQL
+  (line 51), adding the `Event` domain type (line 56), and the
+  `SPORTS` move (line 59). Lines 46-48 (`events` table, reshaped
+  `markets`, `eventRelations`) are entangled with line 45 and may
+  already be partially done — needs a schema audit before claiming.
