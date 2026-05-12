@@ -2136,3 +2136,80 @@ unit level — `settlement.test.ts` couldn't host it. The natural home is
   notes: Phase 1 schema purge (lines 41–44, 47), Phase 4 line 151 (events.ts
   read APIs) / 152 (markets.ts legacy removal), and Phase 5 UI rewrite
   (lines 168–189). Phase 3 is now fully checked.
+  (lines 168-189). The schema purge still gates a clean line 152 removal of
+  legacy createMarket/resolveMarket/cancelMarket.
+
+## 2026-05-11 — Phase 4: add getEvent/getEvents read APIs (line 151)
+
+PLAN line 151 — Phase 4 Data layer — listed four functions for
+`src/data/events.ts`: `getEvent(id)`, `getEvents()`, `createEvent`,
+`commitEvent`. The latter two already exist from Slice 1 and Phase 3 work.
+This iteration adds the two read APIs needed to unblock the Phase 5 UI
+rewrite (lines 168-189), which renders Event pages and a homepage Event
+list.
+
+### What changed
+- `src/data/events.ts` — added:
+  - `EventChildMarket` + `EventWithMarkets` return types co-located here
+    rather than added to `lib/types.ts`. Keeping them local avoids
+    touching the (still-legacy-shaped) `Market`/`MarketWithOdds` types
+    that PLAN line 51 will reshape later; Phase 5 UI components can
+    import from `@/data/events` directly.
+  - `getEvent(id)` — drizzle relational read for one Event with its
+    child Markets, each child carrying its pool and positions. Cached
+    via `tags.event(id)`.
+  - `getEvents()` — same shape across all Events for the homepage list.
+    Cached via new `tags.eventsAll()`.
+  - Internal helpers `toEventWithMarkets` / `toEventChildMarket` map DB
+    rows to the return shape. The child mapper handles three status
+    branches:
+    - `resolved` — derive prices from `resolvedAs` (1/0 for the
+      winning side, 0 for the loser).
+    - `cancelled` — zero out prices/multipliers; the pool is drained
+      so the odds would be uninformative anyway.
+    - `open` — compute live odds via `calculateOdds`, preferring the
+      new `reserveYes`/`reserveNo` columns and falling back to legacy
+      `reserveA`/`reserveB` until the Phase 1 schema purge lands.
+  - `bettorCount` = unique userIds across the child's position rows
+    (matches the existing `MarketWithOdds.bettorCount` semantics).
+- `src/data/tags.ts` — added `tags.eventsAll()` ("events" string tag)
+  to match the existing `tags.marketsAll()` shape.
+- `PLAN.md` (line 151 → `[x]`).
+
+### Files changed
+- `src/data/events.ts`
+- `src/data/tags.ts`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 50/50 unit tests pass.
+- `bun run test:integration` — 4/4 integration tests pass.
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+- `bunx oxfmt --check src/data/events.ts src/data/tags.ts` — clean.
+
+### Notes
+- Defining `EventQueryRow` as the drizzle relational return shape
+  inline (typeof intersections) gives the toEventWithMarkets helper a
+  concrete type without exposing the wide drizzle inference surface in
+  the public type. This is the same trick markets.ts uses for
+  `MarketRow`/`PoolRow`/`PositionWithUser`.
+- The fallback `market.pool.reserveYes ?? market.pool.reserveA` is a
+  transition-window hedge. Once Phase 1 line 41 drops `reserveA`/`reserveB`
+  the fallback can be removed and reserveYes/reserveNo will be
+  NOT NULL.
+- Did not add a `resolved-as-no` edge case for `winNo > 0 ? 1 / winNo`
+  (always 1 if branch is taken, 0 otherwise) — kept the ternary symmetric
+  with the `winYes > 0` line for readability rather than collapsing to a
+  constant.
+- No tests added — these are thin DB read wrappers whose behavior is
+  fully exercised by integration tests once UI consumers (Phase 5) call
+  them. Adding a dedicated unit test would require mocking drizzle, which
+  contradicts the project testing philosophy (test through public
+  interfaces, not implementation).
+- Remaining substantive work clusters: Phase 1 schema purge
+  (lines 41-44, 47), Phase 4 line 152 (markets.ts legacy removal —
+  still blocked by tests/integration/bet-and-resolve.test.ts which
+  imports createMarket/resolveMarket; that rewrite is Phase 6 line 200),
+  Phase 5 UI rewrite (lines 168-189), and the Phase 6 cleanup tasks.

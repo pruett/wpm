@@ -1,5 +1,6 @@
 import "server-only";
 import { eq, inArray, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import type { ChildOutcome } from "@/lib/kalshi/resolve";
 import type { TranslatedEvent } from "@/lib/kalshi/translator";
@@ -8,8 +9,9 @@ import type {
   EventSettlementChildInput,
   EventSettlementChildOutput,
 } from "@/lib/settlement";
+import type { AMMPool, Sport } from "@/lib/types";
 
-import { initializePool } from "@/lib/amm";
+import { calculateOdds, initializePool } from "@/lib/amm";
 import { db } from "@/lib/db";
 import {
   ammPools,
@@ -21,6 +23,146 @@ import {
   treasury,
 } from "@/lib/db/schema";
 import { computeEventSettlement } from "@/lib/settlement";
+
+import { tags } from "./tags";
+
+export type EventChildMarket = {
+  id: string;
+  name: string;
+  ticker: string | null;
+  status: "open" | "resolved" | "cancelled";
+  resolvedAs: "yes" | "no" | null;
+  priceYes: number;
+  priceNo: number;
+  multiplierYes: number;
+  multiplierNo: number;
+  bettorCount: number;
+};
+
+export type EventWithMarkets = {
+  id: string;
+  sport: Sport;
+  name: string;
+  closesAt: string;
+  status: "open" | "terminal";
+  createdAt: string;
+  markets: EventChildMarket[];
+};
+
+export async function getEvent(id: string): Promise<EventWithMarkets> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(tags.event(id));
+
+  const row = await db.query.events.findFirst({
+    where: eq(eventsTable.id, id),
+    with: {
+      markets: {
+        with: { pool: true, positions: true },
+      },
+    },
+  });
+
+  if (!row) throw new Error(`Event ${id} not found`);
+
+  return toEventWithMarkets(row);
+}
+
+export async function getEvents(): Promise<{ events: EventWithMarkets[] }> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(tags.eventsAll());
+
+  const rows = await db.query.events.findMany({
+    with: {
+      markets: {
+        with: { pool: true, positions: true },
+      },
+    },
+  });
+
+  return { events: rows.map(toEventWithMarkets) };
+}
+
+type EventQueryRow = typeof eventsTable.$inferSelect & {
+  markets: (typeof marketsTable.$inferSelect & {
+    pool: typeof ammPools.$inferSelect | null;
+    positions: (typeof positions.$inferSelect)[];
+  })[];
+};
+
+function toEventWithMarkets(row: EventQueryRow): EventWithMarkets {
+  return {
+    id: row.id,
+    sport: row.sport,
+    name: row.name,
+    closesAt: new Date(row.closesAt).toISOString(),
+    status: row.status,
+    createdAt: new Date(row.createdAt).toISOString(),
+    markets: row.markets.map(toEventChildMarket),
+  };
+}
+
+function toEventChildMarket(market: EventQueryRow["markets"][number]): EventChildMarket {
+  if (!market.pool) throw new Error(`Pool missing for market ${market.id}`);
+
+  const bettorCount = new Set(market.positions.map((p) => p.userId)).size;
+
+  if (market.status === "resolved") {
+    const winYes = market.resolvedAs === "yes" ? 1 : 0;
+    const winNo = market.resolvedAs === "no" ? 1 : 0;
+    return {
+      id: market.id,
+      name: market.name,
+      ticker: market.ticker,
+      status: market.status,
+      resolvedAs: market.resolvedAs,
+      priceYes: winYes,
+      priceNo: winNo,
+      multiplierYes: winYes > 0 ? 1 / winYes : 0,
+      multiplierNo: winNo > 0 ? 1 / winNo : 0,
+      bettorCount,
+    };
+  }
+
+  if (market.status === "cancelled") {
+    return {
+      id: market.id,
+      name: market.name,
+      ticker: market.ticker,
+      status: market.status,
+      resolvedAs: market.resolvedAs,
+      priceYes: 0,
+      priceNo: 0,
+      multiplierYes: 0,
+      multiplierNo: 0,
+      bettorCount,
+    };
+  }
+
+  const reserveYes = market.pool.reserveYes ?? market.pool.reserveA;
+  const reserveNo = market.pool.reserveNo ?? market.pool.reserveB;
+  const ammPool: AMMPool = {
+    marketId: market.pool.marketId,
+    reserveYes,
+    reserveNo,
+    k: reserveYes * reserveNo,
+    liquidity: market.pool.wpmReserve,
+  };
+  const odds = calculateOdds(ammPool);
+  return {
+    id: market.id,
+    name: market.name,
+    ticker: market.ticker,
+    status: market.status,
+    resolvedAs: market.resolvedAs,
+    priceYes: odds.priceYes,
+    priceNo: odds.priceNo,
+    multiplierYes: odds.multiplierYes,
+    multiplierNo: odds.multiplierNo,
+    bettorCount,
+  };
+}
 
 export type CreateEventResult = { created: true } | { created: false; reason: "already_exists" };
 
