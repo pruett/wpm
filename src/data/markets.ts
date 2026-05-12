@@ -19,6 +19,7 @@ type PositionWithUser = typeof positions.$inferSelect & {
 function toMarket(row: MarketRow): Market {
   return {
     id: row.id,
+    eventId: row.eventId,
     name: row.name,
     sport: row.sport,
     outcomes: [row.teamA, row.teamB],

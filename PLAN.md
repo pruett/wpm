@@ -166,9 +166,9 @@
 
 ### Event detail page
 - [x] Rename `src/app/(app)/market/[id]/page.tsx` → `event/[id]/page.tsx`. Update parallel intercepting route `(.)market/[id]` → `(.)event/[id]`.
-- [ ] Render parent Event header (name, sport, closesAt, status) + N child Markets in a vertical list.
-- [ ] Each child Market row shows YES-side name (`yes_sub_title`), price/multiplier, and a single "Buy YES" affordance.
-- [ ] Drop outcome toggle in bet form; bet form takes only `marketId` + `amount`.
+- [x] Render parent Event header (name, sport, closesAt, status) + N child Markets in a vertical list.
+- [x] Each child Market row shows YES-side name (`yes_sub_title`), price/multiplier, and a single "Buy YES" affordance.
+- [x] Drop outcome toggle in bet form; bet form takes only `marketId` + `amount`.
 
 ### Market list / homepage
 - [ ] Update `src/components/market-list.tsx` to group `MarketWithOdds[]` by `eventId`. Render one card per Event.
@@ -176,7 +176,7 @@
 - [ ] Multi-outcome Event card: top N children by liquidity/probability with overflow count.
 
 ### Bet controls / drawer
-- [ ] `src/components/bet-controls.tsx`: remove A/B toggle; single "Buy YES" button per Market.
+- [x] `src/components/bet-controls.tsx`: remove A/B toggle; single "Buy YES" button per Market.
 - [ ] `src/components/market-drawer.tsx`: render child Markets list with per-Market buy affordances.
 - [ ] `src/components/market-card.tsx`, `market-detail.tsx`, `market-item.tsx`, `live-odds.tsx`: purge `priceA/B`/`multiplierA/B`/`teamA/B`/`outcome` and rewire to `priceYes`/`multiplierYes`/`name`.
 
