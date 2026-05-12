@@ -149,7 +149,7 @@
 
 ### Data layer
 - [x] Create `src/data/events.ts`: `getEvent(id)` (with child markets + pools), `getEvents()` (homepage list), `createEvent({event, markets})`, `commitEvent(plan)`.
-- [ ] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
+- [x] Reshape `src/data/markets.ts`: `getMarket(id)` reads market + parent Event + pool; remove `createMarket`/`resolveMarket`/`cancelMarket` (moved to `events.ts`).
 - [x] `src/data/trading.ts`: `placeBet({marketId, amount})` — outcome dropped; reads `reserveYes/No`; writes flat `positions.shares`. Delete `sellShares` function entirely.
 - [x] `src/data/positions.ts`: collapse `getPositions` to one row per `(user, market)` with non-zero shares; filter to `markets.status = 'open'` for live positions.
 - [x] `getBetHistory`: replace `sharesA`/`sharesB`/`outcomes`/`resolvedOutcome` with `shares`/`marketName`/`resolvedAs`; join through `events` for `closesAt`/`sport`.
