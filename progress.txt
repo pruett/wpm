@@ -1770,3 +1770,69 @@ Verification points:
   (lines 151, 152, 154, 155) remain the next natural clusters — both real
   implementation work rather than audit, both cascading into multiple
   consumer files.
+
+## 2026-05-11 — Phase 3: 5×10 settlement test for computeEventSettlement
+
+PLAN line 131 (Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket`
+rows + one `SettlePayout` per (holder, child-with-position) + correct credits +
+correct statuses) was the last unchecked unit-test item in the Phase 3
+settlement-tests cluster.
+
+Reframed the line at its `settlement.test.ts` home: the unit test asserts on
+the `computeEventSettlement` output (the pure function that feeds
+`commitEvent`'s DB writes), since the DB-row count for `ResolveMarket` /
+`SettlePayout` directly mirrors that output's per-child + per-payout shape.
+The integration counterpart (real DB rows) lives in `event-flow.test.ts`
+already; this test fills the unit-level coverage gap.
+
+### What changed
+- `src/lib/settlement.test.ts` — added "settles a 5-child Event with 10
+  holders distributed across children" inside the
+  `computeEventSettlement – per-child outcomes` describe. The test builds 5
+  children × 10 holders where holder i participates on child c iff
+  `(i + c) % 2 === 0`, yielding a deterministic mix of 2/3-holder children
+  and 2/3-child holders. Shares and costBasis are derived from indices so
+  expected per-child totals are computable.
+
+  Assertions:
+  - `out.perChild` has length 5.
+  - Every child has `finalStatus = 'resolved'`, `resolvedAs = 'yes'`,
+    `backstopAmount = 0n` (analog of "5 `ResolveMarket` rows + correct
+    statuses").
+  - Each child has exactly one payout per participating holder
+    (analog of "one `SettlePayout` per (holder, child-with-position)").
+  - Per-child `totalPayouts` equals the sum of winning shares; `treasuryDelta`
+    equals `wpmReserve − totalPayouts`.
+  - Every payout has `kind = 'win'` and `amount = shares` (analog of
+    "correct credits").
+  - Flat payout count across all children matches the analytic total.
+
+### Files changed
+- `src/lib/settlement.test.ts` (new test case appended)
+- `PLAN.md` (mark line 131 complete)
+
+### Verification
+- `bun run test` — 50/50 unit tests pass (up from 49; +1 new case).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bunx oxlint src/lib/settlement.test.ts` — 0 warnings, 0 errors.
+- `bunx oxfmt --write src/lib/settlement.test.ts` — formatted clean.
+
+### Notes
+- The PLAN line lists "5 ResolveMarket rows" wording which originates in
+  integration-test framing, but the line lives under "### Settlement tests
+  (`settlement.test.ts`)". Per the convention established by lines 132-135
+  (also unit-level), the right home is the pure-function test on
+  `computeEventSettlement`, which gates exactly the per-child finalStatus
+  and per-holder payout-row shape that the DB layer then mirrors. The
+  existing `event-flow.test.ts` integration test already proves the DB
+  side maps 1:1 (asserts `ResolveMarket` row count and `SettlePayout`
+  presence on a 2-child Event).
+- Remaining unchecked work in Phase 3: line 127 (one `ResolveMarket` per
+  child including cancellations — pending PRD clarification or behavior
+  change) and line 136 (mid-commit failure DB-rollback test —
+  integration-only, blocked by sandbox network constraint on local
+  Postgres at :5433 in this session).
+- Phase 1 schema purge (lines 41-44, 47) and Phase 4 data layer reshape
+  (lines 151, 152, 154, 155) remain the next natural clusters — both
+  cascading into multiple consumer files.

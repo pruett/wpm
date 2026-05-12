@@ -128,7 +128,7 @@
 - [x] Final status updates: `events.status='terminal'`; per-child `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved children, `resolvedAt=now`.
 
 ### Settlement tests (`settlement.test.ts`)
-- [ ] Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket` rows + one `SettlePayout` per (holder, child-with-position) + correct credits + correct statuses.
+- [x] Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket` rows + one `SettlePayout` per (holder, child-with-position) + correct credits + correct statuses.
 - [x] Winner on `resolved_yes`: `amount = shares` WPM.
 - [x] Loser on `resolved_no`: `amount = 0` `SettlePayout` row present.
 - [x] Holder on `cancelled_*`: `amount = costBasis` refund.
