@@ -119,13 +119,13 @@
 - [x] `commit` with mixed (`cancelled_scalar` + `cancelled_no_settlement` + 3 `resolved_yes`/`resolved_no`).
 
 ### Settlement (`lib/settlement.ts`)
-- [ ] `computeSettlement` takes commit plan + per-child positions + per-child pools → returns per-child payouts list, per-child backstop deltas, and final statuses.
-- [ ] Per child: `resolved_yes` → 1 WPM per share for YES-holders, 0 for losers (still emit `SettlePayout` row with `amount=0`).
-- [ ] Per child: `resolved_no` → all holders `amount=0` (emit row).
-- [ ] Per child: `cancelled_*` → refund `costBasis` per holder.
-- [ ] Per-child `TreasuryBackstop` row when `wpmReserve < totalWinningPayouts` for that child only.
+- [x] `computeSettlement` takes commit plan + per-child positions + per-child pools → returns per-child payouts list, per-child backstop deltas, and final statuses.
+- [x] Per child: `resolved_yes` → 1 WPM per share for YES-holders, 0 for losers (still emit `SettlePayout` row with `amount=0`).
+- [x] Per child: `resolved_no` → all holders `amount=0` (emit row).
+- [x] Per child: `cancelled_*` → refund `costBasis` per holder.
+- [x] Per-child `TreasuryBackstop` row when `wpmReserve < totalWinningPayouts` for that child only.
 - [ ] One `ResolveMarket` row per child (regardless of outcome variant — including cancellations? clarify in PRD: PRD §Settlement says "one ResolveMarket per child Market in the commit").
-- [ ] Final status updates: `events.status='terminal'`; per-child `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved children, `resolvedAt=now`.
+- [x] Final status updates: `events.status='terminal'`; per-child `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved children, `resolvedAt=now`.
 
 ### Settlement tests (`settlement.test.ts`)
 - [ ] Event-atomic commit: 5 children × 10 holders → 5 `ResolveMarket` rows + one `SettlePayout` per (holder, child-with-position) + correct credits + correct statuses.

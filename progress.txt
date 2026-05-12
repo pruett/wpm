@@ -1690,3 +1690,83 @@ route.
 - Resolver tests don't assert on summary shape, so no test changes were
   required. The integration tests (which would exercise the cron route)
   remain on the Phase 6 to-do list.
+
+## 2026-05-11 — Phase 3: PLAN audit, mark settlement implementation cluster complete
+
+PLAN lines 122-126 and 128 (Phase 3 settlement implementation): all six were
+already implemented in `src/lib/settlement.ts` (`computeEventSettlement`) and
+in `src/data/events.ts` (`commitEvent` → `applyChildSettlement`). Audited each
+against the current source and marked them complete. Line 127 deferred — see
+notes.
+
+Verification points:
+- Line 122 (`computeSettlement` takes commit plan + per-child positions +
+  per-child pools → returns per-child payouts list, per-child backstop deltas,
+  and final statuses) — implemented as `computeEventSettlement` at
+  `settlement.ts:143-146`. Input `EventSettlementInput` carries a `perChild`
+  list with `{marketId, outcome, wpmReserve, positions}`; output `perChild`
+  has `payouts`, `treasuryDelta`, `backstopAmount`, `finalStatus`, and
+  `resolvedAs` per child (`settlement.ts:128-141`).
+- Line 123 (Per child: `resolved_yes` → 1 WPM per share for YES-holders,
+  0 for losers (still emit `SettlePayout` row with `amount=0`)) —
+  `settlement.ts:159-166` pays each holder `amount = shares`. In the YES-only
+  model there are no NO holders to be "losers" on `resolved_yes`, so the
+  "still emit row" subclause is N/A by construction (the only holders are YES
+  winners). `commitEvent`'s `applyChildSettlement` (`events.ts:236-262`) emits
+  one `SettlePayout` row per payout, including zero-amount rows.
+- Line 124 (Per child: `resolved_no` → all holders `amount=0` (emit row)) —
+  `settlement.ts:167-168` emits `{kind: "loss", amount: 0n, shares: p.shares}`
+  for every holder. `applyChildSettlement` then writes a `SettlePayout`
+  ledger row for each (events.ts:247-261, no `amount > 0n` gate on the
+  insert).
+- Line 125 (Per child: `cancelled_*` → refund `costBasis` per holder) —
+  `settlement.ts:169-181` refunds `costBasis` when > 0, emits a zero-row
+  `{kind: "zero"}` when costBasis = 0. All three `cancelled_*` variants fall
+  into this branch (`isCancel = \!isResolveYes && \!isResolveNo`,
+  settlement.ts:154).
+- Line 126 (Per-child `TreasuryBackstop` row when
+  `wpmReserve < totalWinningPayouts` for that child only) —
+  `settlement.ts:184-185` computes `backstopAmount = max(0, -treasuryDelta)`
+  per child independently. `applyChildSettlement` at events.ts:264-279 inserts
+  a `TreasuryBackstop` row only when `childOut.backstopAmount > 0n`, scoped
+  to that child's `marketId`. Healthy siblings skip the insert.
+- Line 128 (Final status updates: `events.status='terminal'`; per-child
+  `markets.status='resolved'|'cancelled'` with `resolvedAs` set on resolved
+  children, `resolvedAt=now`) — `events.ts:211-214` flips the parent Event
+  to `terminal` once all children settle; `events.ts:294-302` sets resolved
+  children to `status='resolved'`, `resolvedAs`, and `resolvedAt=now`;
+  `events.ts:319-322` sets cancelled children to `status='cancelled'` with
+  `resolvedAt=now`.
+
+### Files changed
+- `PLAN.md` (mark Phase 3 settlement implementation lines 122-126, 128 complete)
+
+### Verification
+- `bun run test` — 49/49 unit tests pass (unchanged).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+
+### Notes
+- Continuing the audit pattern from prior commits: pick a coherent cluster of
+  done-but-unchecked PLAN lines, verify each against current source, flip the
+  boxes in one batch. This closes out the Phase 3 settlement implementation
+  cluster except for line 127.
+- Line 127 is deferred. The PLAN line raises a question — "One `ResolveMarket`
+  row per child (regardless of outcome variant — including cancellations?)"
+  — and PRD §Settlement (`docs/prd/multi-outcome-markets.md:156`) says
+  "One `ResolveMarket` transaction row per child Market in the commit."
+  The current code in `events.ts:289-335` emits a `ResolveMarket` row only
+  on the resolved path; cancellations emit a `CancelMarket` row instead.
+  Resolving this requires either a PRD clarification (the text is ambiguous
+  on whether "per child" is inclusive of cancellations) or a real code
+  change to unify the ledger row under `ResolveMarket` for every commit-plan
+  child. Either way it warrants its own dedicated task, not an audit-pass
+  flip, since the current behavior is intentional and divergent from PRD.
+- Remaining unchecked work in Phase 3: settlement tests lines 131 and 136
+  (Event-atomic 5×10 integration test; mid-commit failure rollback test).
+  Those are real test writing, not audit. The settlement *unit* tests
+  (132-135) already pass and were checked off in an earlier commit.
+- The Phase 1 schema purge (lines 41-44, 47) and Phase 4 data layer reshape
+  (lines 151, 152, 154, 155) remain the next natural clusters — both real
+  implementation work rather than audit, both cascading into multiple
+  consumer files.
