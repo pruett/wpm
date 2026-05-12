@@ -1899,3 +1899,76 @@ breakage. Did both together.
 - Phase 4 line 155 (`getBetHistory` reshape) is the next natural follow-up
   in this cluster — same file, similar shape change, but cascades into
   `portfolio.tsx` which still consumes `outcomes`/`resolvedOutcome`.
+
+## 2026-05-11 — Phase 4: getBetHistory reshape (line 155)
+
+PLAN line 155 — `getBetHistory` reshape — was the next natural follow-up
+from the `SharePosition`/`getPositions` flattening committed earlier today.
+Same file (`data/positions.ts`), same shape-transition pattern, cascades
+into the sole consumer (`portfolio.tsx`).
+
+### What changed
+- `src/data/positions.ts` — `BetHistoryEntry` and `getBetHistory` rewritten:
+  - Dropped `outcomes`/`sharesA`/`sharesB`/`resolvedOutcome` from the
+    returned shape; replaced with `shares`/`resolvedAs`.
+  - Query now innerJoins `events` and pulls `sport`/`closesAt` from there
+    (per PLAN: "join through `events` for `closesAt`/`sport`"). Markets
+    created via `createEvent` always have an `eventId`; the legacy
+    `createMarket` path is only used by the integration test (`tests/
+    integration/bet-and-resolve.test.ts:82`), so the production read path
+    converges on the new schema source-of-truth without losing any
+    realistic data.
+  - Zero-share live-position filter collapsed from
+    `sharesA === 0n && sharesB === 0n` to just `shares === 0n`. ADR-0004
+    semantics (resolved/cancelled rows stay) preserved by the
+    `marketStatus === "open"` guard.
+- `src/components/portfolio.tsx` — adapted to the YES-only single-leg
+  shape:
+  - `OpenRow` flattened from `{valueA, valueB}` to a single `value` =
+    `shares * priceYes`. Source of `priceYes` is still
+    `MarketWithOdds.priceA` per the Phase 5 transition note in
+    `data/markets.ts:enrichMarket` (A === yes in the dual-write window).
+  - `OpenCard` renders a single YES leg per market instead of two A/B
+    legs.
+  - `ClosedCard` derives `won` from `entry.resolvedAs === 'yes'` instead
+    of `resolvedOutcome === 'A' ? sharesA > 0 : sharesB > 0`. Badge
+    labels switched from `Won · {teamName}` to `Won · YES`/`Lost · NO won`
+    (cancellation badge unchanged — still `Refunded`).
+
+### Files changed
+- `src/data/positions.ts`
+- `src/components/portfolio.tsx`
+- `PLAN.md` (line 155 → `[x]`)
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 50/50 unit tests pass (unchanged).
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+- `bunx oxfmt --check src/data/positions.ts src/components/portfolio.tsx`
+  — clean.
+
+### Notes
+- Used `innerJoin events` rather than `leftJoin` because every market
+  created via the production `createEvent` path has a non-null
+  `eventId`, and the bets page never needs to display orphan/legacy
+  markets. Switching to inner-join is also what enables pulling
+  `sport`/`closesAt` directly from the events table (the markets
+  columns will be dropped in Phase 1 line 41).
+- `portfolio.tsx` still imports `MarketWithOdds` and reads `priceA` as
+  the YES price. This is intentional in the additive-transition window:
+  `data/markets.ts:enrichMarket` writes `priceA = priceYes` and
+  `priceB = priceNo`, so the value math is correct — only the field
+  *name* is mis-labeled. The full rename (PLAN line 53,
+  `MarketWithOdds → priceYes/multiplierYes`) belongs to Phase 5 and
+  will cascade through `market-card`, `market-detail`, `live-odds`,
+  `bet-controls`, `market-drawer`, etc. — out of scope for this change.
+- Remaining unchecked work in Phase 4: lines 151 (`getEvent`/`getEvents`),
+  152 (`markets.ts` reshape — drop `createMarket`/`resolveMarket`/
+  `cancelMarket`), and 160 (delete `sellShares.ts`). Phase 1 schema
+  purge (41-44, 47) is the prerequisite blocker for line 152's full
+  cleanup, since `markets.ts` still reads `teamA`/`teamB`/
+  `resolvedOutcome` — those fields disappear when the schema is
+  regenerated. Natural next cluster: Phase 1 lines 41-44 + 47
+  (schema regeneration + consumer updates) as a single coherent
+  vertical slice.
