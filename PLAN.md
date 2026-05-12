@@ -43,7 +43,7 @@
 ### Schema migration
 
 - [x] Delete obsolete columns from `app.ts`: `markets.sport/teamA/teamB/tickerA/tickerB/closesAt/resolvedOutcome`, `ammPools.reserveA/B`, `positions.sharesA/B`.
-- [ ] Add `events` table: `id`/`sport`/`name`/`closesAt` (bigint)/`status: 'open' | 'terminal'`/`createdAt`.
+- [x] Add `events` table: `id`/`sport`/`name`/`closesAt` (bigint)/`status: 'open' | 'terminal'`/`createdAt`.
 - [ ] Update `markets`: `eventId` FK, `name`, `ticker`, `status: 'open' | 'resolved' | 'cancelled'`, `resolvedAs: 'yes' | 'no' | null`, `resolvedAt`, `createdAt`.
 - [ ] Add `eventRelations` and update `marketRelations` to one-to-many `event → markets`.
 - [x] Replace `ix_markets_status_closes` with `ix_events_status_closes` on `(events.status, events.closesAt)`. Keep `ix_positions_market`.

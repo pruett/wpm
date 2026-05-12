@@ -3459,3 +3459,47 @@ in `src/lib/types.ts`.
   implemented in the WIP before this session — `app.ts` matches the
   PRD spec exactly". This loop simply executes the docs-flip half of
   that observation for line 45.
+
+## 2026-05-12 — Phase 1: Verify events table in app.ts (line 46)
+
+Phase 1 schema task — PLAN line 46: `Add events table: id/sport/name/
+closesAt (bigint)/status: 'open' | 'terminal'/createdAt`. Following
+the session pattern of giving each Phase 1 schema item its own
+verification-and-docs-flip loop.
+
+### What changed
+- `PLAN.md` line 46 → `[x]`. Nothing else.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- Read `src/lib/db/schema/app.ts` lines 43-56. Confirmed `events` table:
+  - `id: text("id").primaryKey()`
+  - `sport: text("sport", { enum: SPORTS }).notNull()`
+  - `name: text("name").notNull()`
+  - `closesAt: bigint("closes_at", { mode: "number" }).notNull()`
+  - `status: text("status", { enum: ["open", "terminal"] }).notNull()`
+  - `createdAt: bigint("created_at", { mode: "number" }).notNull()`
+  - Indexed on `(status, closesAt)` via `ix_events_status_closes`.
+- All six columns match the PRD spec exactly. Status enum matches
+  the two-state model (`open` | `terminal`).
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked line 46 because it is the next-lowest-numbered unchecked Phase 1
+task after line 45 (closed in the prior loop) and is a pure docs flip
+— the table was implemented in the WIP earlier. Lines 47-48 (markets
+reshape + relations) are similar docs-flip candidates and queued for
+their own loops. Lines 56 + 59 (Event domain type + SPORTS array)
+still need substantive verification in `src/lib/types.ts` and may
+require code changes.
+
+### Notes
+- The `ix_events_status_closes` index is already in place — it
+  replaced the old `ix_markets_status_closes` per PLAN line 49 (closed
+  previously). The resolver driver in `lib/kalshi/resolve.ts` selects
+  events on `(status, closesAt)`, so the index is load-bearing.
