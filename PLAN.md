@@ -48,7 +48,7 @@
 - [ ] Add `eventRelations` and update `marketRelations` to one-to-many `event → markets`.
 - [x] Replace `ix_markets_status_closes` with `ix_events_status_closes` on `(events.status, events.closesAt)`. Keep `ix_positions_market`.
 - [x] Drop `SellShares` from `transactionTypes`.
-- [ ] Regenerate migration SQL; verify `bun drizzle-kit generate` produces a clean single-file migration. Append `treasury` seed to the new migration via `src/lib/db/seeds/append-to-migrations.ts`.
+- [x] Regenerate migration SQL; verify `bun drizzle-kit generate` produces a clean single-file migration. Append `treasury` seed to the new migration via `src/lib/db/seeds/append-to-migrations.ts`.
 
 ### Type purges
 

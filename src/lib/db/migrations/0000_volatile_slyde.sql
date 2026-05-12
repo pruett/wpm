@@ -1,9 +1,7 @@
 CREATE TABLE "amm_pools" (
 	"market_id" text PRIMARY KEY NOT NULL,
-	"reserve_a" bigint NOT NULL,
-	"reserve_b" bigint NOT NULL,
-	"reserve_yes" bigint,
-	"reserve_no" bigint,
+	"reserve_yes" bigint NOT NULL,
+	"reserve_no" bigint NOT NULL,
 	"wpm_reserve" bigint NOT NULL,
 	"seed_amount" bigint NOT NULL
 );
@@ -25,18 +23,11 @@ CREATE TABLE "events" (
 --> statement-breakpoint
 CREATE TABLE "markets" (
 	"id" text PRIMARY KEY NOT NULL,
-	"event_id" text,
-	"sport" text NOT NULL,
+	"event_id" text NOT NULL,
 	"name" text NOT NULL,
 	"ticker" text,
-	"team_a" text NOT NULL,
-	"team_b" text NOT NULL,
-	"ticker_a" text,
-	"ticker_b" text,
-	"closes_at" bigint NOT NULL,
 	"status" text NOT NULL,
 	"resolved_as" text,
-	"resolved_outcome" text,
 	"resolved_at" bigint,
 	"created_at" bigint NOT NULL
 );
@@ -44,8 +35,6 @@ CREATE TABLE "markets" (
 CREATE TABLE "positions" (
 	"user_id" text NOT NULL,
 	"market_id" text NOT NULL,
-	"shares_a" bigint DEFAULT 0 NOT NULL,
-	"shares_b" bigint DEFAULT 0 NOT NULL,
 	"shares" bigint DEFAULT 0 NOT NULL,
 	"cost_basis" bigint DEFAULT 0 NOT NULL,
 	CONSTRAINT "positions_user_id_market_id_pk" PRIMARY KEY("user_id","market_id")
