@@ -2213,3 +2213,63 @@ list.
   still blocked by tests/integration/bet-and-resolve.test.ts which
   imports createMarket/resolveMarket; that rewrite is Phase 6 line 200),
   Phase 5 UI rewrite (lines 168-189), and the Phase 6 cleanup tasks.
+
+## 2026-05-12 — Phase 6: 3-Market mixed-resolution integration test (line 201)
+
+PLAN line 201 — "Add second integration scenario: 3-Market multi-outcome
+Event with one `cancelled_scalar` child and two normally-resolved children."
+Found the new test already authored as an uncommitted modification to
+`tests/integration/event-flow.test.ts` (per `git status` at session start).
+Verified it passes against the real test Postgres and committed it.
+
+### What changed
+- `tests/integration/event-flow.test.ts` — new third `describe` block
+  "event-flow: 3-Market mixed-resolution commit". Takes the first three
+  children of the 5-Market healthy fixture, runs them through the real
+  translator (exercising spread/close-time gating on N>2 input), seeds a
+  distinct bettor on each child (winner / loser / refundee), then drives
+  `commitEvent` with one `resolved_yes` + one `resolved_no` + one
+  `cancelled_scalar`. Asserts:
+  - Event `status='terminal'`; per-child statuses `resolved`/`resolved`/
+    `cancelled` with `resolvedAs` matching the outcome (or null for the
+    cancellation, with `resolvedAt` set).
+  - Winner balance = start − bet + shares; loser balance = start − bet;
+    refundee balance = start (full cost basis refund).
+  - Exactly 3 `ResolveMarket` rows, with the cancelled child carrying
+    `reason: "kalshi_scalar_settled"`.
+  - Exactly 3 `SettlePayout` rows: kind `win` (amount = shares), `loss`
+    (amount = 0), `refund` (amount = costBasis).
+  - All three pools fully drained.
+- `PLAN.md` (line 201 → `[x]`).
+
+### Files changed
+- `tests/integration/event-flow.test.ts`
+- `PLAN.md`
+
+### Verification
+- `bun run test:integration` — 5/5 integration tests pass (3 event-flow
+  scenarios incl. the new mixed-resolution case + 1 bet-and-resolve + 1
+  event-commit-rollback).
+- `bun run test` — 50/50 unit tests pass.
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` `fileParallel` overload error remains.
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+- `bunx oxfmt --check tests/integration/event-flow.test.ts` — clean.
+
+### Notes
+- The test deliberately reuses the existing 5-Market `multi-outcome-healthy`
+  fixture (sliced to 3 children) rather than authoring a new 3-Market fixture
+  — this exercises the translator's real validation surface on a genuine
+  multi-outcome input, while avoiding fixture duplication.
+- Each child gets exactly one bettor with a distinct outcome path, so the
+  three settlement branches (win / loss / refund) are isolated to one user
+  apiece. This keeps the balance-delta assertions trivially traceable.
+- Bumping each child's `closesAt` forward post-create is the same pattern
+  the Slice 1 / Slice 2 tests use to keep `placeBet`'s `closesAt > now`
+  guard happy without rebuilding the fixture's expiration timestamps.
+- Phase 6 line 200 (rewrite `bet-and-resolve.test.ts` against the new
+  Event/Market shape) remains open — that's the last integration-test
+  cleanup blocker for Phase 4 line 152 (legacy markets.ts removal). The
+  remaining work clusters are unchanged: Phase 1 schema purge
+  (lines 41–44, 47), Phase 4 line 152, Phase 5 UI rewrite (lines 168–189),
+  and Phase 6 line 200 plus the doc/grep cleanup items.

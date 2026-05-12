@@ -198,7 +198,7 @@
 
 ### Integration test
 - [ ] Update `tests/integration/bet-and-resolve.test.ts` to: ingest a 2-Market fixture → place YES bet → Event-commit at deadline → verify balance, payout rows, Event/Market statuses.
-- [ ] Add second integration scenario: 3-Market multi-outcome Event with one `cancelled_scalar` child and two normally-resolved children.
+- [x] Add second integration scenario: 3-Market multi-outcome Event with one `cancelled_scalar` child and two normally-resolved children.
 
 ### E2E
 - [ ] Spot-check `tests/e2e/signup-airdrop.spec.ts` for stale market/A-B references; update fixtures only if needed.

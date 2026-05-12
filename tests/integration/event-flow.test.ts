@@ -262,3 +262,163 @@ describe("event-flow: multi-outcome ingest (Slice 2 smoke test)", () => {
     }
   });
 });
+
+describe("event-flow: 3-Market mixed-resolution commit", () => {
+  it("commits one cancelled_scalar alongside resolved_yes + resolved_no children", async () => {
+    await db.insert(treasury).values({ id: "treasury", amount: 100_000_000n });
+
+    const WINNER = "u-winner-mix";
+    const LOSER = "u-loser-mix";
+    const REFUNDEE = "u-refundee-mix";
+
+    for (const id of [WINNER, LOSER, REFUNDEE]) {
+      await db.insert(user).values({
+        id,
+        name: id,
+        email: `${id}@test.local`,
+        emailVerified: true,
+      });
+      await db.insert(balances).values({ userId: id, amount: STARTING_BALANCE });
+    }
+
+    // Take the first three children of the 5-market fixture so the translator
+    // runs through its real spread/close-time gating on a genuine N>2 input.
+    const fullFixture = (multiOutcomeHealthy as { events: KalshiEvent[] }).events[0];
+    const fixtureMarkets = fullFixture.markets ?? [];
+    const threeMarketEvent: KalshiEvent = {
+      ...fullFixture,
+      markets: fixtureMarkets.slice(0, 3),
+    };
+    const translation = translateKalshiEvent(threeMarketEvent, "nba");
+    expect(translation.kind).toBe("ok");
+    if (translation.kind !== "ok") return;
+    expect(translation.value.markets).toHaveLength(3);
+
+    const created = await createEvent(translation.value);
+    expect(created.created).toBe(true);
+
+    const eventId = translation.value.event.id;
+    const [yesChild, noChild, scalarChild] = translation.value.markets;
+    const yesId = yesChild.market.id;
+    const noId = noChild.market.id;
+    const scalarId = scalarChild.market.id;
+
+    // Bump child closesAt forward so live placeBet accepts the wagers.
+    const future = Date.now() + 60 * 60 * 1000;
+    for (const id of [yesId, noId, scalarId]) {
+      await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, id));
+    }
+
+    // One bettor per child so each settlement branch (win/loss/refund) is
+    // exercised by a distinct user.
+    const WINNER_BET = 500n;
+    const LOSER_BET = 300n;
+    const REFUNDEE_BET = 700n;
+
+    currentUserId = WINNER;
+    await placeBet({ marketId: yesId, amount: Number(WINNER_BET) });
+    currentUserId = LOSER;
+    await placeBet({ marketId: noId, amount: Number(LOSER_BET) });
+    currentUserId = REFUNDEE;
+    await placeBet({ marketId: scalarId, amount: Number(REFUNDEE_BET) });
+    currentUserId = null;
+
+    const [winnerPos] = await db.select().from(positions).where(eq(positions.userId, WINNER));
+    const [refundeePos] = await db.select().from(positions).where(eq(positions.userId, REFUNDEE));
+    const winnerShares = winnerPos.shares;
+    expect(winnerShares).toBeGreaterThan(0n);
+    expect(refundeePos.costBasis).toBe(REFUNDEE_BET);
+
+    const commit = await commitEvent({
+      eventId,
+      perChild: [
+        { marketId: yesId, outcome: "resolved_yes" },
+        { marketId: noId, outcome: "resolved_no" },
+        { marketId: scalarId, outcome: "cancelled_scalar" },
+      ],
+    });
+    expect(commit.committed).toBe(true);
+    if (!commit.committed) return;
+    expect(commit.perChild).toHaveLength(3);
+
+    // ── Event terminal; per-child statuses reflect mixed outcomes ──────────
+    const [eventAfter] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+    expect(eventAfter.status).toBe("terminal");
+
+    const marketsAfter = await db
+      .select()
+      .from(marketsTable)
+      .where(eq(marketsTable.eventId, eventId));
+    const yesAfter = marketsAfter.find((m) => m.id === yesId)!;
+    const noAfter = marketsAfter.find((m) => m.id === noId)!;
+    const scalarAfter = marketsAfter.find((m) => m.id === scalarId)!;
+    expect(yesAfter.status).toBe("resolved");
+    expect(yesAfter.resolvedAs).toBe("yes");
+    expect(noAfter.status).toBe("resolved");
+    expect(noAfter.resolvedAs).toBe("no");
+    expect(scalarAfter.status).toBe("cancelled");
+    expect(scalarAfter.resolvedAs).toBeNull();
+    expect(scalarAfter.resolvedAt).not.toBeNull();
+
+    // ── Balance deltas: winner gets shares paid 1:1, loser eats it, refundee
+    //    recovers full cost basis ────────────────────────────────────────────
+    const [winnerBal] = await db
+      .select({ amount: balances.amount })
+      .from(balances)
+      .where(eq(balances.userId, WINNER));
+    expect(winnerBal.amount).toBe(STARTING_BALANCE - WINNER_BET + winnerShares);
+
+    const [loserBal] = await db
+      .select({ amount: balances.amount })
+      .from(balances)
+      .where(eq(balances.userId, LOSER));
+    expect(loserBal.amount).toBe(STARTING_BALANCE - LOSER_BET);
+
+    const [refundeeBal] = await db
+      .select({ amount: balances.amount })
+      .from(balances)
+      .where(eq(balances.userId, REFUNDEE));
+    expect(refundeeBal.amount).toBe(STARTING_BALANCE);
+
+    // ── One ResolveMarket row per child (incl. the cancellation) ──────────
+    const resolveRows = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.type, "ResolveMarket"));
+    expect(resolveRows).toHaveLength(3);
+    const resolveByMarket = new Map(resolveRows.map((r) => [r.marketId, r]));
+    expect(JSON.parse(resolveByMarket.get(scalarId)!.payload).reason).toBe("kalshi_scalar_settled");
+    expect(JSON.parse(resolveByMarket.get(yesId)!.payload).finalStatus).toBe("resolved");
+    expect(JSON.parse(resolveByMarket.get(noId)!.payload).finalStatus).toBe("resolved");
+
+    // ── SettlePayout: one row per (holder, child-with-position) with the
+    //    correct kind for each branch ─────────────────────────────────────
+    const payoutRows = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.type, "SettlePayout"));
+    expect(payoutRows).toHaveLength(3);
+
+    const winnerPayout = payoutRows.find((r) => r.userId === WINNER && r.marketId === yesId)!;
+    const winnerPayload = JSON.parse(winnerPayout.payload) as { amount: number; kind: string };
+    expect(winnerPayload.kind).toBe("win");
+    expect(BigInt(winnerPayload.amount)).toBe(winnerShares);
+
+    const loserPayout = payoutRows.find((r) => r.userId === LOSER && r.marketId === noId)!;
+    const loserPayload = JSON.parse(loserPayout.payload) as { amount: number; kind: string };
+    expect(loserPayload.kind).toBe("loss");
+    expect(loserPayload.amount).toBe(0);
+
+    const refundeePayout = payoutRows.find(
+      (r) => r.userId === REFUNDEE && r.marketId === scalarId,
+    )!;
+    const refundeePayload = JSON.parse(refundeePayout.payload) as { amount: number; kind: string };
+    expect(refundeePayload.kind).toBe("refund");
+    expect(BigInt(refundeePayload.amount)).toBe(REFUNDEE_BET);
+
+    // ── All three pools fully drained ─────────────────────────────────────
+    const poolsAfter = await db.select().from(ammPools);
+    expect(poolsAfter).toHaveLength(3);
+    expect(poolsAfter.every((p) => p.wpmReserve === 0n)).toBe(true);
+  });
+});
