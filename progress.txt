@@ -3558,3 +3558,57 @@ changes.
   translator and ingest paths both account for this.
 - `eventId` is a non-null FK with `onDelete: "cascade"` — orphan markets
   cannot exist, and dropping an event cleanly cascades to its children.
+
+## 2026-05-12 — Phase 1: Verify eventRelations + marketRelations (line 48)
+
+Phase 1 schema task — PLAN line 48: `Add eventRelations and update
+marketRelations to one-to-many event → markets`. Following the session
+pattern of giving each Phase 1 schema item its own verification-and-
+docs-flip loop.
+
+### What changed
+- `PLAN.md` line 48 → `[x]`. Nothing else.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- Read `src/lib/db/schema/app.ts`:
+  - Lines 73-75: `eventRelations = relations(events, ({ many }) => ({
+    markets: many(markets) }))` — establishes the events → markets
+    one-to-many side.
+  - Lines 145-156: `marketRelations.event = one(events, { fields:
+    [markets.eventId], references: [events.id] })` — establishes the
+    inverse markets → event one side. Existing `pool`, `positions`,
+    `transactions` relations preserved.
+- `Grep eventRelations|marketRelations src/` confirms both are exported
+  once each from `app.ts`. `schema/index.ts` re-exports everything from
+  `./app`, so drizzle's query builder picks them up automatically.
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+- `bunx tsc --noEmit` — pre-existing errors in
+  `tests/integration/*.test.ts` (stale `closesAt`/`reserveA`/`reserveB`
+  refs on markets/amm_pools) and `vitest.integration.config.ts`
+  (`fileParallel` → should be `fileParallelism`). Unrelated to the
+  relations change. These are queued for Phase 6 integration test
+  updates (PLAN line 224-225).
+
+### Scope decision
+Picked line 48 because it is the next-lowest-numbered unchecked Phase 1
+task after line 47 (closed in the prior loop) and is the last pure
+docs-flip item in the schema-migration block. Lines 56 + 59 (Event
+domain type + SPORTS array re-home) still need substantive verification
+in `src/lib/types.ts` and may require code changes — they're queued
+next.
+
+### Notes
+- The relation pair makes drizzle's `db.query.events.findMany({ with:
+  { markets: true } })` and `db.query.markets.findFirst({ with:
+  { event: true } })` available throughout the data layer. `data/
+  events.ts` and `data/markets.ts` already use this — confirms the
+  relations are load-bearing, not vestigial.
+- `markets.eventId` carries `onDelete: "cascade"` (line 62), so the
+  relation also enforces orphan-prevention at the DB level, not just
+  in the relations map.
