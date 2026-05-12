@@ -2010,3 +2010,69 @@ unticked. This commit flips the Phase 4 checkbox to match reality.
   The schema cluster is still the natural prerequisite for the line
   152 cleanup since markets.ts legacy paths read `teamA`/`teamB`/
   `resolvedOutcome`.
+
+## 2026-05-11 — Phase 3: one ResolveMarket row per child in Event commit (line 127)
+
+PLAN line 127 — "One `ResolveMarket` row per child (regardless of outcome
+variant — including cancellations)". The PLAN entry flagged this as needing
+PRD clarification; PRD §Settlement (line 156 of `multi-outcome-markets.md`)
+is unambiguous: "One `ResolveMarket` transaction row per child Market in
+the commit." So the Event-commit path should emit `ResolveMarket` for every
+child — including cancellations — rather than splitting into
+`ResolveMarket`/`CancelMarket` pairs.
+
+### What changed
+- `src/data/events.ts` — `applyChildSettlement` unified:
+  - The `markets.status` flip (resolved vs cancelled) is still branched,
+    since `resolvedAs`/`resolvedOutcome` only get set on the resolved path.
+  - The transaction-row emission is now unified: a single `ResolveMarket`
+    insert outside the if/else, with the payload carrying `outcome`
+    (resolved_yes/no/cancelled_*), `finalStatus`, `resolvedAs`, and a
+    cancellation `reason` field only on the cancelled path.
+  - Dropped the `CancelMarket` insert from the Event-commit path. The
+    `CancelMarket` transaction-type enum value stays in the schema (PRD
+    §Schema: "Otherwise unchanged") and is still emitted by the legacy
+    single-market `cancelMarket` function in `data/markets.ts` — slated
+    for removal in Phase 4 line 152.
+- `src/lib/types.ts` — `Transaction['ResolveMarket']` payload shape
+  updated to match: `outcome` + `finalStatus` + nullable `resolvedAs` +
+  optional `reason`. The legacy `result: "A"|"B"` field was dropped from
+  the payload (the DB still dual-writes `resolvedOutcome` to the markets
+  column during the additive window; the per-row payload doesn't need to
+  repeat it).
+- `PLAN.md` (line 127 → `[x]`)
+
+### Files changed
+- `src/data/events.ts`
+- `src/lib/types.ts`
+- `PLAN.md`
+
+### Verification
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 50/50 unit tests pass (unchanged).
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+- `bunx oxfmt --check src/data/events.ts src/lib/types.ts` — clean.
+- The existing integration test in `tests/integration/event-flow.test.ts`
+  already asserts `ResolveMarket` count == 2 for a 2-child both-resolved
+  commit; that assertion still holds. No cancellation case is covered by
+  the current integration test, but the unit-level invariant is preserved
+  by `computeEventSettlement` (untouched here) and the row-count contract
+  is now "one ResolveMarket per child" — verified by code inspection of
+  the unconditional insert path.
+
+### Notes
+- Did not collapse `CancelMarket` out of `transactionTypes` in the schema
+  — PRD §Schema explicitly says "Otherwise unchanged" for the enum, and
+  the legacy `cancelMarket` in `data/markets.ts` still emits it. Removing
+  the enum value would force that cleanup into this commit, violating the
+  single-task rule.
+- The `Transaction` type in `types.ts` is purely informational — grep
+  shows zero importers — so the payload-shape update there is a docs
+  refresh, not a runtime change. The actual JSON payload shape comes
+  from the inline `JSON.stringify(...)` in `data/events.ts`.
+- Remaining substantive work clusters: Phase 1 schema purge (lines
+  41-44, 47), Phase 4 line 151 (events.ts read APIs)/152 (markets.ts
+  legacy removal), Phase 5 UI rewrite (lines 168-189), Phase 3 line 136
+  (mid-commit failure rollback test). The schema cluster remains the
+  natural prerequisite for line 152's full cleanup.

@@ -300,39 +300,33 @@ async function applyChildSettlement(
         resolvedAt: now,
       })
       .where(eq(marketsTable.id, childOut.marketId));
-
-    await tx.insert(transactions).values({
-      type: "ResolveMarket",
-      marketId: childOut.marketId,
-      payload: JSON.stringify({
-        type: "ResolveMarket",
-        marketId: childOut.marketId,
-        result: legacyOutcome,
-        resolvedAs: childOut.resolvedAs,
-        timestamp: new Date(now).toISOString(),
-      }),
-      createdAt: now,
-    });
   } else {
-    const reason = cancelReasonFor(childOut.outcome);
     // Position rows are an immutable ledger — not zeroed on cancel (ADR-0004).
     await tx
       .update(marketsTable)
       .set({ status: "cancelled", resolvedAt: now })
       .where(eq(marketsTable.id, childOut.marketId));
-
-    await tx.insert(transactions).values({
-      type: "CancelMarket",
-      marketId: childOut.marketId,
-      payload: JSON.stringify({
-        type: "CancelMarket",
-        marketId: childOut.marketId,
-        reason,
-        timestamp: new Date(now).toISOString(),
-      }),
-      createdAt: now,
-    });
   }
+
+  // One `ResolveMarket` ledger row per child Market in the commit — regardless
+  // of variant. Cancellations carry a `reason`; clean resolutions carry
+  // `resolvedAs`. (PRD §Settlement, PLAN Phase 3 line 127.)
+  await tx.insert(transactions).values({
+    type: "ResolveMarket",
+    marketId: childOut.marketId,
+    payload: JSON.stringify({
+      type: "ResolveMarket",
+      marketId: childOut.marketId,
+      outcome: childOut.outcome,
+      finalStatus: childOut.finalStatus,
+      resolvedAs: childOut.resolvedAs,
+      ...(childOut.finalStatus === "cancelled"
+        ? { reason: cancelReasonFor(childOut.outcome) }
+        : {}),
+      timestamp: new Date(now).toISOString(),
+    }),
+    createdAt: now,
+  });
 }
 
 function cancelReasonFor(outcome: ChildSettlementOutcome): string {
