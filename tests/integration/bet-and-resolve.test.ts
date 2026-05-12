@@ -1,5 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import binaryHealthy from "@/lib/kalshi/fixtures/binary-healthy.json" with { type: "json" };
 
 // Mock the auth boundary so we can drive userId from inside the test.
 let currentUserId: string | null = null;
@@ -16,27 +18,40 @@ vi.mock("next/cache", () => ({ revalidateTag: () => {} }));
 // All imports of project modules must come AFTER the mocks above so vi.mock
 // hoisting registers before module eval.
 const { db, client } = await import("@/lib/db");
-const { ammPools, balances, markets, positions, transactions, treasury, user } =
-  await import("@/lib/db/schema");
-const { createMarket, resolveMarket } = await import("@/data/markets");
-const { placeBetLegacy: placeBet } = await import("@/data/trading");
+const {
+  ammPools,
+  balances,
+  events: eventsTable,
+  markets: marketsTable,
+  positions,
+  transactions,
+  treasury,
+  user,
+} = await import("@/lib/db/schema");
+const { createEvent, commitEvent } = await import("@/data/events");
+const { placeBet } = await import("@/data/trading");
+const { translateKalshiEvent } = await import("@/lib/kalshi/translator");
 
-const MARKET_ID = "MKT-INT-1";
-const SEED_AMOUNT = 1_000_000n;
+import type { KalshiEvent } from "@/lib/kalshi";
+
 const STARTING_BALANCE = 10_000n;
+const TREASURY_SEED = 100_000_000n;
 
 type Bettor = {
   id: string;
-  outcome: "A" | "B";
+  // Which child of the 2-Market Event to back: YES on the first (winner) child
+  // or YES on the second (loser) child. Under the multi-outcome model, betting
+  // against an outcome is buying YES on the sibling Market.
+  side: "winner-child" | "loser-child";
   amount: bigint;
 };
 
 const BETTORS: Bettor[] = [
-  { id: "u-alice", outcome: "A", amount: 500n },
-  { id: "u-bob", outcome: "A", amount: 1_500n },
-  { id: "u-carol", outcome: "A", amount: 250n },
-  { id: "u-dave", outcome: "B", amount: 2_000n },
-  { id: "u-erin", outcome: "B", amount: 800n },
+  { id: "u-alice", side: "winner-child", amount: 500n },
+  { id: "u-bob", side: "winner-child", amount: 1_500n },
+  { id: "u-carol", side: "winner-child", amount: 250n },
+  { id: "u-dave", side: "loser-child", amount: 2_000n },
+  { id: "u-erin", side: "loser-child", amount: 800n },
 ];
 
 async function truncateAll() {
@@ -44,14 +59,13 @@ async function truncateAll() {
   await client.unsafe(`
     SET client_min_messages TO WARNING;
     TRUNCATE TABLE
-      transactions, positions, amm_pools, markets,
+      transactions, positions, amm_pools, markets, events,
       balances, treasury, "user"
     CASCADE
   `);
 }
 
 beforeAll(async () => {
-  // Confirm DB connectivity early — otherwise errors are confusing.
   await client`SELECT 1`;
 });
 
@@ -63,10 +77,10 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("end-to-end: bet → resolve with 5 bettors", () => {
-  it("debits each bettor, pays winners 1:1 in WPM, leaves losers flat, balances the pool", async () => {
+describe("end-to-end: bet → Event-commit with 5 bettors across two child Markets", () => {
+  it("credits winners 1:1 in WPM, leaves losers flat, drains pools, conserves total WPM", async () => {
     // ── Seed: treasury, users, balances ────────────────────────────────────
-    await db.insert(treasury).values({ id: "treasury", amount: 100_000_000n });
+    await db.insert(treasury).values({ id: "treasury", amount: TREASURY_SEED });
 
     for (const b of BETTORS) {
       await db.insert(user).values({
@@ -78,59 +92,71 @@ describe("end-to-end: bet → resolve with 5 bettors", () => {
       await db.insert(balances).values({ userId: b.id, amount: STARTING_BALANCE });
     }
 
-    // ── Create the market via the production DAL ───────────────────────────
-    const created = await createMarket({
-      market: {
-        id: MARKET_ID,
-        sport: "mlb",
-        name: "Test Market",
-        teamA: "A",
-        teamB: "B",
-        tickerA: null,
-        tickerB: null,
-        closesAt: Date.now() + 60 * 60 * 1000,
-        resolvedOutcome: null,
-        resolvedAt: null,
-      },
-      seedAmount: SEED_AMOUNT,
-      initialProbabilityA: 0.5,
-    });
-    expect(created).toEqual({ created: true });
+    // ── Translate the 2-Market fixture through the real translator ─────────
+    const kalshiEvent = (binaryHealthy as { events: KalshiEvent[] }).events[0];
+    const translation = translateKalshiEvent(kalshiEvent, "mlb");
+    expect(translation.kind).toBe("ok");
+    if (translation.kind !== "ok") return;
 
-    // ── Each bettor places one bet ─────────────────────────────────────────
+    const created = await createEvent(translation.value);
+    expect(created.created).toBe(true);
+
+    const eventId = translation.value.event.id;
+    const [winnerChild, loserChild] = translation.value.markets;
+    const winnerMarketId = winnerChild.market.id;
+    const loserMarketId = loserChild.market.id;
+
+    // Fixture's closesAt is in the past; live placeBet rejects after close.
+    const future = Date.now() + 60 * 60 * 1000;
+    for (const id of [winnerMarketId, loserMarketId]) {
+      await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, id));
+    }
+
+    // ── Each bettor places one YES bet on their assigned child Market ─────
     const sharesByUser = new Map<string, bigint>();
     for (const b of BETTORS) {
       currentUserId = b.id;
-      const result = await placeBet({
-        marketId: MARKET_ID,
-        outcome: b.outcome,
-        amount: Number(b.amount),
-      });
+      const targetMarketId = b.side === "winner-child" ? winnerMarketId : loserMarketId;
+      const result = await placeBet({ marketId: targetMarketId, amount: Number(b.amount) });
       expect(result.userId).toBe(b.id);
 
-      // Confirm balance was debited by exactly the bet amount.
       const [bal] = await db
         .select({ amount: balances.amount })
         .from(balances)
         .where(eq(balances.userId, b.id));
       expect(bal.amount).toBe(STARTING_BALANCE - b.amount);
 
-      // Confirm position row matches what AMM logic produced.
       const [pos] = await db.select().from(positions).where(eq(positions.userId, b.id));
-      const shares = b.outcome === "A" ? pos.sharesA : pos.sharesB;
-      expect(shares).toBeGreaterThan(0n);
-      expect(b.outcome === "A" ? pos.sharesB : pos.sharesA).toBe(0n);
+      expect(pos.marketId).toBe(targetMarketId);
+      expect(pos.shares).toBeGreaterThan(0n);
       expect(pos.costBasis).toBe(b.amount);
-      sharesByUser.set(b.id, shares);
+      sharesByUser.set(b.id, pos.shares);
     }
     currentUserId = null;
 
-    // ── Pool: liquidity grew by exactly the sum of all bets ────────────────
-    const totalIn = BETTORS.reduce((s, b) => s + b.amount, 0n);
-    const [poolBefore] = await db.select().from(ammPools).where(eq(ammPools.marketId, MARKET_ID));
-    expect(poolBefore.wpmReserve).toBe(SEED_AMOUNT + totalIn);
+    // ── Each pool's liquidity grew by exactly the sum of bets routed to it ─
+    const winnerPoolInflow = BETTORS.filter((b) => b.side === "winner-child").reduce(
+      (s, b) => s + b.amount,
+      0n,
+    );
+    const loserPoolInflow = BETTORS.filter((b) => b.side === "loser-child").reduce(
+      (s, b) => s + b.amount,
+      0n,
+    );
+    const [winnerPoolBefore] = await db
+      .select()
+      .from(ammPools)
+      .where(eq(ammPools.marketId, winnerMarketId));
+    const [loserPoolBefore] = await db
+      .select()
+      .from(ammPools)
+      .where(eq(ammPools.marketId, loserMarketId));
+    const winnerSeed = winnerChild.seedAmount;
+    const loserSeed = loserChild.seedAmount;
+    expect(winnerPoolBefore.wpmReserve).toBe(winnerSeed + winnerPoolInflow);
+    expect(loserPoolBefore.wpmReserve).toBe(loserSeed + loserPoolInflow);
 
-    // ── Snapshot pre-resolve treasury & balances ───────────────────────────
+    // ── Snapshot pre-commit treasury & balances ────────────────────────────
     const [treasuryBefore] = await db
       .select({ amount: treasury.amount })
       .from(treasury)
@@ -145,11 +171,18 @@ describe("end-to-end: bet → resolve with 5 bettors", () => {
       balancesBefore.set(b.id, row.amount);
     }
 
-    // ── Resolve to A: alice/bob/carol win, dave/erin lose ──────────────────
-    const resolved = await resolveMarket(MARKET_ID, "A");
-    expect(resolved.resolved).toBe(true);
+    // ── Commit the Event: winner child resolves YES, loser child resolves NO
+    const commit = await commitEvent({
+      eventId,
+      perChild: [
+        { marketId: winnerMarketId, outcome: "resolved_yes" },
+        { marketId: loserMarketId, outcome: "resolved_no" },
+      ],
+    });
+    expect(commit.committed).toBe(true);
+    if (!commit.committed) return;
 
-    // ── Winners: balance increased by exactly their winning shares ─────────
+    // ── Per-bettor balance deltas: winners +shares, losers flat ────────────
     for (const b of BETTORS) {
       const [row] = await db
         .select({ amount: balances.amount })
@@ -158,55 +191,74 @@ describe("end-to-end: bet → resolve with 5 bettors", () => {
       const before = balancesBefore.get(b.id)!;
       const shares = sharesByUser.get(b.id)!;
 
-      if (b.outcome === "A") {
+      if (b.side === "winner-child") {
         expect(row.amount).toBe(before + shares);
       } else {
-        // Losers: flat.
         expect(row.amount).toBe(before);
       }
     }
 
-    // ── Pool drained ───────────────────────────────────────────────────────
-    const [poolAfter] = await db.select().from(ammPools).where(eq(ammPools.marketId, MARKET_ID));
-    expect(poolAfter.wpmReserve).toBe(0n);
+    // ── Event terminal + per-child statuses correct ────────────────────────
+    const [eventAfter] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+    expect(eventAfter.status).toBe("terminal");
 
-    // ── Treasury conservation: poolBefore.wpmReserve = winning payouts +
-    //    treasury delta − backstop. So treasury_after − treasury_before
-    //    equals (poolBefore.wpmReserve − totalWinningShares). ──────────────
-    const totalWinningShares = BETTORS.filter((b) => b.outcome === "A").reduce(
-      (s, b) => s + sharesByUser.get(b.id)!,
-      0n,
-    );
-    const [treasuryAfter] = await db
-      .select({ amount: treasury.amount })
-      .from(treasury)
-      .where(eq(treasury.id, "treasury"));
-    expect(treasuryAfter.amount - treasuryBefore.amount).toBe(
-      poolBefore.wpmReserve - totalWinningShares,
-    );
+    const marketsAfter = await db
+      .select()
+      .from(marketsTable)
+      .where(eq(marketsTable.eventId, eventId));
+    const winnerAfter = marketsAfter.find((m) => m.id === winnerMarketId)!;
+    const loserAfter = marketsAfter.find((m) => m.id === loserMarketId)!;
+    expect(winnerAfter.status).toBe("resolved");
+    expect(winnerAfter.resolvedAs).toBe("yes");
+    expect(loserAfter.status).toBe("resolved");
+    expect(loserAfter.resolvedAs).toBe("no");
 
-    // ── Market status flipped to resolved with the right outcome ──────────
-    const [m] = await db.select().from(markets).where(eq(markets.id, MARKET_ID));
-    expect(m.status).toBe("resolved");
-    expect(m.resolvedOutcome).toBe("A");
+    // ── Both pools fully drained ───────────────────────────────────────────
+    const poolsAfter = await db.select().from(ammPools);
+    expect(poolsAfter).toHaveLength(2);
+    expect(poolsAfter.every((p) => p.wpmReserve === 0n)).toBe(true);
 
-    // ── Ledger has a SettlePayout row for every bettor (win or loss) ──────
+    // ── One ResolveMarket row per child Market ─────────────────────────────
+    const resolveRows = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.type, "ResolveMarket"));
+    expect(resolveRows).toHaveLength(2);
+
+    // ── SettlePayout row for every bettor with a position; kind reflects
+    //    the per-child outcome ─────────────────────────────────────────────
     const payoutRows = await db
-      .select({ userId: transactions.userId })
+      .select()
       .from(transactions)
       .where(eq(transactions.type, "SettlePayout"));
-    const payoutUsers = new Set(payoutRows.map((r) => r.userId));
-    for (const b of BETTORS) expect(payoutUsers.has(b.id)).toBe(true);
+    expect(payoutRows).toHaveLength(BETTORS.length);
 
-    // ── Global conservation: every WPM is accounted for ────────────────────
+    for (const b of BETTORS) {
+      const expectedMarketId = b.side === "winner-child" ? winnerMarketId : loserMarketId;
+      const row = payoutRows.find((r) => r.userId === b.id && r.marketId === expectedMarketId);
+      expect(row).toBeDefined();
+      const payload = JSON.parse(row!.payload) as { amount: number; kind: string };
+      if (b.side === "winner-child") {
+        expect(payload.kind).toBe("win");
+        expect(BigInt(payload.amount)).toBe(sharesByUser.get(b.id)!);
+      } else {
+        expect(payload.kind).toBe("loss");
+        expect(payload.amount).toBe(0);
+      }
+    }
+
+    // ── Global conservation: every WPM accounted for ───────────────────────
     // Initial system WPM = treasury_initial + sum(starting balances).
-    // Final system WPM = treasury_after + sum(all balances) + pool_after.
-    const [{ amount: treasuryNow }] = await db.select({ amount: treasury.amount }).from(treasury);
+    // Final system WPM = treasury_after + sum(all balances) + sum(pool_after).
+    const [{ amount: treasuryAfter }] = await db.select({ amount: treasury.amount }).from(treasury);
+    expect(treasuryAfter).toBeGreaterThanOrEqual(treasuryBefore.amount);
+
     const allBalances = await db.select({ amount: balances.amount }).from(balances);
     const totalUserBalance = allBalances.reduce((s, r) => s + r.amount, 0n);
+    const totalPoolWpm = poolsAfter.reduce((s, p) => s + p.wpmReserve, 0n);
 
-    const initialSystem = 100_000_000n + STARTING_BALANCE * BigInt(BETTORS.length);
-    const finalSystem = treasuryNow + totalUserBalance + poolAfter.wpmReserve;
+    const initialSystem = TREASURY_SEED + STARTING_BALANCE * BigInt(BETTORS.length);
+    const finalSystem = treasuryAfter + totalUserBalance + totalPoolWpm;
     expect(finalSystem).toBe(initialSystem);
   });
 });
