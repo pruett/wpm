@@ -1972,3 +1972,41 @@ into the sole consumer (`portfolio.tsx`).
   regenerated. Natural next cluster: Phase 1 lines 41-44 + 47
   (schema regeneration + consumer updates) as a single coherent
   vertical slice.
+
+## 2026-05-11 — Phase 4: confirm sellShares.ts deletion (line 160)
+
+PLAN line 160 — `Delete src/actions/sellShares.ts` — was already physically
+done by Phase 0 / Slice 1 (line 26 in PLAN), which checked off the same
+action as part of the `placeBet` server-action rewrite. The Phase 4
+checkbox at line 160 was the duplicate housekeeping entry and remained
+unticked. This commit flips the Phase 4 checkbox to match reality.
+
+### Verification
+- `src/actions/` contains only `placeBet.ts`; `sellShares.ts` is absent.
+- Grep across `src/`: no `sellShares|SellShares` imports anywhere
+  (the `sell-shares` strings in `bet-controls.tsx` are HTML element ids
+  on the legacy A/B sell-form, not references to a server action — to be
+  fully purged in Phase 5 UI rewrite).
+- `bunx tsc --noEmit` — only the pre-existing
+  `vitest.integration.config.ts` overload error remains.
+- `bun run test` — 50/50 unit tests pass (unchanged).
+- `bun run lint` — 2 pre-existing warnings, 0 errors.
+
+### Files changed
+- `PLAN.md` (line 160 → `[x]`)
+
+### Notes
+- Phase 4 line 161 ("No new resolver action exposed externally — cron
+  stays the entry point") is also already-true in practice — the only
+  file under `src/actions/` is `placeBet.ts`, and the resolver entry
+  point is `src/app/api/cron/resolve/route.ts`. Leaving 161 unchecked
+  intentionally: per the "one task per loop" rule, it is the natural
+  next housekeeping flip, but pairing them in one commit would violate
+  the loop contract. Next iteration can do that or a more substantial
+  Phase 1/4/5 task.
+- True remaining substantive work clusters: Phase 1 schema purge
+  (lines 41-44, 47), Phase 4 line 151/152 (events.ts read APIs +
+  markets.ts legacy removal), and Phase 5 UI rewrite (lines 168-189).
+  The schema cluster is still the natural prerequisite for the line
+  152 cleanup since markets.ts legacy paths read `teamA`/`teamB`/
+  `resolvedOutcome`.

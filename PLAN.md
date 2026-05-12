@@ -157,7 +157,7 @@
 
 ### Server actions
 - [x] `src/actions/placeBet.ts`: drop `outcome` from Zod schema; revalidate market + event + viewer tags.
-- [ ] Delete `src/actions/sellShares.ts`.
+- [x] Delete `src/actions/sellShares.ts`.
 - [ ] No new resolver action exposed externally (cron stays the entry point).
 
 ---
