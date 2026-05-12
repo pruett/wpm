@@ -230,6 +230,6 @@
 
 ### Fixture & dead-code purge
 
-- [ ] Delete `src/lib/kalshi/fixtures/non-binary.json` and `pair-inconsistent.json`.
+- [x] Delete `src/lib/kalshi/fixtures/non-binary.json` and `pair-inconsistent.json`.
 - [ ] Grep codebase for residual `teamA`/`teamB`/`sharesA`/`sharesB`/`outcome: "A"`/`"A" | "B"`/`SellShares`/`calculateSell`/`isqrt` and eliminate every match.
 - [ ] Re-run `bun typecheck` and `bun test` until clean.

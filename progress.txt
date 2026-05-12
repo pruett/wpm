@@ -3739,3 +3739,51 @@ residual grep, final typecheck/test sweep).
 - `Sport` and `SPORTS` are imported by the schema (`app.ts:13`) from
   `@/lib/types`, so the enum is the single source of truth across
   the domain type, DB schema, and UI.
+
+## 2026-05-12 — Phase 6: Confirm legacy fixtures deleted (line 233)
+
+Phase 6 cleanup task — PLAN line 233: `Delete src/lib/kalshi/fixtures/
+non-binary.json and pair-inconsistent.json`. Pure verification — the
+deletes already landed in commit `e47889d` (`test(kalshi): purge legacy
+fixtures, add multi-outcome wide-spread case`).
+
+### What changed
+- `PLAN.md` line 233 → `[x]`. Nothing else.
+
+### Files changed
+- `PLAN.md`
+- `progress.txt`
+
+### Verification
+- `ls src/lib/kalshi/fixtures/` — only the current 13 fixtures present
+  (binary-healthy, multi-outcome-healthy, multi-outcome-wide-spread,
+  not-settled-yet, settled-a-wins, settled-ambiguous, settled-b-wins,
+  settled-scalar, settled-voided, skewed-healthy,
+  unparseable-close-time, wide-spread, zero-spread). No `non-binary.json`
+  or `pair-inconsistent.json`.
+- `git log --oneline -- src/lib/kalshi/fixtures/non-binary.json
+  src/lib/kalshi/fixtures/pair-inconsistent.json` confirms commit
+  `e47889d` is the last touch — they were removed in that commit.
+- `Grep non-binary|pair-inconsistent src/` — 0 hits. Only references
+  surviving in the repo are in docs/prd/* (historical context) and
+  progress.txt/PLAN.md (this work log).
+- `bun run test` — 38/38 unit tests pass.
+- `bun run lint` — 0 errors, 1 pre-existing warning
+  (`tests/e2e/fixtures.ts:11`, unrelated).
+
+### Scope decision
+Picked line 233 because it is the lowest-numbered remaining unchecked
+item in Phase 6 cleanup. Phase 1–5 are fully closed; only lines
+234 (residual-grep purge) and 235 (final typecheck/test sweep) remain
+after this. Kept scope minimal: no fixture additions, no source
+edits — only the PLAN box-tick.
+
+### Notes
+- The two deleted fixtures backed the obsolete `non_binary` and
+  `pair_inconsistent` translator rejection variants. Those variants
+  were dropped from `lib/kalshi/translator.ts` during Phase 2 (PLAN
+  lines 77, 93), so the fixtures had no remaining consumers.
+- Remaining Phase 6: line 234 (`teamA`/`teamB`/`sharesA`/`sharesB`/
+  `outcome: "A"`/`"A" | "B"`/`SellShares`/`calculateSell`/`isqrt`
+  residual grep) is the next substantive task — that one may surface
+  real code edits. Queued for the next loop.
