@@ -13,6 +13,8 @@ import {
 } from "@/lib/db/schema";
 
 import { requireUser } from "./auth";
+import { invalidate } from "./invalidate";
+import { tags } from "./tags";
 
 export type Odds = {
   priceYes: number;
@@ -112,6 +114,12 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
       }),
       createdAt: now,
     });
+
+    // Hints fire on COMMIT (Postgres queues NOTIFY until the tx commits). A
+    // rolled-back placeBet emits nothing.
+    await invalidate(tags.market(marketId), tx);
+    await invalidate(tags.event(row.eventId), tx);
+    await invalidate(tags.viewer(userId), tx);
 
     return {
       newBalance: currentBalance - amount,

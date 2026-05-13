@@ -1,10 +1,8 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
 import { z } from "zod/v4";
 
 import { type ActionResult } from "@/data/auth";
-import { tags } from "@/data/tags";
 import { placeBet as placeBetDAL } from "@/data/trading";
 
 const PlaceBetInput = z.object({
@@ -17,12 +15,7 @@ export async function placeBet(input: z.input<typeof PlaceBetInput>): Promise<Ac
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    const result = await placeBetDAL(parsed.data);
-
-    revalidateTag(tags.market(result.marketId), "max");
-    if (result.eventId) revalidateTag(tags.event(result.eventId), "max");
-    revalidateTag(tags.viewer(result.userId), "max");
-
+    await placeBetDAL(parsed.data);
     return { success: true };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Bet failed" };

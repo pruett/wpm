@@ -24,6 +24,7 @@ import {
 } from "@/lib/db/schema";
 import { computeEventSettlement } from "@/lib/settlement";
 
+import { invalidate } from "./invalidate";
 import { tags } from "./tags";
 
 export type EventChildMarket = {
@@ -215,6 +216,9 @@ export async function createEvent(input: TranslatedEvent): Promise<CreateEventRe
       });
     }
 
+    await invalidate(tags.marketsAll(), tx);
+    await invalidate(tags.eventsAll(), tx);
+
     return { created: true } as const;
   });
 }
@@ -326,9 +330,11 @@ export async function commitEvent(input: CommitEventInput): Promise<CommitEventR
 
     const settlement = computeEventSettlement({ perChild: settleablePlan });
     const now = Date.now();
+    const affectedViewerIds = new Set<string>();
 
     for (const childOut of settlement.perChild) {
       await applyChildSettlement(tx, childOut, now);
+      for (const p of childOut.payouts) affectedViewerIds.add(p.userId);
       resultByMarketId.set(childOut.marketId, {
         marketId: childOut.marketId,
         outcome: childOut.outcome,
@@ -343,6 +349,17 @@ export async function commitEvent(input: CommitEventInput): Promise<CommitEventR
       .update(eventsTable)
       .set({ status: "terminal" })
       .where(eq(eventsTable.id, input.eventId));
+
+    if (settlement.perChild.length > 0) {
+      await invalidate(tags.marketsAll(), tx);
+      await invalidate(tags.event(input.eventId), tx);
+      for (const childOut of settlement.perChild) {
+        await invalidate(tags.market(childOut.marketId), tx);
+      }
+      for (const viewerId of affectedViewerIds) {
+        await invalidate(tags.viewer(viewerId), tx);
+      }
+    }
 
     const perChild: ChildCommitResult[] = input.perChild.map(
       (c) =>
