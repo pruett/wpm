@@ -115,18 +115,9 @@ export function translateKalshiEvent(event: KalshiEvent, sport: Sport): Translat
   const translatedMarkets: TranslatedMarket[] = quoted.map(({ quote: q, market: m }) => ({
     market: {
       id: `kalshi-${m.ticker}`,
-      sport,
       name: m.yes_sub_title,
       ticker: m.ticker,
-      // Legacy A/B columns still required by the schema during Slice 1's
-      // additive transition; dropped in Phase 1.
-      teamA: m.yes_sub_title,
-      teamB: "",
-      tickerA: m.ticker,
-      tickerB: null,
-      closesAt,
       resolvedAs: null,
-      resolvedOutcome: null,
       resolvedAt: null,
     },
     seedAmount: SEED_AMOUNT,

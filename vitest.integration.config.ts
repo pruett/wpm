@@ -18,7 +18,7 @@ export default defineConfig({
     include: ["tests/integration/**/*.test.ts"],
     exclude: ["node_modules/**", ".next/**"],
     globalSetup: ["tests/integration/global-setup.ts"],
-    fileParallel: false,
+    fileParallelism: false,
     pool: "forks",
     poolOptions: { forks: { singleFork: true } },
     env: {

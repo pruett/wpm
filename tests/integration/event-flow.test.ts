@@ -4,6 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import binaryHealthy from "@/lib/kalshi/fixtures/binary-healthy.json" with { type: "json" };
 import multiOutcomeHealthy from "@/lib/kalshi/fixtures/multi-outcome-healthy.json" with { type: "json" };
 
+import { bumpEventClosesAt } from "./_helpers";
+
 // Mock the auth boundary so we can drive userId from inside the test.
 let currentUserId: string | null = null;
 vi.mock("@/data/auth", () => ({
@@ -93,11 +95,8 @@ describe("event-flow: ingest → bet → commit (Slice 1 smoke test)", () => {
     const noMarketId = noMarket.market.id;
 
     // Translator builds the Event with closesAt in the past (fixture is for
-    // 2026-04-25). Live `placeBet` rejects bets after close, so bump the
-    // children's closesAt forward for the betting step.
-    const future = Date.now() + 60 * 60 * 1000;
-    await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, yesMarketId));
-    await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, noMarketId));
+    // 2026-04-25). Live `placeBet` rejects bets after close.
+    await bumpEventClosesAt(eventId);
 
     // ── Both child Markets exist, both pools exist ─────────────────────────
     const allMarkets = await db
@@ -251,8 +250,8 @@ describe("event-flow: multi-outcome ingest (Slice 2 smoke test)", () => {
     for (const market of childMarketRows) {
       const [pool] = await db.select().from(ammPools).where(eq(ammPools.marketId, market.id));
       expect(pool).toBeDefined();
-      const reserveYes = pool.reserveYes ?? pool.reserveA ?? 0n;
-      const reserveNo = pool.reserveNo ?? pool.reserveB ?? 0n;
+      const reserveYes = pool.reserveYes;
+      const reserveNo = pool.reserveNo;
       const total = reserveYes + reserveNo;
       expect(total).toBeGreaterThan(0n);
       const actualProbYes = Number(reserveNo) / Number(total);
@@ -303,11 +302,7 @@ describe("event-flow: 3-Market mixed-resolution commit", () => {
     const noId = noChild.market.id;
     const scalarId = scalarChild.market.id;
 
-    // Bump child closesAt forward so live placeBet accepts the wagers.
-    const future = Date.now() + 60 * 60 * 1000;
-    for (const id of [yesId, noId, scalarId]) {
-      await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, id));
-    }
+    await bumpEventClosesAt(eventId);
 
     // One bettor per child so each settlement branch (win/loss/refund) is
     // exercised by a distinct user.

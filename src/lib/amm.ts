@@ -43,6 +43,21 @@ export function calculateBuy(pool: AMMPool, amount: bigint): { shares: bigint; n
   return { shares, newPool };
 }
 
+export function poolFromRow(row: {
+  marketId: string;
+  reserveYes: bigint;
+  reserveNo: bigint;
+  wpmReserve: bigint;
+}): AMMPool {
+  return {
+    marketId: row.marketId,
+    reserveYes: row.reserveYes,
+    reserveNo: row.reserveNo,
+    k: row.reserveYes * row.reserveNo,
+    liquidity: row.wpmReserve,
+  };
+}
+
 export function calculatePrices(pool: AMMPool): { priceYes: number; priceNo: number } {
   const total = pool.reserveYes + pool.reserveNo;
   if (total === 0n) return { priceYes: 0.5, priceNo: 0.5 };

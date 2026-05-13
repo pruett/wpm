@@ -1,9 +1,16 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
 
-import { calculateBuy, calculateOdds } from "@/lib/amm";
+import { calculateBuy, calculateOdds, poolFromRow } from "@/lib/amm";
 import { db } from "@/lib/db";
-import { ammPools, balances, markets, positions, transactions } from "@/lib/db/schema";
+import {
+  ammPools,
+  balances,
+  events as eventsTable,
+  markets,
+  positions,
+  transactions,
+} from "@/lib/db/schema";
 
 import { requireUser } from "./auth";
 
@@ -39,10 +46,18 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
   if (amount <= 0n) throw new Error("Amount must be positive");
 
   const { newBalance, newPool, eventId } = await db.transaction(async (tx) => {
-    const [market] = await tx.select().from(markets).where(eq(markets.id, marketId));
-    if (!market) throw new Error("Market not found");
-    if (market.status !== "open") throw new Error("Market is not open");
-    if (Date.now() >= market.closesAt) throw new Error("Betting has closed");
+    const [row] = await tx
+      .select({
+        marketStatus: markets.status,
+        eventId: markets.eventId,
+        closesAt: eventsTable.closesAt,
+      })
+      .from(markets)
+      .innerJoin(eventsTable, eq(eventsTable.id, markets.eventId))
+      .where(eq(markets.id, marketId));
+    if (!row) throw new Error("Market not found");
+    if (row.marketStatus !== "open") throw new Error("Market is not open");
+    if (Date.now() >= row.closesAt) throw new Error("Betting has closed");
 
     const [bal] = await tx.select().from(balances).where(eq(balances.userId, userId));
     const currentBalance = bal?.amount ?? 0n;
@@ -51,37 +66,16 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     const [poolRow] = await tx.select().from(ammPools).where(eq(ammPools.marketId, marketId));
     if (!poolRow) throw new Error("AMM pool missing");
 
-    // Prefer YES-aligned columns when present (rows created by `createEvent`);
-    // fall back to legacy A/B columns for pre-Slice-1 rows. Under the YES-first
-    // mapping established in `createEvent`, A → YES, B → NO.
-    const reserveYes = poolRow.reserveYes ?? poolRow.reserveA;
-    const reserveNo = poolRow.reserveNo ?? poolRow.reserveB;
-
-    const eventId = market.eventId;
-
-    const { shares, newPool } = calculateBuy(
-      {
-        marketId,
-        reserveYes,
-        reserveNo,
-        k: reserveYes * reserveNo,
-        liquidity: poolRow.wpmReserve,
-      },
-      amount,
-    );
+    const { shares, newPool } = calculateBuy(poolFromRow(poolRow), amount);
 
     await tx
       .update(balances)
       .set({ amount: sql`${balances.amount} - ${amount}` })
       .where(eq(balances.userId, userId));
 
-    // Dual-write: keep legacy reserveA/B in sync with the new reserveYes/No
-    // columns until the legacy columns are dropped in Phase 1.
     await tx
       .update(ammPools)
       .set({
-        reserveA: newPool.reserveYes,
-        reserveB: newPool.reserveNo,
         reserveYes: newPool.reserveYes,
         reserveNo: newPool.reserveNo,
         wpmReserve: sql`${ammPools.wpmReserve} + ${amount}`,
@@ -93,15 +87,12 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
       .values({
         userId,
         marketId,
-        sharesA: shares,
-        sharesB: 0n,
         shares,
         costBasis: amount,
       })
       .onConflictDoUpdate({
         target: [positions.userId, positions.marketId],
         set: {
-          sharesA: sql`${positions.sharesA} + ${shares}`,
           shares: sql`${positions.shares} + ${shares}`,
           costBasis: sql`${positions.costBasis} + ${amount}`,
         },
@@ -125,7 +116,7 @@ export async function placeBet(input: PlaceBetInput): Promise<PlaceBetResult> {
     return {
       newBalance: currentBalance - amount,
       newPool,
-      eventId,
+      eventId: row.eventId,
     };
   });
 

@@ -119,10 +119,10 @@ describe("translateKalshiEvent", () => {
       expect(child.market.id).toBe(want.id);
       expect(child.market.name).toBe(want.name);
       expect(child.market.ticker).toBe(want.ticker);
-      expect(child.market.closesAt).toBe(event.closesAt);
       expect(child.seedAmount).toBe(1000n);
       expect(child.initialProbabilityYes).toBeCloseTo(want.prob, 5);
     }
+    expect(event.closesAt).toBeTypeOf("number");
   });
 
   it("skips events with zero-spread on any child", () => {
