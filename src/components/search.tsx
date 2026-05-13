@@ -25,11 +25,7 @@ export function Search({ markets }: { markets: MarketWithOdds[] }) {
     return markets.filter((m) => {
       if (sport && m.sport !== sport) return false;
       if (!q) return true;
-      return (
-        m.name.toLowerCase().includes(q) ||
-        m.outcomes[0].toLowerCase().includes(q) ||
-        m.outcomes[1].toLowerCase().includes(q)
-      );
+      return m.name.toLowerCase().includes(q);
     });
   }, [query, sport, markets]);
 

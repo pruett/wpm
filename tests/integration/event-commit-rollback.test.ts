@@ -3,6 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import binaryHealthy from "@/lib/kalshi/fixtures/binary-healthy.json" with { type: "json" };
 
+import { bumpEventClosesAt } from "./_helpers";
+
 // PLAN.md Phase 3 line 136 — "Simulated mid-commit failure leaves no rows
 // behind (DB transaction rollback)." Verifies that `commitEvent` runs entirely
 // inside a single DB transaction: if any per-child write fails, every prior
@@ -115,9 +117,7 @@ describe("event-flow: mid-commit failure rolls back atomically", () => {
     const child1Id = child1.market.id;
     const child2Id = child2.market.id;
 
-    const future = Date.now() + 60 * 60 * 1000;
-    await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, child1Id));
-    await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, child2Id));
+    await bumpEventClosesAt(eventId);
 
     // ── BETTOR places a YES bet on the first child to give settlement
     //    something to actually pay out ──────────────────────────────────────

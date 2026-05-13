@@ -9,9 +9,9 @@ import type {
   EventSettlementChildInput,
   EventSettlementChildOutput,
 } from "@/lib/settlement";
-import type { AMMPool, Sport } from "@/lib/types";
+import type { Sport } from "@/lib/types";
 
-import { calculateOdds, initializePool } from "@/lib/amm";
+import { calculateOdds, initializePool, poolFromRow } from "@/lib/amm";
 import { db } from "@/lib/db";
 import {
   ammPools,
@@ -140,16 +140,7 @@ function toEventChildMarket(market: EventQueryRow["markets"][number]): EventChil
     };
   }
 
-  const reserveYes = market.pool.reserveYes ?? market.pool.reserveA;
-  const reserveNo = market.pool.reserveNo ?? market.pool.reserveB;
-  const ammPool: AMMPool = {
-    marketId: market.pool.marketId,
-    reserveYes,
-    reserveNo,
-    k: reserveYes * reserveNo,
-    liquidity: market.pool.wpmReserve,
-  };
-  const odds = calculateOdds(ammPool);
+  const odds = calculateOdds(poolFromRow(market.pool));
   return {
     id: market.id,
     name: market.name,
@@ -202,8 +193,6 @@ export async function createEvent(input: TranslatedEvent): Promise<CreateEventRe
 
       await tx.insert(ammPools).values({
         marketId: market.id,
-        reserveA: pool.reserveYes,
-        reserveB: pool.reserveNo,
         reserveYes: pool.reserveYes,
         reserveNo: pool.reserveNo,
         wpmReserve: pool.liquidity,
@@ -429,16 +418,11 @@ async function applyChildSettlement(
   await tx.update(ammPools).set({ wpmReserve: 0n }).where(eq(ammPools.marketId, childOut.marketId));
 
   if (childOut.finalStatus === "resolved") {
-    // Dual-write legacy `resolvedOutcome` (A/B) alongside the new
-    // `resolvedAs` (yes/no) column during the additive transition. Under the
-    // YES-first mapping, A === yes, B === no.
-    const legacyOutcome: "A" | "B" = childOut.resolvedAs === "yes" ? "A" : "B";
     await tx
       .update(marketsTable)
       .set({
         status: "resolved",
         resolvedAs: childOut.resolvedAs,
-        resolvedOutcome: legacyOutcome,
         resolvedAt: now,
       })
       .where(eq(marketsTable.id, childOut.marketId));

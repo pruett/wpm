@@ -3,6 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import binaryHealthy from "@/lib/kalshi/fixtures/binary-healthy.json" with { type: "json" };
 
+import { bumpEventClosesAt } from "./_helpers";
+
 // Mock the auth boundary so we can drive userId from inside the test.
 let currentUserId: string | null = null;
 vi.mock("@/data/auth", () => ({
@@ -106,11 +108,7 @@ describe("end-to-end: bet → Event-commit with 5 bettors across two child Marke
     const winnerMarketId = winnerChild.market.id;
     const loserMarketId = loserChild.market.id;
 
-    // Fixture's closesAt is in the past; live placeBet rejects after close.
-    const future = Date.now() + 60 * 60 * 1000;
-    for (const id of [winnerMarketId, loserMarketId]) {
-      await db.update(marketsTable).set({ closesAt: future }).where(eq(marketsTable.id, id));
-    }
+    await bumpEventClosesAt(eventId);
 
     // ── Each bettor places one YES bet on their assigned child Market ─────
     const sharesByUser = new Map<string, bigint>();

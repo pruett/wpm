@@ -57,22 +57,15 @@ export const events = pgTable(
 
 export const markets = pgTable("markets", {
   id: text("id").primaryKey(),
-  eventId: text("event_id").references(() => events.id, {
-    onDelete: "cascade",
-  }),
-  sport: text("sport", { enum: SPORTS }).notNull(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   ticker: text("ticker"),
-  teamA: text("team_a").notNull(),
-  teamB: text("team_b").notNull(),
-  tickerA: text("ticker_a"),
-  tickerB: text("ticker_b"),
-  closesAt: bigint("closes_at", { mode: "number" }).notNull(),
   status: text("status", {
     enum: ["open", "resolved", "cancelled"],
   }).notNull(),
   resolvedAs: text("resolved_as", { enum: ["yes", "no"] }),
-  resolvedOutcome: text("resolved_outcome", { enum: ["A", "B"] }),
   resolvedAt: bigint("resolved_at", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
@@ -85,10 +78,8 @@ export const ammPools = pgTable("amm_pools", {
   marketId: text("market_id")
     .primaryKey()
     .references(() => markets.id, { onDelete: "cascade" }),
-  reserveA: bigint("reserve_a", { mode: "bigint" }).notNull(),
-  reserveB: bigint("reserve_b", { mode: "bigint" }).notNull(),
-  reserveYes: bigint("reserve_yes", { mode: "bigint" }),
-  reserveNo: bigint("reserve_no", { mode: "bigint" }),
+  reserveYes: bigint("reserve_yes", { mode: "bigint" }).notNull(),
+  reserveNo: bigint("reserve_no", { mode: "bigint" }).notNull(),
   wpmReserve: bigint("wpm_reserve", { mode: "bigint" }).notNull(),
   seedAmount: bigint("seed_amount", { mode: "bigint" }).notNull(),
 });
@@ -102,12 +93,6 @@ export const positions = pgTable(
     marketId: text("market_id")
       .notNull()
       .references(() => markets.id, { onDelete: "cascade" }),
-    sharesA: bigint("shares_a", { mode: "bigint" })
-      .notNull()
-      .default(sql`0`),
-    sharesB: bigint("shares_b", { mode: "bigint" })
-      .notNull()
-      .default(sql`0`),
     shares: bigint("shares", { mode: "bigint" })
       .notNull()
       .default(sql`0`),

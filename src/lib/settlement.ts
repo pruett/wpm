@@ -1,23 +1,3 @@
-export type SettlementPosition = {
-  userId: string;
-  sharesA: bigint;
-  sharesB: bigint;
-  costBasis: bigint;
-};
-
-export type SettlementInput =
-  | {
-      kind: "resolve";
-      outcome: "A" | "B";
-      wpmReserve: bigint;
-      positions: SettlementPosition[];
-    }
-  | {
-      kind: "cancel";
-      wpmReserve: bigint;
-      positions: SettlementPosition[];
-    };
-
 export type PayoutKind = "win" | "loss" | "refund" | "zero";
 
 export type PayoutIntent = {
@@ -27,74 +7,11 @@ export type PayoutIntent = {
   shares: bigint;
 };
 
-export type SettlementOutput = {
-  payouts: PayoutIntent[];
-  totalPayouts: bigint;
-  treasuryDelta: bigint;
-  backstopAmount: bigint;
-};
-
-export function computeSettlement(input: SettlementInput): SettlementOutput {
-  const payouts: PayoutIntent[] = [];
-  let totalPayouts = 0n;
-
-  for (const p of input.positions) {
-    const hasShares = p.sharesA > 0n || p.sharesB > 0n;
-    if (!hasShares) continue;
-
-    if (input.kind === "resolve") {
-      const winningShares = input.outcome === "A" ? p.sharesA : p.sharesB;
-      if (winningShares > 0n) {
-        payouts.push({
-          userId: p.userId,
-          kind: "win",
-          amount: winningShares,
-          shares: winningShares,
-        });
-        totalPayouts += winningShares;
-      } else {
-        payouts.push({
-          userId: p.userId,
-          kind: "loss",
-          amount: 0n,
-          shares: p.sharesA + p.sharesB,
-        });
-      }
-    } else {
-      const shares = p.sharesA + p.sharesB;
-      if (p.costBasis > 0n) {
-        payouts.push({
-          userId: p.userId,
-          kind: "refund",
-          amount: p.costBasis,
-          shares,
-        });
-        totalPayouts += p.costBasis;
-      } else {
-        payouts.push({
-          userId: p.userId,
-          kind: "zero",
-          amount: 0n,
-          shares,
-        });
-      }
-    }
-  }
-
-  const treasuryDelta = input.wpmReserve - totalPayouts;
-  const backstopAmount = treasuryDelta < 0n ? -treasuryDelta : 0n;
-
-  return { payouts, totalPayouts, treasuryDelta, backstopAmount };
-}
-
-// ─── Event-level settlement (multi-outcome model) ──────────────────────────
-//
-// `computeEventSettlement` is the YES-only, event-atomic replacement for the
-// legacy per-child `computeSettlement` above. It takes a commit plan covering
-// every child Market in an Event along with each child's pool reserve + flat
-// YES position list, and returns one payout/treasury/status bundle per child.
-// `commitEvent` in `data/events.ts` applies this batch in a single DB tx so
-// the whole Event commits or none of it does.
+// Event-atomic, YES-only settlement (multi-outcome model). Takes a commit plan
+// covering every child Market in an Event along with each child's pool reserve
+// + flat YES position list, and returns one payout/treasury/status bundle per
+// child. `commitEvent` in `data/events.ts` applies this batch in a single DB
+// tx so the whole Event commits or none of it does.
 //
 // Per-child outcome mapping:
 //   resolved_yes  → YES holders get `amount = shares`; (no NO holders exist)
