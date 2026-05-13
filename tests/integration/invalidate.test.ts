@@ -1,7 +1,8 @@
-// The realtime bus reads DATABASE_URL_DIRECT at module load. There is no
+// The realtime bus reads DATABASE_URL_UNPOOLED at module load. There is no
 // PgBouncer in the integration environment, so the direct URL is the same as
 // the pooled one — set it before any imports of the bus or db modules.
-process.env.DATABASE_URL_DIRECT = process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL ?? "";
+process.env.DATABASE_URL_UNPOOLED =
+  process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "";
 
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 

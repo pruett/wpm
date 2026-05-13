@@ -159,7 +159,7 @@ Concretely, the persistence functions invoke `invalidate` against `tx`, not `db`
 Two connection strings are used:
 
 - **Pooled URL** (the existing `DATABASE_URL` or equivalent) — every read and write, including writers' `NOTIFY` calls. The notification goes _out_ through whatever connection executed the transaction; PgBouncer transaction-mode is fine for that.
-- **Direct URL** — used _only_ by the bus's singleton `LISTEN` connection. The bus reads this from a new env var (e.g. `DATABASE_URL_DIRECT`) and fails fast at startup if it is missing. Falling back to the pooled URL is explicitly _not_ supported: PgBouncer in transaction mode would silently drop the LISTEN registration without surfacing an error.
+- **Direct URL** — used _only_ by the bus's singleton `LISTEN` connection. The bus reads this from `DATABASE_URL_UNPOOLED` (the Neon/Vercel convention) and fails fast at startup if it is missing. Falling back to the pooled URL is explicitly _not_ supported: PgBouncer in transaction mode would silently drop the LISTEN registration without surfacing an error.
 
 Vercel Postgres / Neon expose both. Self-hosted setups need only ensure the listener URL bypasses any pooler.
 

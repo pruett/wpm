@@ -11,7 +11,7 @@ import { directConnectionString } from "@/lib/db";
 // startup rather than the first time a subscriber connects.
 if (!directConnectionString) {
   throw new Error(
-    "DATABASE_URL_DIRECT is not set; the realtime bus requires a non-pooled Postgres URL",
+    "DATABASE_URL_UNPOOLED is not set; the realtime bus requires a non-pooled Postgres URL",
   );
 }
 
