@@ -3,10 +3,12 @@ import Link from "next/link";
 import type { MarketWithOdds } from "@/lib/types";
 
 import { LiveOdds } from "@/components/live-odds";
+import { LiveTag } from "@/components/live-tag";
 import { SportLogo } from "@/components/sport-logo";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { tags } from "@/data/tags";
 import { initialsForName, profileColorForeground, profileColorToHex } from "@/lib/profile";
 
 export function MarketCard({ market }: { market: MarketWithOdds }) {
@@ -16,6 +18,7 @@ export function MarketCard({ market }: { market: MarketWithOdds }) {
 
   return (
     <Link href={market.eventId ? `/event/${market.eventId}` : "#"} className="block">
+      <LiveTag tag={tags.market(market.id)} />
       <Card className="flex flex-col transition-colors hover:border-foreground/25">
         <CardHeader className="flex flex-row items-start gap-2 pb-3">
           <SportLogo sport={market.sport} className="mt-0.5 text-muted-foreground" />

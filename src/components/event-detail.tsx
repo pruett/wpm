@@ -2,11 +2,13 @@ import type { EventWithMarkets } from "@/data/events";
 import type { SharePosition } from "@/lib/types";
 
 import { BetControls } from "@/components/bet-controls";
+import { LiveTag } from "@/components/live-tag";
 import { SportLogo } from "@/components/sport-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { getEvent } from "@/data/events";
 import { getPositions } from "@/data/positions";
+import { tags } from "@/data/tags";
 
 export async function EventDetail({ id, userId }: { id: string; userId?: string }) {
   const [event, positions] = await Promise.all([
@@ -16,6 +18,7 @@ export async function EventDetail({ id, userId }: { id: string; userId?: string 
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveTag tag={tags.event(id)} />
       <EventHeader event={event} />
       <Separator />
       <ol className="flex flex-col gap-6">
@@ -23,6 +26,7 @@ export async function EventDetail({ id, userId }: { id: string; userId?: string 
           const position = positions.find((p) => p.marketId === child.id);
           return (
             <li key={child.id} className="rounded-md border p-4">
+              <LiveTag tag={tags.market(child.id)} />
               <BetControls
                 market={{
                   id: child.id,

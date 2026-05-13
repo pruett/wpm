@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { LiveTag } from "@/components/live-tag";
 import { getBalance } from "@/data/balances";
+import { tags } from "@/data/tags";
 
 import { Balance } from "./balance";
 import { UserMenu } from "./user-menu";
 
 async function BalanceLoader({ userId }: { userId: string }) {
   const { balance } = await getBalance(userId);
-  return <Balance balance={balance} />;
+  return (
+    <>
+      <LiveTag tag={tags.viewer(userId)} />
+      <Balance balance={balance} />
+    </>
+  );
 }
 
 export function Header({ user }: { user: { id: string; name: string } }) {

@@ -1,7 +1,9 @@
 import type { MarketWithOdds } from "@/lib/types";
 
 import { EventCard } from "@/components/event-card";
+import { LiveTag } from "@/components/live-tag";
 import { MarketCard } from "@/components/market-card";
+import { tags } from "@/data/tags";
 
 type EventGroup = { eventId: string; markets: MarketWithOdds[] };
 
@@ -31,13 +33,16 @@ export function MarketList({ markets }: { markets: MarketWithOdds[] }) {
   const { grouped, unattached } = groupByEvent(markets);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {grouped.map((g) => (
-        <EventCard key={g.eventId} eventId={g.eventId} markets={g.markets} />
-      ))}
-      {unattached.map((m) => (
-        <MarketCard key={m.id} market={m} />
-      ))}
-    </div>
+    <>
+      <LiveTag tag={tags.marketsAll()} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {grouped.map((g) => (
+          <EventCard key={g.eventId} eventId={g.eventId} markets={g.markets} />
+        ))}
+        {unattached.map((m) => (
+          <MarketCard key={m.id} market={m} />
+        ))}
+      </div>
+    </>
   );
 }

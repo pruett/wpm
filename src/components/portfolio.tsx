@@ -1,11 +1,13 @@
 import type { BetHistoryEntry } from "@/data/positions";
 import type { MarketWithOdds, Sport } from "@/lib/types";
 
+import { LiveTag } from "@/components/live-tag";
 import { SportLogo } from "@/components/sport-logo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMarkets } from "@/data/markets";
 import { getBetHistory } from "@/data/positions";
+import { tags } from "@/data/tags";
 
 function formatSigned(value: number): string {
   const sign = value >= 0 ? "+" : "";
@@ -65,6 +67,7 @@ export async function Portfolio({ userId }: { userId: string }) {
   if (history.length === 0) {
     return (
       <section className="mt-8">
+        <LiveTag tag={tags.viewer(userId)} />
         <h2 className="mb-4 font-mono text-lg font-bold tracking-wider uppercase">Bets</h2>
         <p className="font-mono text-sm text-muted-foreground">
           No bets yet. Place a bet to get started.
@@ -99,6 +102,7 @@ export async function Portfolio({ userId }: { userId: string }) {
 
   return (
     <section className="mt-8 space-y-8">
+      <LiveTag tag={tags.viewer(userId)} />
       {openGroups.length > 0 ? (
         <div>
           <div className="mb-4 flex items-baseline justify-between">
