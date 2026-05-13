@@ -33,6 +33,11 @@ playwright-report/
 # Claude
 .claude/worktrees/
 
+# Agent loop artifacts (local-only)
+PLAN.md
+agent-loop-prompt.md
+progress.txt
+
 # OS
 .DS_Store
 
