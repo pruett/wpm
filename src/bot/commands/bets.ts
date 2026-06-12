@@ -1,10 +1,11 @@
 import type { ActionEvent, CardElement } from "chat";
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { db } from "../../db";
 import { bets as betsTable, events, markets, users } from "../../db/schema";
 import { displayName, formatDollars } from "../../utils/format";
+import { BETTABLE_HORIZON_MS } from "../../utils/sync";
 import type { BotCommand } from "./types";
-import { groupBySeries, isNotModified, kickoffLabel, menuHandle, seriesHeaderRow, upcomingEvents } from "./bet";
+import { groupBySeries, isNotModified, kickoffLabel, menuHandle, seriesHeaderRow } from "./bet";
 
 // Action ids — the tapped event ticker travels in the button's value.
 // Registered via bot.onAction in src/bot/index.ts.
@@ -28,14 +29,53 @@ async function openBetCounts(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
 }
 
-// Same event list as /bet (shared via upcomingEvents and groupBySeries),
-// but each button shows how many open bets ride on that event instead of
-// the kickoff time.
+/**
+ * Events the /bets list shows — broader than /bet's menu. Everything still
+ * bettable (same pre-game window /bet offers), plus any event with open
+ * bets riding on it: a game in play has betting locked, but its bets are
+ * exactly what /bets exists to show. Once a game settles its bets stop
+ * being open, so finished events drop out on their own.
+ */
+async function listedEvents(openBetEventTickers: string[]) {
+  const now = new Date();
+  const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
+  // Pre-game milestone statuses differ by sport: soccer reports
+  // "not_started", basketball "scheduled".
+  const bettable = and(
+    inArray(events.gameStatus, ["not_started", "scheduled"]),
+    gt(events.startsAt, now),
+    lte(events.startsAt, horizon),
+  );
+
+  return db
+    .selectDistinct({
+      eventTicker: events.eventTicker,
+      seriesTicker: events.seriesTicker,
+      title: events.title,
+      startsAt: events.startsAt,
+    })
+    .from(markets)
+    .innerJoin(events, eq(events.eventTicker, markets.eventTicker))
+    .where(
+      openBetEventTickers.length === 0
+        ? bettable
+        : or(bettable, inArray(events.eventTicker, openBetEventTickers)),
+    )
+    .orderBy(asc(events.startsAt), asc(events.eventTicker));
+}
+
+/** Past kickoff but still listed means the game is in play — betting closed. */
+function liveMarker(startsAt: Date | null): string {
+  return startsAt != null && startsAt <= new Date() ? "🔴 " : "";
+}
+
+// Event list grouped by series like /bet's menu, but each button shows how
+// many open bets ride on that event instead of the kickoff time.
 async function betsEventsCard(): Promise<CardElement | null> {
-  const rows = await upcomingEvents();
+  const counts = await openBetCounts();
+  const rows = await listedEvents([...counts.keys()]);
   if (rows.length === 0) return null;
 
-  const counts = await openBetCounts();
   return {
     type: "card",
     children: [
@@ -48,7 +88,7 @@ async function betsEventsCard(): Promise<CardElement | null> {
             {
               type: "button" as const,
               id: BETS_PICK_EVENT_ACTION,
-              label: `${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
+              label: `${liveMarker(e.startsAt)}${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
               value: e.eventTicker,
             },
           ],
@@ -86,7 +126,7 @@ async function eventBetsCard(eventTicker: string): Promise<CardElement | null> {
     .orderBy(asc(betsTable.id));
 
   const header =
-    `${event.title} — ${kickoffLabel(event.startsAt)} — ` +
+    `${liveMarker(event.startsAt)}${event.title} — ${kickoffLabel(event.startsAt)} — ` +
     `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
 
   const lines =
