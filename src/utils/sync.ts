@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets } from "./house";
+import { announceSettlements, type MarketSettlement } from "./announce";
 import { ingestEvents } from "../kalshi/ingest";
 import { marketApi } from "../kalshi/client";
 import { TRACKED_SERIES } from "../kalshi/series";
@@ -26,6 +27,8 @@ export interface SeriesSyncStats {
   skippedEvents: number;
   settledBets: number;
   voidedBets: number;
+  /** Per-market settlement detail, consumed by the group announcement. */
+  settlements: MarketSettlement[];
 }
 
 /**
@@ -77,6 +80,7 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
   let skippedEvents = 0;
   let settledBets = 0;
   let voidedBets = 0;
+  const settlements: MarketSettlement[] = [];
 
   for (const event of kalshiEvents) {
     const milestone = milestoneByEvent.get(event.event_ticker);
@@ -99,7 +103,9 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
       // "void" for cancelled events — handle it defensively.
       const result = (market.result ?? "") as string;
       if (result === "yes" || result === "no") {
-        settledBets += await settleMarketBets(market.ticker, result);
+        const settled = await settleMarketBets(market.ticker, result);
+        settledBets += settled.length;
+        if (settled.length) settlements.push({ marketTicker: market.ticker, result, bets: settled });
       } else if (result === "void") {
         voidedBets += await voidMarketBets(market.ticker);
       }
@@ -113,6 +119,7 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
     skippedEvents,
     settledBets,
     voidedBets,
+    settlements,
   };
 }
 
@@ -130,6 +137,7 @@ export async function settleOpenBetMarkets() {
 
   let settledBets = 0;
   let voidedBets = 0;
+  const settlements: MarketSettlement[] = [];
   const BATCH = 50;
 
   for (let i = 0; i < openMarkets.length; i += BATCH) {
@@ -153,19 +161,22 @@ export async function settleOpenBetMarkets() {
       await updateMarketRow(market);
       const result = (market.result ?? "") as string;
       if (result === "yes" || result === "no") {
-        settledBets += await settleMarketBets(market.ticker, result);
+        const settled = await settleMarketBets(market.ticker, result);
+        settledBets += settled.length;
+        if (settled.length) settlements.push({ marketTicker: market.ticker, result, bets: settled });
       } else if (result === "void") {
         voidedBets += await voidMarketBets(market.ticker);
       }
     }
   }
 
-  return { checkedMarkets: openMarkets.length, settledBets, voidedBets };
+  return { checkedMarkets: openMarkets.length, settledBets, voidedBets, settlements };
 }
 
 /**
  * The full cron unit of work: mirror every tracked series, then sweep
- * markets with open bets for results the per-series sync no longer sees.
+ * markets with open bets for results the per-series sync no longer sees,
+ * then recap anything that settled in the subscribed group chats.
  */
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
@@ -173,12 +184,27 @@ export async function syncAll() {
     series.push(await sync(tracked.ticker));
   }
   const settlement = await settleOpenBetMarkets();
+
+  // Totals across the per-series sweeps and the settlement pass.
+  const settledBets = series.reduce((n, s) => n + s.settledBets, settlement.settledBets);
+  const voidedBets = series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets);
+  const settlements = [...series.flatMap((s) => s.settlements), ...settlement.settlements];
+
+  // Announcing is a side show — a Telegram hiccup must not fail the sweep
+  // (the books are already updated and the next sweep wouldn't re-announce).
+  let announcedThreads = 0;
+  try {
+    announcedThreads = await announceSettlements(settlements, voidedBets);
+  } catch (error) {
+    console.error("settlement announcement failed:", error);
+  }
+
   return {
     series,
     checkedMarkets: settlement.checkedMarkets,
-    // Totals across the per-series sweeps and the settlement pass.
-    settledBets: series.reduce((n, s) => n + s.settledBets, settlement.settledBets),
-    voidedBets: series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets),
+    settledBets,
+    voidedBets,
+    announcedThreads,
   };
 }
 

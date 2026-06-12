@@ -138,17 +138,37 @@ export async function placeBet(
   });
 }
 
+/** A bet that just settled, as applied — input for group announcements. */
+export interface SettledBet {
+  betId: number;
+  userId: number;
+  side: BetSide;
+  contracts: number;
+  costCents: number;
+  won: boolean;
+}
+
 /** Settle all open bets on a market once its result is known. */
-export async function settleMarketBets(marketTicker: string, result: BetSide): Promise<number> {
+export async function settleMarketBets(
+  marketTicker: string,
+  result: BetSide,
+): Promise<SettledBet[]> {
   return db.transaction(async (tx) => {
     // FOR UPDATE: overlapping sweeps would otherwise both read status="open"
     // before either commits and pay the same winner twice.
     const open = await tx
-      .select({ id: bets.id, userId: bets.userId, side: bets.side, contracts: bets.contracts })
+      .select({
+        id: bets.id,
+        userId: bets.userId,
+        side: bets.side,
+        contracts: bets.contracts,
+        costCents: bets.costCents,
+      })
       .from(bets)
       .where(and(eq(bets.marketTicker, marketTicker), eq(bets.status, "open")))
       .for("update");
 
+    const settled: SettledBet[] = [];
     for (const bet of open) {
       const won = bet.side === result;
       await tx
@@ -163,8 +183,16 @@ export async function settleMarketBets(marketTicker: string, result: BetSide): P
           betId: bet.id,
         });
       }
+      settled.push({
+        betId: bet.id,
+        userId: bet.userId,
+        side: bet.side,
+        contracts: bet.contracts,
+        costCents: bet.costCents,
+        won,
+      });
     }
-    return open.length;
+    return settled;
   });
 }
 

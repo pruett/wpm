@@ -7891,7 +7891,14 @@ async function placeBet(profile, marketTicker, side, stakeCents) {
 }
 async function settleMarketBets(marketTicker, result) {
   return db2.transaction(async (tx) => {
-    const open = await tx.select({ id: bets.id, userId: bets.userId, side: bets.side, contracts: bets.contracts }).from(bets).where(and(eq(bets.marketTicker, marketTicker), eq(bets.status, "open"))).for("update");
+    const open = await tx.select({
+      id: bets.id,
+      userId: bets.userId,
+      side: bets.side,
+      contracts: bets.contracts,
+      costCents: bets.costCents
+    }).from(bets).where(and(eq(bets.marketTicker, marketTicker), eq(bets.status, "open"))).for("update");
+    const settled = [];
     for (const bet of open) {
       const won = bet.side === result;
       await tx.update(bets).set({ status: won ? "won" : "lost", settledAt: sql`now()` }).where(eq(bets.id, bet.id));
@@ -7903,8 +7910,16 @@ async function settleMarketBets(marketTicker, result) {
           betId: bet.id
         });
       }
+      settled.push({
+        betId: bet.id,
+        userId: bet.userId,
+        side: bet.side,
+        contracts: bet.contracts,
+        costCents: bet.costCents,
+        won
+      });
     }
-    return open.length;
+    return settled;
   });
 }
 async function voidMarketBets(marketTicker) {
@@ -7927,6 +7942,25428 @@ var init_house = __esm(() => {
   init_drizzle_orm();
   init_db2();
   init_schema2();
+});
+
+// node_modules/mdast-util-to-string/lib/index.js
+function toString(value, options) {
+  const settings = options || emptyOptions;
+  const includeImageAlt = typeof settings.includeImageAlt === "boolean" ? settings.includeImageAlt : true;
+  const includeHtml = typeof settings.includeHtml === "boolean" ? settings.includeHtml : true;
+  return one(value, includeImageAlt, includeHtml);
+}
+function one(value, includeImageAlt, includeHtml) {
+  if (node(value)) {
+    if ("value" in value) {
+      return value.type === "html" && !includeHtml ? "" : value.value;
+    }
+    if (includeImageAlt && "alt" in value && value.alt) {
+      return value.alt;
+    }
+    if ("children" in value) {
+      return all(value.children, includeImageAlt, includeHtml);
+    }
+  }
+  if (Array.isArray(value)) {
+    return all(value, includeImageAlt, includeHtml);
+  }
+  return "";
+}
+function all(values2, includeImageAlt, includeHtml) {
+  const result = [];
+  let index = -1;
+  while (++index < values2.length) {
+    result[index] = one(values2[index], includeImageAlt, includeHtml);
+  }
+  return result.join("");
+}
+function node(value) {
+  return Boolean(value && typeof value === "object");
+}
+var emptyOptions;
+var init_lib = __esm(() => {
+  emptyOptions = {};
+});
+
+// node_modules/mdast-util-to-string/index.js
+var init_mdast_util_to_string = __esm(() => {
+  init_lib();
+});
+
+// node_modules/ccount/index.js
+function ccount(value, character) {
+  const source = String(value);
+  if (typeof character !== "string") {
+    throw new TypeError("Expected character");
+  }
+  let count2 = 0;
+  let index = source.indexOf(character);
+  while (index !== -1) {
+    count2++;
+    index = source.indexOf(character, index + character.length);
+  }
+  return count2;
+}
+
+// node_modules/dequal/dist/index.mjs
+var init_dist = () => {};
+
+// node_modules/devlop/lib/development.js
+function ok(value, message) {
+  assert(Boolean(value), false, true, "ok", "Expected value to be truthy", message);
+}
+function assert(bool, actual, expected, operator, defaultMessage, userMessage) {
+  if (!bool) {
+    throw userMessage instanceof Error ? userMessage : new AssertionError(userMessage || defaultMessage, actual, expected, operator, !userMessage);
+  }
+}
+var codesWarned, AssertionError;
+var init_development = __esm(() => {
+  init_dist();
+  codesWarned = new Set;
+  AssertionError = class AssertionError extends Error {
+    name = "Assertion";
+    code = "ERR_ASSERTION";
+    constructor(message, actual, expected, operator, generated) {
+      super(message);
+      if (Error.captureStackTrace) {
+        Error.captureStackTrace(this, this.constructor);
+      }
+      this.actual = actual;
+      this.expected = expected;
+      this.generated = generated;
+      this.operator = operator;
+    }
+  };
+});
+
+// node_modules/micromark-util-symbol/lib/codes.js
+var codes;
+var init_codes = __esm(() => {
+  codes = {
+    carriageReturn: -5,
+    lineFeed: -4,
+    carriageReturnLineFeed: -3,
+    horizontalTab: -2,
+    virtualSpace: -1,
+    eof: null,
+    nul: 0,
+    soh: 1,
+    stx: 2,
+    etx: 3,
+    eot: 4,
+    enq: 5,
+    ack: 6,
+    bel: 7,
+    bs: 8,
+    ht: 9,
+    lf: 10,
+    vt: 11,
+    ff: 12,
+    cr: 13,
+    so: 14,
+    si: 15,
+    dle: 16,
+    dc1: 17,
+    dc2: 18,
+    dc3: 19,
+    dc4: 20,
+    nak: 21,
+    syn: 22,
+    etb: 23,
+    can: 24,
+    em: 25,
+    sub: 26,
+    esc: 27,
+    fs: 28,
+    gs: 29,
+    rs: 30,
+    us: 31,
+    space: 32,
+    exclamationMark: 33,
+    quotationMark: 34,
+    numberSign: 35,
+    dollarSign: 36,
+    percentSign: 37,
+    ampersand: 38,
+    apostrophe: 39,
+    leftParenthesis: 40,
+    rightParenthesis: 41,
+    asterisk: 42,
+    plusSign: 43,
+    comma: 44,
+    dash: 45,
+    dot: 46,
+    slash: 47,
+    digit0: 48,
+    digit1: 49,
+    digit2: 50,
+    digit3: 51,
+    digit4: 52,
+    digit5: 53,
+    digit6: 54,
+    digit7: 55,
+    digit8: 56,
+    digit9: 57,
+    colon: 58,
+    semicolon: 59,
+    lessThan: 60,
+    equalsTo: 61,
+    greaterThan: 62,
+    questionMark: 63,
+    atSign: 64,
+    uppercaseA: 65,
+    uppercaseB: 66,
+    uppercaseC: 67,
+    uppercaseD: 68,
+    uppercaseE: 69,
+    uppercaseF: 70,
+    uppercaseG: 71,
+    uppercaseH: 72,
+    uppercaseI: 73,
+    uppercaseJ: 74,
+    uppercaseK: 75,
+    uppercaseL: 76,
+    uppercaseM: 77,
+    uppercaseN: 78,
+    uppercaseO: 79,
+    uppercaseP: 80,
+    uppercaseQ: 81,
+    uppercaseR: 82,
+    uppercaseS: 83,
+    uppercaseT: 84,
+    uppercaseU: 85,
+    uppercaseV: 86,
+    uppercaseW: 87,
+    uppercaseX: 88,
+    uppercaseY: 89,
+    uppercaseZ: 90,
+    leftSquareBracket: 91,
+    backslash: 92,
+    rightSquareBracket: 93,
+    caret: 94,
+    underscore: 95,
+    graveAccent: 96,
+    lowercaseA: 97,
+    lowercaseB: 98,
+    lowercaseC: 99,
+    lowercaseD: 100,
+    lowercaseE: 101,
+    lowercaseF: 102,
+    lowercaseG: 103,
+    lowercaseH: 104,
+    lowercaseI: 105,
+    lowercaseJ: 106,
+    lowercaseK: 107,
+    lowercaseL: 108,
+    lowercaseM: 109,
+    lowercaseN: 110,
+    lowercaseO: 111,
+    lowercaseP: 112,
+    lowercaseQ: 113,
+    lowercaseR: 114,
+    lowercaseS: 115,
+    lowercaseT: 116,
+    lowercaseU: 117,
+    lowercaseV: 118,
+    lowercaseW: 119,
+    lowercaseX: 120,
+    lowercaseY: 121,
+    lowercaseZ: 122,
+    leftCurlyBrace: 123,
+    verticalBar: 124,
+    rightCurlyBrace: 125,
+    tilde: 126,
+    del: 127,
+    byteOrderMarker: 65279,
+    replacementCharacter: 65533
+  };
+});
+
+// node_modules/micromark-util-symbol/lib/constants.js
+var constants;
+var init_constants = __esm(() => {
+  constants = {
+    attentionSideAfter: 2,
+    attentionSideBefore: 1,
+    atxHeadingOpeningFenceSizeMax: 6,
+    autolinkDomainSizeMax: 63,
+    autolinkSchemeSizeMax: 32,
+    cdataOpeningString: "CDATA[",
+    characterGroupPunctuation: 2,
+    characterGroupWhitespace: 1,
+    characterReferenceDecimalSizeMax: 7,
+    characterReferenceHexadecimalSizeMax: 6,
+    characterReferenceNamedSizeMax: 31,
+    codeFencedSequenceSizeMin: 3,
+    contentTypeContent: "content",
+    contentTypeDocument: "document",
+    contentTypeFlow: "flow",
+    contentTypeString: "string",
+    contentTypeText: "text",
+    hardBreakPrefixSizeMin: 2,
+    htmlBasic: 6,
+    htmlCdata: 5,
+    htmlComment: 2,
+    htmlComplete: 7,
+    htmlDeclaration: 4,
+    htmlInstruction: 3,
+    htmlRawSizeMax: 8,
+    htmlRaw: 1,
+    linkResourceDestinationBalanceMax: 32,
+    linkReferenceSizeMax: 999,
+    listItemValueSizeMax: 10,
+    numericBaseDecimal: 10,
+    numericBaseHexadecimal: 16,
+    tabSize: 4,
+    thematicBreakMarkerCountMin: 3,
+    v8MaxSafeChunkSize: 1e4
+  };
+});
+
+// node_modules/micromark-util-symbol/lib/types.js
+var types2;
+var init_types2 = __esm(() => {
+  types2 = {
+    data: "data",
+    whitespace: "whitespace",
+    lineEnding: "lineEnding",
+    lineEndingBlank: "lineEndingBlank",
+    linePrefix: "linePrefix",
+    lineSuffix: "lineSuffix",
+    atxHeading: "atxHeading",
+    atxHeadingSequence: "atxHeadingSequence",
+    atxHeadingText: "atxHeadingText",
+    autolink: "autolink",
+    autolinkEmail: "autolinkEmail",
+    autolinkMarker: "autolinkMarker",
+    autolinkProtocol: "autolinkProtocol",
+    characterEscape: "characterEscape",
+    characterEscapeValue: "characterEscapeValue",
+    characterReference: "characterReference",
+    characterReferenceMarker: "characterReferenceMarker",
+    characterReferenceMarkerNumeric: "characterReferenceMarkerNumeric",
+    characterReferenceMarkerHexadecimal: "characterReferenceMarkerHexadecimal",
+    characterReferenceValue: "characterReferenceValue",
+    codeFenced: "codeFenced",
+    codeFencedFence: "codeFencedFence",
+    codeFencedFenceSequence: "codeFencedFenceSequence",
+    codeFencedFenceInfo: "codeFencedFenceInfo",
+    codeFencedFenceMeta: "codeFencedFenceMeta",
+    codeFlowValue: "codeFlowValue",
+    codeIndented: "codeIndented",
+    codeText: "codeText",
+    codeTextData: "codeTextData",
+    codeTextPadding: "codeTextPadding",
+    codeTextSequence: "codeTextSequence",
+    content: "content",
+    definition: "definition",
+    definitionDestination: "definitionDestination",
+    definitionDestinationLiteral: "definitionDestinationLiteral",
+    definitionDestinationLiteralMarker: "definitionDestinationLiteralMarker",
+    definitionDestinationRaw: "definitionDestinationRaw",
+    definitionDestinationString: "definitionDestinationString",
+    definitionLabel: "definitionLabel",
+    definitionLabelMarker: "definitionLabelMarker",
+    definitionLabelString: "definitionLabelString",
+    definitionMarker: "definitionMarker",
+    definitionTitle: "definitionTitle",
+    definitionTitleMarker: "definitionTitleMarker",
+    definitionTitleString: "definitionTitleString",
+    emphasis: "emphasis",
+    emphasisSequence: "emphasisSequence",
+    emphasisText: "emphasisText",
+    escapeMarker: "escapeMarker",
+    hardBreakEscape: "hardBreakEscape",
+    hardBreakTrailing: "hardBreakTrailing",
+    htmlFlow: "htmlFlow",
+    htmlFlowData: "htmlFlowData",
+    htmlText: "htmlText",
+    htmlTextData: "htmlTextData",
+    image: "image",
+    label: "label",
+    labelText: "labelText",
+    labelLink: "labelLink",
+    labelImage: "labelImage",
+    labelMarker: "labelMarker",
+    labelImageMarker: "labelImageMarker",
+    labelEnd: "labelEnd",
+    link: "link",
+    paragraph: "paragraph",
+    reference: "reference",
+    referenceMarker: "referenceMarker",
+    referenceString: "referenceString",
+    resource: "resource",
+    resourceDestination: "resourceDestination",
+    resourceDestinationLiteral: "resourceDestinationLiteral",
+    resourceDestinationLiteralMarker: "resourceDestinationLiteralMarker",
+    resourceDestinationRaw: "resourceDestinationRaw",
+    resourceDestinationString: "resourceDestinationString",
+    resourceMarker: "resourceMarker",
+    resourceTitle: "resourceTitle",
+    resourceTitleMarker: "resourceTitleMarker",
+    resourceTitleString: "resourceTitleString",
+    setextHeading: "setextHeading",
+    setextHeadingText: "setextHeadingText",
+    setextHeadingLine: "setextHeadingLine",
+    setextHeadingLineSequence: "setextHeadingLineSequence",
+    strong: "strong",
+    strongSequence: "strongSequence",
+    strongText: "strongText",
+    thematicBreak: "thematicBreak",
+    thematicBreakSequence: "thematicBreakSequence",
+    blockQuote: "blockQuote",
+    blockQuotePrefix: "blockQuotePrefix",
+    blockQuoteMarker: "blockQuoteMarker",
+    blockQuotePrefixWhitespace: "blockQuotePrefixWhitespace",
+    listOrdered: "listOrdered",
+    listUnordered: "listUnordered",
+    listItemIndent: "listItemIndent",
+    listItemMarker: "listItemMarker",
+    listItemPrefix: "listItemPrefix",
+    listItemPrefixWhitespace: "listItemPrefixWhitespace",
+    listItemValue: "listItemValue",
+    chunkDocument: "chunkDocument",
+    chunkContent: "chunkContent",
+    chunkFlow: "chunkFlow",
+    chunkText: "chunkText",
+    chunkString: "chunkString"
+  };
+});
+
+// node_modules/micromark-util-symbol/lib/values.js
+var values2;
+var init_values = __esm(() => {
+  values2 = {
+    ht: "\t",
+    lf: `
+`,
+    cr: "\r",
+    space: " ",
+    exclamationMark: "!",
+    quotationMark: '"',
+    numberSign: "#",
+    dollarSign: "$",
+    percentSign: "%",
+    ampersand: "&",
+    apostrophe: "'",
+    leftParenthesis: "(",
+    rightParenthesis: ")",
+    asterisk: "*",
+    plusSign: "+",
+    comma: ",",
+    dash: "-",
+    dot: ".",
+    slash: "/",
+    digit0: "0",
+    digit1: "1",
+    digit2: "2",
+    digit3: "3",
+    digit4: "4",
+    digit5: "5",
+    digit6: "6",
+    digit7: "7",
+    digit8: "8",
+    digit9: "9",
+    colon: ":",
+    semicolon: ";",
+    lessThan: "<",
+    equalsTo: "=",
+    greaterThan: ">",
+    questionMark: "?",
+    atSign: "@",
+    uppercaseA: "A",
+    uppercaseB: "B",
+    uppercaseC: "C",
+    uppercaseD: "D",
+    uppercaseE: "E",
+    uppercaseF: "F",
+    uppercaseG: "G",
+    uppercaseH: "H",
+    uppercaseI: "I",
+    uppercaseJ: "J",
+    uppercaseK: "K",
+    uppercaseL: "L",
+    uppercaseM: "M",
+    uppercaseN: "N",
+    uppercaseO: "O",
+    uppercaseP: "P",
+    uppercaseQ: "Q",
+    uppercaseR: "R",
+    uppercaseS: "S",
+    uppercaseT: "T",
+    uppercaseU: "U",
+    uppercaseV: "V",
+    uppercaseW: "W",
+    uppercaseX: "X",
+    uppercaseY: "Y",
+    uppercaseZ: "Z",
+    leftSquareBracket: "[",
+    backslash: "\\",
+    rightSquareBracket: "]",
+    caret: "^",
+    underscore: "_",
+    graveAccent: "`",
+    lowercaseA: "a",
+    lowercaseB: "b",
+    lowercaseC: "c",
+    lowercaseD: "d",
+    lowercaseE: "e",
+    lowercaseF: "f",
+    lowercaseG: "g",
+    lowercaseH: "h",
+    lowercaseI: "i",
+    lowercaseJ: "j",
+    lowercaseK: "k",
+    lowercaseL: "l",
+    lowercaseM: "m",
+    lowercaseN: "n",
+    lowercaseO: "o",
+    lowercaseP: "p",
+    lowercaseQ: "q",
+    lowercaseR: "r",
+    lowercaseS: "s",
+    lowercaseT: "t",
+    lowercaseU: "u",
+    lowercaseV: "v",
+    lowercaseW: "w",
+    lowercaseX: "x",
+    lowercaseY: "y",
+    lowercaseZ: "z",
+    leftCurlyBrace: "{",
+    verticalBar: "|",
+    rightCurlyBrace: "}",
+    tilde: "~",
+    replacementCharacter: "�"
+  };
+});
+
+// node_modules/micromark-util-symbol/lib/default.js
+var init_default = __esm(() => {
+  init_codes();
+  init_constants();
+  init_types2();
+  init_values();
+});
+
+// node_modules/micromark-util-character/dev/index.js
+function asciiControl(code) {
+  return code !== null && (code < codes.space || code === codes.del);
+}
+function markdownLineEnding(code) {
+  return code !== null && code < codes.horizontalTab;
+}
+function markdownLineEndingOrSpace(code) {
+  return code !== null && (code < codes.nul || code === codes.space);
+}
+function markdownSpace(code) {
+  return code === codes.horizontalTab || code === codes.virtualSpace || code === codes.space;
+}
+function regexCheck(regex) {
+  return check;
+  function check(code) {
+    return code !== null && code > -1 && regex.test(String.fromCharCode(code));
+  }
+}
+var asciiAlpha, asciiAlphanumeric, asciiAtext, asciiDigit, asciiHexDigit, asciiPunctuation, unicodePunctuation, unicodeWhitespace;
+var init_dev = __esm(() => {
+  init_default();
+  asciiAlpha = regexCheck(/[A-Za-z]/);
+  asciiAlphanumeric = regexCheck(/[\dA-Za-z]/);
+  asciiAtext = regexCheck(/[#-'*+\--9=?A-Z^-~]/);
+  asciiDigit = regexCheck(/\d/);
+  asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
+  asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
+  unicodePunctuation = regexCheck(/\p{P}|\p{S}/u);
+  unicodeWhitespace = regexCheck(/\s/);
+});
+
+// node_modules/escape-string-regexp/index.js
+function escapeStringRegexp(string) {
+  if (typeof string !== "string") {
+    throw new TypeError("Expected a string");
+  }
+  return string.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&").replace(/-/g, "\\x2d");
+}
+
+// node_modules/unist-util-is/lib/index.js
+function anyFactory(tests) {
+  const checks2 = [];
+  let index = -1;
+  while (++index < tests.length) {
+    checks2[index] = convert(tests[index]);
+  }
+  return castFactory(any);
+  function any(...parameters) {
+    let index2 = -1;
+    while (++index2 < checks2.length) {
+      if (checks2[index2].apply(this, parameters))
+        return true;
+    }
+    return false;
+  }
+}
+function propertiesFactory(check) {
+  const checkAsRecord = check;
+  return castFactory(all2);
+  function all2(node2) {
+    const nodeAsRecord = node2;
+    let key;
+    for (key in check) {
+      if (nodeAsRecord[key] !== checkAsRecord[key])
+        return false;
+    }
+    return true;
+  }
+}
+function typeFactory(check) {
+  return castFactory(type);
+  function type(node2) {
+    return node2 && node2.type === check;
+  }
+}
+function castFactory(testFunction) {
+  return check;
+  function check(value, index, parent) {
+    return Boolean(looksLikeANode(value) && testFunction.call(this, value, typeof index === "number" ? index : undefined, parent || undefined));
+  }
+}
+function ok2() {
+  return true;
+}
+function looksLikeANode(value) {
+  return value !== null && typeof value === "object" && "type" in value;
+}
+var convert = function(test) {
+  if (test === null || test === undefined) {
+    return ok2;
+  }
+  if (typeof test === "function") {
+    return castFactory(test);
+  }
+  if (typeof test === "object") {
+    return Array.isArray(test) ? anyFactory(test) : propertiesFactory(test);
+  }
+  if (typeof test === "string") {
+    return typeFactory(test);
+  }
+  throw new Error("Expected function, string, or object as test");
+};
+
+// node_modules/unist-util-is/index.js
+var init_unist_util_is = () => {};
+
+// node_modules/unist-util-visit-parents/lib/color.node.js
+function color(d) {
+  return "\x1B[33m" + d + "\x1B[39m";
+}
+
+// node_modules/unist-util-visit-parents/lib/index.js
+function visitParents(tree, test, visitor, reverse) {
+  let check;
+  if (typeof test === "function" && typeof visitor !== "function") {
+    reverse = visitor;
+    visitor = test;
+  } else {
+    check = test;
+  }
+  const is3 = convert(check);
+  const step = reverse ? -1 : 1;
+  factory(tree, undefined, [])();
+  function factory(node2, index, parents) {
+    const value = node2 && typeof node2 === "object" ? node2 : {};
+    if (typeof value.type === "string") {
+      const name = typeof value.tagName === "string" ? value.tagName : typeof value.name === "string" ? value.name : undefined;
+      Object.defineProperty(visit, "name", {
+        value: "node (" + color(node2.type + (name ? "<" + name + ">" : "")) + ")"
+      });
+    }
+    return visit;
+    function visit() {
+      let result = empty;
+      let subresult;
+      let offset;
+      let grandparents;
+      if (!test || is3(node2, index, parents[parents.length - 1] || undefined)) {
+        result = toResult(visitor(node2, parents));
+        if (result[0] === EXIT) {
+          return result;
+        }
+      }
+      if ("children" in node2 && node2.children) {
+        const nodeAsParent = node2;
+        if (nodeAsParent.children && result[0] !== SKIP) {
+          offset = (reverse ? nodeAsParent.children.length : -1) + step;
+          grandparents = parents.concat(nodeAsParent);
+          while (offset > -1 && offset < nodeAsParent.children.length) {
+            const child = nodeAsParent.children[offset];
+            subresult = factory(child, offset, grandparents)();
+            if (subresult[0] === EXIT) {
+              return subresult;
+            }
+            offset = typeof subresult[1] === "number" ? subresult[1] : offset + step;
+          }
+        }
+      }
+      return result;
+    }
+  }
+}
+function toResult(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "number") {
+    return [CONTINUE, value];
+  }
+  return value === null || value === undefined ? empty : [value];
+}
+var empty, CONTINUE = true, EXIT = false, SKIP = "skip";
+var init_lib2 = __esm(() => {
+  init_unist_util_is();
+  empty = [];
+});
+
+// node_modules/unist-util-visit-parents/index.js
+var init_unist_util_visit_parents = __esm(() => {
+  init_lib2();
+});
+
+// node_modules/mdast-util-find-and-replace/lib/index.js
+function findAndReplace(tree, list, options) {
+  const settings = options || {};
+  const ignored = convert(settings.ignore || []);
+  const pairs = toPairs(list);
+  let pairIndex = -1;
+  while (++pairIndex < pairs.length) {
+    visitParents(tree, "text", visitor);
+  }
+  function visitor(node2, parents) {
+    let index = -1;
+    let grandparent;
+    while (++index < parents.length) {
+      const parent = parents[index];
+      const siblings = grandparent ? grandparent.children : undefined;
+      if (ignored(parent, siblings ? siblings.indexOf(parent) : undefined, grandparent)) {
+        return;
+      }
+      grandparent = parent;
+    }
+    if (grandparent) {
+      return handler(node2, parents);
+    }
+  }
+  function handler(node2, parents) {
+    const parent = parents[parents.length - 1];
+    const find = pairs[pairIndex][0];
+    const replace = pairs[pairIndex][1];
+    let start = 0;
+    const siblings = parent.children;
+    const index = siblings.indexOf(node2);
+    let change = false;
+    let nodes = [];
+    find.lastIndex = 0;
+    let match = find.exec(node2.value);
+    while (match) {
+      const position = match.index;
+      const matchObject = {
+        index: match.index,
+        input: match.input,
+        stack: [...parents, node2]
+      };
+      let value = replace(...match, matchObject);
+      if (typeof value === "string") {
+        value = value.length > 0 ? { type: "text", value } : undefined;
+      }
+      if (value === false) {
+        find.lastIndex = position + 1;
+      } else {
+        if (start !== position) {
+          nodes.push({
+            type: "text",
+            value: node2.value.slice(start, position)
+          });
+        }
+        if (Array.isArray(value)) {
+          nodes.push(...value);
+        } else if (value) {
+          nodes.push(value);
+        }
+        start = position + match[0].length;
+        change = true;
+      }
+      if (!find.global) {
+        break;
+      }
+      match = find.exec(node2.value);
+    }
+    if (change) {
+      if (start < node2.value.length) {
+        nodes.push({ type: "text", value: node2.value.slice(start) });
+      }
+      parent.children.splice(index, 1, ...nodes);
+    } else {
+      nodes = [node2];
+    }
+    return index + nodes.length;
+  }
+}
+function toPairs(tupleOrList) {
+  const result = [];
+  if (!Array.isArray(tupleOrList)) {
+    throw new TypeError("Expected find and replace tuple or list of tuples");
+  }
+  const list = !tupleOrList[0] || Array.isArray(tupleOrList[0]) ? tupleOrList : [tupleOrList];
+  let index = -1;
+  while (++index < list.length) {
+    const tuple = list[index];
+    result.push([toExpression(tuple[0]), toFunction(tuple[1])]);
+  }
+  return result;
+}
+function toExpression(find) {
+  return typeof find === "string" ? new RegExp(escapeStringRegexp(find), "g") : find;
+}
+function toFunction(replace) {
+  return typeof replace === "function" ? replace : function() {
+    return replace;
+  };
+}
+var init_lib3 = __esm(() => {
+  init_unist_util_visit_parents();
+  init_unist_util_is();
+});
+
+// node_modules/mdast-util-find-and-replace/index.js
+var init_mdast_util_find_and_replace = __esm(() => {
+  init_lib3();
+});
+
+// node_modules/mdast-util-gfm-autolink-literal/lib/index.js
+function gfmAutolinkLiteralFromMarkdown() {
+  return {
+    transforms: [transformGfmAutolinkLiterals],
+    enter: {
+      literalAutolink: enterLiteralAutolink,
+      literalAutolinkEmail: enterLiteralAutolinkValue,
+      literalAutolinkHttp: enterLiteralAutolinkValue,
+      literalAutolinkWww: enterLiteralAutolinkValue
+    },
+    exit: {
+      literalAutolink: exitLiteralAutolink,
+      literalAutolinkEmail: exitLiteralAutolinkEmail,
+      literalAutolinkHttp: exitLiteralAutolinkHttp,
+      literalAutolinkWww: exitLiteralAutolinkWww
+    }
+  };
+}
+function gfmAutolinkLiteralToMarkdown() {
+  return {
+    unsafe: [
+      {
+        character: "@",
+        before: "[+\\-.\\w]",
+        after: "[\\-.\\w]",
+        inConstruct,
+        notInConstruct
+      },
+      {
+        character: ".",
+        before: "[Ww]",
+        after: "[\\-.\\w]",
+        inConstruct,
+        notInConstruct
+      },
+      {
+        character: ":",
+        before: "[ps]",
+        after: "\\/",
+        inConstruct,
+        notInConstruct
+      }
+    ]
+  };
+}
+function enterLiteralAutolink(token) {
+  this.enter({ type: "link", title: null, url: "", children: [] }, token);
+}
+function enterLiteralAutolinkValue(token) {
+  this.config.enter.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkHttp(token) {
+  this.config.exit.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkWww(token) {
+  this.config.exit.data.call(this, token);
+  const node2 = this.stack[this.stack.length - 1];
+  ok(node2.type === "link");
+  node2.url = "http://" + this.sliceSerialize(token);
+}
+function exitLiteralAutolinkEmail(token) {
+  this.config.exit.autolinkEmail.call(this, token);
+}
+function exitLiteralAutolink(token) {
+  this.exit(token);
+}
+function transformGfmAutolinkLiterals(tree) {
+  findAndReplace(tree, [
+    [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+    [/(?<=^|\s|\p{P}|\p{S})([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/gu, findEmail]
+  ], { ignore: ["link", "linkReference"] });
+}
+function findUrl(_, protocol, domain, path, match) {
+  let prefix = "";
+  if (!previous(match)) {
+    return false;
+  }
+  if (/^w/i.test(protocol)) {
+    domain = protocol + domain;
+    protocol = "";
+    prefix = "http://";
+  }
+  if (!isCorrectDomain(domain)) {
+    return false;
+  }
+  const parts = splitUrl(domain + path);
+  if (!parts[0])
+    return false;
+  const result = {
+    type: "link",
+    title: null,
+    url: prefix + protocol + parts[0],
+    children: [{ type: "text", value: protocol + parts[0] }]
+  };
+  if (parts[1]) {
+    return [result, { type: "text", value: parts[1] }];
+  }
+  return result;
+}
+function findEmail(_, atext, label, match) {
+  if (!previous(match, true) || /[-\d_]$/.test(label)) {
+    return false;
+  }
+  return {
+    type: "link",
+    title: null,
+    url: "mailto:" + atext + "@" + label,
+    children: [{ type: "text", value: atext + "@" + label }]
+  };
+}
+function isCorrectDomain(domain) {
+  const parts = domain.split(".");
+  if (parts.length < 2 || parts[parts.length - 1] && (/_/.test(parts[parts.length - 1]) || !/[a-zA-Z\d]/.test(parts[parts.length - 1])) || parts[parts.length - 2] && (/_/.test(parts[parts.length - 2]) || !/[a-zA-Z\d]/.test(parts[parts.length - 2]))) {
+    return false;
+  }
+  return true;
+}
+function splitUrl(url2) {
+  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url2);
+  if (!trailExec) {
+    return [url2, undefined];
+  }
+  url2 = url2.slice(0, trailExec.index);
+  let trail = trailExec[0];
+  let closingParenIndex = trail.indexOf(")");
+  const openingParens = ccount(url2, "(");
+  let closingParens = ccount(url2, ")");
+  while (closingParenIndex !== -1 && openingParens > closingParens) {
+    url2 += trail.slice(0, closingParenIndex + 1);
+    trail = trail.slice(closingParenIndex + 1);
+    closingParenIndex = trail.indexOf(")");
+    closingParens++;
+  }
+  return [url2, trail];
+}
+function previous(match, email) {
+  const code = match.input.charCodeAt(match.index - 1);
+  return (match.index === 0 || unicodeWhitespace(code) || unicodePunctuation(code)) && (!email || code !== 47);
+}
+var inConstruct = "phrasing", notInConstruct;
+var init_lib4 = __esm(() => {
+  init_development();
+  init_dev();
+  init_mdast_util_find_and_replace();
+  notInConstruct = ["autolink", "link", "image", "label"];
+});
+
+// node_modules/mdast-util-gfm-autolink-literal/index.js
+var init_mdast_util_gfm_autolink_literal = __esm(() => {
+  init_lib4();
+});
+
+// node_modules/micromark-util-normalize-identifier/dev/index.js
+function normalizeIdentifier(value) {
+  return value.replace(/[\t\n\r ]+/g, values2.space).replace(/^ | $/g, "").toLowerCase().toUpperCase();
+}
+var init_dev2 = __esm(() => {
+  init_default();
+});
+
+// node_modules/mdast-util-gfm-footnote/lib/index.js
+function enterFootnoteCallString() {
+  this.buffer();
+}
+function enterFootnoteCall(token) {
+  this.enter({ type: "footnoteReference", identifier: "", label: "" }, token);
+}
+function enterFootnoteDefinitionLabelString() {
+  this.buffer();
+}
+function enterFootnoteDefinition(token) {
+  this.enter({ type: "footnoteDefinition", identifier: "", label: "", children: [] }, token);
+}
+function exitFootnoteCallString(token) {
+  const label = this.resume();
+  const node2 = this.stack[this.stack.length - 1];
+  ok(node2.type === "footnoteReference");
+  node2.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+  node2.label = label;
+}
+function exitFootnoteCall(token) {
+  this.exit(token);
+}
+function exitFootnoteDefinitionLabelString(token) {
+  const label = this.resume();
+  const node2 = this.stack[this.stack.length - 1];
+  ok(node2.type === "footnoteDefinition");
+  node2.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+  node2.label = label;
+}
+function exitFootnoteDefinition(token) {
+  this.exit(token);
+}
+function footnoteReferencePeek() {
+  return "[";
+}
+function footnoteReference(node2, _, state, info) {
+  const tracker = state.createTracker(info);
+  let value = tracker.move("[^");
+  const exit = state.enter("footnoteReference");
+  const subexit = state.enter("reference");
+  value += tracker.move(state.safe(state.associationId(node2), { after: "]", before: value }));
+  subexit();
+  exit();
+  value += tracker.move("]");
+  return value;
+}
+function gfmFootnoteFromMarkdown() {
+  return {
+    enter: {
+      gfmFootnoteCallString: enterFootnoteCallString,
+      gfmFootnoteCall: enterFootnoteCall,
+      gfmFootnoteDefinitionLabelString: enterFootnoteDefinitionLabelString,
+      gfmFootnoteDefinition: enterFootnoteDefinition
+    },
+    exit: {
+      gfmFootnoteCallString: exitFootnoteCallString,
+      gfmFootnoteCall: exitFootnoteCall,
+      gfmFootnoteDefinitionLabelString: exitFootnoteDefinitionLabelString,
+      gfmFootnoteDefinition: exitFootnoteDefinition
+    }
+  };
+}
+function gfmFootnoteToMarkdown(options) {
+  let firstLineBlank = false;
+  if (options && options.firstLineBlank) {
+    firstLineBlank = true;
+  }
+  return {
+    handlers: { footnoteDefinition, footnoteReference },
+    unsafe: [{ character: "[", inConstruct: ["label", "phrasing", "reference"] }]
+  };
+  function footnoteDefinition(node2, _, state, info) {
+    const tracker = state.createTracker(info);
+    let value = tracker.move("[^");
+    const exit = state.enter("footnoteDefinition");
+    const subexit = state.enter("label");
+    value += tracker.move(state.safe(state.associationId(node2), { before: value, after: "]" }));
+    subexit();
+    value += tracker.move("]:");
+    if (node2.children && node2.children.length > 0) {
+      tracker.shift(4);
+      value += tracker.move((firstLineBlank ? `
+` : " ") + state.indentLines(state.containerFlow(node2, tracker.current()), firstLineBlank ? mapAll : mapExceptFirst));
+    }
+    exit();
+    return value;
+  }
+}
+function mapExceptFirst(line3, index, blank) {
+  return index === 0 ? line3 : mapAll(line3, index, blank);
+}
+function mapAll(line3, index, blank) {
+  return (blank ? "" : "    ") + line3;
+}
+var init_lib5 = __esm(() => {
+  init_development();
+  init_dev2();
+  footnoteReference.peek = footnoteReferencePeek;
+});
+
+// node_modules/mdast-util-gfm-footnote/index.js
+var init_mdast_util_gfm_footnote = __esm(() => {
+  init_lib5();
+});
+
+// node_modules/mdast-util-gfm-strikethrough/lib/index.js
+function gfmStrikethroughFromMarkdown() {
+  return {
+    canContainEols: ["delete"],
+    enter: { strikethrough: enterStrikethrough },
+    exit: { strikethrough: exitStrikethrough }
+  };
+}
+function gfmStrikethroughToMarkdown() {
+  return {
+    unsafe: [
+      {
+        character: "~",
+        inConstruct: "phrasing",
+        notInConstruct: constructsWithoutStrikethrough
+      }
+    ],
+    handlers: { delete: handleDelete }
+  };
+}
+function enterStrikethrough(token) {
+  this.enter({ type: "delete", children: [] }, token);
+}
+function exitStrikethrough(token) {
+  this.exit(token);
+}
+function handleDelete(node2, _, state, info) {
+  const tracker = state.createTracker(info);
+  const exit = state.enter("strikethrough");
+  let value = tracker.move("~~");
+  value += state.containerPhrasing(node2, {
+    ...tracker.current(),
+    before: value,
+    after: "~"
+  });
+  value += tracker.move("~~");
+  exit();
+  return value;
+}
+function peekDelete() {
+  return "~";
+}
+var constructsWithoutStrikethrough;
+var init_lib6 = __esm(() => {
+  constructsWithoutStrikethrough = [
+    "autolink",
+    "destinationLiteral",
+    "destinationRaw",
+    "reference",
+    "titleQuote",
+    "titleApostrophe"
+  ];
+  handleDelete.peek = peekDelete;
+});
+
+// node_modules/mdast-util-gfm-strikethrough/index.js
+var init_mdast_util_gfm_strikethrough = __esm(() => {
+  init_lib6();
+});
+
+// node_modules/markdown-table/index.js
+function defaultStringLength(value) {
+  return value.length;
+}
+function markdownTable(table3, options) {
+  const settings = options || {};
+  const align = (settings.align || []).concat();
+  const stringLength = settings.stringLength || defaultStringLength;
+  const alignments = [];
+  const cellMatrix = [];
+  const sizeMatrix = [];
+  const longestCellByColumn = [];
+  let mostCellsPerRow = 0;
+  let rowIndex = -1;
+  while (++rowIndex < table3.length) {
+    const row2 = [];
+    const sizes2 = [];
+    let columnIndex2 = -1;
+    if (table3[rowIndex].length > mostCellsPerRow) {
+      mostCellsPerRow = table3[rowIndex].length;
+    }
+    while (++columnIndex2 < table3[rowIndex].length) {
+      const cell = serialize(table3[rowIndex][columnIndex2]);
+      if (settings.alignDelimiters !== false) {
+        const size2 = stringLength(cell);
+        sizes2[columnIndex2] = size2;
+        if (longestCellByColumn[columnIndex2] === undefined || size2 > longestCellByColumn[columnIndex2]) {
+          longestCellByColumn[columnIndex2] = size2;
+        }
+      }
+      row2.push(cell);
+    }
+    cellMatrix[rowIndex] = row2;
+    sizeMatrix[rowIndex] = sizes2;
+  }
+  let columnIndex = -1;
+  if (typeof align === "object" && "length" in align) {
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = toAlignment(align[columnIndex]);
+    }
+  } else {
+    const code = toAlignment(align);
+    while (++columnIndex < mostCellsPerRow) {
+      alignments[columnIndex] = code;
+    }
+  }
+  columnIndex = -1;
+  const row = [];
+  const sizes = [];
+  while (++columnIndex < mostCellsPerRow) {
+    const code = alignments[columnIndex];
+    let before = "";
+    let after = "";
+    if (code === 99) {
+      before = ":";
+      after = ":";
+    } else if (code === 108) {
+      before = ":";
+    } else if (code === 114) {
+      after = ":";
+    }
+    let size2 = settings.alignDelimiters === false ? 1 : Math.max(1, longestCellByColumn[columnIndex] - before.length - after.length);
+    const cell = before + "-".repeat(size2) + after;
+    if (settings.alignDelimiters !== false) {
+      size2 = before.length + size2 + after.length;
+      if (size2 > longestCellByColumn[columnIndex]) {
+        longestCellByColumn[columnIndex] = size2;
+      }
+      sizes[columnIndex] = size2;
+    }
+    row[columnIndex] = cell;
+  }
+  cellMatrix.splice(1, 0, row);
+  sizeMatrix.splice(1, 0, sizes);
+  rowIndex = -1;
+  const lines = [];
+  while (++rowIndex < cellMatrix.length) {
+    const row2 = cellMatrix[rowIndex];
+    const sizes2 = sizeMatrix[rowIndex];
+    columnIndex = -1;
+    const line3 = [];
+    while (++columnIndex < mostCellsPerRow) {
+      const cell = row2[columnIndex] || "";
+      let before = "";
+      let after = "";
+      if (settings.alignDelimiters !== false) {
+        const size2 = longestCellByColumn[columnIndex] - (sizes2[columnIndex] || 0);
+        const code = alignments[columnIndex];
+        if (code === 114) {
+          before = " ".repeat(size2);
+        } else if (code === 99) {
+          if (size2 % 2) {
+            before = " ".repeat(size2 / 2 + 0.5);
+            after = " ".repeat(size2 / 2 - 0.5);
+          } else {
+            before = " ".repeat(size2 / 2);
+            after = before;
+          }
+        } else {
+          after = " ".repeat(size2);
+        }
+      }
+      if (settings.delimiterStart !== false && !columnIndex) {
+        line3.push("|");
+      }
+      if (settings.padding !== false && !(settings.alignDelimiters === false && cell === "") && (settings.delimiterStart !== false || columnIndex)) {
+        line3.push(" ");
+      }
+      if (settings.alignDelimiters !== false) {
+        line3.push(before);
+      }
+      line3.push(cell);
+      if (settings.alignDelimiters !== false) {
+        line3.push(after);
+      }
+      if (settings.padding !== false) {
+        line3.push(" ");
+      }
+      if (settings.delimiterEnd !== false || columnIndex !== mostCellsPerRow - 1) {
+        line3.push("|");
+      }
+    }
+    lines.push(settings.delimiterEnd === false ? line3.join("").replace(/ +$/, "") : line3.join(""));
+  }
+  return lines.join(`
+`);
+}
+function serialize(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+function toAlignment(value) {
+  const code = typeof value === "string" ? value.codePointAt(0) : 0;
+  return code === 67 || code === 99 ? 99 : code === 76 || code === 108 ? 108 : code === 82 || code === 114 ? 114 : 0;
+}
+
+// node_modules/zwitch/index.js
+function zwitch(key, options) {
+  const settings = options || {};
+  function one2(value, ...parameters) {
+    let fn = one2.invalid;
+    const handlers = one2.handlers;
+    if (value && own.call(value, key)) {
+      const id = String(value[key]);
+      fn = own.call(handlers, id) ? handlers[id] : one2.unknown;
+    }
+    if (fn) {
+      return fn.call(this, value, ...parameters);
+    }
+  }
+  one2.handlers = settings.handlers || {};
+  one2.invalid = settings.invalid;
+  one2.unknown = settings.unknown;
+  return one2;
+}
+var own;
+var init_zwitch = __esm(() => {
+  own = {}.hasOwnProperty;
+});
+
+// node_modules/mdast-util-to-markdown/lib/configure.js
+function configure(base, extension) {
+  let index = -1;
+  let key;
+  if (extension.extensions) {
+    while (++index < extension.extensions.length) {
+      configure(base, extension.extensions[index]);
+    }
+  }
+  for (key in extension) {
+    if (own2.call(extension, key)) {
+      switch (key) {
+        case "extensions": {
+          break;
+        }
+        case "unsafe": {
+          list(base[key], extension[key]);
+          break;
+        }
+        case "join": {
+          list(base[key], extension[key]);
+          break;
+        }
+        case "handlers": {
+          map(base[key], extension[key]);
+          break;
+        }
+        default: {
+          base.options[key] = extension[key];
+        }
+      }
+    }
+  }
+  return base;
+}
+function list(left, right) {
+  if (right) {
+    left.push(...right);
+  }
+}
+function map(left, right) {
+  if (right) {
+    Object.assign(left, right);
+  }
+}
+var own2;
+var init_configure = __esm(() => {
+  own2 = {}.hasOwnProperty;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/blockquote.js
+function blockquote(node2, _, state, info) {
+  const exit = state.enter("blockquote");
+  const tracker = state.createTracker(info);
+  tracker.move("> ");
+  tracker.shift(2);
+  const value = state.indentLines(state.containerFlow(node2, tracker.current()), map2);
+  exit();
+  return value;
+}
+function map2(line3, _, blank) {
+  return ">" + (blank ? "" : " ") + line3;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/pattern-in-scope.js
+function patternInScope(stack, pattern) {
+  return listInScope(stack, pattern.inConstruct, true) && !listInScope(stack, pattern.notInConstruct, false);
+}
+function listInScope(stack, list2, none) {
+  if (typeof list2 === "string") {
+    list2 = [list2];
+  }
+  if (!list2 || list2.length === 0) {
+    return none;
+  }
+  let index = -1;
+  while (++index < list2.length) {
+    if (stack.includes(list2[index])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/break.js
+function hardBreak(_, _1, state, info) {
+  let index = -1;
+  while (++index < state.unsafe.length) {
+    if (state.unsafe[index].character === `
+` && patternInScope(state.stack, state.unsafe[index])) {
+      return /[ \t]/.test(info.before) ? "" : " ";
+    }
+  }
+  return "\\\n";
+}
+var init_break = () => {};
+
+// node_modules/longest-streak/index.js
+function longestStreak(value, substring) {
+  const source = String(value);
+  let index = source.indexOf(substring);
+  let expected = index;
+  let count2 = 0;
+  let max = 0;
+  if (typeof substring !== "string") {
+    throw new TypeError("Expected substring");
+  }
+  while (index !== -1) {
+    if (index === expected) {
+      if (++count2 > max) {
+        max = count2;
+      }
+    } else {
+      count2 = 1;
+    }
+    expected = index + substring.length;
+    index = source.indexOf(substring, expected);
+  }
+  return max;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/format-code-as-indented.js
+function formatCodeAsIndented(node2, state) {
+  return Boolean(state.options.fences === false && node2.value && !node2.lang && /[^ \r\n]/.test(node2.value) && !/^[\t ]*(?:[\r\n]|$)|(?:^|[\r\n])[\t ]*$/.test(node2.value));
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/check-fence.js
+function checkFence(state) {
+  const marker = state.options.fence || "`";
+  if (marker !== "`" && marker !== "~") {
+    throw new Error("Cannot serialize code with `" + marker + "` for `options.fence`, expected `` ` `` or `~`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/code.js
+function code(node2, _, state, info) {
+  const marker = checkFence(state);
+  const raw = node2.value || "";
+  const suffix = marker === "`" ? "GraveAccent" : "Tilde";
+  if (formatCodeAsIndented(node2, state)) {
+    const exit2 = state.enter("codeIndented");
+    const value2 = state.indentLines(raw, map3);
+    exit2();
+    return value2;
+  }
+  const tracker = state.createTracker(info);
+  const sequence2 = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
+  const exit = state.enter("codeFenced");
+  let value = tracker.move(sequence2);
+  if (node2.lang) {
+    const subexit = state.enter(`codeFencedLang${suffix}`);
+    value += tracker.move(state.safe(node2.lang, {
+      before: value,
+      after: " ",
+      encode: ["`"],
+      ...tracker.current()
+    }));
+    subexit();
+  }
+  if (node2.lang && node2.meta) {
+    const subexit = state.enter(`codeFencedMeta${suffix}`);
+    value += tracker.move(" ");
+    value += tracker.move(state.safe(node2.meta, {
+      before: value,
+      after: `
+`,
+      encode: ["`"],
+      ...tracker.current()
+    }));
+    subexit();
+  }
+  value += tracker.move(`
+`);
+  if (raw) {
+    value += tracker.move(raw + `
+`);
+  }
+  value += tracker.move(sequence2);
+  exit();
+  return value;
+}
+function map3(line3, _, blank) {
+  return (blank ? "" : "    ") + line3;
+}
+var init_code = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/util/check-quote.js
+function checkQuote(state) {
+  const marker = state.options.quote || '"';
+  if (marker !== '"' && marker !== "'") {
+    throw new Error("Cannot serialize title with `" + marker + "` for `options.quote`, expected `\"`, or `'`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/definition.js
+function definition(node2, _, state, info) {
+  const quote = checkQuote(state);
+  const suffix = quote === '"' ? "Quote" : "Apostrophe";
+  const exit = state.enter("definition");
+  let subexit = state.enter("label");
+  const tracker = state.createTracker(info);
+  let value = tracker.move("[");
+  value += tracker.move(state.safe(state.associationId(node2), {
+    before: value,
+    after: "]",
+    ...tracker.current()
+  }));
+  value += tracker.move("]: ");
+  subexit();
+  if (!node2.url || /[\0- \u007F]/.test(node2.url)) {
+    subexit = state.enter("destinationLiteral");
+    value += tracker.move("<");
+    value += tracker.move(state.safe(node2.url, { before: value, after: ">", ...tracker.current() }));
+    value += tracker.move(">");
+  } else {
+    subexit = state.enter("destinationRaw");
+    value += tracker.move(state.safe(node2.url, {
+      before: value,
+      after: node2.title ? " " : `
+`,
+      ...tracker.current()
+    }));
+  }
+  subexit();
+  if (node2.title) {
+    subexit = state.enter(`title${suffix}`);
+    value += tracker.move(" " + quote);
+    value += tracker.move(state.safe(node2.title, {
+      before: value,
+      after: quote,
+      ...tracker.current()
+    }));
+    value += tracker.move(quote);
+    subexit();
+  }
+  exit();
+  return value;
+}
+var init_definition = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/util/check-emphasis.js
+function checkEmphasis(state) {
+  const marker = state.options.emphasis || "*";
+  if (marker !== "*" && marker !== "_") {
+    throw new Error("Cannot serialize emphasis with `" + marker + "` for `options.emphasis`, expected `*`, or `_`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/encode-character-reference.js
+function encodeCharacterReference(code2) {
+  return "&#x" + code2.toString(16).toUpperCase() + ";";
+}
+
+// node_modules/micromark-util-classify-character/dev/index.js
+function classifyCharacter(code2) {
+  if (code2 === codes.eof || markdownLineEndingOrSpace(code2) || unicodeWhitespace(code2)) {
+    return constants.characterGroupWhitespace;
+  }
+  if (unicodePunctuation(code2)) {
+    return constants.characterGroupPunctuation;
+  }
+}
+var init_dev3 = __esm(() => {
+  init_dev();
+  init_default();
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/encode-info.js
+function encodeInfo(outside, inside, marker) {
+  const outsideKind = classifyCharacter(outside);
+  const insideKind = classifyCharacter(inside);
+  if (outsideKind === undefined) {
+    return insideKind === undefined ? marker === "_" ? { inside: true, outside: true } : { inside: false, outside: false } : insideKind === 1 ? { inside: true, outside: true } : { inside: false, outside: true };
+  }
+  if (outsideKind === 1) {
+    return insideKind === undefined ? { inside: false, outside: false } : insideKind === 1 ? { inside: true, outside: true } : { inside: false, outside: false };
+  }
+  return insideKind === undefined ? { inside: false, outside: false } : insideKind === 1 ? { inside: true, outside: false } : { inside: false, outside: false };
+}
+var init_encode_info = __esm(() => {
+  init_dev3();
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/emphasis.js
+function emphasis(node2, _, state, info) {
+  const marker = checkEmphasis(state);
+  const exit = state.enter("emphasis");
+  const tracker = state.createTracker(info);
+  const before = tracker.move(marker);
+  let between2 = tracker.move(state.containerPhrasing(node2, {
+    after: marker,
+    before,
+    ...tracker.current()
+  }));
+  const betweenHead = between2.charCodeAt(0);
+  const open = encodeInfo(info.before.charCodeAt(info.before.length - 1), betweenHead, marker);
+  if (open.inside) {
+    between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
+  }
+  const betweenTail = between2.charCodeAt(between2.length - 1);
+  const close = encodeInfo(info.after.charCodeAt(0), betweenTail, marker);
+  if (close.inside) {
+    between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
+  }
+  const after = tracker.move(marker);
+  exit();
+  state.attentionEncodeSurroundingInfo = {
+    after: close.outside,
+    before: open.outside
+  };
+  return before + between2 + after;
+}
+function emphasisPeek(_, _1, state) {
+  return state.options.emphasis || "*";
+}
+var init_emphasis = __esm(() => {
+  init_encode_info();
+  emphasis.peek = emphasisPeek;
+});
+
+// node_modules/unist-util-visit/lib/index.js
+function visit(tree, testOrVisitor, visitorOrReverse, maybeReverse) {
+  let reverse;
+  let test;
+  let visitor;
+  if (typeof testOrVisitor === "function" && typeof visitorOrReverse !== "function") {
+    test = undefined;
+    visitor = testOrVisitor;
+    reverse = visitorOrReverse;
+  } else {
+    test = testOrVisitor;
+    visitor = visitorOrReverse;
+    reverse = maybeReverse;
+  }
+  visitParents(tree, test, overload, reverse);
+  function overload(node2, parents) {
+    const parent = parents[parents.length - 1];
+    const index = parent ? parent.children.indexOf(node2) : undefined;
+    return visitor(node2, index, parent);
+  }
+}
+var init_lib7 = __esm(() => {
+  init_unist_util_visit_parents();
+  init_unist_util_visit_parents();
+});
+
+// node_modules/unist-util-visit/index.js
+var init_unist_util_visit = __esm(() => {
+  init_lib7();
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/format-heading-as-setext.js
+function formatHeadingAsSetext(node2, state) {
+  let literalWithBreak = false;
+  visit(node2, function(node3) {
+    if ("value" in node3 && /\r?\n|\r/.test(node3.value) || node3.type === "break") {
+      literalWithBreak = true;
+      return EXIT;
+    }
+  });
+  return Boolean((!node2.depth || node2.depth < 3) && toString(node2) && (state.options.setext || literalWithBreak));
+}
+var init_format_heading_as_setext = __esm(() => {
+  init_unist_util_visit();
+  init_mdast_util_to_string();
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/heading.js
+function heading(node2, _, state, info) {
+  const rank = Math.max(Math.min(6, node2.depth || 1), 1);
+  const tracker = state.createTracker(info);
+  if (formatHeadingAsSetext(node2, state)) {
+    const exit2 = state.enter("headingSetext");
+    const subexit2 = state.enter("phrasing");
+    const value2 = state.containerPhrasing(node2, {
+      ...tracker.current(),
+      before: `
+`,
+      after: `
+`
+    });
+    subexit2();
+    exit2();
+    return value2 + `
+` + (rank === 1 ? "=" : "-").repeat(value2.length - (Math.max(value2.lastIndexOf("\r"), value2.lastIndexOf(`
+`)) + 1));
+  }
+  const sequence2 = "#".repeat(rank);
+  const exit = state.enter("headingAtx");
+  const subexit = state.enter("phrasing");
+  tracker.move(sequence2 + " ");
+  let value = state.containerPhrasing(node2, {
+    before: "# ",
+    after: `
+`,
+    ...tracker.current()
+  });
+  if (/^[\t ]/.test(value)) {
+    value = encodeCharacterReference(value.charCodeAt(0)) + value.slice(1);
+  }
+  value = value ? sequence2 + " " + value : sequence2;
+  if (state.options.closeAtx) {
+    value += " " + sequence2;
+  }
+  subexit();
+  exit();
+  return value;
+}
+var init_heading = __esm(() => {
+  init_format_heading_as_setext();
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/html.js
+function html(node2) {
+  return node2.value || "";
+}
+function htmlPeek() {
+  return "<";
+}
+var init_html = __esm(() => {
+  html.peek = htmlPeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/image.js
+function image(node2, _, state, info) {
+  const quote = checkQuote(state);
+  const suffix = quote === '"' ? "Quote" : "Apostrophe";
+  const exit = state.enter("image");
+  let subexit = state.enter("label");
+  const tracker = state.createTracker(info);
+  let value = tracker.move("![");
+  value += tracker.move(state.safe(node2.alt, { before: value, after: "]", ...tracker.current() }));
+  value += tracker.move("](");
+  subexit();
+  if (!node2.url && node2.title || /[\0- \u007F]/.test(node2.url)) {
+    subexit = state.enter("destinationLiteral");
+    value += tracker.move("<");
+    value += tracker.move(state.safe(node2.url, { before: value, after: ">", ...tracker.current() }));
+    value += tracker.move(">");
+  } else {
+    subexit = state.enter("destinationRaw");
+    value += tracker.move(state.safe(node2.url, {
+      before: value,
+      after: node2.title ? " " : ")",
+      ...tracker.current()
+    }));
+  }
+  subexit();
+  if (node2.title) {
+    subexit = state.enter(`title${suffix}`);
+    value += tracker.move(" " + quote);
+    value += tracker.move(state.safe(node2.title, {
+      before: value,
+      after: quote,
+      ...tracker.current()
+    }));
+    value += tracker.move(quote);
+    subexit();
+  }
+  value += tracker.move(")");
+  exit();
+  return value;
+}
+function imagePeek() {
+  return "!";
+}
+var init_image = __esm(() => {
+  image.peek = imagePeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/image-reference.js
+function imageReference(node2, _, state, info) {
+  const type = node2.referenceType;
+  const exit = state.enter("imageReference");
+  let subexit = state.enter("label");
+  const tracker = state.createTracker(info);
+  let value = tracker.move("![");
+  const alt = state.safe(node2.alt, {
+    before: value,
+    after: "]",
+    ...tracker.current()
+  });
+  value += tracker.move(alt + "][");
+  subexit();
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter("reference");
+  const reference = state.safe(state.associationId(node2), {
+    before: value,
+    after: "]",
+    ...tracker.current()
+  });
+  subexit();
+  state.stack = stack;
+  exit();
+  if (type === "full" || !alt || alt !== reference) {
+    value += tracker.move(reference + "]");
+  } else if (type === "shortcut") {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move("]");
+  }
+  return value;
+}
+function imageReferencePeek() {
+  return "!";
+}
+var init_image_reference = __esm(() => {
+  imageReference.peek = imageReferencePeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/inline-code.js
+function inlineCode(node2, _, state) {
+  let value = node2.value || "";
+  let sequence2 = "`";
+  let index = -1;
+  while (new RegExp("(^|[^`])" + sequence2 + "([^`]|$)").test(value)) {
+    sequence2 += "`";
+  }
+  if (/[^ \r\n]/.test(value) && (/^[ \r\n]/.test(value) && /[ \r\n]$/.test(value) || /^`|`$/.test(value))) {
+    value = " " + value + " ";
+  }
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
+    const expression = state.compilePattern(pattern);
+    let match;
+    if (!pattern.atBreak)
+      continue;
+    while (match = expression.exec(value)) {
+      let position = match.index;
+      if (value.charCodeAt(position) === 10 && value.charCodeAt(position - 1) === 13) {
+        position--;
+      }
+      value = value.slice(0, position) + " " + value.slice(match.index + 1);
+    }
+  }
+  return sequence2 + value + sequence2;
+}
+function inlineCodePeek() {
+  return "`";
+}
+var init_inline_code = __esm(() => {
+  inlineCode.peek = inlineCodePeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/format-link-as-autolink.js
+function formatLinkAsAutolink(node2, state) {
+  const raw = toString(node2);
+  return Boolean(!state.options.resourceLink && node2.url && !node2.title && node2.children && node2.children.length === 1 && node2.children[0].type === "text" && (raw === node2.url || "mailto:" + raw === node2.url) && /^[a-z][a-z+.-]+:/i.test(node2.url) && !/[\0- <>\u007F]/.test(node2.url));
+}
+var init_format_link_as_autolink = __esm(() => {
+  init_mdast_util_to_string();
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/link.js
+function link(node2, _, state, info) {
+  const quote = checkQuote(state);
+  const suffix = quote === '"' ? "Quote" : "Apostrophe";
+  const tracker = state.createTracker(info);
+  let exit;
+  let subexit;
+  if (formatLinkAsAutolink(node2, state)) {
+    const stack = state.stack;
+    state.stack = [];
+    exit = state.enter("autolink");
+    let value2 = tracker.move("<");
+    value2 += tracker.move(state.containerPhrasing(node2, {
+      before: value2,
+      after: ">",
+      ...tracker.current()
+    }));
+    value2 += tracker.move(">");
+    exit();
+    state.stack = stack;
+    return value2;
+  }
+  exit = state.enter("link");
+  subexit = state.enter("label");
+  let value = tracker.move("[");
+  value += tracker.move(state.containerPhrasing(node2, {
+    before: value,
+    after: "](",
+    ...tracker.current()
+  }));
+  value += tracker.move("](");
+  subexit();
+  if (!node2.url && node2.title || /[\0- \u007F]/.test(node2.url)) {
+    subexit = state.enter("destinationLiteral");
+    value += tracker.move("<");
+    value += tracker.move(state.safe(node2.url, { before: value, after: ">", ...tracker.current() }));
+    value += tracker.move(">");
+  } else {
+    subexit = state.enter("destinationRaw");
+    value += tracker.move(state.safe(node2.url, {
+      before: value,
+      after: node2.title ? " " : ")",
+      ...tracker.current()
+    }));
+  }
+  subexit();
+  if (node2.title) {
+    subexit = state.enter(`title${suffix}`);
+    value += tracker.move(" " + quote);
+    value += tracker.move(state.safe(node2.title, {
+      before: value,
+      after: quote,
+      ...tracker.current()
+    }));
+    value += tracker.move(quote);
+    subexit();
+  }
+  value += tracker.move(")");
+  exit();
+  return value;
+}
+function linkPeek(node2, _, state) {
+  return formatLinkAsAutolink(node2, state) ? "<" : "[";
+}
+var init_link = __esm(() => {
+  init_format_link_as_autolink();
+  link.peek = linkPeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/link-reference.js
+function linkReference(node2, _, state, info) {
+  const type = node2.referenceType;
+  const exit = state.enter("linkReference");
+  let subexit = state.enter("label");
+  const tracker = state.createTracker(info);
+  let value = tracker.move("[");
+  const text3 = state.containerPhrasing(node2, {
+    before: value,
+    after: "]",
+    ...tracker.current()
+  });
+  value += tracker.move(text3 + "][");
+  subexit();
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter("reference");
+  const reference = state.safe(state.associationId(node2), {
+    before: value,
+    after: "]",
+    ...tracker.current()
+  });
+  subexit();
+  state.stack = stack;
+  exit();
+  if (type === "full" || !text3 || text3 !== reference) {
+    value += tracker.move(reference + "]");
+  } else if (type === "shortcut") {
+    value = value.slice(0, -1);
+  } else {
+    value += tracker.move("]");
+  }
+  return value;
+}
+function linkReferencePeek() {
+  return "[";
+}
+var init_link_reference = __esm(() => {
+  linkReference.peek = linkReferencePeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/check-bullet.js
+function checkBullet(state) {
+  const marker = state.options.bullet || "*";
+  if (marker !== "*" && marker !== "+" && marker !== "-") {
+    throw new Error("Cannot serialize items with `" + marker + "` for `options.bullet`, expected `*`, `+`, or `-`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/check-bullet-other.js
+function checkBulletOther(state) {
+  const bullet = checkBullet(state);
+  const bulletOther = state.options.bulletOther;
+  if (!bulletOther) {
+    return bullet === "*" ? "-" : "*";
+  }
+  if (bulletOther !== "*" && bulletOther !== "+" && bulletOther !== "-") {
+    throw new Error("Cannot serialize items with `" + bulletOther + "` for `options.bulletOther`, expected `*`, `+`, or `-`");
+  }
+  if (bulletOther === bullet) {
+    throw new Error("Expected `bullet` (`" + bullet + "`) and `bulletOther` (`" + bulletOther + "`) to be different");
+  }
+  return bulletOther;
+}
+var init_check_bullet_other = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/util/check-bullet-ordered.js
+function checkBulletOrdered(state) {
+  const marker = state.options.bulletOrdered || ".";
+  if (marker !== "." && marker !== ")") {
+    throw new Error("Cannot serialize items with `" + marker + "` for `options.bulletOrdered`, expected `.` or `)`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/check-rule.js
+function checkRule(state) {
+  const marker = state.options.rule || "*";
+  if (marker !== "*" && marker !== "-" && marker !== "_") {
+    throw new Error("Cannot serialize rules with `" + marker + "` for `options.rule`, expected `*`, `-`, or `_`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/list.js
+function list2(node2, parent, state, info) {
+  const exit = state.enter("list");
+  const bulletCurrent = state.bulletCurrent;
+  let bullet = node2.ordered ? checkBulletOrdered(state) : checkBullet(state);
+  const bulletOther = node2.ordered ? bullet === "." ? ")" : "." : checkBulletOther(state);
+  let useDifferentMarker = parent && state.bulletLastUsed ? bullet === state.bulletLastUsed : false;
+  if (!node2.ordered) {
+    const firstListItem = node2.children ? node2.children[0] : undefined;
+    if ((bullet === "*" || bullet === "-") && firstListItem && (!firstListItem.children || !firstListItem.children[0]) && state.stack[state.stack.length - 1] === "list" && state.stack[state.stack.length - 2] === "listItem" && state.stack[state.stack.length - 3] === "list" && state.stack[state.stack.length - 4] === "listItem" && state.indexStack[state.indexStack.length - 1] === 0 && state.indexStack[state.indexStack.length - 2] === 0 && state.indexStack[state.indexStack.length - 3] === 0) {
+      useDifferentMarker = true;
+    }
+    if (checkRule(state) === bullet && firstListItem) {
+      let index = -1;
+      while (++index < node2.children.length) {
+        const item = node2.children[index];
+        if (item && item.type === "listItem" && item.children && item.children[0] && item.children[0].type === "thematicBreak") {
+          useDifferentMarker = true;
+          break;
+        }
+      }
+    }
+  }
+  if (useDifferentMarker) {
+    bullet = bulletOther;
+  }
+  state.bulletCurrent = bullet;
+  const value = state.containerFlow(node2, info);
+  state.bulletLastUsed = bullet;
+  state.bulletCurrent = bulletCurrent;
+  exit();
+  return value;
+}
+var init_list = __esm(() => {
+  init_check_bullet_other();
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/check-list-item-indent.js
+function checkListItemIndent(state) {
+  const style = state.options.listItemIndent || "one";
+  if (style !== "tab" && style !== "one" && style !== "mixed") {
+    throw new Error("Cannot serialize items with `" + style + "` for `options.listItemIndent`, expected `tab`, `one`, or `mixed`");
+  }
+  return style;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/list-item.js
+function listItem(node2, parent, state, info) {
+  const listItemIndent = checkListItemIndent(state);
+  let bullet = state.bulletCurrent || checkBullet(state);
+  if (parent && parent.type === "list" && parent.ordered) {
+    bullet = (typeof parent.start === "number" && parent.start > -1 ? parent.start : 1) + (state.options.incrementListMarker === false ? 0 : parent.children.indexOf(node2)) + bullet;
+  }
+  let size2 = bullet.length + 1;
+  if (listItemIndent === "tab" || listItemIndent === "mixed" && (parent && parent.type === "list" && parent.spread || node2.spread)) {
+    size2 = Math.ceil(size2 / 4) * 4;
+  }
+  const tracker = state.createTracker(info);
+  tracker.move(bullet + " ".repeat(size2 - bullet.length));
+  tracker.shift(size2);
+  const exit = state.enter("listItem");
+  const value = state.indentLines(state.containerFlow(node2, tracker.current()), map4);
+  exit();
+  return value;
+  function map4(line3, index, blank) {
+    if (index) {
+      return (blank ? "" : " ".repeat(size2)) + line3;
+    }
+    return (blank ? bullet : bullet + " ".repeat(size2 - bullet.length)) + line3;
+  }
+}
+var init_list_item = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/handle/paragraph.js
+function paragraph(node2, _, state, info) {
+  const exit = state.enter("paragraph");
+  const subexit = state.enter("phrasing");
+  const value = state.containerPhrasing(node2, info);
+  subexit();
+  exit();
+  return value;
+}
+
+// node_modules/mdast-util-phrasing/lib/index.js
+var phrasing;
+var init_lib8 = __esm(() => {
+  init_unist_util_is();
+  phrasing = convert([
+    "break",
+    "delete",
+    "emphasis",
+    "footnote",
+    "footnoteReference",
+    "image",
+    "imageReference",
+    "inlineCode",
+    "inlineMath",
+    "link",
+    "linkReference",
+    "mdxJsxTextElement",
+    "mdxTextExpression",
+    "strong",
+    "text",
+    "textDirective"
+  ]);
+});
+
+// node_modules/mdast-util-phrasing/index.js
+var init_mdast_util_phrasing = __esm(() => {
+  init_lib8();
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/root.js
+function root(node2, _, state, info) {
+  const hasPhrasing = node2.children.some(function(d) {
+    return phrasing(d);
+  });
+  const container = hasPhrasing ? state.containerPhrasing : state.containerFlow;
+  return container.call(state, node2, info);
+}
+var init_root = __esm(() => {
+  init_mdast_util_phrasing();
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/check-strong.js
+function checkStrong(state) {
+  const marker = state.options.strong || "*";
+  if (marker !== "*" && marker !== "_") {
+    throw new Error("Cannot serialize strong with `" + marker + "` for `options.strong`, expected `*`, or `_`");
+  }
+  return marker;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/strong.js
+function strong(node2, _, state, info) {
+  const marker = checkStrong(state);
+  const exit = state.enter("strong");
+  const tracker = state.createTracker(info);
+  const before = tracker.move(marker + marker);
+  let between2 = tracker.move(state.containerPhrasing(node2, {
+    after: marker,
+    before,
+    ...tracker.current()
+  }));
+  const betweenHead = between2.charCodeAt(0);
+  const open = encodeInfo(info.before.charCodeAt(info.before.length - 1), betweenHead, marker);
+  if (open.inside) {
+    between2 = encodeCharacterReference(betweenHead) + between2.slice(1);
+  }
+  const betweenTail = between2.charCodeAt(between2.length - 1);
+  const close = encodeInfo(info.after.charCodeAt(0), betweenTail, marker);
+  if (close.inside) {
+    between2 = between2.slice(0, -1) + encodeCharacterReference(betweenTail);
+  }
+  const after = tracker.move(marker + marker);
+  exit();
+  state.attentionEncodeSurroundingInfo = {
+    after: close.outside,
+    before: open.outside
+  };
+  return before + between2 + after;
+}
+function strongPeek(_, _1, state) {
+  return state.options.strong || "*";
+}
+var init_strong = __esm(() => {
+  init_encode_info();
+  strong.peek = strongPeek;
+});
+
+// node_modules/mdast-util-to-markdown/lib/handle/text.js
+function text3(node2, _, state, info) {
+  return state.safe(node2.value, info);
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/check-rule-repetition.js
+function checkRuleRepetition(state) {
+  const repetition = state.options.ruleRepetition || 3;
+  if (repetition < 3) {
+    throw new Error("Cannot serialize rules with repetition `" + repetition + "` for `options.ruleRepetition`, expected `3` or more");
+  }
+  return repetition;
+}
+
+// node_modules/mdast-util-to-markdown/lib/handle/thematic-break.js
+function thematicBreak(_, _1, state) {
+  const value = (checkRule(state) + (state.options.ruleSpaces ? " " : "")).repeat(checkRuleRepetition(state));
+  return state.options.ruleSpaces ? value.slice(0, -1) : value;
+}
+var init_thematic_break = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/handle/index.js
+var handle;
+var init_handle = __esm(() => {
+  init_break();
+  init_code();
+  init_definition();
+  init_emphasis();
+  init_heading();
+  init_html();
+  init_image();
+  init_image_reference();
+  init_inline_code();
+  init_link();
+  init_link_reference();
+  init_list();
+  init_list_item();
+  init_root();
+  init_strong();
+  init_thematic_break();
+  handle = {
+    blockquote,
+    break: hardBreak,
+    code,
+    definition,
+    emphasis,
+    hardBreak,
+    heading,
+    html,
+    image,
+    imageReference,
+    inlineCode,
+    link,
+    linkReference,
+    list: list2,
+    listItem,
+    paragraph,
+    root,
+    strong,
+    text: text3,
+    thematicBreak
+  };
+});
+
+// node_modules/mdast-util-to-markdown/lib/join.js
+function joinDefaults(left, right, parent, state) {
+  if (right.type === "code" && formatCodeAsIndented(right, state) && (left.type === "list" || left.type === right.type && formatCodeAsIndented(left, state))) {
+    return false;
+  }
+  if ("spread" in parent && typeof parent.spread === "boolean") {
+    if (left.type === "paragraph" && (left.type === right.type || right.type === "definition" || right.type === "heading" && formatHeadingAsSetext(right, state))) {
+      return;
+    }
+    return parent.spread ? 1 : 0;
+  }
+}
+var join;
+var init_join = __esm(() => {
+  init_format_heading_as_setext();
+  join = [joinDefaults];
+});
+
+// node_modules/mdast-util-to-markdown/lib/unsafe.js
+var fullPhrasingSpans, unsafe;
+var init_unsafe = __esm(() => {
+  fullPhrasingSpans = [
+    "autolink",
+    "destinationLiteral",
+    "destinationRaw",
+    "reference",
+    "titleQuote",
+    "titleApostrophe"
+  ];
+  unsafe = [
+    { character: "\t", after: "[\\r\\n]", inConstruct: "phrasing" },
+    { character: "\t", before: "[\\r\\n]", inConstruct: "phrasing" },
+    {
+      character: "\t",
+      inConstruct: ["codeFencedLangGraveAccent", "codeFencedLangTilde"]
+    },
+    {
+      character: "\r",
+      inConstruct: [
+        "codeFencedLangGraveAccent",
+        "codeFencedLangTilde",
+        "codeFencedMetaGraveAccent",
+        "codeFencedMetaTilde",
+        "destinationLiteral",
+        "headingAtx"
+      ]
+    },
+    {
+      character: `
+`,
+      inConstruct: [
+        "codeFencedLangGraveAccent",
+        "codeFencedLangTilde",
+        "codeFencedMetaGraveAccent",
+        "codeFencedMetaTilde",
+        "destinationLiteral",
+        "headingAtx"
+      ]
+    },
+    { character: " ", after: "[\\r\\n]", inConstruct: "phrasing" },
+    { character: " ", before: "[\\r\\n]", inConstruct: "phrasing" },
+    {
+      character: " ",
+      inConstruct: ["codeFencedLangGraveAccent", "codeFencedLangTilde"]
+    },
+    {
+      character: "!",
+      after: "\\[",
+      inConstruct: "phrasing",
+      notInConstruct: fullPhrasingSpans
+    },
+    { character: '"', inConstruct: "titleQuote" },
+    { atBreak: true, character: "#" },
+    { character: "#", inConstruct: "headingAtx", after: `(?:[\r
+]|$)` },
+    { character: "&", after: "[#A-Za-z]", inConstruct: "phrasing" },
+    { character: "'", inConstruct: "titleApostrophe" },
+    { character: "(", inConstruct: "destinationRaw" },
+    {
+      before: "\\]",
+      character: "(",
+      inConstruct: "phrasing",
+      notInConstruct: fullPhrasingSpans
+    },
+    { atBreak: true, before: "\\d+", character: ")" },
+    { character: ")", inConstruct: "destinationRaw" },
+    { atBreak: true, character: "*", after: `(?:[ 	\r
+*])` },
+    { character: "*", inConstruct: "phrasing", notInConstruct: fullPhrasingSpans },
+    { atBreak: true, character: "+", after: `(?:[ 	\r
+])` },
+    { atBreak: true, character: "-", after: `(?:[ 	\r
+-])` },
+    { atBreak: true, before: "\\d+", character: ".", after: `(?:[ 	\r
+]|$)` },
+    { atBreak: true, character: "<", after: "[!/?A-Za-z]" },
+    {
+      character: "<",
+      after: "[!/?A-Za-z]",
+      inConstruct: "phrasing",
+      notInConstruct: fullPhrasingSpans
+    },
+    { character: "<", inConstruct: "destinationLiteral" },
+    { atBreak: true, character: "=" },
+    { atBreak: true, character: ">" },
+    { character: ">", inConstruct: "destinationLiteral" },
+    { atBreak: true, character: "[" },
+    { character: "[", inConstruct: "phrasing", notInConstruct: fullPhrasingSpans },
+    { character: "[", inConstruct: ["label", "reference"] },
+    { character: "\\", after: "[\\r\\n]", inConstruct: "phrasing" },
+    { character: "]", inConstruct: ["label", "reference"] },
+    { atBreak: true, character: "_" },
+    { character: "_", inConstruct: "phrasing", notInConstruct: fullPhrasingSpans },
+    { atBreak: true, character: "`" },
+    {
+      character: "`",
+      inConstruct: ["codeFencedLangGraveAccent", "codeFencedMetaGraveAccent"]
+    },
+    { character: "`", inConstruct: "phrasing", notInConstruct: fullPhrasingSpans },
+    { atBreak: true, character: "~" }
+  ];
+});
+
+// node_modules/character-entities/index.js
+var characterEntities;
+var init_character_entities = __esm(() => {
+  characterEntities = {
+    AElig: "Æ",
+    AMP: "&",
+    Aacute: "Á",
+    Abreve: "Ă",
+    Acirc: "Â",
+    Acy: "А",
+    Afr: "\uD835\uDD04",
+    Agrave: "À",
+    Alpha: "Α",
+    Amacr: "Ā",
+    And: "⩓",
+    Aogon: "Ą",
+    Aopf: "\uD835\uDD38",
+    ApplyFunction: "⁡",
+    Aring: "Å",
+    Ascr: "\uD835\uDC9C",
+    Assign: "≔",
+    Atilde: "Ã",
+    Auml: "Ä",
+    Backslash: "∖",
+    Barv: "⫧",
+    Barwed: "⌆",
+    Bcy: "Б",
+    Because: "∵",
+    Bernoullis: "ℬ",
+    Beta: "Β",
+    Bfr: "\uD835\uDD05",
+    Bopf: "\uD835\uDD39",
+    Breve: "˘",
+    Bscr: "ℬ",
+    Bumpeq: "≎",
+    CHcy: "Ч",
+    COPY: "©",
+    Cacute: "Ć",
+    Cap: "⋒",
+    CapitalDifferentialD: "ⅅ",
+    Cayleys: "ℭ",
+    Ccaron: "Č",
+    Ccedil: "Ç",
+    Ccirc: "Ĉ",
+    Cconint: "∰",
+    Cdot: "Ċ",
+    Cedilla: "¸",
+    CenterDot: "·",
+    Cfr: "ℭ",
+    Chi: "Χ",
+    CircleDot: "⊙",
+    CircleMinus: "⊖",
+    CirclePlus: "⊕",
+    CircleTimes: "⊗",
+    ClockwiseContourIntegral: "∲",
+    CloseCurlyDoubleQuote: "”",
+    CloseCurlyQuote: "’",
+    Colon: "∷",
+    Colone: "⩴",
+    Congruent: "≡",
+    Conint: "∯",
+    ContourIntegral: "∮",
+    Copf: "ℂ",
+    Coproduct: "∐",
+    CounterClockwiseContourIntegral: "∳",
+    Cross: "⨯",
+    Cscr: "\uD835\uDC9E",
+    Cup: "⋓",
+    CupCap: "≍",
+    DD: "ⅅ",
+    DDotrahd: "⤑",
+    DJcy: "Ђ",
+    DScy: "Ѕ",
+    DZcy: "Џ",
+    Dagger: "‡",
+    Darr: "↡",
+    Dashv: "⫤",
+    Dcaron: "Ď",
+    Dcy: "Д",
+    Del: "∇",
+    Delta: "Δ",
+    Dfr: "\uD835\uDD07",
+    DiacriticalAcute: "´",
+    DiacriticalDot: "˙",
+    DiacriticalDoubleAcute: "˝",
+    DiacriticalGrave: "`",
+    DiacriticalTilde: "˜",
+    Diamond: "⋄",
+    DifferentialD: "ⅆ",
+    Dopf: "\uD835\uDD3B",
+    Dot: "¨",
+    DotDot: "⃜",
+    DotEqual: "≐",
+    DoubleContourIntegral: "∯",
+    DoubleDot: "¨",
+    DoubleDownArrow: "⇓",
+    DoubleLeftArrow: "⇐",
+    DoubleLeftRightArrow: "⇔",
+    DoubleLeftTee: "⫤",
+    DoubleLongLeftArrow: "⟸",
+    DoubleLongLeftRightArrow: "⟺",
+    DoubleLongRightArrow: "⟹",
+    DoubleRightArrow: "⇒",
+    DoubleRightTee: "⊨",
+    DoubleUpArrow: "⇑",
+    DoubleUpDownArrow: "⇕",
+    DoubleVerticalBar: "∥",
+    DownArrow: "↓",
+    DownArrowBar: "⤓",
+    DownArrowUpArrow: "⇵",
+    DownBreve: "̑",
+    DownLeftRightVector: "⥐",
+    DownLeftTeeVector: "⥞",
+    DownLeftVector: "↽",
+    DownLeftVectorBar: "⥖",
+    DownRightTeeVector: "⥟",
+    DownRightVector: "⇁",
+    DownRightVectorBar: "⥗",
+    DownTee: "⊤",
+    DownTeeArrow: "↧",
+    Downarrow: "⇓",
+    Dscr: "\uD835\uDC9F",
+    Dstrok: "Đ",
+    ENG: "Ŋ",
+    ETH: "Ð",
+    Eacute: "É",
+    Ecaron: "Ě",
+    Ecirc: "Ê",
+    Ecy: "Э",
+    Edot: "Ė",
+    Efr: "\uD835\uDD08",
+    Egrave: "È",
+    Element: "∈",
+    Emacr: "Ē",
+    EmptySmallSquare: "◻",
+    EmptyVerySmallSquare: "▫",
+    Eogon: "Ę",
+    Eopf: "\uD835\uDD3C",
+    Epsilon: "Ε",
+    Equal: "⩵",
+    EqualTilde: "≂",
+    Equilibrium: "⇌",
+    Escr: "ℰ",
+    Esim: "⩳",
+    Eta: "Η",
+    Euml: "Ë",
+    Exists: "∃",
+    ExponentialE: "ⅇ",
+    Fcy: "Ф",
+    Ffr: "\uD835\uDD09",
+    FilledSmallSquare: "◼",
+    FilledVerySmallSquare: "▪",
+    Fopf: "\uD835\uDD3D",
+    ForAll: "∀",
+    Fouriertrf: "ℱ",
+    Fscr: "ℱ",
+    GJcy: "Ѓ",
+    GT: ">",
+    Gamma: "Γ",
+    Gammad: "Ϝ",
+    Gbreve: "Ğ",
+    Gcedil: "Ģ",
+    Gcirc: "Ĝ",
+    Gcy: "Г",
+    Gdot: "Ġ",
+    Gfr: "\uD835\uDD0A",
+    Gg: "⋙",
+    Gopf: "\uD835\uDD3E",
+    GreaterEqual: "≥",
+    GreaterEqualLess: "⋛",
+    GreaterFullEqual: "≧",
+    GreaterGreater: "⪢",
+    GreaterLess: "≷",
+    GreaterSlantEqual: "⩾",
+    GreaterTilde: "≳",
+    Gscr: "\uD835\uDCA2",
+    Gt: "≫",
+    HARDcy: "Ъ",
+    Hacek: "ˇ",
+    Hat: "^",
+    Hcirc: "Ĥ",
+    Hfr: "ℌ",
+    HilbertSpace: "ℋ",
+    Hopf: "ℍ",
+    HorizontalLine: "─",
+    Hscr: "ℋ",
+    Hstrok: "Ħ",
+    HumpDownHump: "≎",
+    HumpEqual: "≏",
+    IEcy: "Е",
+    IJlig: "Ĳ",
+    IOcy: "Ё",
+    Iacute: "Í",
+    Icirc: "Î",
+    Icy: "И",
+    Idot: "İ",
+    Ifr: "ℑ",
+    Igrave: "Ì",
+    Im: "ℑ",
+    Imacr: "Ī",
+    ImaginaryI: "ⅈ",
+    Implies: "⇒",
+    Int: "∬",
+    Integral: "∫",
+    Intersection: "⋂",
+    InvisibleComma: "⁣",
+    InvisibleTimes: "⁢",
+    Iogon: "Į",
+    Iopf: "\uD835\uDD40",
+    Iota: "Ι",
+    Iscr: "ℐ",
+    Itilde: "Ĩ",
+    Iukcy: "І",
+    Iuml: "Ï",
+    Jcirc: "Ĵ",
+    Jcy: "Й",
+    Jfr: "\uD835\uDD0D",
+    Jopf: "\uD835\uDD41",
+    Jscr: "\uD835\uDCA5",
+    Jsercy: "Ј",
+    Jukcy: "Є",
+    KHcy: "Х",
+    KJcy: "Ќ",
+    Kappa: "Κ",
+    Kcedil: "Ķ",
+    Kcy: "К",
+    Kfr: "\uD835\uDD0E",
+    Kopf: "\uD835\uDD42",
+    Kscr: "\uD835\uDCA6",
+    LJcy: "Љ",
+    LT: "<",
+    Lacute: "Ĺ",
+    Lambda: "Λ",
+    Lang: "⟪",
+    Laplacetrf: "ℒ",
+    Larr: "↞",
+    Lcaron: "Ľ",
+    Lcedil: "Ļ",
+    Lcy: "Л",
+    LeftAngleBracket: "⟨",
+    LeftArrow: "←",
+    LeftArrowBar: "⇤",
+    LeftArrowRightArrow: "⇆",
+    LeftCeiling: "⌈",
+    LeftDoubleBracket: "⟦",
+    LeftDownTeeVector: "⥡",
+    LeftDownVector: "⇃",
+    LeftDownVectorBar: "⥙",
+    LeftFloor: "⌊",
+    LeftRightArrow: "↔",
+    LeftRightVector: "⥎",
+    LeftTee: "⊣",
+    LeftTeeArrow: "↤",
+    LeftTeeVector: "⥚",
+    LeftTriangle: "⊲",
+    LeftTriangleBar: "⧏",
+    LeftTriangleEqual: "⊴",
+    LeftUpDownVector: "⥑",
+    LeftUpTeeVector: "⥠",
+    LeftUpVector: "↿",
+    LeftUpVectorBar: "⥘",
+    LeftVector: "↼",
+    LeftVectorBar: "⥒",
+    Leftarrow: "⇐",
+    Leftrightarrow: "⇔",
+    LessEqualGreater: "⋚",
+    LessFullEqual: "≦",
+    LessGreater: "≶",
+    LessLess: "⪡",
+    LessSlantEqual: "⩽",
+    LessTilde: "≲",
+    Lfr: "\uD835\uDD0F",
+    Ll: "⋘",
+    Lleftarrow: "⇚",
+    Lmidot: "Ŀ",
+    LongLeftArrow: "⟵",
+    LongLeftRightArrow: "⟷",
+    LongRightArrow: "⟶",
+    Longleftarrow: "⟸",
+    Longleftrightarrow: "⟺",
+    Longrightarrow: "⟹",
+    Lopf: "\uD835\uDD43",
+    LowerLeftArrow: "↙",
+    LowerRightArrow: "↘",
+    Lscr: "ℒ",
+    Lsh: "↰",
+    Lstrok: "Ł",
+    Lt: "≪",
+    Map: "⤅",
+    Mcy: "М",
+    MediumSpace: " ",
+    Mellintrf: "ℳ",
+    Mfr: "\uD835\uDD10",
+    MinusPlus: "∓",
+    Mopf: "\uD835\uDD44",
+    Mscr: "ℳ",
+    Mu: "Μ",
+    NJcy: "Њ",
+    Nacute: "Ń",
+    Ncaron: "Ň",
+    Ncedil: "Ņ",
+    Ncy: "Н",
+    NegativeMediumSpace: "​",
+    NegativeThickSpace: "​",
+    NegativeThinSpace: "​",
+    NegativeVeryThinSpace: "​",
+    NestedGreaterGreater: "≫",
+    NestedLessLess: "≪",
+    NewLine: `
+`,
+    Nfr: "\uD835\uDD11",
+    NoBreak: "⁠",
+    NonBreakingSpace: " ",
+    Nopf: "ℕ",
+    Not: "⫬",
+    NotCongruent: "≢",
+    NotCupCap: "≭",
+    NotDoubleVerticalBar: "∦",
+    NotElement: "∉",
+    NotEqual: "≠",
+    NotEqualTilde: "≂̸",
+    NotExists: "∄",
+    NotGreater: "≯",
+    NotGreaterEqual: "≱",
+    NotGreaterFullEqual: "≧̸",
+    NotGreaterGreater: "≫̸",
+    NotGreaterLess: "≹",
+    NotGreaterSlantEqual: "⩾̸",
+    NotGreaterTilde: "≵",
+    NotHumpDownHump: "≎̸",
+    NotHumpEqual: "≏̸",
+    NotLeftTriangle: "⋪",
+    NotLeftTriangleBar: "⧏̸",
+    NotLeftTriangleEqual: "⋬",
+    NotLess: "≮",
+    NotLessEqual: "≰",
+    NotLessGreater: "≸",
+    NotLessLess: "≪̸",
+    NotLessSlantEqual: "⩽̸",
+    NotLessTilde: "≴",
+    NotNestedGreaterGreater: "⪢̸",
+    NotNestedLessLess: "⪡̸",
+    NotPrecedes: "⊀",
+    NotPrecedesEqual: "⪯̸",
+    NotPrecedesSlantEqual: "⋠",
+    NotReverseElement: "∌",
+    NotRightTriangle: "⋫",
+    NotRightTriangleBar: "⧐̸",
+    NotRightTriangleEqual: "⋭",
+    NotSquareSubset: "⊏̸",
+    NotSquareSubsetEqual: "⋢",
+    NotSquareSuperset: "⊐̸",
+    NotSquareSupersetEqual: "⋣",
+    NotSubset: "⊂⃒",
+    NotSubsetEqual: "⊈",
+    NotSucceeds: "⊁",
+    NotSucceedsEqual: "⪰̸",
+    NotSucceedsSlantEqual: "⋡",
+    NotSucceedsTilde: "≿̸",
+    NotSuperset: "⊃⃒",
+    NotSupersetEqual: "⊉",
+    NotTilde: "≁",
+    NotTildeEqual: "≄",
+    NotTildeFullEqual: "≇",
+    NotTildeTilde: "≉",
+    NotVerticalBar: "∤",
+    Nscr: "\uD835\uDCA9",
+    Ntilde: "Ñ",
+    Nu: "Ν",
+    OElig: "Œ",
+    Oacute: "Ó",
+    Ocirc: "Ô",
+    Ocy: "О",
+    Odblac: "Ő",
+    Ofr: "\uD835\uDD12",
+    Ograve: "Ò",
+    Omacr: "Ō",
+    Omega: "Ω",
+    Omicron: "Ο",
+    Oopf: "\uD835\uDD46",
+    OpenCurlyDoubleQuote: "“",
+    OpenCurlyQuote: "‘",
+    Or: "⩔",
+    Oscr: "\uD835\uDCAA",
+    Oslash: "Ø",
+    Otilde: "Õ",
+    Otimes: "⨷",
+    Ouml: "Ö",
+    OverBar: "‾",
+    OverBrace: "⏞",
+    OverBracket: "⎴",
+    OverParenthesis: "⏜",
+    PartialD: "∂",
+    Pcy: "П",
+    Pfr: "\uD835\uDD13",
+    Phi: "Φ",
+    Pi: "Π",
+    PlusMinus: "±",
+    Poincareplane: "ℌ",
+    Popf: "ℙ",
+    Pr: "⪻",
+    Precedes: "≺",
+    PrecedesEqual: "⪯",
+    PrecedesSlantEqual: "≼",
+    PrecedesTilde: "≾",
+    Prime: "″",
+    Product: "∏",
+    Proportion: "∷",
+    Proportional: "∝",
+    Pscr: "\uD835\uDCAB",
+    Psi: "Ψ",
+    QUOT: '"',
+    Qfr: "\uD835\uDD14",
+    Qopf: "ℚ",
+    Qscr: "\uD835\uDCAC",
+    RBarr: "⤐",
+    REG: "®",
+    Racute: "Ŕ",
+    Rang: "⟫",
+    Rarr: "↠",
+    Rarrtl: "⤖",
+    Rcaron: "Ř",
+    Rcedil: "Ŗ",
+    Rcy: "Р",
+    Re: "ℜ",
+    ReverseElement: "∋",
+    ReverseEquilibrium: "⇋",
+    ReverseUpEquilibrium: "⥯",
+    Rfr: "ℜ",
+    Rho: "Ρ",
+    RightAngleBracket: "⟩",
+    RightArrow: "→",
+    RightArrowBar: "⇥",
+    RightArrowLeftArrow: "⇄",
+    RightCeiling: "⌉",
+    RightDoubleBracket: "⟧",
+    RightDownTeeVector: "⥝",
+    RightDownVector: "⇂",
+    RightDownVectorBar: "⥕",
+    RightFloor: "⌋",
+    RightTee: "⊢",
+    RightTeeArrow: "↦",
+    RightTeeVector: "⥛",
+    RightTriangle: "⊳",
+    RightTriangleBar: "⧐",
+    RightTriangleEqual: "⊵",
+    RightUpDownVector: "⥏",
+    RightUpTeeVector: "⥜",
+    RightUpVector: "↾",
+    RightUpVectorBar: "⥔",
+    RightVector: "⇀",
+    RightVectorBar: "⥓",
+    Rightarrow: "⇒",
+    Ropf: "ℝ",
+    RoundImplies: "⥰",
+    Rrightarrow: "⇛",
+    Rscr: "ℛ",
+    Rsh: "↱",
+    RuleDelayed: "⧴",
+    SHCHcy: "Щ",
+    SHcy: "Ш",
+    SOFTcy: "Ь",
+    Sacute: "Ś",
+    Sc: "⪼",
+    Scaron: "Š",
+    Scedil: "Ş",
+    Scirc: "Ŝ",
+    Scy: "С",
+    Sfr: "\uD835\uDD16",
+    ShortDownArrow: "↓",
+    ShortLeftArrow: "←",
+    ShortRightArrow: "→",
+    ShortUpArrow: "↑",
+    Sigma: "Σ",
+    SmallCircle: "∘",
+    Sopf: "\uD835\uDD4A",
+    Sqrt: "√",
+    Square: "□",
+    SquareIntersection: "⊓",
+    SquareSubset: "⊏",
+    SquareSubsetEqual: "⊑",
+    SquareSuperset: "⊐",
+    SquareSupersetEqual: "⊒",
+    SquareUnion: "⊔",
+    Sscr: "\uD835\uDCAE",
+    Star: "⋆",
+    Sub: "⋐",
+    Subset: "⋐",
+    SubsetEqual: "⊆",
+    Succeeds: "≻",
+    SucceedsEqual: "⪰",
+    SucceedsSlantEqual: "≽",
+    SucceedsTilde: "≿",
+    SuchThat: "∋",
+    Sum: "∑",
+    Sup: "⋑",
+    Superset: "⊃",
+    SupersetEqual: "⊇",
+    Supset: "⋑",
+    THORN: "Þ",
+    TRADE: "™",
+    TSHcy: "Ћ",
+    TScy: "Ц",
+    Tab: "\t",
+    Tau: "Τ",
+    Tcaron: "Ť",
+    Tcedil: "Ţ",
+    Tcy: "Т",
+    Tfr: "\uD835\uDD17",
+    Therefore: "∴",
+    Theta: "Θ",
+    ThickSpace: "  ",
+    ThinSpace: " ",
+    Tilde: "∼",
+    TildeEqual: "≃",
+    TildeFullEqual: "≅",
+    TildeTilde: "≈",
+    Topf: "\uD835\uDD4B",
+    TripleDot: "⃛",
+    Tscr: "\uD835\uDCAF",
+    Tstrok: "Ŧ",
+    Uacute: "Ú",
+    Uarr: "↟",
+    Uarrocir: "⥉",
+    Ubrcy: "Ў",
+    Ubreve: "Ŭ",
+    Ucirc: "Û",
+    Ucy: "У",
+    Udblac: "Ű",
+    Ufr: "\uD835\uDD18",
+    Ugrave: "Ù",
+    Umacr: "Ū",
+    UnderBar: "_",
+    UnderBrace: "⏟",
+    UnderBracket: "⎵",
+    UnderParenthesis: "⏝",
+    Union: "⋃",
+    UnionPlus: "⊎",
+    Uogon: "Ų",
+    Uopf: "\uD835\uDD4C",
+    UpArrow: "↑",
+    UpArrowBar: "⤒",
+    UpArrowDownArrow: "⇅",
+    UpDownArrow: "↕",
+    UpEquilibrium: "⥮",
+    UpTee: "⊥",
+    UpTeeArrow: "↥",
+    Uparrow: "⇑",
+    Updownarrow: "⇕",
+    UpperLeftArrow: "↖",
+    UpperRightArrow: "↗",
+    Upsi: "ϒ",
+    Upsilon: "Υ",
+    Uring: "Ů",
+    Uscr: "\uD835\uDCB0",
+    Utilde: "Ũ",
+    Uuml: "Ü",
+    VDash: "⊫",
+    Vbar: "⫫",
+    Vcy: "В",
+    Vdash: "⊩",
+    Vdashl: "⫦",
+    Vee: "⋁",
+    Verbar: "‖",
+    Vert: "‖",
+    VerticalBar: "∣",
+    VerticalLine: "|",
+    VerticalSeparator: "❘",
+    VerticalTilde: "≀",
+    VeryThinSpace: " ",
+    Vfr: "\uD835\uDD19",
+    Vopf: "\uD835\uDD4D",
+    Vscr: "\uD835\uDCB1",
+    Vvdash: "⊪",
+    Wcirc: "Ŵ",
+    Wedge: "⋀",
+    Wfr: "\uD835\uDD1A",
+    Wopf: "\uD835\uDD4E",
+    Wscr: "\uD835\uDCB2",
+    Xfr: "\uD835\uDD1B",
+    Xi: "Ξ",
+    Xopf: "\uD835\uDD4F",
+    Xscr: "\uD835\uDCB3",
+    YAcy: "Я",
+    YIcy: "Ї",
+    YUcy: "Ю",
+    Yacute: "Ý",
+    Ycirc: "Ŷ",
+    Ycy: "Ы",
+    Yfr: "\uD835\uDD1C",
+    Yopf: "\uD835\uDD50",
+    Yscr: "\uD835\uDCB4",
+    Yuml: "Ÿ",
+    ZHcy: "Ж",
+    Zacute: "Ź",
+    Zcaron: "Ž",
+    Zcy: "З",
+    Zdot: "Ż",
+    ZeroWidthSpace: "​",
+    Zeta: "Ζ",
+    Zfr: "ℨ",
+    Zopf: "ℤ",
+    Zscr: "\uD835\uDCB5",
+    aacute: "á",
+    abreve: "ă",
+    ac: "∾",
+    acE: "∾̳",
+    acd: "∿",
+    acirc: "â",
+    acute: "´",
+    acy: "а",
+    aelig: "æ",
+    af: "⁡",
+    afr: "\uD835\uDD1E",
+    agrave: "à",
+    alefsym: "ℵ",
+    aleph: "ℵ",
+    alpha: "α",
+    amacr: "ā",
+    amalg: "⨿",
+    amp: "&",
+    and: "∧",
+    andand: "⩕",
+    andd: "⩜",
+    andslope: "⩘",
+    andv: "⩚",
+    ang: "∠",
+    ange: "⦤",
+    angle: "∠",
+    angmsd: "∡",
+    angmsdaa: "⦨",
+    angmsdab: "⦩",
+    angmsdac: "⦪",
+    angmsdad: "⦫",
+    angmsdae: "⦬",
+    angmsdaf: "⦭",
+    angmsdag: "⦮",
+    angmsdah: "⦯",
+    angrt: "∟",
+    angrtvb: "⊾",
+    angrtvbd: "⦝",
+    angsph: "∢",
+    angst: "Å",
+    angzarr: "⍼",
+    aogon: "ą",
+    aopf: "\uD835\uDD52",
+    ap: "≈",
+    apE: "⩰",
+    apacir: "⩯",
+    ape: "≊",
+    apid: "≋",
+    apos: "'",
+    approx: "≈",
+    approxeq: "≊",
+    aring: "å",
+    ascr: "\uD835\uDCB6",
+    ast: "*",
+    asymp: "≈",
+    asympeq: "≍",
+    atilde: "ã",
+    auml: "ä",
+    awconint: "∳",
+    awint: "⨑",
+    bNot: "⫭",
+    backcong: "≌",
+    backepsilon: "϶",
+    backprime: "‵",
+    backsim: "∽",
+    backsimeq: "⋍",
+    barvee: "⊽",
+    barwed: "⌅",
+    barwedge: "⌅",
+    bbrk: "⎵",
+    bbrktbrk: "⎶",
+    bcong: "≌",
+    bcy: "б",
+    bdquo: "„",
+    becaus: "∵",
+    because: "∵",
+    bemptyv: "⦰",
+    bepsi: "϶",
+    bernou: "ℬ",
+    beta: "β",
+    beth: "ℶ",
+    between: "≬",
+    bfr: "\uD835\uDD1F",
+    bigcap: "⋂",
+    bigcirc: "◯",
+    bigcup: "⋃",
+    bigodot: "⨀",
+    bigoplus: "⨁",
+    bigotimes: "⨂",
+    bigsqcup: "⨆",
+    bigstar: "★",
+    bigtriangledown: "▽",
+    bigtriangleup: "△",
+    biguplus: "⨄",
+    bigvee: "⋁",
+    bigwedge: "⋀",
+    bkarow: "⤍",
+    blacklozenge: "⧫",
+    blacksquare: "▪",
+    blacktriangle: "▴",
+    blacktriangledown: "▾",
+    blacktriangleleft: "◂",
+    blacktriangleright: "▸",
+    blank: "␣",
+    blk12: "▒",
+    blk14: "░",
+    blk34: "▓",
+    block: "█",
+    bne: "=⃥",
+    bnequiv: "≡⃥",
+    bnot: "⌐",
+    bopf: "\uD835\uDD53",
+    bot: "⊥",
+    bottom: "⊥",
+    bowtie: "⋈",
+    boxDL: "╗",
+    boxDR: "╔",
+    boxDl: "╖",
+    boxDr: "╓",
+    boxH: "═",
+    boxHD: "╦",
+    boxHU: "╩",
+    boxHd: "╤",
+    boxHu: "╧",
+    boxUL: "╝",
+    boxUR: "╚",
+    boxUl: "╜",
+    boxUr: "╙",
+    boxV: "║",
+    boxVH: "╬",
+    boxVL: "╣",
+    boxVR: "╠",
+    boxVh: "╫",
+    boxVl: "╢",
+    boxVr: "╟",
+    boxbox: "⧉",
+    boxdL: "╕",
+    boxdR: "╒",
+    boxdl: "┐",
+    boxdr: "┌",
+    boxh: "─",
+    boxhD: "╥",
+    boxhU: "╨",
+    boxhd: "┬",
+    boxhu: "┴",
+    boxminus: "⊟",
+    boxplus: "⊞",
+    boxtimes: "⊠",
+    boxuL: "╛",
+    boxuR: "╘",
+    boxul: "┘",
+    boxur: "└",
+    boxv: "│",
+    boxvH: "╪",
+    boxvL: "╡",
+    boxvR: "╞",
+    boxvh: "┼",
+    boxvl: "┤",
+    boxvr: "├",
+    bprime: "‵",
+    breve: "˘",
+    brvbar: "¦",
+    bscr: "\uD835\uDCB7",
+    bsemi: "⁏",
+    bsim: "∽",
+    bsime: "⋍",
+    bsol: "\\",
+    bsolb: "⧅",
+    bsolhsub: "⟈",
+    bull: "•",
+    bullet: "•",
+    bump: "≎",
+    bumpE: "⪮",
+    bumpe: "≏",
+    bumpeq: "≏",
+    cacute: "ć",
+    cap: "∩",
+    capand: "⩄",
+    capbrcup: "⩉",
+    capcap: "⩋",
+    capcup: "⩇",
+    capdot: "⩀",
+    caps: "∩︀",
+    caret: "⁁",
+    caron: "ˇ",
+    ccaps: "⩍",
+    ccaron: "č",
+    ccedil: "ç",
+    ccirc: "ĉ",
+    ccups: "⩌",
+    ccupssm: "⩐",
+    cdot: "ċ",
+    cedil: "¸",
+    cemptyv: "⦲",
+    cent: "¢",
+    centerdot: "·",
+    cfr: "\uD835\uDD20",
+    chcy: "ч",
+    check: "✓",
+    checkmark: "✓",
+    chi: "χ",
+    cir: "○",
+    cirE: "⧃",
+    circ: "ˆ",
+    circeq: "≗",
+    circlearrowleft: "↺",
+    circlearrowright: "↻",
+    circledR: "®",
+    circledS: "Ⓢ",
+    circledast: "⊛",
+    circledcirc: "⊚",
+    circleddash: "⊝",
+    cire: "≗",
+    cirfnint: "⨐",
+    cirmid: "⫯",
+    cirscir: "⧂",
+    clubs: "♣",
+    clubsuit: "♣",
+    colon: ":",
+    colone: "≔",
+    coloneq: "≔",
+    comma: ",",
+    commat: "@",
+    comp: "∁",
+    compfn: "∘",
+    complement: "∁",
+    complexes: "ℂ",
+    cong: "≅",
+    congdot: "⩭",
+    conint: "∮",
+    copf: "\uD835\uDD54",
+    coprod: "∐",
+    copy: "©",
+    copysr: "℗",
+    crarr: "↵",
+    cross: "✗",
+    cscr: "\uD835\uDCB8",
+    csub: "⫏",
+    csube: "⫑",
+    csup: "⫐",
+    csupe: "⫒",
+    ctdot: "⋯",
+    cudarrl: "⤸",
+    cudarrr: "⤵",
+    cuepr: "⋞",
+    cuesc: "⋟",
+    cularr: "↶",
+    cularrp: "⤽",
+    cup: "∪",
+    cupbrcap: "⩈",
+    cupcap: "⩆",
+    cupcup: "⩊",
+    cupdot: "⊍",
+    cupor: "⩅",
+    cups: "∪︀",
+    curarr: "↷",
+    curarrm: "⤼",
+    curlyeqprec: "⋞",
+    curlyeqsucc: "⋟",
+    curlyvee: "⋎",
+    curlywedge: "⋏",
+    curren: "¤",
+    curvearrowleft: "↶",
+    curvearrowright: "↷",
+    cuvee: "⋎",
+    cuwed: "⋏",
+    cwconint: "∲",
+    cwint: "∱",
+    cylcty: "⌭",
+    dArr: "⇓",
+    dHar: "⥥",
+    dagger: "†",
+    daleth: "ℸ",
+    darr: "↓",
+    dash: "‐",
+    dashv: "⊣",
+    dbkarow: "⤏",
+    dblac: "˝",
+    dcaron: "ď",
+    dcy: "д",
+    dd: "ⅆ",
+    ddagger: "‡",
+    ddarr: "⇊",
+    ddotseq: "⩷",
+    deg: "°",
+    delta: "δ",
+    demptyv: "⦱",
+    dfisht: "⥿",
+    dfr: "\uD835\uDD21",
+    dharl: "⇃",
+    dharr: "⇂",
+    diam: "⋄",
+    diamond: "⋄",
+    diamondsuit: "♦",
+    diams: "♦",
+    die: "¨",
+    digamma: "ϝ",
+    disin: "⋲",
+    div: "÷",
+    divide: "÷",
+    divideontimes: "⋇",
+    divonx: "⋇",
+    djcy: "ђ",
+    dlcorn: "⌞",
+    dlcrop: "⌍",
+    dollar: "$",
+    dopf: "\uD835\uDD55",
+    dot: "˙",
+    doteq: "≐",
+    doteqdot: "≑",
+    dotminus: "∸",
+    dotplus: "∔",
+    dotsquare: "⊡",
+    doublebarwedge: "⌆",
+    downarrow: "↓",
+    downdownarrows: "⇊",
+    downharpoonleft: "⇃",
+    downharpoonright: "⇂",
+    drbkarow: "⤐",
+    drcorn: "⌟",
+    drcrop: "⌌",
+    dscr: "\uD835\uDCB9",
+    dscy: "ѕ",
+    dsol: "⧶",
+    dstrok: "đ",
+    dtdot: "⋱",
+    dtri: "▿",
+    dtrif: "▾",
+    duarr: "⇵",
+    duhar: "⥯",
+    dwangle: "⦦",
+    dzcy: "џ",
+    dzigrarr: "⟿",
+    eDDot: "⩷",
+    eDot: "≑",
+    eacute: "é",
+    easter: "⩮",
+    ecaron: "ě",
+    ecir: "≖",
+    ecirc: "ê",
+    ecolon: "≕",
+    ecy: "э",
+    edot: "ė",
+    ee: "ⅇ",
+    efDot: "≒",
+    efr: "\uD835\uDD22",
+    eg: "⪚",
+    egrave: "è",
+    egs: "⪖",
+    egsdot: "⪘",
+    el: "⪙",
+    elinters: "⏧",
+    ell: "ℓ",
+    els: "⪕",
+    elsdot: "⪗",
+    emacr: "ē",
+    empty: "∅",
+    emptyset: "∅",
+    emptyv: "∅",
+    emsp13: " ",
+    emsp14: " ",
+    emsp: " ",
+    eng: "ŋ",
+    ensp: " ",
+    eogon: "ę",
+    eopf: "\uD835\uDD56",
+    epar: "⋕",
+    eparsl: "⧣",
+    eplus: "⩱",
+    epsi: "ε",
+    epsilon: "ε",
+    epsiv: "ϵ",
+    eqcirc: "≖",
+    eqcolon: "≕",
+    eqsim: "≂",
+    eqslantgtr: "⪖",
+    eqslantless: "⪕",
+    equals: "=",
+    equest: "≟",
+    equiv: "≡",
+    equivDD: "⩸",
+    eqvparsl: "⧥",
+    erDot: "≓",
+    erarr: "⥱",
+    escr: "ℯ",
+    esdot: "≐",
+    esim: "≂",
+    eta: "η",
+    eth: "ð",
+    euml: "ë",
+    euro: "€",
+    excl: "!",
+    exist: "∃",
+    expectation: "ℰ",
+    exponentiale: "ⅇ",
+    fallingdotseq: "≒",
+    fcy: "ф",
+    female: "♀",
+    ffilig: "ﬃ",
+    fflig: "ﬀ",
+    ffllig: "ﬄ",
+    ffr: "\uD835\uDD23",
+    filig: "ﬁ",
+    fjlig: "fj",
+    flat: "♭",
+    fllig: "ﬂ",
+    fltns: "▱",
+    fnof: "ƒ",
+    fopf: "\uD835\uDD57",
+    forall: "∀",
+    fork: "⋔",
+    forkv: "⫙",
+    fpartint: "⨍",
+    frac12: "½",
+    frac13: "⅓",
+    frac14: "¼",
+    frac15: "⅕",
+    frac16: "⅙",
+    frac18: "⅛",
+    frac23: "⅔",
+    frac25: "⅖",
+    frac34: "¾",
+    frac35: "⅗",
+    frac38: "⅜",
+    frac45: "⅘",
+    frac56: "⅚",
+    frac58: "⅝",
+    frac78: "⅞",
+    frasl: "⁄",
+    frown: "⌢",
+    fscr: "\uD835\uDCBB",
+    gE: "≧",
+    gEl: "⪌",
+    gacute: "ǵ",
+    gamma: "γ",
+    gammad: "ϝ",
+    gap: "⪆",
+    gbreve: "ğ",
+    gcirc: "ĝ",
+    gcy: "г",
+    gdot: "ġ",
+    ge: "≥",
+    gel: "⋛",
+    geq: "≥",
+    geqq: "≧",
+    geqslant: "⩾",
+    ges: "⩾",
+    gescc: "⪩",
+    gesdot: "⪀",
+    gesdoto: "⪂",
+    gesdotol: "⪄",
+    gesl: "⋛︀",
+    gesles: "⪔",
+    gfr: "\uD835\uDD24",
+    gg: "≫",
+    ggg: "⋙",
+    gimel: "ℷ",
+    gjcy: "ѓ",
+    gl: "≷",
+    glE: "⪒",
+    gla: "⪥",
+    glj: "⪤",
+    gnE: "≩",
+    gnap: "⪊",
+    gnapprox: "⪊",
+    gne: "⪈",
+    gneq: "⪈",
+    gneqq: "≩",
+    gnsim: "⋧",
+    gopf: "\uD835\uDD58",
+    grave: "`",
+    gscr: "ℊ",
+    gsim: "≳",
+    gsime: "⪎",
+    gsiml: "⪐",
+    gt: ">",
+    gtcc: "⪧",
+    gtcir: "⩺",
+    gtdot: "⋗",
+    gtlPar: "⦕",
+    gtquest: "⩼",
+    gtrapprox: "⪆",
+    gtrarr: "⥸",
+    gtrdot: "⋗",
+    gtreqless: "⋛",
+    gtreqqless: "⪌",
+    gtrless: "≷",
+    gtrsim: "≳",
+    gvertneqq: "≩︀",
+    gvnE: "≩︀",
+    hArr: "⇔",
+    hairsp: " ",
+    half: "½",
+    hamilt: "ℋ",
+    hardcy: "ъ",
+    harr: "↔",
+    harrcir: "⥈",
+    harrw: "↭",
+    hbar: "ℏ",
+    hcirc: "ĥ",
+    hearts: "♥",
+    heartsuit: "♥",
+    hellip: "…",
+    hercon: "⊹",
+    hfr: "\uD835\uDD25",
+    hksearow: "⤥",
+    hkswarow: "⤦",
+    hoarr: "⇿",
+    homtht: "∻",
+    hookleftarrow: "↩",
+    hookrightarrow: "↪",
+    hopf: "\uD835\uDD59",
+    horbar: "―",
+    hscr: "\uD835\uDCBD",
+    hslash: "ℏ",
+    hstrok: "ħ",
+    hybull: "⁃",
+    hyphen: "‐",
+    iacute: "í",
+    ic: "⁣",
+    icirc: "î",
+    icy: "и",
+    iecy: "е",
+    iexcl: "¡",
+    iff: "⇔",
+    ifr: "\uD835\uDD26",
+    igrave: "ì",
+    ii: "ⅈ",
+    iiiint: "⨌",
+    iiint: "∭",
+    iinfin: "⧜",
+    iiota: "℩",
+    ijlig: "ĳ",
+    imacr: "ī",
+    image: "ℑ",
+    imagline: "ℐ",
+    imagpart: "ℑ",
+    imath: "ı",
+    imof: "⊷",
+    imped: "Ƶ",
+    in: "∈",
+    incare: "℅",
+    infin: "∞",
+    infintie: "⧝",
+    inodot: "ı",
+    int: "∫",
+    intcal: "⊺",
+    integers: "ℤ",
+    intercal: "⊺",
+    intlarhk: "⨗",
+    intprod: "⨼",
+    iocy: "ё",
+    iogon: "į",
+    iopf: "\uD835\uDD5A",
+    iota: "ι",
+    iprod: "⨼",
+    iquest: "¿",
+    iscr: "\uD835\uDCBE",
+    isin: "∈",
+    isinE: "⋹",
+    isindot: "⋵",
+    isins: "⋴",
+    isinsv: "⋳",
+    isinv: "∈",
+    it: "⁢",
+    itilde: "ĩ",
+    iukcy: "і",
+    iuml: "ï",
+    jcirc: "ĵ",
+    jcy: "й",
+    jfr: "\uD835\uDD27",
+    jmath: "ȷ",
+    jopf: "\uD835\uDD5B",
+    jscr: "\uD835\uDCBF",
+    jsercy: "ј",
+    jukcy: "є",
+    kappa: "κ",
+    kappav: "ϰ",
+    kcedil: "ķ",
+    kcy: "к",
+    kfr: "\uD835\uDD28",
+    kgreen: "ĸ",
+    khcy: "х",
+    kjcy: "ќ",
+    kopf: "\uD835\uDD5C",
+    kscr: "\uD835\uDCC0",
+    lAarr: "⇚",
+    lArr: "⇐",
+    lAtail: "⤛",
+    lBarr: "⤎",
+    lE: "≦",
+    lEg: "⪋",
+    lHar: "⥢",
+    lacute: "ĺ",
+    laemptyv: "⦴",
+    lagran: "ℒ",
+    lambda: "λ",
+    lang: "⟨",
+    langd: "⦑",
+    langle: "⟨",
+    lap: "⪅",
+    laquo: "«",
+    larr: "←",
+    larrb: "⇤",
+    larrbfs: "⤟",
+    larrfs: "⤝",
+    larrhk: "↩",
+    larrlp: "↫",
+    larrpl: "⤹",
+    larrsim: "⥳",
+    larrtl: "↢",
+    lat: "⪫",
+    latail: "⤙",
+    late: "⪭",
+    lates: "⪭︀",
+    lbarr: "⤌",
+    lbbrk: "❲",
+    lbrace: "{",
+    lbrack: "[",
+    lbrke: "⦋",
+    lbrksld: "⦏",
+    lbrkslu: "⦍",
+    lcaron: "ľ",
+    lcedil: "ļ",
+    lceil: "⌈",
+    lcub: "{",
+    lcy: "л",
+    ldca: "⤶",
+    ldquo: "“",
+    ldquor: "„",
+    ldrdhar: "⥧",
+    ldrushar: "⥋",
+    ldsh: "↲",
+    le: "≤",
+    leftarrow: "←",
+    leftarrowtail: "↢",
+    leftharpoondown: "↽",
+    leftharpoonup: "↼",
+    leftleftarrows: "⇇",
+    leftrightarrow: "↔",
+    leftrightarrows: "⇆",
+    leftrightharpoons: "⇋",
+    leftrightsquigarrow: "↭",
+    leftthreetimes: "⋋",
+    leg: "⋚",
+    leq: "≤",
+    leqq: "≦",
+    leqslant: "⩽",
+    les: "⩽",
+    lescc: "⪨",
+    lesdot: "⩿",
+    lesdoto: "⪁",
+    lesdotor: "⪃",
+    lesg: "⋚︀",
+    lesges: "⪓",
+    lessapprox: "⪅",
+    lessdot: "⋖",
+    lesseqgtr: "⋚",
+    lesseqqgtr: "⪋",
+    lessgtr: "≶",
+    lesssim: "≲",
+    lfisht: "⥼",
+    lfloor: "⌊",
+    lfr: "\uD835\uDD29",
+    lg: "≶",
+    lgE: "⪑",
+    lhard: "↽",
+    lharu: "↼",
+    lharul: "⥪",
+    lhblk: "▄",
+    ljcy: "љ",
+    ll: "≪",
+    llarr: "⇇",
+    llcorner: "⌞",
+    llhard: "⥫",
+    lltri: "◺",
+    lmidot: "ŀ",
+    lmoust: "⎰",
+    lmoustache: "⎰",
+    lnE: "≨",
+    lnap: "⪉",
+    lnapprox: "⪉",
+    lne: "⪇",
+    lneq: "⪇",
+    lneqq: "≨",
+    lnsim: "⋦",
+    loang: "⟬",
+    loarr: "⇽",
+    lobrk: "⟦",
+    longleftarrow: "⟵",
+    longleftrightarrow: "⟷",
+    longmapsto: "⟼",
+    longrightarrow: "⟶",
+    looparrowleft: "↫",
+    looparrowright: "↬",
+    lopar: "⦅",
+    lopf: "\uD835\uDD5D",
+    loplus: "⨭",
+    lotimes: "⨴",
+    lowast: "∗",
+    lowbar: "_",
+    loz: "◊",
+    lozenge: "◊",
+    lozf: "⧫",
+    lpar: "(",
+    lparlt: "⦓",
+    lrarr: "⇆",
+    lrcorner: "⌟",
+    lrhar: "⇋",
+    lrhard: "⥭",
+    lrm: "‎",
+    lrtri: "⊿",
+    lsaquo: "‹",
+    lscr: "\uD835\uDCC1",
+    lsh: "↰",
+    lsim: "≲",
+    lsime: "⪍",
+    lsimg: "⪏",
+    lsqb: "[",
+    lsquo: "‘",
+    lsquor: "‚",
+    lstrok: "ł",
+    lt: "<",
+    ltcc: "⪦",
+    ltcir: "⩹",
+    ltdot: "⋖",
+    lthree: "⋋",
+    ltimes: "⋉",
+    ltlarr: "⥶",
+    ltquest: "⩻",
+    ltrPar: "⦖",
+    ltri: "◃",
+    ltrie: "⊴",
+    ltrif: "◂",
+    lurdshar: "⥊",
+    luruhar: "⥦",
+    lvertneqq: "≨︀",
+    lvnE: "≨︀",
+    mDDot: "∺",
+    macr: "¯",
+    male: "♂",
+    malt: "✠",
+    maltese: "✠",
+    map: "↦",
+    mapsto: "↦",
+    mapstodown: "↧",
+    mapstoleft: "↤",
+    mapstoup: "↥",
+    marker: "▮",
+    mcomma: "⨩",
+    mcy: "м",
+    mdash: "—",
+    measuredangle: "∡",
+    mfr: "\uD835\uDD2A",
+    mho: "℧",
+    micro: "µ",
+    mid: "∣",
+    midast: "*",
+    midcir: "⫰",
+    middot: "·",
+    minus: "−",
+    minusb: "⊟",
+    minusd: "∸",
+    minusdu: "⨪",
+    mlcp: "⫛",
+    mldr: "…",
+    mnplus: "∓",
+    models: "⊧",
+    mopf: "\uD835\uDD5E",
+    mp: "∓",
+    mscr: "\uD835\uDCC2",
+    mstpos: "∾",
+    mu: "μ",
+    multimap: "⊸",
+    mumap: "⊸",
+    nGg: "⋙̸",
+    nGt: "≫⃒",
+    nGtv: "≫̸",
+    nLeftarrow: "⇍",
+    nLeftrightarrow: "⇎",
+    nLl: "⋘̸",
+    nLt: "≪⃒",
+    nLtv: "≪̸",
+    nRightarrow: "⇏",
+    nVDash: "⊯",
+    nVdash: "⊮",
+    nabla: "∇",
+    nacute: "ń",
+    nang: "∠⃒",
+    nap: "≉",
+    napE: "⩰̸",
+    napid: "≋̸",
+    napos: "ŉ",
+    napprox: "≉",
+    natur: "♮",
+    natural: "♮",
+    naturals: "ℕ",
+    nbsp: " ",
+    nbump: "≎̸",
+    nbumpe: "≏̸",
+    ncap: "⩃",
+    ncaron: "ň",
+    ncedil: "ņ",
+    ncong: "≇",
+    ncongdot: "⩭̸",
+    ncup: "⩂",
+    ncy: "н",
+    ndash: "–",
+    ne: "≠",
+    neArr: "⇗",
+    nearhk: "⤤",
+    nearr: "↗",
+    nearrow: "↗",
+    nedot: "≐̸",
+    nequiv: "≢",
+    nesear: "⤨",
+    nesim: "≂̸",
+    nexist: "∄",
+    nexists: "∄",
+    nfr: "\uD835\uDD2B",
+    ngE: "≧̸",
+    nge: "≱",
+    ngeq: "≱",
+    ngeqq: "≧̸",
+    ngeqslant: "⩾̸",
+    nges: "⩾̸",
+    ngsim: "≵",
+    ngt: "≯",
+    ngtr: "≯",
+    nhArr: "⇎",
+    nharr: "↮",
+    nhpar: "⫲",
+    ni: "∋",
+    nis: "⋼",
+    nisd: "⋺",
+    niv: "∋",
+    njcy: "њ",
+    nlArr: "⇍",
+    nlE: "≦̸",
+    nlarr: "↚",
+    nldr: "‥",
+    nle: "≰",
+    nleftarrow: "↚",
+    nleftrightarrow: "↮",
+    nleq: "≰",
+    nleqq: "≦̸",
+    nleqslant: "⩽̸",
+    nles: "⩽̸",
+    nless: "≮",
+    nlsim: "≴",
+    nlt: "≮",
+    nltri: "⋪",
+    nltrie: "⋬",
+    nmid: "∤",
+    nopf: "\uD835\uDD5F",
+    not: "¬",
+    notin: "∉",
+    notinE: "⋹̸",
+    notindot: "⋵̸",
+    notinva: "∉",
+    notinvb: "⋷",
+    notinvc: "⋶",
+    notni: "∌",
+    notniva: "∌",
+    notnivb: "⋾",
+    notnivc: "⋽",
+    npar: "∦",
+    nparallel: "∦",
+    nparsl: "⫽⃥",
+    npart: "∂̸",
+    npolint: "⨔",
+    npr: "⊀",
+    nprcue: "⋠",
+    npre: "⪯̸",
+    nprec: "⊀",
+    npreceq: "⪯̸",
+    nrArr: "⇏",
+    nrarr: "↛",
+    nrarrc: "⤳̸",
+    nrarrw: "↝̸",
+    nrightarrow: "↛",
+    nrtri: "⋫",
+    nrtrie: "⋭",
+    nsc: "⊁",
+    nsccue: "⋡",
+    nsce: "⪰̸",
+    nscr: "\uD835\uDCC3",
+    nshortmid: "∤",
+    nshortparallel: "∦",
+    nsim: "≁",
+    nsime: "≄",
+    nsimeq: "≄",
+    nsmid: "∤",
+    nspar: "∦",
+    nsqsube: "⋢",
+    nsqsupe: "⋣",
+    nsub: "⊄",
+    nsubE: "⫅̸",
+    nsube: "⊈",
+    nsubset: "⊂⃒",
+    nsubseteq: "⊈",
+    nsubseteqq: "⫅̸",
+    nsucc: "⊁",
+    nsucceq: "⪰̸",
+    nsup: "⊅",
+    nsupE: "⫆̸",
+    nsupe: "⊉",
+    nsupset: "⊃⃒",
+    nsupseteq: "⊉",
+    nsupseteqq: "⫆̸",
+    ntgl: "≹",
+    ntilde: "ñ",
+    ntlg: "≸",
+    ntriangleleft: "⋪",
+    ntrianglelefteq: "⋬",
+    ntriangleright: "⋫",
+    ntrianglerighteq: "⋭",
+    nu: "ν",
+    num: "#",
+    numero: "№",
+    numsp: " ",
+    nvDash: "⊭",
+    nvHarr: "⤄",
+    nvap: "≍⃒",
+    nvdash: "⊬",
+    nvge: "≥⃒",
+    nvgt: ">⃒",
+    nvinfin: "⧞",
+    nvlArr: "⤂",
+    nvle: "≤⃒",
+    nvlt: "<⃒",
+    nvltrie: "⊴⃒",
+    nvrArr: "⤃",
+    nvrtrie: "⊵⃒",
+    nvsim: "∼⃒",
+    nwArr: "⇖",
+    nwarhk: "⤣",
+    nwarr: "↖",
+    nwarrow: "↖",
+    nwnear: "⤧",
+    oS: "Ⓢ",
+    oacute: "ó",
+    oast: "⊛",
+    ocir: "⊚",
+    ocirc: "ô",
+    ocy: "о",
+    odash: "⊝",
+    odblac: "ő",
+    odiv: "⨸",
+    odot: "⊙",
+    odsold: "⦼",
+    oelig: "œ",
+    ofcir: "⦿",
+    ofr: "\uD835\uDD2C",
+    ogon: "˛",
+    ograve: "ò",
+    ogt: "⧁",
+    ohbar: "⦵",
+    ohm: "Ω",
+    oint: "∮",
+    olarr: "↺",
+    olcir: "⦾",
+    olcross: "⦻",
+    oline: "‾",
+    olt: "⧀",
+    omacr: "ō",
+    omega: "ω",
+    omicron: "ο",
+    omid: "⦶",
+    ominus: "⊖",
+    oopf: "\uD835\uDD60",
+    opar: "⦷",
+    operp: "⦹",
+    oplus: "⊕",
+    or: "∨",
+    orarr: "↻",
+    ord: "⩝",
+    order: "ℴ",
+    orderof: "ℴ",
+    ordf: "ª",
+    ordm: "º",
+    origof: "⊶",
+    oror: "⩖",
+    orslope: "⩗",
+    orv: "⩛",
+    oscr: "ℴ",
+    oslash: "ø",
+    osol: "⊘",
+    otilde: "õ",
+    otimes: "⊗",
+    otimesas: "⨶",
+    ouml: "ö",
+    ovbar: "⌽",
+    par: "∥",
+    para: "¶",
+    parallel: "∥",
+    parsim: "⫳",
+    parsl: "⫽",
+    part: "∂",
+    pcy: "п",
+    percnt: "%",
+    period: ".",
+    permil: "‰",
+    perp: "⊥",
+    pertenk: "‱",
+    pfr: "\uD835\uDD2D",
+    phi: "φ",
+    phiv: "ϕ",
+    phmmat: "ℳ",
+    phone: "☎",
+    pi: "π",
+    pitchfork: "⋔",
+    piv: "ϖ",
+    planck: "ℏ",
+    planckh: "ℎ",
+    plankv: "ℏ",
+    plus: "+",
+    plusacir: "⨣",
+    plusb: "⊞",
+    pluscir: "⨢",
+    plusdo: "∔",
+    plusdu: "⨥",
+    pluse: "⩲",
+    plusmn: "±",
+    plussim: "⨦",
+    plustwo: "⨧",
+    pm: "±",
+    pointint: "⨕",
+    popf: "\uD835\uDD61",
+    pound: "£",
+    pr: "≺",
+    prE: "⪳",
+    prap: "⪷",
+    prcue: "≼",
+    pre: "⪯",
+    prec: "≺",
+    precapprox: "⪷",
+    preccurlyeq: "≼",
+    preceq: "⪯",
+    precnapprox: "⪹",
+    precneqq: "⪵",
+    precnsim: "⋨",
+    precsim: "≾",
+    prime: "′",
+    primes: "ℙ",
+    prnE: "⪵",
+    prnap: "⪹",
+    prnsim: "⋨",
+    prod: "∏",
+    profalar: "⌮",
+    profline: "⌒",
+    profsurf: "⌓",
+    prop: "∝",
+    propto: "∝",
+    prsim: "≾",
+    prurel: "⊰",
+    pscr: "\uD835\uDCC5",
+    psi: "ψ",
+    puncsp: " ",
+    qfr: "\uD835\uDD2E",
+    qint: "⨌",
+    qopf: "\uD835\uDD62",
+    qprime: "⁗",
+    qscr: "\uD835\uDCC6",
+    quaternions: "ℍ",
+    quatint: "⨖",
+    quest: "?",
+    questeq: "≟",
+    quot: '"',
+    rAarr: "⇛",
+    rArr: "⇒",
+    rAtail: "⤜",
+    rBarr: "⤏",
+    rHar: "⥤",
+    race: "∽̱",
+    racute: "ŕ",
+    radic: "√",
+    raemptyv: "⦳",
+    rang: "⟩",
+    rangd: "⦒",
+    range: "⦥",
+    rangle: "⟩",
+    raquo: "»",
+    rarr: "→",
+    rarrap: "⥵",
+    rarrb: "⇥",
+    rarrbfs: "⤠",
+    rarrc: "⤳",
+    rarrfs: "⤞",
+    rarrhk: "↪",
+    rarrlp: "↬",
+    rarrpl: "⥅",
+    rarrsim: "⥴",
+    rarrtl: "↣",
+    rarrw: "↝",
+    ratail: "⤚",
+    ratio: "∶",
+    rationals: "ℚ",
+    rbarr: "⤍",
+    rbbrk: "❳",
+    rbrace: "}",
+    rbrack: "]",
+    rbrke: "⦌",
+    rbrksld: "⦎",
+    rbrkslu: "⦐",
+    rcaron: "ř",
+    rcedil: "ŗ",
+    rceil: "⌉",
+    rcub: "}",
+    rcy: "р",
+    rdca: "⤷",
+    rdldhar: "⥩",
+    rdquo: "”",
+    rdquor: "”",
+    rdsh: "↳",
+    real: "ℜ",
+    realine: "ℛ",
+    realpart: "ℜ",
+    reals: "ℝ",
+    rect: "▭",
+    reg: "®",
+    rfisht: "⥽",
+    rfloor: "⌋",
+    rfr: "\uD835\uDD2F",
+    rhard: "⇁",
+    rharu: "⇀",
+    rharul: "⥬",
+    rho: "ρ",
+    rhov: "ϱ",
+    rightarrow: "→",
+    rightarrowtail: "↣",
+    rightharpoondown: "⇁",
+    rightharpoonup: "⇀",
+    rightleftarrows: "⇄",
+    rightleftharpoons: "⇌",
+    rightrightarrows: "⇉",
+    rightsquigarrow: "↝",
+    rightthreetimes: "⋌",
+    ring: "˚",
+    risingdotseq: "≓",
+    rlarr: "⇄",
+    rlhar: "⇌",
+    rlm: "‏",
+    rmoust: "⎱",
+    rmoustache: "⎱",
+    rnmid: "⫮",
+    roang: "⟭",
+    roarr: "⇾",
+    robrk: "⟧",
+    ropar: "⦆",
+    ropf: "\uD835\uDD63",
+    roplus: "⨮",
+    rotimes: "⨵",
+    rpar: ")",
+    rpargt: "⦔",
+    rppolint: "⨒",
+    rrarr: "⇉",
+    rsaquo: "›",
+    rscr: "\uD835\uDCC7",
+    rsh: "↱",
+    rsqb: "]",
+    rsquo: "’",
+    rsquor: "’",
+    rthree: "⋌",
+    rtimes: "⋊",
+    rtri: "▹",
+    rtrie: "⊵",
+    rtrif: "▸",
+    rtriltri: "⧎",
+    ruluhar: "⥨",
+    rx: "℞",
+    sacute: "ś",
+    sbquo: "‚",
+    sc: "≻",
+    scE: "⪴",
+    scap: "⪸",
+    scaron: "š",
+    sccue: "≽",
+    sce: "⪰",
+    scedil: "ş",
+    scirc: "ŝ",
+    scnE: "⪶",
+    scnap: "⪺",
+    scnsim: "⋩",
+    scpolint: "⨓",
+    scsim: "≿",
+    scy: "с",
+    sdot: "⋅",
+    sdotb: "⊡",
+    sdote: "⩦",
+    seArr: "⇘",
+    searhk: "⤥",
+    searr: "↘",
+    searrow: "↘",
+    sect: "§",
+    semi: ";",
+    seswar: "⤩",
+    setminus: "∖",
+    setmn: "∖",
+    sext: "✶",
+    sfr: "\uD835\uDD30",
+    sfrown: "⌢",
+    sharp: "♯",
+    shchcy: "щ",
+    shcy: "ш",
+    shortmid: "∣",
+    shortparallel: "∥",
+    shy: "­",
+    sigma: "σ",
+    sigmaf: "ς",
+    sigmav: "ς",
+    sim: "∼",
+    simdot: "⩪",
+    sime: "≃",
+    simeq: "≃",
+    simg: "⪞",
+    simgE: "⪠",
+    siml: "⪝",
+    simlE: "⪟",
+    simne: "≆",
+    simplus: "⨤",
+    simrarr: "⥲",
+    slarr: "←",
+    smallsetminus: "∖",
+    smashp: "⨳",
+    smeparsl: "⧤",
+    smid: "∣",
+    smile: "⌣",
+    smt: "⪪",
+    smte: "⪬",
+    smtes: "⪬︀",
+    softcy: "ь",
+    sol: "/",
+    solb: "⧄",
+    solbar: "⌿",
+    sopf: "\uD835\uDD64",
+    spades: "♠",
+    spadesuit: "♠",
+    spar: "∥",
+    sqcap: "⊓",
+    sqcaps: "⊓︀",
+    sqcup: "⊔",
+    sqcups: "⊔︀",
+    sqsub: "⊏",
+    sqsube: "⊑",
+    sqsubset: "⊏",
+    sqsubseteq: "⊑",
+    sqsup: "⊐",
+    sqsupe: "⊒",
+    sqsupset: "⊐",
+    sqsupseteq: "⊒",
+    squ: "□",
+    square: "□",
+    squarf: "▪",
+    squf: "▪",
+    srarr: "→",
+    sscr: "\uD835\uDCC8",
+    ssetmn: "∖",
+    ssmile: "⌣",
+    sstarf: "⋆",
+    star: "☆",
+    starf: "★",
+    straightepsilon: "ϵ",
+    straightphi: "ϕ",
+    strns: "¯",
+    sub: "⊂",
+    subE: "⫅",
+    subdot: "⪽",
+    sube: "⊆",
+    subedot: "⫃",
+    submult: "⫁",
+    subnE: "⫋",
+    subne: "⊊",
+    subplus: "⪿",
+    subrarr: "⥹",
+    subset: "⊂",
+    subseteq: "⊆",
+    subseteqq: "⫅",
+    subsetneq: "⊊",
+    subsetneqq: "⫋",
+    subsim: "⫇",
+    subsub: "⫕",
+    subsup: "⫓",
+    succ: "≻",
+    succapprox: "⪸",
+    succcurlyeq: "≽",
+    succeq: "⪰",
+    succnapprox: "⪺",
+    succneqq: "⪶",
+    succnsim: "⋩",
+    succsim: "≿",
+    sum: "∑",
+    sung: "♪",
+    sup1: "¹",
+    sup2: "²",
+    sup3: "³",
+    sup: "⊃",
+    supE: "⫆",
+    supdot: "⪾",
+    supdsub: "⫘",
+    supe: "⊇",
+    supedot: "⫄",
+    suphsol: "⟉",
+    suphsub: "⫗",
+    suplarr: "⥻",
+    supmult: "⫂",
+    supnE: "⫌",
+    supne: "⊋",
+    supplus: "⫀",
+    supset: "⊃",
+    supseteq: "⊇",
+    supseteqq: "⫆",
+    supsetneq: "⊋",
+    supsetneqq: "⫌",
+    supsim: "⫈",
+    supsub: "⫔",
+    supsup: "⫖",
+    swArr: "⇙",
+    swarhk: "⤦",
+    swarr: "↙",
+    swarrow: "↙",
+    swnwar: "⤪",
+    szlig: "ß",
+    target: "⌖",
+    tau: "τ",
+    tbrk: "⎴",
+    tcaron: "ť",
+    tcedil: "ţ",
+    tcy: "т",
+    tdot: "⃛",
+    telrec: "⌕",
+    tfr: "\uD835\uDD31",
+    there4: "∴",
+    therefore: "∴",
+    theta: "θ",
+    thetasym: "ϑ",
+    thetav: "ϑ",
+    thickapprox: "≈",
+    thicksim: "∼",
+    thinsp: " ",
+    thkap: "≈",
+    thksim: "∼",
+    thorn: "þ",
+    tilde: "˜",
+    times: "×",
+    timesb: "⊠",
+    timesbar: "⨱",
+    timesd: "⨰",
+    tint: "∭",
+    toea: "⤨",
+    top: "⊤",
+    topbot: "⌶",
+    topcir: "⫱",
+    topf: "\uD835\uDD65",
+    topfork: "⫚",
+    tosa: "⤩",
+    tprime: "‴",
+    trade: "™",
+    triangle: "▵",
+    triangledown: "▿",
+    triangleleft: "◃",
+    trianglelefteq: "⊴",
+    triangleq: "≜",
+    triangleright: "▹",
+    trianglerighteq: "⊵",
+    tridot: "◬",
+    trie: "≜",
+    triminus: "⨺",
+    triplus: "⨹",
+    trisb: "⧍",
+    tritime: "⨻",
+    trpezium: "⏢",
+    tscr: "\uD835\uDCC9",
+    tscy: "ц",
+    tshcy: "ћ",
+    tstrok: "ŧ",
+    twixt: "≬",
+    twoheadleftarrow: "↞",
+    twoheadrightarrow: "↠",
+    uArr: "⇑",
+    uHar: "⥣",
+    uacute: "ú",
+    uarr: "↑",
+    ubrcy: "ў",
+    ubreve: "ŭ",
+    ucirc: "û",
+    ucy: "у",
+    udarr: "⇅",
+    udblac: "ű",
+    udhar: "⥮",
+    ufisht: "⥾",
+    ufr: "\uD835\uDD32",
+    ugrave: "ù",
+    uharl: "↿",
+    uharr: "↾",
+    uhblk: "▀",
+    ulcorn: "⌜",
+    ulcorner: "⌜",
+    ulcrop: "⌏",
+    ultri: "◸",
+    umacr: "ū",
+    uml: "¨",
+    uogon: "ų",
+    uopf: "\uD835\uDD66",
+    uparrow: "↑",
+    updownarrow: "↕",
+    upharpoonleft: "↿",
+    upharpoonright: "↾",
+    uplus: "⊎",
+    upsi: "υ",
+    upsih: "ϒ",
+    upsilon: "υ",
+    upuparrows: "⇈",
+    urcorn: "⌝",
+    urcorner: "⌝",
+    urcrop: "⌎",
+    uring: "ů",
+    urtri: "◹",
+    uscr: "\uD835\uDCCA",
+    utdot: "⋰",
+    utilde: "ũ",
+    utri: "▵",
+    utrif: "▴",
+    uuarr: "⇈",
+    uuml: "ü",
+    uwangle: "⦧",
+    vArr: "⇕",
+    vBar: "⫨",
+    vBarv: "⫩",
+    vDash: "⊨",
+    vangrt: "⦜",
+    varepsilon: "ϵ",
+    varkappa: "ϰ",
+    varnothing: "∅",
+    varphi: "ϕ",
+    varpi: "ϖ",
+    varpropto: "∝",
+    varr: "↕",
+    varrho: "ϱ",
+    varsigma: "ς",
+    varsubsetneq: "⊊︀",
+    varsubsetneqq: "⫋︀",
+    varsupsetneq: "⊋︀",
+    varsupsetneqq: "⫌︀",
+    vartheta: "ϑ",
+    vartriangleleft: "⊲",
+    vartriangleright: "⊳",
+    vcy: "в",
+    vdash: "⊢",
+    vee: "∨",
+    veebar: "⊻",
+    veeeq: "≚",
+    vellip: "⋮",
+    verbar: "|",
+    vert: "|",
+    vfr: "\uD835\uDD33",
+    vltri: "⊲",
+    vnsub: "⊂⃒",
+    vnsup: "⊃⃒",
+    vopf: "\uD835\uDD67",
+    vprop: "∝",
+    vrtri: "⊳",
+    vscr: "\uD835\uDCCB",
+    vsubnE: "⫋︀",
+    vsubne: "⊊︀",
+    vsupnE: "⫌︀",
+    vsupne: "⊋︀",
+    vzigzag: "⦚",
+    wcirc: "ŵ",
+    wedbar: "⩟",
+    wedge: "∧",
+    wedgeq: "≙",
+    weierp: "℘",
+    wfr: "\uD835\uDD34",
+    wopf: "\uD835\uDD68",
+    wp: "℘",
+    wr: "≀",
+    wreath: "≀",
+    wscr: "\uD835\uDCCC",
+    xcap: "⋂",
+    xcirc: "◯",
+    xcup: "⋃",
+    xdtri: "▽",
+    xfr: "\uD835\uDD35",
+    xhArr: "⟺",
+    xharr: "⟷",
+    xi: "ξ",
+    xlArr: "⟸",
+    xlarr: "⟵",
+    xmap: "⟼",
+    xnis: "⋻",
+    xodot: "⨀",
+    xopf: "\uD835\uDD69",
+    xoplus: "⨁",
+    xotime: "⨂",
+    xrArr: "⟹",
+    xrarr: "⟶",
+    xscr: "\uD835\uDCCD",
+    xsqcup: "⨆",
+    xuplus: "⨄",
+    xutri: "△",
+    xvee: "⋁",
+    xwedge: "⋀",
+    yacute: "ý",
+    yacy: "я",
+    ycirc: "ŷ",
+    ycy: "ы",
+    yen: "¥",
+    yfr: "\uD835\uDD36",
+    yicy: "ї",
+    yopf: "\uD835\uDD6A",
+    yscr: "\uD835\uDCCE",
+    yucy: "ю",
+    yuml: "ÿ",
+    zacute: "ź",
+    zcaron: "ž",
+    zcy: "з",
+    zdot: "ż",
+    zeetrf: "ℨ",
+    zeta: "ζ",
+    zfr: "\uD835\uDD37",
+    zhcy: "ж",
+    zigrarr: "⇝",
+    zopf: "\uD835\uDD6B",
+    zscr: "\uD835\uDCCF",
+    zwj: "‍",
+    zwnj: "‌"
+  };
+});
+
+// node_modules/decode-named-character-reference/index.js
+function decodeNamedCharacterReference(value) {
+  return own3.call(characterEntities, value) ? characterEntities[value] : false;
+}
+var own3;
+var init_decode_named_character_reference = __esm(() => {
+  init_character_entities();
+  own3 = {}.hasOwnProperty;
+});
+
+// node_modules/micromark-util-decode-numeric-character-reference/dev/index.js
+function decodeNumericCharacterReference(value, base) {
+  const code2 = Number.parseInt(value, base);
+  if (code2 < codes.ht || code2 === codes.vt || code2 > codes.cr && code2 < codes.space || code2 > codes.tilde && code2 < 160 || code2 > 55295 && code2 < 57344 || code2 > 64975 && code2 < 65008 || (code2 & 65535) === 65535 || (code2 & 65535) === 65534 || code2 > 1114111) {
+    return values2.replacementCharacter;
+  }
+  return String.fromCodePoint(code2);
+}
+var init_dev4 = __esm(() => {
+  init_default();
+});
+
+// node_modules/micromark-util-decode-string/dev/index.js
+function decodeString(value) {
+  return value.replace(characterEscapeOrReference, decode);
+}
+function decode($0, $1, $2) {
+  if ($1) {
+    return $1;
+  }
+  const head = $2.charCodeAt(0);
+  if (head === codes.numberSign) {
+    const head2 = $2.charCodeAt(1);
+    const hex = head2 === codes.lowercaseX || head2 === codes.uppercaseX;
+    return decodeNumericCharacterReference($2.slice(hex ? 2 : 1), hex ? constants.numericBaseHexadecimal : constants.numericBaseDecimal);
+  }
+  return decodeNamedCharacterReference($2) || $0;
+}
+var characterEscapeOrReference;
+var init_dev5 = __esm(() => {
+  init_decode_named_character_reference();
+  init_dev4();
+  init_default();
+  characterEscapeOrReference = /\\([!-/:-@[-`{-~])|&(#(?:\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});/gi;
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/association.js
+function association(node2) {
+  if (node2.label || !node2.identifier) {
+    return node2.label || "";
+  }
+  return decodeString(node2.identifier);
+}
+var init_association = __esm(() => {
+  init_dev5();
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/compile-pattern.js
+function compilePattern(pattern) {
+  if (!pattern._compiled) {
+    const before = (pattern.atBreak ? "[\\r\\n][\\t ]*" : "") + (pattern.before ? "(?:" + pattern.before + ")" : "");
+    pattern._compiled = new RegExp((before ? "(" + before + ")" : "") + (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? "\\" : "") + pattern.character + (pattern.after ? "(?:" + pattern.after + ")" : ""), "g");
+  }
+  return pattern._compiled;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
+function containerPhrasing(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const results = [];
+  let index = -1;
+  let before = info.before;
+  let encodeAfter;
+  indexStack.push(-1);
+  let tracker = state.createTracker(info);
+  while (++index < children.length) {
+    const child = children[index];
+    let after;
+    indexStack[indexStack.length - 1] = index;
+    if (index + 1 < children.length) {
+      let handle2 = state.handle.handlers[children[index + 1].type];
+      if (handle2 && handle2.peek)
+        handle2 = handle2.peek;
+      after = handle2 ? handle2(children[index + 1], parent, state, {
+        before: "",
+        after: "",
+        ...tracker.current()
+      }).charAt(0) : "";
+    } else {
+      after = info.after;
+    }
+    if (results.length > 0 && (before === "\r" || before === `
+`) && child.type === "html") {
+      results[results.length - 1] = results[results.length - 1].replace(/(\r?\n|\r)$/, " ");
+      before = " ";
+      tracker = state.createTracker(info);
+      tracker.move(results.join(""));
+    }
+    let value = state.handle(child, parent, state, {
+      ...tracker.current(),
+      after,
+      before
+    });
+    if (encodeAfter && encodeAfter === value.slice(0, 1)) {
+      value = encodeCharacterReference(encodeAfter.charCodeAt(0)) + value.slice(1);
+    }
+    const encodingInfo = state.attentionEncodeSurroundingInfo;
+    state.attentionEncodeSurroundingInfo = undefined;
+    encodeAfter = undefined;
+    if (encodingInfo) {
+      if (results.length > 0 && encodingInfo.before && before === results[results.length - 1].slice(-1)) {
+        results[results.length - 1] = results[results.length - 1].slice(0, -1) + encodeCharacterReference(before.charCodeAt(0));
+      }
+      if (encodingInfo.after)
+        encodeAfter = after;
+    }
+    tracker.move(value);
+    results.push(value);
+    before = value.slice(-1);
+  }
+  indexStack.pop();
+  return results.join("");
+}
+var init_container_phrasing = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/util/container-flow.js
+function containerFlow(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const tracker = state.createTracker(info);
+  const results = [];
+  let index = -1;
+  indexStack.push(-1);
+  while (++index < children.length) {
+    const child = children[index];
+    indexStack[indexStack.length - 1] = index;
+    results.push(tracker.move(state.handle(child, parent, state, {
+      before: `
+`,
+      after: `
+`,
+      ...tracker.current()
+    })));
+    if (child.type !== "list") {
+      state.bulletLastUsed = undefined;
+    }
+    if (index < children.length - 1) {
+      results.push(tracker.move(between2(child, children[index + 1], parent, state)));
+    }
+  }
+  indexStack.pop();
+  return results.join("");
+}
+function between2(left, right, parent, state) {
+  let index = state.join.length;
+  while (index--) {
+    const result = state.join[index](left, right, parent, state);
+    if (result === true || result === 1) {
+      break;
+    }
+    if (typeof result === "number") {
+      return `
+`.repeat(1 + result);
+    }
+    if (result === false) {
+      return `
+
+<!---->
+
+`;
+    }
+  }
+  return `
+
+`;
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/indent-lines.js
+function indentLines(value, map4) {
+  const result = [];
+  let start = 0;
+  let line3 = 0;
+  let match;
+  while (match = eol.exec(value)) {
+    one2(value.slice(start, match.index));
+    result.push(match[0]);
+    start = match.index + match[0].length;
+    line3++;
+  }
+  one2(value.slice(start));
+  return result.join("");
+  function one2(value2) {
+    result.push(map4(value2, line3, !value2));
+  }
+}
+var eol;
+var init_indent_lines = __esm(() => {
+  eol = /\r?\n|\r/g;
+});
+
+// node_modules/mdast-util-to-markdown/lib/util/safe.js
+function safe(state, input, config) {
+  const value = (config.before || "") + (input || "") + (config.after || "");
+  const positions = [];
+  const result = [];
+  const infos = {};
+  let index = -1;
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
+    if (!patternInScope(state.stack, pattern)) {
+      continue;
+    }
+    const expression = state.compilePattern(pattern);
+    let match;
+    while (match = expression.exec(value)) {
+      const before = "before" in pattern || Boolean(pattern.atBreak);
+      const after = "after" in pattern;
+      const position = match.index + (before ? match[1].length : 0);
+      if (positions.includes(position)) {
+        if (infos[position].before && !before) {
+          infos[position].before = false;
+        }
+        if (infos[position].after && !after) {
+          infos[position].after = false;
+        }
+      } else {
+        positions.push(position);
+        infos[position] = { before, after };
+      }
+    }
+  }
+  positions.sort(numerical);
+  let start = config.before ? config.before.length : 0;
+  const end = value.length - (config.after ? config.after.length : 0);
+  index = -1;
+  while (++index < positions.length) {
+    const position = positions[index];
+    if (position < start || position >= end) {
+      continue;
+    }
+    if (position + 1 < end && positions[index + 1] === position + 1 && infos[position].after && !infos[position + 1].before && !infos[position + 1].after || positions[index - 1] === position - 1 && infos[position].before && !infos[position - 1].before && !infos[position - 1].after) {
+      continue;
+    }
+    if (start !== position) {
+      result.push(escapeBackslashes(value.slice(start, position), "\\"));
+    }
+    start = position;
+    if (/[!-/:-@[-`{-~]/.test(value.charAt(position)) && (!config.encode || !config.encode.includes(value.charAt(position)))) {
+      result.push("\\");
+    } else {
+      result.push(encodeCharacterReference(value.charCodeAt(position)));
+      start++;
+    }
+  }
+  result.push(escapeBackslashes(value.slice(start, end), config.after));
+  return result.join("");
+}
+function numerical(a, b2) {
+  return a - b2;
+}
+function escapeBackslashes(value, after) {
+  const expression = /\\(?=[!-/:-@[-`{-~])/g;
+  const positions = [];
+  const results = [];
+  const whole = value + after;
+  let index = -1;
+  let start = 0;
+  let match;
+  while (match = expression.exec(whole)) {
+    positions.push(match.index);
+  }
+  while (++index < positions.length) {
+    if (start !== positions[index]) {
+      results.push(value.slice(start, positions[index]));
+    }
+    results.push("\\");
+    start = positions[index];
+  }
+  results.push(value.slice(start));
+  return results.join("");
+}
+var init_safe = () => {};
+
+// node_modules/mdast-util-to-markdown/lib/util/track.js
+function track(config) {
+  const options = config || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line3 = now.line || 1;
+  let column2 = now.column || 1;
+  return { move, current, shift };
+  function current() {
+    return { now: { line: line3, column: column2 }, lineShift };
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(input) {
+    const value = input || "";
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line3 += chunks.length - 1;
+    column2 = chunks.length === 1 ? column2 + tail.length : 1 + tail.length + lineShift;
+    return value;
+  }
+}
+
+// node_modules/mdast-util-to-markdown/lib/index.js
+function toMarkdown(tree, options) {
+  const settings = options || {};
+  const state = {
+    associationId: association,
+    containerPhrasing: containerPhrasingBound,
+    containerFlow: containerFlowBound,
+    createTracker: track,
+    compilePattern,
+    enter,
+    handlers: { ...handle },
+    handle: undefined,
+    indentLines,
+    indexStack: [],
+    join: [...join],
+    options: {},
+    safe: safeBound,
+    stack: [],
+    unsafe: [...unsafe]
+  };
+  configure(state, settings);
+  if (state.options.tightDefinitions) {
+    state.join.push(joinDefinition);
+  }
+  state.handle = zwitch("type", {
+    invalid,
+    unknown,
+    handlers: state.handlers
+  });
+  let result = state.handle(tree, undefined, state, {
+    before: `
+`,
+    after: `
+`,
+    now: { line: 1, column: 1 },
+    lineShift: 0
+  });
+  if (result && result.charCodeAt(result.length - 1) !== 10 && result.charCodeAt(result.length - 1) !== 13) {
+    result += `
+`;
+  }
+  return result;
+  function enter(name) {
+    state.stack.push(name);
+    return exit;
+    function exit() {
+      state.stack.pop();
+    }
+  }
+}
+function invalid(value) {
+  throw new Error("Cannot handle value `" + value + "`, expected node");
+}
+function unknown(value) {
+  const node2 = value;
+  throw new Error("Cannot handle unknown node `" + node2.type + "`");
+}
+function joinDefinition(left, right) {
+  if (left.type === "definition" && left.type === right.type) {
+    return 0;
+  }
+}
+function containerPhrasingBound(parent, info) {
+  return containerPhrasing(parent, this, info);
+}
+function containerFlowBound(parent, info) {
+  return containerFlow(parent, this, info);
+}
+function safeBound(value, config) {
+  return safe(this, value, config);
+}
+var init_lib9 = __esm(() => {
+  init_zwitch();
+  init_configure();
+  init_handle();
+  init_join();
+  init_unsafe();
+  init_association();
+  init_container_phrasing();
+  init_indent_lines();
+  init_safe();
+});
+
+// node_modules/mdast-util-to-markdown/index.js
+var init_mdast_util_to_markdown = __esm(() => {
+  init_lib9();
+  init_handle();
+});
+
+// node_modules/mdast-util-gfm-table/lib/index.js
+function gfmTableFromMarkdown() {
+  return {
+    enter: {
+      table: enterTable,
+      tableData: enterCell,
+      tableHeader: enterCell,
+      tableRow: enterRow
+    },
+    exit: {
+      codeText: exitCodeText,
+      table: exitTable,
+      tableData: exit,
+      tableHeader: exit,
+      tableRow: exit
+    }
+  };
+}
+function enterTable(token) {
+  const align = token._align;
+  ok(align, "expected `_align` on table");
+  this.enter({
+    type: "table",
+    align: align.map(function(d) {
+      return d === "none" ? null : d;
+    }),
+    children: []
+  }, token);
+  this.data.inTable = true;
+}
+function exitTable(token) {
+  this.exit(token);
+  this.data.inTable = undefined;
+}
+function enterRow(token) {
+  this.enter({ type: "tableRow", children: [] }, token);
+}
+function exit(token) {
+  this.exit(token);
+}
+function enterCell(token) {
+  this.enter({ type: "tableCell", children: [] }, token);
+}
+function exitCodeText(token) {
+  let value = this.resume();
+  if (this.data.inTable) {
+    value = value.replace(/\\([\\|])/g, replace);
+  }
+  const node2 = this.stack[this.stack.length - 1];
+  ok(node2.type === "inlineCode");
+  node2.value = value;
+  this.exit(token);
+}
+function replace($0, $1) {
+  return $1 === "|" ? $1 : $0;
+}
+function gfmTableToMarkdown(options) {
+  const settings = options || {};
+  const padding = settings.tableCellPadding;
+  const alignDelimiters = settings.tablePipeAlign;
+  const stringLength = settings.stringLength;
+  const around = padding ? " " : "|";
+  return {
+    unsafe: [
+      { character: "\r", inConstruct: "tableCell" },
+      { character: `
+`, inConstruct: "tableCell" },
+      { atBreak: true, character: "|", after: "[\t :-]" },
+      { character: "|", inConstruct: "tableCell" },
+      { atBreak: true, character: ":", after: "-" },
+      { atBreak: true, character: "-", after: "[:|-]" }
+    ],
+    handlers: {
+      inlineCode: inlineCodeWithTable,
+      table: handleTable,
+      tableCell: handleTableCell,
+      tableRow: handleTableRow
+    }
+  };
+  function handleTable(node2, _, state, info) {
+    return serializeData(handleTableAsData(node2, state, info), node2.align);
+  }
+  function handleTableRow(node2, _, state, info) {
+    const row = handleTableRowAsData(node2, state, info);
+    const value = serializeData([row]);
+    return value.slice(0, value.indexOf(`
+`));
+  }
+  function handleTableCell(node2, _, state, info) {
+    const exit2 = state.enter("tableCell");
+    const subexit = state.enter("phrasing");
+    const value = state.containerPhrasing(node2, {
+      ...info,
+      before: around,
+      after: around
+    });
+    subexit();
+    exit2();
+    return value;
+  }
+  function serializeData(matrix, align) {
+    return markdownTable(matrix, {
+      align,
+      alignDelimiters,
+      padding,
+      stringLength
+    });
+  }
+  function handleTableAsData(node2, state, info) {
+    const children = node2.children;
+    let index = -1;
+    const result = [];
+    const subexit = state.enter("table");
+    while (++index < children.length) {
+      result[index] = handleTableRowAsData(children[index], state, info);
+    }
+    subexit();
+    return result;
+  }
+  function handleTableRowAsData(node2, state, info) {
+    const children = node2.children;
+    let index = -1;
+    const result = [];
+    const subexit = state.enter("tableRow");
+    while (++index < children.length) {
+      result[index] = handleTableCell(children[index], node2, state, info);
+    }
+    subexit();
+    return result;
+  }
+  function inlineCodeWithTable(node2, parent, state) {
+    let value = handle.inlineCode(node2, parent, state);
+    if (state.stack.includes("tableCell")) {
+      value = value.replace(/\|/g, "\\$&");
+    }
+    return value;
+  }
+}
+var init_lib10 = __esm(() => {
+  init_development();
+  init_mdast_util_to_markdown();
+});
+
+// node_modules/mdast-util-gfm-table/index.js
+var init_mdast_util_gfm_table = __esm(() => {
+  init_lib10();
+});
+
+// node_modules/mdast-util-gfm-task-list-item/lib/index.js
+function gfmTaskListItemFromMarkdown() {
+  return {
+    exit: {
+      taskListCheckValueChecked: exitCheck,
+      taskListCheckValueUnchecked: exitCheck,
+      paragraph: exitParagraphWithTaskListItem
+    }
+  };
+}
+function gfmTaskListItemToMarkdown() {
+  return {
+    unsafe: [{ atBreak: true, character: "-", after: "[:|-]" }],
+    handlers: { listItem: listItemWithTaskListItem }
+  };
+}
+function exitCheck(token) {
+  const node2 = this.stack[this.stack.length - 2];
+  ok(node2.type === "listItem");
+  node2.checked = token.type === "taskListCheckValueChecked";
+}
+function exitParagraphWithTaskListItem(token) {
+  const parent = this.stack[this.stack.length - 2];
+  if (parent && parent.type === "listItem" && typeof parent.checked === "boolean") {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2.type === "paragraph");
+    const head = node2.children[0];
+    if (head && head.type === "text") {
+      const siblings = parent.children;
+      let index = -1;
+      let firstParaghraph;
+      while (++index < siblings.length) {
+        const sibling = siblings[index];
+        if (sibling.type === "paragraph") {
+          firstParaghraph = sibling;
+          break;
+        }
+      }
+      if (firstParaghraph === node2) {
+        head.value = head.value.slice(1);
+        if (head.value.length === 0) {
+          node2.children.shift();
+        } else if (node2.position && head.position && typeof head.position.start.offset === "number") {
+          head.position.start.column++;
+          head.position.start.offset++;
+          node2.position.start = Object.assign({}, head.position.start);
+        }
+      }
+    }
+  }
+  this.exit(token);
+}
+function listItemWithTaskListItem(node2, parent, state, info) {
+  const head = node2.children[0];
+  const checkable = typeof node2.checked === "boolean" && head && head.type === "paragraph";
+  const checkbox = "[" + (node2.checked ? "x" : " ") + "] ";
+  const tracker = state.createTracker(info);
+  if (checkable) {
+    tracker.move(checkbox);
+  }
+  let value = handle.listItem(node2, parent, state, {
+    ...info,
+    ...tracker.current()
+  });
+  if (checkable) {
+    value = value.replace(/^(?:[*+-]|\d+\.)([\r\n]| {1,3})/, check);
+  }
+  return value;
+  function check($0) {
+    return $0 + checkbox;
+  }
+}
+var init_lib11 = __esm(() => {
+  init_development();
+  init_mdast_util_to_markdown();
+});
+
+// node_modules/mdast-util-gfm-task-list-item/index.js
+var init_mdast_util_gfm_task_list_item = __esm(() => {
+  init_lib11();
+});
+
+// node_modules/mdast-util-gfm/lib/index.js
+function gfmFromMarkdown() {
+  return [
+    gfmAutolinkLiteralFromMarkdown(),
+    gfmFootnoteFromMarkdown(),
+    gfmStrikethroughFromMarkdown(),
+    gfmTableFromMarkdown(),
+    gfmTaskListItemFromMarkdown()
+  ];
+}
+function gfmToMarkdown(options) {
+  return {
+    extensions: [
+      gfmAutolinkLiteralToMarkdown(),
+      gfmFootnoteToMarkdown(options),
+      gfmStrikethroughToMarkdown(),
+      gfmTableToMarkdown(options),
+      gfmTaskListItemToMarkdown()
+    ]
+  };
+}
+var init_lib12 = __esm(() => {
+  init_mdast_util_gfm_autolink_literal();
+  init_mdast_util_gfm_footnote();
+  init_mdast_util_gfm_strikethrough();
+  init_mdast_util_gfm_table();
+  init_mdast_util_gfm_task_list_item();
+});
+
+// node_modules/mdast-util-gfm/index.js
+var init_mdast_util_gfm = __esm(() => {
+  init_lib12();
+});
+
+// node_modules/micromark-util-chunked/dev/index.js
+function splice(list3, start, remove, items) {
+  const end = list3.length;
+  let chunkStart = 0;
+  let parameters;
+  if (start < 0) {
+    start = -start > end ? 0 : end + start;
+  } else {
+    start = start > end ? end : start;
+  }
+  remove = remove > 0 ? remove : 0;
+  if (items.length < constants.v8MaxSafeChunkSize) {
+    parameters = Array.from(items);
+    parameters.unshift(start, remove);
+    list3.splice(...parameters);
+  } else {
+    if (remove)
+      list3.splice(start, remove);
+    while (chunkStart < items.length) {
+      parameters = items.slice(chunkStart, chunkStart + constants.v8MaxSafeChunkSize);
+      parameters.unshift(start, 0);
+      list3.splice(...parameters);
+      chunkStart += constants.v8MaxSafeChunkSize;
+      start += constants.v8MaxSafeChunkSize;
+    }
+  }
+}
+function push(list3, items) {
+  if (list3.length > 0) {
+    splice(list3, list3.length, 0, items);
+    return list3;
+  }
+  return items;
+}
+var init_dev6 = __esm(() => {
+  init_default();
+});
+
+// node_modules/micromark-util-combine-extensions/index.js
+function combineExtensions(extensions) {
+  const all2 = {};
+  let index = -1;
+  while (++index < extensions.length) {
+    syntaxExtension(all2, extensions[index]);
+  }
+  return all2;
+}
+function syntaxExtension(all2, extension) {
+  let hook;
+  for (hook in extension) {
+    const maybe = hasOwnProperty.call(all2, hook) ? all2[hook] : undefined;
+    const left = maybe || (all2[hook] = {});
+    const right = extension[hook];
+    let code2;
+    if (right) {
+      for (code2 in right) {
+        if (!hasOwnProperty.call(left, code2))
+          left[code2] = [];
+        const value = right[code2];
+        constructs(left[code2], Array.isArray(value) ? value : value ? [value] : []);
+      }
+    }
+  }
+}
+function constructs(existing, list3) {
+  let index = -1;
+  const before = [];
+  while (++index < list3.length) {
+    (list3[index].add === "after" ? existing : before).push(list3[index]);
+  }
+  splice(existing, 0, 0, before);
+}
+var hasOwnProperty;
+var init_micromark_util_combine_extensions = __esm(() => {
+  init_dev6();
+  hasOwnProperty = {}.hasOwnProperty;
+});
+
+// node_modules/micromark-extension-gfm-autolink-literal/dev/lib/syntax.js
+function gfmAutolinkLiteral() {
+  return { text: text4 };
+}
+function tokenizeEmailAutolink(effects, ok3, nok) {
+  const self2 = this;
+  let dot;
+  let data;
+  return start;
+  function start(code3) {
+    if (!gfmAtext(code3) || !previousEmail.call(self2, self2.previous) || previousUnbalanced(self2.events)) {
+      return nok(code3);
+    }
+    effects.enter("literalAutolink");
+    effects.enter("literalAutolinkEmail");
+    return atext(code3);
+  }
+  function atext(code3) {
+    if (gfmAtext(code3)) {
+      effects.consume(code3);
+      return atext;
+    }
+    if (code3 === codes.atSign) {
+      effects.consume(code3);
+      return emailDomain;
+    }
+    return nok(code3);
+  }
+  function emailDomain(code3) {
+    if (code3 === codes.dot) {
+      return effects.check(emailDomainDotTrail, emailDomainAfter, emailDomainDot)(code3);
+    }
+    if (code3 === codes.dash || code3 === codes.underscore || asciiAlphanumeric(code3)) {
+      data = true;
+      effects.consume(code3);
+      return emailDomain;
+    }
+    return emailDomainAfter(code3);
+  }
+  function emailDomainDot(code3) {
+    effects.consume(code3);
+    dot = true;
+    return emailDomain;
+  }
+  function emailDomainAfter(code3) {
+    if (data && dot && asciiAlpha(self2.previous)) {
+      effects.exit("literalAutolinkEmail");
+      effects.exit("literalAutolink");
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+}
+function tokenizeWwwAutolink(effects, ok3, nok) {
+  const self2 = this;
+  return wwwStart;
+  function wwwStart(code3) {
+    if (code3 !== codes.uppercaseW && code3 !== codes.lowercaseW || !previousWww.call(self2, self2.previous) || previousUnbalanced(self2.events)) {
+      return nok(code3);
+    }
+    effects.enter("literalAutolink");
+    effects.enter("literalAutolinkWww");
+    return effects.check(wwwPrefix, effects.attempt(domain, effects.attempt(path, wwwAfter), nok), nok)(code3);
+  }
+  function wwwAfter(code3) {
+    effects.exit("literalAutolinkWww");
+    effects.exit("literalAutolink");
+    return ok3(code3);
+  }
+}
+function tokenizeProtocolAutolink(effects, ok3, nok) {
+  const self2 = this;
+  let buffer2 = "";
+  let seen = false;
+  return protocolStart;
+  function protocolStart(code3) {
+    if ((code3 === codes.uppercaseH || code3 === codes.lowercaseH) && previousProtocol.call(self2, self2.previous) && !previousUnbalanced(self2.events)) {
+      effects.enter("literalAutolink");
+      effects.enter("literalAutolinkHttp");
+      buffer2 += String.fromCodePoint(code3);
+      effects.consume(code3);
+      return protocolPrefixInside;
+    }
+    return nok(code3);
+  }
+  function protocolPrefixInside(code3) {
+    if (asciiAlpha(code3) && buffer2.length < 5) {
+      buffer2 += String.fromCodePoint(code3);
+      effects.consume(code3);
+      return protocolPrefixInside;
+    }
+    if (code3 === codes.colon) {
+      const protocol = buffer2.toLowerCase();
+      if (protocol === "http" || protocol === "https") {
+        effects.consume(code3);
+        return protocolSlashesInside;
+      }
+    }
+    return nok(code3);
+  }
+  function protocolSlashesInside(code3) {
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      if (seen) {
+        return afterProtocol;
+      }
+      seen = true;
+      return protocolSlashesInside;
+    }
+    return nok(code3);
+  }
+  function afterProtocol(code3) {
+    return code3 === codes.eof || asciiControl(code3) || markdownLineEndingOrSpace(code3) || unicodeWhitespace(code3) || unicodePunctuation(code3) ? nok(code3) : effects.attempt(domain, effects.attempt(path, protocolAfter), nok)(code3);
+  }
+  function protocolAfter(code3) {
+    effects.exit("literalAutolinkHttp");
+    effects.exit("literalAutolink");
+    return ok3(code3);
+  }
+}
+function tokenizeWwwPrefix(effects, ok3, nok) {
+  let size2 = 0;
+  return wwwPrefixInside;
+  function wwwPrefixInside(code3) {
+    if ((code3 === codes.uppercaseW || code3 === codes.lowercaseW) && size2 < 3) {
+      size2++;
+      effects.consume(code3);
+      return wwwPrefixInside;
+    }
+    if (code3 === codes.dot && size2 === 3) {
+      effects.consume(code3);
+      return wwwPrefixAfter;
+    }
+    return nok(code3);
+  }
+  function wwwPrefixAfter(code3) {
+    return code3 === codes.eof ? nok(code3) : ok3(code3);
+  }
+}
+function tokenizeDomain(effects, ok3, nok) {
+  let underscoreInLastSegment;
+  let underscoreInLastLastSegment;
+  let seen;
+  return domainInside;
+  function domainInside(code3) {
+    if (code3 === codes.dot || code3 === codes.underscore) {
+      return effects.check(trail, domainAfter, domainAtPunctuation)(code3);
+    }
+    if (code3 === codes.eof || markdownLineEndingOrSpace(code3) || unicodeWhitespace(code3) || code3 !== codes.dash && unicodePunctuation(code3)) {
+      return domainAfter(code3);
+    }
+    seen = true;
+    effects.consume(code3);
+    return domainInside;
+  }
+  function domainAtPunctuation(code3) {
+    if (code3 === codes.underscore) {
+      underscoreInLastSegment = true;
+    } else {
+      underscoreInLastLastSegment = underscoreInLastSegment;
+      underscoreInLastSegment = undefined;
+    }
+    effects.consume(code3);
+    return domainInside;
+  }
+  function domainAfter(code3) {
+    if (underscoreInLastLastSegment || underscoreInLastSegment || !seen) {
+      return nok(code3);
+    }
+    return ok3(code3);
+  }
+}
+function tokenizePath(effects, ok3) {
+  let sizeOpen = 0;
+  let sizeClose = 0;
+  return pathInside;
+  function pathInside(code3) {
+    if (code3 === codes.leftParenthesis) {
+      sizeOpen++;
+      effects.consume(code3);
+      return pathInside;
+    }
+    if (code3 === codes.rightParenthesis && sizeClose < sizeOpen) {
+      return pathAtPunctuation(code3);
+    }
+    if (code3 === codes.exclamationMark || code3 === codes.quotationMark || code3 === codes.ampersand || code3 === codes.apostrophe || code3 === codes.rightParenthesis || code3 === codes.asterisk || code3 === codes.comma || code3 === codes.dot || code3 === codes.colon || code3 === codes.semicolon || code3 === codes.lessThan || code3 === codes.questionMark || code3 === codes.rightSquareBracket || code3 === codes.underscore || code3 === codes.tilde) {
+      return effects.check(trail, ok3, pathAtPunctuation)(code3);
+    }
+    if (code3 === codes.eof || markdownLineEndingOrSpace(code3) || unicodeWhitespace(code3)) {
+      return ok3(code3);
+    }
+    effects.consume(code3);
+    return pathInside;
+  }
+  function pathAtPunctuation(code3) {
+    if (code3 === codes.rightParenthesis) {
+      sizeClose++;
+    }
+    effects.consume(code3);
+    return pathInside;
+  }
+}
+function tokenizeTrail(effects, ok3, nok) {
+  return trail2;
+  function trail2(code3) {
+    if (code3 === codes.exclamationMark || code3 === codes.quotationMark || code3 === codes.apostrophe || code3 === codes.rightParenthesis || code3 === codes.asterisk || code3 === codes.comma || code3 === codes.dot || code3 === codes.colon || code3 === codes.semicolon || code3 === codes.questionMark || code3 === codes.underscore || code3 === codes.tilde) {
+      effects.consume(code3);
+      return trail2;
+    }
+    if (code3 === codes.ampersand) {
+      effects.consume(code3);
+      return trailCharacterReferenceStart;
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      return trailBracketAfter;
+    }
+    if (code3 === codes.lessThan || code3 === codes.eof || markdownLineEndingOrSpace(code3) || unicodeWhitespace(code3)) {
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+  function trailBracketAfter(code3) {
+    if (code3 === codes.eof || code3 === codes.leftParenthesis || code3 === codes.leftSquareBracket || markdownLineEndingOrSpace(code3) || unicodeWhitespace(code3)) {
+      return ok3(code3);
+    }
+    return trail2(code3);
+  }
+  function trailCharacterReferenceStart(code3) {
+    return asciiAlpha(code3) ? trailCharacterReferenceInside(code3) : nok(code3);
+  }
+  function trailCharacterReferenceInside(code3) {
+    if (code3 === codes.semicolon) {
+      effects.consume(code3);
+      return trail2;
+    }
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      return trailCharacterReferenceInside;
+    }
+    return nok(code3);
+  }
+}
+function tokenizeEmailDomainDotTrail(effects, ok3, nok) {
+  return start;
+  function start(code3) {
+    effects.consume(code3);
+    return after;
+  }
+  function after(code3) {
+    return asciiAlphanumeric(code3) ? nok(code3) : ok3(code3);
+  }
+}
+function previousWww(code3) {
+  return code3 === codes.eof || code3 === codes.leftParenthesis || code3 === codes.asterisk || code3 === codes.underscore || code3 === codes.leftSquareBracket || code3 === codes.rightSquareBracket || code3 === codes.tilde || markdownLineEndingOrSpace(code3);
+}
+function previousProtocol(code3) {
+  return !asciiAlpha(code3);
+}
+function previousEmail(code3) {
+  return !(code3 === codes.slash || gfmAtext(code3));
+}
+function gfmAtext(code3) {
+  return code3 === codes.plusSign || code3 === codes.dash || code3 === codes.dot || code3 === codes.underscore || asciiAlphanumeric(code3);
+}
+function previousUnbalanced(events2) {
+  let index = events2.length;
+  let result = false;
+  while (index--) {
+    const token = events2[index][1];
+    if ((token.type === "labelLink" || token.type === "labelImage") && !token._balanced) {
+      result = true;
+      break;
+    }
+    if (token._gfmAutolinkLiteralWalkedInto) {
+      result = false;
+      break;
+    }
+  }
+  if (events2.length > 0 && !result) {
+    events2[events2.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
+  }
+  return result;
+}
+var wwwPrefix, domain, path, trail, emailDomainDotTrail, wwwAutolink, protocolAutolink, emailAutolink, text4, code2;
+var init_syntax = __esm(() => {
+  init_dev();
+  init_default();
+  wwwPrefix = { tokenize: tokenizeWwwPrefix, partial: true };
+  domain = { tokenize: tokenizeDomain, partial: true };
+  path = { tokenize: tokenizePath, partial: true };
+  trail = { tokenize: tokenizeTrail, partial: true };
+  emailDomainDotTrail = {
+    tokenize: tokenizeEmailDomainDotTrail,
+    partial: true
+  };
+  wwwAutolink = {
+    name: "wwwAutolink",
+    tokenize: tokenizeWwwAutolink,
+    previous: previousWww
+  };
+  protocolAutolink = {
+    name: "protocolAutolink",
+    tokenize: tokenizeProtocolAutolink,
+    previous: previousProtocol
+  };
+  emailAutolink = {
+    name: "emailAutolink",
+    tokenize: tokenizeEmailAutolink,
+    previous: previousEmail
+  };
+  text4 = {};
+  code2 = codes.digit0;
+  while (code2 < codes.leftCurlyBrace) {
+    text4[code2] = emailAutolink;
+    code2++;
+    if (code2 === codes.colon)
+      code2 = codes.uppercaseA;
+    else if (code2 === codes.leftSquareBracket)
+      code2 = codes.lowercaseA;
+  }
+  text4[codes.plusSign] = emailAutolink;
+  text4[codes.dash] = emailAutolink;
+  text4[codes.dot] = emailAutolink;
+  text4[codes.underscore] = emailAutolink;
+  text4[codes.uppercaseH] = [emailAutolink, protocolAutolink];
+  text4[codes.lowercaseH] = [emailAutolink, protocolAutolink];
+  text4[codes.uppercaseW] = [emailAutolink, wwwAutolink];
+  text4[codes.lowercaseW] = [emailAutolink, wwwAutolink];
+});
+
+// node_modules/micromark-extension-gfm-autolink-literal/dev/index.js
+var init_dev7 = __esm(() => {
+  init_syntax();
+});
+
+// node_modules/micromark-util-resolve-all/index.js
+function resolveAll(constructs2, events2, context) {
+  const called = [];
+  let index = -1;
+  while (++index < constructs2.length) {
+    const resolve = constructs2[index].resolveAll;
+    if (resolve && !called.includes(resolve)) {
+      events2 = resolve(events2, context);
+      called.push(resolve);
+    }
+  }
+  return events2;
+}
+
+// node_modules/micromark-core-commonmark/dev/lib/attention.js
+function resolveAllAttention(events2, context) {
+  let index = -1;
+  let open;
+  let group;
+  let text5;
+  let openingSequence;
+  let closingSequence;
+  let use;
+  let nextEvents;
+  let offset;
+  while (++index < events2.length) {
+    if (events2[index][0] === "enter" && events2[index][1].type === "attentionSequence" && events2[index][1]._close) {
+      open = index;
+      while (open--) {
+        if (events2[open][0] === "exit" && events2[open][1].type === "attentionSequence" && events2[open][1]._open && context.sliceSerialize(events2[open][1]).charCodeAt(0) === context.sliceSerialize(events2[index][1]).charCodeAt(0)) {
+          if ((events2[open][1]._close || events2[index][1]._open) && (events2[index][1].end.offset - events2[index][1].start.offset) % 3 && !((events2[open][1].end.offset - events2[open][1].start.offset + events2[index][1].end.offset - events2[index][1].start.offset) % 3)) {
+            continue;
+          }
+          use = events2[open][1].end.offset - events2[open][1].start.offset > 1 && events2[index][1].end.offset - events2[index][1].start.offset > 1 ? 2 : 1;
+          const start = { ...events2[open][1].end };
+          const end = { ...events2[index][1].start };
+          movePoint(start, -use);
+          movePoint(end, use);
+          openingSequence = {
+            type: use > 1 ? types2.strongSequence : types2.emphasisSequence,
+            start,
+            end: { ...events2[open][1].end }
+          };
+          closingSequence = {
+            type: use > 1 ? types2.strongSequence : types2.emphasisSequence,
+            start: { ...events2[index][1].start },
+            end
+          };
+          text5 = {
+            type: use > 1 ? types2.strongText : types2.emphasisText,
+            start: { ...events2[open][1].end },
+            end: { ...events2[index][1].start }
+          };
+          group = {
+            type: use > 1 ? types2.strong : types2.emphasis,
+            start: { ...openingSequence.start },
+            end: { ...closingSequence.end }
+          };
+          events2[open][1].end = { ...openingSequence.start };
+          events2[index][1].start = { ...closingSequence.end };
+          nextEvents = [];
+          if (events2[open][1].end.offset - events2[open][1].start.offset) {
+            nextEvents = push(nextEvents, [
+              ["enter", events2[open][1], context],
+              ["exit", events2[open][1], context]
+            ]);
+          }
+          nextEvents = push(nextEvents, [
+            ["enter", group, context],
+            ["enter", openingSequence, context],
+            ["exit", openingSequence, context],
+            ["enter", text5, context]
+          ]);
+          ok(context.parser.constructs.insideSpan.null, "expected `insideSpan` to be populated");
+          nextEvents = push(nextEvents, resolveAll(context.parser.constructs.insideSpan.null, events2.slice(open + 1, index), context));
+          nextEvents = push(nextEvents, [
+            ["exit", text5, context],
+            ["enter", closingSequence, context],
+            ["exit", closingSequence, context],
+            ["exit", group, context]
+          ]);
+          if (events2[index][1].end.offset - events2[index][1].start.offset) {
+            offset = 2;
+            nextEvents = push(nextEvents, [
+              ["enter", events2[index][1], context],
+              ["exit", events2[index][1], context]
+            ]);
+          } else {
+            offset = 0;
+          }
+          splice(events2, open - 1, index - open + 3, nextEvents);
+          index = open + nextEvents.length - offset - 2;
+          break;
+        }
+      }
+    }
+  }
+  index = -1;
+  while (++index < events2.length) {
+    if (events2[index][1].type === "attentionSequence") {
+      events2[index][1].type = "data";
+    }
+  }
+  return events2;
+}
+function tokenizeAttention(effects, ok3) {
+  const attentionMarkers = this.parser.constructs.attentionMarkers.null;
+  const previous2 = this.previous;
+  const before = classifyCharacter(previous2);
+  let marker;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.asterisk || code3 === codes.underscore, "expected asterisk or underscore");
+    marker = code3;
+    effects.enter("attentionSequence");
+    return inside(code3);
+  }
+  function inside(code3) {
+    if (code3 === marker) {
+      effects.consume(code3);
+      return inside;
+    }
+    const token = effects.exit("attentionSequence");
+    const after = classifyCharacter(code3);
+    ok(attentionMarkers, "expected `attentionMarkers` to be populated");
+    const open = !after || after === constants.characterGroupPunctuation && before || attentionMarkers.includes(code3);
+    const close = !before || before === constants.characterGroupPunctuation && after || attentionMarkers.includes(previous2);
+    token._open = Boolean(marker === codes.asterisk ? open : open && (before || !close));
+    token._close = Boolean(marker === codes.asterisk ? close : close && (after || !open));
+    return ok3(code3);
+  }
+}
+function movePoint(point3, offset) {
+  point3.column += offset;
+  point3.offset += offset;
+  point3._bufferIndex += offset;
+}
+var attention;
+var init_attention = __esm(() => {
+  init_development();
+  init_dev6();
+  init_dev3();
+  init_default();
+  attention = {
+    name: "attention",
+    resolveAll: resolveAllAttention,
+    tokenize: tokenizeAttention
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/autolink.js
+function tokenizeAutolink(effects, ok3, nok) {
+  let size2 = 0;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.lessThan, "expected `<`");
+    effects.enter(types2.autolink);
+    effects.enter(types2.autolinkMarker);
+    effects.consume(code3);
+    effects.exit(types2.autolinkMarker);
+    effects.enter(types2.autolinkProtocol);
+    return open;
+  }
+  function open(code3) {
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      return schemeOrEmailAtext;
+    }
+    if (code3 === codes.atSign) {
+      return nok(code3);
+    }
+    return emailAtext(code3);
+  }
+  function schemeOrEmailAtext(code3) {
+    if (code3 === codes.plusSign || code3 === codes.dash || code3 === codes.dot || asciiAlphanumeric(code3)) {
+      size2 = 1;
+      return schemeInsideOrEmailAtext(code3);
+    }
+    return emailAtext(code3);
+  }
+  function schemeInsideOrEmailAtext(code3) {
+    if (code3 === codes.colon) {
+      effects.consume(code3);
+      size2 = 0;
+      return urlInside;
+    }
+    if ((code3 === codes.plusSign || code3 === codes.dash || code3 === codes.dot || asciiAlphanumeric(code3)) && size2++ < constants.autolinkSchemeSizeMax) {
+      effects.consume(code3);
+      return schemeInsideOrEmailAtext;
+    }
+    size2 = 0;
+    return emailAtext(code3);
+  }
+  function urlInside(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.exit(types2.autolinkProtocol);
+      effects.enter(types2.autolinkMarker);
+      effects.consume(code3);
+      effects.exit(types2.autolinkMarker);
+      effects.exit(types2.autolink);
+      return ok3;
+    }
+    if (code3 === codes.eof || code3 === codes.space || code3 === codes.lessThan || asciiControl(code3)) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return urlInside;
+  }
+  function emailAtext(code3) {
+    if (code3 === codes.atSign) {
+      effects.consume(code3);
+      return emailAtSignOrDot;
+    }
+    if (asciiAtext(code3)) {
+      effects.consume(code3);
+      return emailAtext;
+    }
+    return nok(code3);
+  }
+  function emailAtSignOrDot(code3) {
+    return asciiAlphanumeric(code3) ? emailLabel(code3) : nok(code3);
+  }
+  function emailLabel(code3) {
+    if (code3 === codes.dot) {
+      effects.consume(code3);
+      size2 = 0;
+      return emailAtSignOrDot;
+    }
+    if (code3 === codes.greaterThan) {
+      effects.exit(types2.autolinkProtocol).type = types2.autolinkEmail;
+      effects.enter(types2.autolinkMarker);
+      effects.consume(code3);
+      effects.exit(types2.autolinkMarker);
+      effects.exit(types2.autolink);
+      return ok3;
+    }
+    return emailValue(code3);
+  }
+  function emailValue(code3) {
+    if ((code3 === codes.dash || asciiAlphanumeric(code3)) && size2++ < constants.autolinkDomainSizeMax) {
+      const next = code3 === codes.dash ? emailValue : emailLabel;
+      effects.consume(code3);
+      return next;
+    }
+    return nok(code3);
+  }
+}
+var autolink;
+var init_autolink = __esm(() => {
+  init_development();
+  init_dev();
+  init_default();
+  autolink = { name: "autolink", tokenize: tokenizeAutolink };
+});
+
+// node_modules/micromark-factory-space/dev/index.js
+function factorySpace(effects, ok3, type, max) {
+  const limit = max ? max - 1 : Number.POSITIVE_INFINITY;
+  let size2 = 0;
+  return start;
+  function start(code3) {
+    if (markdownSpace(code3)) {
+      effects.enter(type);
+      return prefix(code3);
+    }
+    return ok3(code3);
+  }
+  function prefix(code3) {
+    if (markdownSpace(code3) && size2++ < limit) {
+      effects.consume(code3);
+      return prefix;
+    }
+    effects.exit(type);
+    return ok3(code3);
+  }
+}
+var init_dev8 = __esm(() => {
+  init_dev();
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/blank-line.js
+function tokenizeBlankLine(effects, ok3, nok) {
+  return start;
+  function start(code3) {
+    return markdownSpace(code3) ? factorySpace(effects, after, types2.linePrefix)(code3) : after(code3);
+  }
+  function after(code3) {
+    return code3 === codes.eof || markdownLineEnding(code3) ? ok3(code3) : nok(code3);
+  }
+}
+var blankLine;
+var init_blank_line = __esm(() => {
+  init_dev8();
+  init_dev();
+  init_default();
+  blankLine = { partial: true, tokenize: tokenizeBlankLine };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/block-quote.js
+function tokenizeBlockQuoteStart(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    if (code3 === codes.greaterThan) {
+      const state = self2.containerState;
+      ok(state, "expected `containerState` to be defined in container");
+      if (!state.open) {
+        effects.enter(types2.blockQuote, { _container: true });
+        state.open = true;
+      }
+      effects.enter(types2.blockQuotePrefix);
+      effects.enter(types2.blockQuoteMarker);
+      effects.consume(code3);
+      effects.exit(types2.blockQuoteMarker);
+      return after;
+    }
+    return nok(code3);
+  }
+  function after(code3) {
+    if (markdownSpace(code3)) {
+      effects.enter(types2.blockQuotePrefixWhitespace);
+      effects.consume(code3);
+      effects.exit(types2.blockQuotePrefixWhitespace);
+      effects.exit(types2.blockQuotePrefix);
+      return ok3;
+    }
+    effects.exit(types2.blockQuotePrefix);
+    return ok3(code3);
+  }
+}
+function tokenizeBlockQuoteContinuation(effects, ok3, nok) {
+  const self2 = this;
+  return contStart;
+  function contStart(code3) {
+    if (markdownSpace(code3)) {
+      ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+      return factorySpace(effects, contBefore, types2.linePrefix, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize)(code3);
+    }
+    return contBefore(code3);
+  }
+  function contBefore(code3) {
+    return effects.attempt(blockQuote, ok3, nok)(code3);
+  }
+}
+function exit2(effects) {
+  effects.exit(types2.blockQuote);
+}
+var blockQuote;
+var init_block_quote = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  blockQuote = {
+    continuation: { tokenize: tokenizeBlockQuoteContinuation },
+    exit: exit2,
+    name: "blockQuote",
+    tokenize: tokenizeBlockQuoteStart
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/character-escape.js
+function tokenizeCharacterEscape(effects, ok3, nok) {
+  return start;
+  function start(code3) {
+    ok(code3 === codes.backslash, "expected `\\`");
+    effects.enter(types2.characterEscape);
+    effects.enter(types2.escapeMarker);
+    effects.consume(code3);
+    effects.exit(types2.escapeMarker);
+    return inside;
+  }
+  function inside(code3) {
+    if (asciiPunctuation(code3)) {
+      effects.enter(types2.characterEscapeValue);
+      effects.consume(code3);
+      effects.exit(types2.characterEscapeValue);
+      effects.exit(types2.characterEscape);
+      return ok3;
+    }
+    return nok(code3);
+  }
+}
+var characterEscape;
+var init_character_escape = __esm(() => {
+  init_development();
+  init_dev();
+  init_default();
+  characterEscape = {
+    name: "characterEscape",
+    tokenize: tokenizeCharacterEscape
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/character-reference.js
+function tokenizeCharacterReference(effects, ok3, nok) {
+  const self2 = this;
+  let size2 = 0;
+  let max;
+  let test;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.ampersand, "expected `&`");
+    effects.enter(types2.characterReference);
+    effects.enter(types2.characterReferenceMarker);
+    effects.consume(code3);
+    effects.exit(types2.characterReferenceMarker);
+    return open;
+  }
+  function open(code3) {
+    if (code3 === codes.numberSign) {
+      effects.enter(types2.characterReferenceMarkerNumeric);
+      effects.consume(code3);
+      effects.exit(types2.characterReferenceMarkerNumeric);
+      return numeric3;
+    }
+    effects.enter(types2.characterReferenceValue);
+    max = constants.characterReferenceNamedSizeMax;
+    test = asciiAlphanumeric;
+    return value(code3);
+  }
+  function numeric3(code3) {
+    if (code3 === codes.uppercaseX || code3 === codes.lowercaseX) {
+      effects.enter(types2.characterReferenceMarkerHexadecimal);
+      effects.consume(code3);
+      effects.exit(types2.characterReferenceMarkerHexadecimal);
+      effects.enter(types2.characterReferenceValue);
+      max = constants.characterReferenceHexadecimalSizeMax;
+      test = asciiHexDigit;
+      return value;
+    }
+    effects.enter(types2.characterReferenceValue);
+    max = constants.characterReferenceDecimalSizeMax;
+    test = asciiDigit;
+    return value(code3);
+  }
+  function value(code3) {
+    if (code3 === codes.semicolon && size2) {
+      const token = effects.exit(types2.characterReferenceValue);
+      if (test === asciiAlphanumeric && !decodeNamedCharacterReference(self2.sliceSerialize(token))) {
+        return nok(code3);
+      }
+      effects.enter(types2.characterReferenceMarker);
+      effects.consume(code3);
+      effects.exit(types2.characterReferenceMarker);
+      effects.exit(types2.characterReference);
+      return ok3;
+    }
+    if (test(code3) && size2++ < max) {
+      effects.consume(code3);
+      return value;
+    }
+    return nok(code3);
+  }
+}
+var characterReference;
+var init_character_reference = __esm(() => {
+  init_development();
+  init_decode_named_character_reference();
+  init_dev();
+  init_default();
+  characterReference = {
+    name: "characterReference",
+    tokenize: tokenizeCharacterReference
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/code-fenced.js
+function tokenizeCodeFenced(effects, ok3, nok) {
+  const self2 = this;
+  const closeStart = { partial: true, tokenize: tokenizeCloseStart };
+  let initialPrefix = 0;
+  let sizeOpen = 0;
+  let marker;
+  return start;
+  function start(code3) {
+    return beforeSequenceOpen(code3);
+  }
+  function beforeSequenceOpen(code3) {
+    ok(code3 === codes.graveAccent || code3 === codes.tilde, "expected `` ` `` or `~`");
+    const tail = self2.events[self2.events.length - 1];
+    initialPrefix = tail && tail[1].type === types2.linePrefix ? tail[2].sliceSerialize(tail[1], true).length : 0;
+    marker = code3;
+    effects.enter(types2.codeFenced);
+    effects.enter(types2.codeFencedFence);
+    effects.enter(types2.codeFencedFenceSequence);
+    return sequenceOpen(code3);
+  }
+  function sequenceOpen(code3) {
+    if (code3 === marker) {
+      sizeOpen++;
+      effects.consume(code3);
+      return sequenceOpen;
+    }
+    if (sizeOpen < constants.codeFencedSequenceSizeMin) {
+      return nok(code3);
+    }
+    effects.exit(types2.codeFencedFenceSequence);
+    return markdownSpace(code3) ? factorySpace(effects, infoBefore, types2.whitespace)(code3) : infoBefore(code3);
+  }
+  function infoBefore(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.codeFencedFence);
+      return self2.interrupt ? ok3(code3) : effects.check(nonLazyContinuation, atNonLazyBreak, after)(code3);
+    }
+    effects.enter(types2.codeFencedFenceInfo);
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return info(code3);
+  }
+  function info(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.chunkString);
+      effects.exit(types2.codeFencedFenceInfo);
+      return infoBefore(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.exit(types2.chunkString);
+      effects.exit(types2.codeFencedFenceInfo);
+      return factorySpace(effects, metaBefore, types2.whitespace)(code3);
+    }
+    if (code3 === codes.graveAccent && code3 === marker) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return info;
+  }
+  function metaBefore(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return infoBefore(code3);
+    }
+    effects.enter(types2.codeFencedFenceMeta);
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return meta(code3);
+  }
+  function meta(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.chunkString);
+      effects.exit(types2.codeFencedFenceMeta);
+      return infoBefore(code3);
+    }
+    if (code3 === codes.graveAccent && code3 === marker) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return meta;
+  }
+  function atNonLazyBreak(code3) {
+    ok(markdownLineEnding(code3), "expected eol");
+    return effects.attempt(closeStart, after, contentBefore)(code3);
+  }
+  function contentBefore(code3) {
+    ok(markdownLineEnding(code3), "expected eol");
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return contentStart;
+  }
+  function contentStart(code3) {
+    return initialPrefix > 0 && markdownSpace(code3) ? factorySpace(effects, beforeContentChunk, types2.linePrefix, initialPrefix + 1)(code3) : beforeContentChunk(code3);
+  }
+  function beforeContentChunk(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return effects.check(nonLazyContinuation, atNonLazyBreak, after)(code3);
+    }
+    effects.enter(types2.codeFlowValue);
+    return contentChunk(code3);
+  }
+  function contentChunk(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.codeFlowValue);
+      return beforeContentChunk(code3);
+    }
+    effects.consume(code3);
+    return contentChunk;
+  }
+  function after(code3) {
+    effects.exit(types2.codeFenced);
+    return ok3(code3);
+  }
+  function tokenizeCloseStart(effects2, ok4, nok2) {
+    let size2 = 0;
+    return startBefore;
+    function startBefore(code3) {
+      ok(markdownLineEnding(code3), "expected eol");
+      effects2.enter(types2.lineEnding);
+      effects2.consume(code3);
+      effects2.exit(types2.lineEnding);
+      return start2;
+    }
+    function start2(code3) {
+      ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+      effects2.enter(types2.codeFencedFence);
+      return markdownSpace(code3) ? factorySpace(effects2, beforeSequenceClose, types2.linePrefix, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize)(code3) : beforeSequenceClose(code3);
+    }
+    function beforeSequenceClose(code3) {
+      if (code3 === marker) {
+        effects2.enter(types2.codeFencedFenceSequence);
+        return sequenceClose(code3);
+      }
+      return nok2(code3);
+    }
+    function sequenceClose(code3) {
+      if (code3 === marker) {
+        size2++;
+        effects2.consume(code3);
+        return sequenceClose;
+      }
+      if (size2 >= sizeOpen) {
+        effects2.exit(types2.codeFencedFenceSequence);
+        return markdownSpace(code3) ? factorySpace(effects2, sequenceCloseAfter, types2.whitespace)(code3) : sequenceCloseAfter(code3);
+      }
+      return nok2(code3);
+    }
+    function sequenceCloseAfter(code3) {
+      if (code3 === codes.eof || markdownLineEnding(code3)) {
+        effects2.exit(types2.codeFencedFence);
+        return ok4(code3);
+      }
+      return nok2(code3);
+    }
+  }
+}
+function tokenizeNonLazyContinuation(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    ok(markdownLineEnding(code3), "expected eol");
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return lineStart;
+  }
+  function lineStart(code3) {
+    return self2.parser.lazy[self2.now().line] ? nok(code3) : ok3(code3);
+  }
+}
+var nonLazyContinuation, codeFenced;
+var init_code_fenced = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  nonLazyContinuation = {
+    partial: true,
+    tokenize: tokenizeNonLazyContinuation
+  };
+  codeFenced = {
+    concrete: true,
+    name: "codeFenced",
+    tokenize: tokenizeCodeFenced
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/code-indented.js
+function tokenizeCodeIndented(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    ok(markdownSpace(code3));
+    effects.enter(types2.codeIndented);
+    return factorySpace(effects, afterPrefix, types2.linePrefix, constants.tabSize + 1)(code3);
+  }
+  function afterPrefix(code3) {
+    const tail = self2.events[self2.events.length - 1];
+    return tail && tail[1].type === types2.linePrefix && tail[2].sliceSerialize(tail[1], true).length >= constants.tabSize ? atBreak(code3) : nok(code3);
+  }
+  function atBreak(code3) {
+    if (code3 === codes.eof) {
+      return after(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      return effects.attempt(furtherStart, atBreak, after)(code3);
+    }
+    effects.enter(types2.codeFlowValue);
+    return inside(code3);
+  }
+  function inside(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.codeFlowValue);
+      return atBreak(code3);
+    }
+    effects.consume(code3);
+    return inside;
+  }
+  function after(code3) {
+    effects.exit(types2.codeIndented);
+    return ok3(code3);
+  }
+}
+function tokenizeFurtherStart(effects, ok3, nok) {
+  const self2 = this;
+  return furtherStart2;
+  function furtherStart2(code3) {
+    if (self2.parser.lazy[self2.now().line]) {
+      return nok(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      return furtherStart2;
+    }
+    return factorySpace(effects, afterPrefix, types2.linePrefix, constants.tabSize + 1)(code3);
+  }
+  function afterPrefix(code3) {
+    const tail = self2.events[self2.events.length - 1];
+    return tail && tail[1].type === types2.linePrefix && tail[2].sliceSerialize(tail[1], true).length >= constants.tabSize ? ok3(code3) : markdownLineEnding(code3) ? furtherStart2(code3) : nok(code3);
+  }
+}
+var codeIndented, furtherStart;
+var init_code_indented = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  codeIndented = {
+    name: "codeIndented",
+    tokenize: tokenizeCodeIndented
+  };
+  furtherStart = { partial: true, tokenize: tokenizeFurtherStart };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/code-text.js
+function resolveCodeText(events2) {
+  let tailExitIndex = events2.length - 4;
+  let headEnterIndex = 3;
+  let index;
+  let enter;
+  if ((events2[headEnterIndex][1].type === types2.lineEnding || events2[headEnterIndex][1].type === "space") && (events2[tailExitIndex][1].type === types2.lineEnding || events2[tailExitIndex][1].type === "space")) {
+    index = headEnterIndex;
+    while (++index < tailExitIndex) {
+      if (events2[index][1].type === types2.codeTextData) {
+        events2[headEnterIndex][1].type = types2.codeTextPadding;
+        events2[tailExitIndex][1].type = types2.codeTextPadding;
+        headEnterIndex += 2;
+        tailExitIndex -= 2;
+        break;
+      }
+    }
+  }
+  index = headEnterIndex - 1;
+  tailExitIndex++;
+  while (++index <= tailExitIndex) {
+    if (enter === undefined) {
+      if (index !== tailExitIndex && events2[index][1].type !== types2.lineEnding) {
+        enter = index;
+      }
+    } else if (index === tailExitIndex || events2[index][1].type === types2.lineEnding) {
+      events2[enter][1].type = types2.codeTextData;
+      if (index !== enter + 2) {
+        events2[enter][1].end = events2[index - 1][1].end;
+        events2.splice(enter + 2, index - enter - 2);
+        tailExitIndex -= index - enter - 2;
+        index = enter + 2;
+      }
+      enter = undefined;
+    }
+  }
+  return events2;
+}
+function previous2(code3) {
+  return code3 !== codes.graveAccent || this.events[this.events.length - 1][1].type === types2.characterEscape;
+}
+function tokenizeCodeText(effects, ok3, nok) {
+  const self2 = this;
+  let sizeOpen = 0;
+  let size2;
+  let token;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.graveAccent, "expected `` ` ``");
+    ok(previous2.call(self2, self2.previous), "expected correct previous");
+    effects.enter(types2.codeText);
+    effects.enter(types2.codeTextSequence);
+    return sequenceOpen(code3);
+  }
+  function sequenceOpen(code3) {
+    if (code3 === codes.graveAccent) {
+      effects.consume(code3);
+      sizeOpen++;
+      return sequenceOpen;
+    }
+    effects.exit(types2.codeTextSequence);
+    return between3(code3);
+  }
+  function between3(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (code3 === codes.space) {
+      effects.enter("space");
+      effects.consume(code3);
+      effects.exit("space");
+      return between3;
+    }
+    if (code3 === codes.graveAccent) {
+      token = effects.enter(types2.codeTextSequence);
+      size2 = 0;
+      return sequenceClose(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      return between3;
+    }
+    effects.enter(types2.codeTextData);
+    return data(code3);
+  }
+  function data(code3) {
+    if (code3 === codes.eof || code3 === codes.space || code3 === codes.graveAccent || markdownLineEnding(code3)) {
+      effects.exit(types2.codeTextData);
+      return between3(code3);
+    }
+    effects.consume(code3);
+    return data;
+  }
+  function sequenceClose(code3) {
+    if (code3 === codes.graveAccent) {
+      effects.consume(code3);
+      size2++;
+      return sequenceClose;
+    }
+    if (size2 === sizeOpen) {
+      effects.exit(types2.codeTextSequence);
+      effects.exit(types2.codeText);
+      return ok3(code3);
+    }
+    token.type = types2.codeTextData;
+    return data(code3);
+  }
+}
+var codeText;
+var init_code_text = __esm(() => {
+  init_development();
+  init_dev();
+  init_default();
+  codeText = {
+    name: "codeText",
+    previous: previous2,
+    resolve: resolveCodeText,
+    tokenize: tokenizeCodeText
+  };
+});
+
+// node_modules/micromark-util-subtokenize/dev/lib/splice-buffer.js
+class SpliceBuffer {
+  constructor(initial) {
+    this.left = initial ? [...initial] : [];
+    this.right = [];
+  }
+  get(index) {
+    if (index < 0 || index >= this.left.length + this.right.length) {
+      throw new RangeError("Cannot access index `" + index + "` in a splice buffer of size `" + (this.left.length + this.right.length) + "`");
+    }
+    if (index < this.left.length)
+      return this.left[index];
+    return this.right[this.right.length - index + this.left.length - 1];
+  }
+  get length() {
+    return this.left.length + this.right.length;
+  }
+  shift() {
+    this.setCursor(0);
+    return this.right.pop();
+  }
+  slice(start, end) {
+    const stop = end === null || end === undefined ? Number.POSITIVE_INFINITY : end;
+    if (stop < this.left.length) {
+      return this.left.slice(start, stop);
+    }
+    if (start > this.left.length) {
+      return this.right.slice(this.right.length - stop + this.left.length, this.right.length - start + this.left.length).reverse();
+    }
+    return this.left.slice(start).concat(this.right.slice(this.right.length - stop + this.left.length).reverse());
+  }
+  splice(start, deleteCount, items) {
+    const count2 = deleteCount || 0;
+    this.setCursor(Math.trunc(start));
+    const removed = this.right.splice(this.right.length - count2, Number.POSITIVE_INFINITY);
+    if (items)
+      chunkedPush(this.left, items);
+    return removed.reverse();
+  }
+  pop() {
+    this.setCursor(Number.POSITIVE_INFINITY);
+    return this.left.pop();
+  }
+  push(item) {
+    this.setCursor(Number.POSITIVE_INFINITY);
+    this.left.push(item);
+  }
+  pushMany(items) {
+    this.setCursor(Number.POSITIVE_INFINITY);
+    chunkedPush(this.left, items);
+  }
+  unshift(item) {
+    this.setCursor(0);
+    this.right.push(item);
+  }
+  unshiftMany(items) {
+    this.setCursor(0);
+    chunkedPush(this.right, items.reverse());
+  }
+  setCursor(n) {
+    if (n === this.left.length || n > this.left.length && this.right.length === 0 || n < 0 && this.left.length === 0)
+      return;
+    if (n < this.left.length) {
+      const removed = this.left.splice(n, Number.POSITIVE_INFINITY);
+      chunkedPush(this.right, removed.reverse());
+    } else {
+      const removed = this.right.splice(this.left.length + this.right.length - n, Number.POSITIVE_INFINITY);
+      chunkedPush(this.left, removed.reverse());
+    }
+  }
+}
+function chunkedPush(list3, right) {
+  let chunkStart = 0;
+  if (right.length < constants.v8MaxSafeChunkSize) {
+    list3.push(...right);
+  } else {
+    while (chunkStart < right.length) {
+      list3.push(...right.slice(chunkStart, chunkStart + constants.v8MaxSafeChunkSize));
+      chunkStart += constants.v8MaxSafeChunkSize;
+    }
+  }
+}
+var init_splice_buffer = __esm(() => {
+  init_default();
+});
+
+// node_modules/micromark-util-subtokenize/dev/index.js
+function subtokenize(eventsArray) {
+  const jumps = {};
+  let index = -1;
+  let event;
+  let lineIndex;
+  let otherIndex;
+  let otherEvent;
+  let parameters;
+  let subevents;
+  let more;
+  const events2 = new SpliceBuffer(eventsArray);
+  while (++index < events2.length) {
+    while (index in jumps) {
+      index = jumps[index];
+    }
+    event = events2.get(index);
+    if (index && event[1].type === types2.chunkFlow && events2.get(index - 1)[1].type === types2.listItemPrefix) {
+      ok(event[1]._tokenizer, "expected `_tokenizer` on subtokens");
+      subevents = event[1]._tokenizer.events;
+      otherIndex = 0;
+      if (otherIndex < subevents.length && subevents[otherIndex][1].type === types2.lineEndingBlank) {
+        otherIndex += 2;
+      }
+      if (otherIndex < subevents.length && subevents[otherIndex][1].type === types2.content) {
+        while (++otherIndex < subevents.length) {
+          if (subevents[otherIndex][1].type === types2.content) {
+            break;
+          }
+          if (subevents[otherIndex][1].type === types2.chunkText) {
+            subevents[otherIndex][1]._isInFirstContentOfListItem = true;
+            otherIndex++;
+          }
+        }
+      }
+    }
+    if (event[0] === "enter") {
+      if (event[1].contentType) {
+        Object.assign(jumps, subcontent(events2, index));
+        index = jumps[index];
+        more = true;
+      }
+    } else if (event[1]._container) {
+      otherIndex = index;
+      lineIndex = undefined;
+      while (otherIndex--) {
+        otherEvent = events2.get(otherIndex);
+        if (otherEvent[1].type === types2.lineEnding || otherEvent[1].type === types2.lineEndingBlank) {
+          if (otherEvent[0] === "enter") {
+            if (lineIndex) {
+              events2.get(lineIndex)[1].type = types2.lineEndingBlank;
+            }
+            otherEvent[1].type = types2.lineEnding;
+            lineIndex = otherIndex;
+          }
+        } else if (otherEvent[1].type === types2.linePrefix || otherEvent[1].type === types2.listItemIndent) {} else {
+          break;
+        }
+      }
+      if (lineIndex) {
+        event[1].end = { ...events2.get(lineIndex)[1].start };
+        parameters = events2.slice(lineIndex, index);
+        parameters.unshift(event);
+        events2.splice(lineIndex, index - lineIndex + 1, parameters);
+      }
+    }
+  }
+  splice(eventsArray, 0, Number.POSITIVE_INFINITY, events2.slice(0));
+  return !more;
+}
+function subcontent(events2, eventIndex) {
+  const token = events2.get(eventIndex)[1];
+  const context = events2.get(eventIndex)[2];
+  let startPosition = eventIndex - 1;
+  const startPositions = [];
+  ok(token.contentType, "expected `contentType` on subtokens");
+  let tokenizer = token._tokenizer;
+  if (!tokenizer) {
+    tokenizer = context.parser[token.contentType](token.start);
+    if (token._contentTypeTextTrailing) {
+      tokenizer._contentTypeTextTrailing = true;
+    }
+  }
+  const childEvents = tokenizer.events;
+  const jumps = [];
+  const gaps = {};
+  let stream;
+  let previous3;
+  let index = -1;
+  let current = token;
+  let adjust = 0;
+  let start = 0;
+  const breaks = [start];
+  while (current) {
+    while (events2.get(++startPosition)[1] !== current) {}
+    ok(!previous3 || current.previous === previous3, "expected previous to match");
+    ok(!previous3 || previous3.next === current, "expected next to match");
+    startPositions.push(startPosition);
+    if (!current._tokenizer) {
+      stream = context.sliceStream(current);
+      if (!current.next) {
+        stream.push(codes.eof);
+      }
+      if (previous3) {
+        tokenizer.defineSkip(current.start);
+      }
+      if (current._isInFirstContentOfListItem) {
+        tokenizer._gfmTasklistFirstContentOfListItem = true;
+      }
+      tokenizer.write(stream);
+      if (current._isInFirstContentOfListItem) {
+        tokenizer._gfmTasklistFirstContentOfListItem = undefined;
+      }
+    }
+    previous3 = current;
+    current = current.next;
+  }
+  current = token;
+  while (++index < childEvents.length) {
+    if (childEvents[index][0] === "exit" && childEvents[index - 1][0] === "enter" && childEvents[index][1].type === childEvents[index - 1][1].type && childEvents[index][1].start.line !== childEvents[index][1].end.line) {
+      ok(current, "expected a current token");
+      start = index + 1;
+      breaks.push(start);
+      current._tokenizer = undefined;
+      current.previous = undefined;
+      current = current.next;
+    }
+  }
+  tokenizer.events = [];
+  if (current) {
+    current._tokenizer = undefined;
+    current.previous = undefined;
+    ok(!current.next, "expected no next token");
+  } else {
+    breaks.pop();
+  }
+  index = breaks.length;
+  while (index--) {
+    const slice = childEvents.slice(breaks[index], breaks[index + 1]);
+    const start2 = startPositions.pop();
+    ok(start2 !== undefined, "expected a start position when splicing");
+    jumps.push([start2, start2 + slice.length - 1]);
+    events2.splice(start2, 2, slice);
+  }
+  jumps.reverse();
+  index = -1;
+  while (++index < jumps.length) {
+    gaps[adjust + jumps[index][0]] = adjust + jumps[index][1];
+    adjust += jumps[index][1] - jumps[index][0] - 1;
+  }
+  return gaps;
+}
+var init_dev9 = __esm(() => {
+  init_development();
+  init_dev6();
+  init_default();
+  init_splice_buffer();
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/content.js
+function resolveContent(events2) {
+  subtokenize(events2);
+  return events2;
+}
+function tokenizeContent(effects, ok3) {
+  let previous3;
+  return chunkStart;
+  function chunkStart(code3) {
+    ok(code3 !== codes.eof && !markdownLineEnding(code3), "expected no eof or eol");
+    effects.enter(types2.content);
+    previous3 = effects.enter(types2.chunkContent, {
+      contentType: constants.contentTypeContent
+    });
+    return chunkInside(code3);
+  }
+  function chunkInside(code3) {
+    if (code3 === codes.eof) {
+      return contentEnd(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      return effects.check(continuationConstruct, contentContinue, contentEnd)(code3);
+    }
+    effects.consume(code3);
+    return chunkInside;
+  }
+  function contentEnd(code3) {
+    effects.exit(types2.chunkContent);
+    effects.exit(types2.content);
+    return ok3(code3);
+  }
+  function contentContinue(code3) {
+    ok(markdownLineEnding(code3), "expected eol");
+    effects.consume(code3);
+    effects.exit(types2.chunkContent);
+    ok(previous3, "expected previous token");
+    previous3.next = effects.enter(types2.chunkContent, {
+      contentType: constants.contentTypeContent,
+      previous: previous3
+    });
+    previous3 = previous3.next;
+    return chunkInside;
+  }
+}
+function tokenizeContinuation(effects, ok3, nok) {
+  const self2 = this;
+  return startLookahead;
+  function startLookahead(code3) {
+    ok(markdownLineEnding(code3), "expected a line ending");
+    effects.exit(types2.chunkContent);
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return factorySpace(effects, prefixed, types2.linePrefix);
+  }
+  function prefixed(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return nok(code3);
+    }
+    ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+    const tail = self2.events[self2.events.length - 1];
+    if (!self2.parser.constructs.disable.null.includes("codeIndented") && tail && tail[1].type === types2.linePrefix && tail[2].sliceSerialize(tail[1], true).length >= constants.tabSize) {
+      return ok3(code3);
+    }
+    return effects.interrupt(self2.parser.constructs.flow, nok, ok3)(code3);
+  }
+}
+var content, continuationConstruct;
+var init_content = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_dev9();
+  init_default();
+  content = { resolve: resolveContent, tokenize: tokenizeContent };
+  continuationConstruct = { partial: true, tokenize: tokenizeContinuation };
+});
+
+// node_modules/micromark-factory-destination/dev/index.js
+function factoryDestination(effects, ok3, nok, type, literalType, literalMarkerType, rawType, stringType, max) {
+  const limit = max || Number.POSITIVE_INFINITY;
+  let balance = 0;
+  return start;
+  function start(code3) {
+    if (code3 === codes.lessThan) {
+      effects.enter(type);
+      effects.enter(literalType);
+      effects.enter(literalMarkerType);
+      effects.consume(code3);
+      effects.exit(literalMarkerType);
+      return enclosedBefore;
+    }
+    if (code3 === codes.eof || code3 === codes.space || code3 === codes.rightParenthesis || asciiControl(code3)) {
+      return nok(code3);
+    }
+    effects.enter(type);
+    effects.enter(rawType);
+    effects.enter(stringType);
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return raw(code3);
+  }
+  function enclosedBefore(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.enter(literalMarkerType);
+      effects.consume(code3);
+      effects.exit(literalMarkerType);
+      effects.exit(literalType);
+      effects.exit(type);
+      return ok3;
+    }
+    effects.enter(stringType);
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return enclosed(code3);
+  }
+  function enclosed(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.exit(types2.chunkString);
+      effects.exit(stringType);
+      return enclosedBefore(code3);
+    }
+    if (code3 === codes.eof || code3 === codes.lessThan || markdownLineEnding(code3)) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return code3 === codes.backslash ? enclosedEscape : enclosed;
+  }
+  function enclosedEscape(code3) {
+    if (code3 === codes.lessThan || code3 === codes.greaterThan || code3 === codes.backslash) {
+      effects.consume(code3);
+      return enclosed;
+    }
+    return enclosed(code3);
+  }
+  function raw(code3) {
+    if (!balance && (code3 === codes.eof || code3 === codes.rightParenthesis || markdownLineEndingOrSpace(code3))) {
+      effects.exit(types2.chunkString);
+      effects.exit(stringType);
+      effects.exit(rawType);
+      effects.exit(type);
+      return ok3(code3);
+    }
+    if (balance < limit && code3 === codes.leftParenthesis) {
+      effects.consume(code3);
+      balance++;
+      return raw;
+    }
+    if (code3 === codes.rightParenthesis) {
+      effects.consume(code3);
+      balance--;
+      return raw;
+    }
+    if (code3 === codes.eof || code3 === codes.space || code3 === codes.leftParenthesis || asciiControl(code3)) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return code3 === codes.backslash ? rawEscape : raw;
+  }
+  function rawEscape(code3) {
+    if (code3 === codes.leftParenthesis || code3 === codes.rightParenthesis || code3 === codes.backslash) {
+      effects.consume(code3);
+      return raw;
+    }
+    return raw(code3);
+  }
+}
+var init_dev10 = __esm(() => {
+  init_dev();
+  init_default();
+});
+
+// node_modules/micromark-factory-label/dev/index.js
+function factoryLabel(effects, ok3, nok, type, markerType, stringType) {
+  const self2 = this;
+  let size2 = 0;
+  let seen;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    effects.enter(type);
+    effects.enter(markerType);
+    effects.consume(code3);
+    effects.exit(markerType);
+    effects.enter(stringType);
+    return atBreak;
+  }
+  function atBreak(code3) {
+    if (size2 > constants.linkReferenceSizeMax || code3 === codes.eof || code3 === codes.leftSquareBracket || code3 === codes.rightSquareBracket && !seen || code3 === codes.caret && !size2 && "_hiddenFootnoteSupport" in self2.parser.constructs) {
+      return nok(code3);
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.exit(stringType);
+      effects.enter(markerType);
+      effects.consume(code3);
+      effects.exit(markerType);
+      effects.exit(type);
+      return ok3;
+    }
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      return atBreak;
+    }
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return labelInside(code3);
+  }
+  function labelInside(code3) {
+    if (code3 === codes.eof || code3 === codes.leftSquareBracket || code3 === codes.rightSquareBracket || markdownLineEnding(code3) || size2++ > constants.linkReferenceSizeMax) {
+      effects.exit(types2.chunkString);
+      return atBreak(code3);
+    }
+    effects.consume(code3);
+    if (!seen)
+      seen = !markdownSpace(code3);
+    return code3 === codes.backslash ? labelEscape : labelInside;
+  }
+  function labelEscape(code3) {
+    if (code3 === codes.leftSquareBracket || code3 === codes.backslash || code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      size2++;
+      return labelInside;
+    }
+    return labelInside(code3);
+  }
+}
+var init_dev11 = __esm(() => {
+  init_development();
+  init_dev();
+  init_default();
+});
+
+// node_modules/micromark-factory-title/dev/index.js
+function factoryTitle(effects, ok3, nok, type, markerType, stringType) {
+  let marker;
+  return start;
+  function start(code3) {
+    if (code3 === codes.quotationMark || code3 === codes.apostrophe || code3 === codes.leftParenthesis) {
+      effects.enter(type);
+      effects.enter(markerType);
+      effects.consume(code3);
+      effects.exit(markerType);
+      marker = code3 === codes.leftParenthesis ? codes.rightParenthesis : code3;
+      return begin;
+    }
+    return nok(code3);
+  }
+  function begin(code3) {
+    if (code3 === marker) {
+      effects.enter(markerType);
+      effects.consume(code3);
+      effects.exit(markerType);
+      effects.exit(type);
+      return ok3;
+    }
+    effects.enter(stringType);
+    return atBreak(code3);
+  }
+  function atBreak(code3) {
+    if (code3 === marker) {
+      effects.exit(stringType);
+      return begin(marker);
+    }
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      return factorySpace(effects, atBreak, types2.linePrefix);
+    }
+    effects.enter(types2.chunkString, { contentType: constants.contentTypeString });
+    return inside(code3);
+  }
+  function inside(code3) {
+    if (code3 === marker || code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.chunkString);
+      return atBreak(code3);
+    }
+    effects.consume(code3);
+    return code3 === codes.backslash ? escape2 : inside;
+  }
+  function escape2(code3) {
+    if (code3 === marker || code3 === codes.backslash) {
+      effects.consume(code3);
+      return inside;
+    }
+    return inside(code3);
+  }
+}
+var init_dev12 = __esm(() => {
+  init_dev8();
+  init_dev();
+  init_default();
+});
+
+// node_modules/micromark-factory-whitespace/dev/index.js
+function factoryWhitespace(effects, ok3) {
+  let seen;
+  return start;
+  function start(code3) {
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      seen = true;
+      return start;
+    }
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, start, seen ? types2.linePrefix : types2.lineSuffix)(code3);
+    }
+    return ok3(code3);
+  }
+}
+var init_dev13 = __esm(() => {
+  init_dev8();
+  init_dev();
+  init_default();
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/definition.js
+function tokenizeDefinition(effects, ok3, nok) {
+  const self2 = this;
+  let identifier;
+  return start;
+  function start(code3) {
+    effects.enter(types2.definition);
+    return before(code3);
+  }
+  function before(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    return factoryLabel.call(self2, effects, labelAfter, nok, types2.definitionLabel, types2.definitionLabelMarker, types2.definitionLabelString)(code3);
+  }
+  function labelAfter(code3) {
+    identifier = normalizeIdentifier(self2.sliceSerialize(self2.events[self2.events.length - 1][1]).slice(1, -1));
+    if (code3 === codes.colon) {
+      effects.enter(types2.definitionMarker);
+      effects.consume(code3);
+      effects.exit(types2.definitionMarker);
+      return markerAfter;
+    }
+    return nok(code3);
+  }
+  function markerAfter(code3) {
+    return markdownLineEndingOrSpace(code3) ? factoryWhitespace(effects, destinationBefore)(code3) : destinationBefore(code3);
+  }
+  function destinationBefore(code3) {
+    return factoryDestination(effects, destinationAfter, nok, types2.definitionDestination, types2.definitionDestinationLiteral, types2.definitionDestinationLiteralMarker, types2.definitionDestinationRaw, types2.definitionDestinationString)(code3);
+  }
+  function destinationAfter(code3) {
+    return effects.attempt(titleBefore, after, after)(code3);
+  }
+  function after(code3) {
+    return markdownSpace(code3) ? factorySpace(effects, afterWhitespace, types2.whitespace)(code3) : afterWhitespace(code3);
+  }
+  function afterWhitespace(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.definition);
+      self2.parser.defined.push(identifier);
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+}
+function tokenizeTitleBefore(effects, ok3, nok) {
+  return titleBefore2;
+  function titleBefore2(code3) {
+    return markdownLineEndingOrSpace(code3) ? factoryWhitespace(effects, beforeMarker)(code3) : nok(code3);
+  }
+  function beforeMarker(code3) {
+    return factoryTitle(effects, titleAfter, nok, types2.definitionTitle, types2.definitionTitleMarker, types2.definitionTitleString)(code3);
+  }
+  function titleAfter(code3) {
+    return markdownSpace(code3) ? factorySpace(effects, titleAfterOptionalWhitespace, types2.whitespace)(code3) : titleAfterOptionalWhitespace(code3);
+  }
+  function titleAfterOptionalWhitespace(code3) {
+    return code3 === codes.eof || markdownLineEnding(code3) ? ok3(code3) : nok(code3);
+  }
+}
+var definition2, titleBefore;
+var init_definition2 = __esm(() => {
+  init_development();
+  init_dev10();
+  init_dev11();
+  init_dev8();
+  init_dev12();
+  init_dev13();
+  init_dev();
+  init_dev2();
+  init_default();
+  definition2 = { name: "definition", tokenize: tokenizeDefinition };
+  titleBefore = { partial: true, tokenize: tokenizeTitleBefore };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/hard-break-escape.js
+function tokenizeHardBreakEscape(effects, ok3, nok) {
+  return start;
+  function start(code3) {
+    ok(code3 === codes.backslash, "expected `\\`");
+    effects.enter(types2.hardBreakEscape);
+    effects.consume(code3);
+    return after;
+  }
+  function after(code3) {
+    if (markdownLineEnding(code3)) {
+      effects.exit(types2.hardBreakEscape);
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+}
+var hardBreakEscape;
+var init_hard_break_escape = __esm(() => {
+  init_development();
+  init_dev();
+  init_default();
+  hardBreakEscape = {
+    name: "hardBreakEscape",
+    tokenize: tokenizeHardBreakEscape
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/heading-atx.js
+function resolveHeadingAtx(events2, context) {
+  let contentEnd = events2.length - 2;
+  let contentStart = 3;
+  let content2;
+  let text5;
+  if (events2[contentStart][1].type === types2.whitespace) {
+    contentStart += 2;
+  }
+  if (contentEnd - 2 > contentStart && events2[contentEnd][1].type === types2.whitespace) {
+    contentEnd -= 2;
+  }
+  if (events2[contentEnd][1].type === types2.atxHeadingSequence && (contentStart === contentEnd - 1 || contentEnd - 4 > contentStart && events2[contentEnd - 2][1].type === types2.whitespace)) {
+    contentEnd -= contentStart + 1 === contentEnd ? 2 : 4;
+  }
+  if (contentEnd > contentStart) {
+    content2 = {
+      type: types2.atxHeadingText,
+      start: events2[contentStart][1].start,
+      end: events2[contentEnd][1].end
+    };
+    text5 = {
+      type: types2.chunkText,
+      start: events2[contentStart][1].start,
+      end: events2[contentEnd][1].end,
+      contentType: constants.contentTypeText
+    };
+    splice(events2, contentStart, contentEnd - contentStart + 1, [
+      ["enter", content2, context],
+      ["enter", text5, context],
+      ["exit", text5, context],
+      ["exit", content2, context]
+    ]);
+  }
+  return events2;
+}
+function tokenizeHeadingAtx(effects, ok3, nok) {
+  let size2 = 0;
+  return start;
+  function start(code3) {
+    effects.enter(types2.atxHeading);
+    return before(code3);
+  }
+  function before(code3) {
+    ok(code3 === codes.numberSign, "expected `#`");
+    effects.enter(types2.atxHeadingSequence);
+    return sequenceOpen(code3);
+  }
+  function sequenceOpen(code3) {
+    if (code3 === codes.numberSign && size2++ < constants.atxHeadingOpeningFenceSizeMax) {
+      effects.consume(code3);
+      return sequenceOpen;
+    }
+    if (code3 === codes.eof || markdownLineEndingOrSpace(code3)) {
+      effects.exit(types2.atxHeadingSequence);
+      return atBreak(code3);
+    }
+    return nok(code3);
+  }
+  function atBreak(code3) {
+    if (code3 === codes.numberSign) {
+      effects.enter(types2.atxHeadingSequence);
+      return sequenceFurther(code3);
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.atxHeading);
+      return ok3(code3);
+    }
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, atBreak, types2.whitespace)(code3);
+    }
+    effects.enter(types2.atxHeadingText);
+    return data(code3);
+  }
+  function sequenceFurther(code3) {
+    if (code3 === codes.numberSign) {
+      effects.consume(code3);
+      return sequenceFurther;
+    }
+    effects.exit(types2.atxHeadingSequence);
+    return atBreak(code3);
+  }
+  function data(code3) {
+    if (code3 === codes.eof || code3 === codes.numberSign || markdownLineEndingOrSpace(code3)) {
+      effects.exit(types2.atxHeadingText);
+      return atBreak(code3);
+    }
+    effects.consume(code3);
+    return data;
+  }
+}
+var headingAtx;
+var init_heading_atx = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_dev6();
+  init_default();
+  headingAtx = {
+    name: "headingAtx",
+    resolve: resolveHeadingAtx,
+    tokenize: tokenizeHeadingAtx
+  };
+});
+
+// node_modules/micromark-util-html-tag-name/index.js
+var htmlBlockNames, htmlRawNames;
+var init_micromark_util_html_tag_name = __esm(() => {
+  htmlBlockNames = [
+    "address",
+    "article",
+    "aside",
+    "base",
+    "basefont",
+    "blockquote",
+    "body",
+    "caption",
+    "center",
+    "col",
+    "colgroup",
+    "dd",
+    "details",
+    "dialog",
+    "dir",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "frame",
+    "frameset",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "head",
+    "header",
+    "hr",
+    "html",
+    "iframe",
+    "legend",
+    "li",
+    "link",
+    "main",
+    "menu",
+    "menuitem",
+    "nav",
+    "noframes",
+    "ol",
+    "optgroup",
+    "option",
+    "p",
+    "param",
+    "search",
+    "section",
+    "summary",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "title",
+    "tr",
+    "track",
+    "ul"
+  ];
+  htmlRawNames = ["pre", "script", "style", "textarea"];
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/html-flow.js
+function resolveToHtmlFlow(events2) {
+  let index = events2.length;
+  while (index--) {
+    if (events2[index][0] === "enter" && events2[index][1].type === types2.htmlFlow) {
+      break;
+    }
+  }
+  if (index > 1 && events2[index - 2][1].type === types2.linePrefix) {
+    events2[index][1].start = events2[index - 2][1].start;
+    events2[index + 1][1].start = events2[index - 2][1].start;
+    events2.splice(index - 2, 2);
+  }
+  return events2;
+}
+function tokenizeHtmlFlow(effects, ok3, nok) {
+  const self2 = this;
+  let marker;
+  let closingTag;
+  let buffer2;
+  let index;
+  let markerB;
+  return start;
+  function start(code3) {
+    return before(code3);
+  }
+  function before(code3) {
+    ok(code3 === codes.lessThan, "expected `<`");
+    effects.enter(types2.htmlFlow);
+    effects.enter(types2.htmlFlowData);
+    effects.consume(code3);
+    return open;
+  }
+  function open(code3) {
+    if (code3 === codes.exclamationMark) {
+      effects.consume(code3);
+      return declarationOpen;
+    }
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      closingTag = true;
+      return tagCloseStart;
+    }
+    if (code3 === codes.questionMark) {
+      effects.consume(code3);
+      marker = constants.htmlInstruction;
+      return self2.interrupt ? ok3 : continuationDeclarationInside;
+    }
+    if (asciiAlpha(code3)) {
+      ok(code3 !== null);
+      effects.consume(code3);
+      buffer2 = String.fromCharCode(code3);
+      return tagName;
+    }
+    return nok(code3);
+  }
+  function declarationOpen(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      marker = constants.htmlComment;
+      return commentOpenInside;
+    }
+    if (code3 === codes.leftSquareBracket) {
+      effects.consume(code3);
+      marker = constants.htmlCdata;
+      index = 0;
+      return cdataOpenInside;
+    }
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      marker = constants.htmlDeclaration;
+      return self2.interrupt ? ok3 : continuationDeclarationInside;
+    }
+    return nok(code3);
+  }
+  function commentOpenInside(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return self2.interrupt ? ok3 : continuationDeclarationInside;
+    }
+    return nok(code3);
+  }
+  function cdataOpenInside(code3) {
+    const value = constants.cdataOpeningString;
+    if (code3 === value.charCodeAt(index++)) {
+      effects.consume(code3);
+      if (index === value.length) {
+        return self2.interrupt ? ok3 : continuation;
+      }
+      return cdataOpenInside;
+    }
+    return nok(code3);
+  }
+  function tagCloseStart(code3) {
+    if (asciiAlpha(code3)) {
+      ok(code3 !== null);
+      effects.consume(code3);
+      buffer2 = String.fromCharCode(code3);
+      return tagName;
+    }
+    return nok(code3);
+  }
+  function tagName(code3) {
+    if (code3 === codes.eof || code3 === codes.slash || code3 === codes.greaterThan || markdownLineEndingOrSpace(code3)) {
+      const slash = code3 === codes.slash;
+      const name = buffer2.toLowerCase();
+      if (!slash && !closingTag && htmlRawNames.includes(name)) {
+        marker = constants.htmlRaw;
+        return self2.interrupt ? ok3(code3) : continuation(code3);
+      }
+      if (htmlBlockNames.includes(buffer2.toLowerCase())) {
+        marker = constants.htmlBasic;
+        if (slash) {
+          effects.consume(code3);
+          return basicSelfClosing;
+        }
+        return self2.interrupt ? ok3(code3) : continuation(code3);
+      }
+      marker = constants.htmlComplete;
+      return self2.interrupt && !self2.parser.lazy[self2.now().line] ? nok(code3) : closingTag ? completeClosingTagAfter(code3) : completeAttributeNameBefore(code3);
+    }
+    if (code3 === codes.dash || asciiAlphanumeric(code3)) {
+      effects.consume(code3);
+      buffer2 += String.fromCharCode(code3);
+      return tagName;
+    }
+    return nok(code3);
+  }
+  function basicSelfClosing(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.consume(code3);
+      return self2.interrupt ? ok3 : continuation;
+    }
+    return nok(code3);
+  }
+  function completeClosingTagAfter(code3) {
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return completeClosingTagAfter;
+    }
+    return completeEnd(code3);
+  }
+  function completeAttributeNameBefore(code3) {
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      return completeEnd;
+    }
+    if (code3 === codes.colon || code3 === codes.underscore || asciiAlpha(code3)) {
+      effects.consume(code3);
+      return completeAttributeName;
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return completeAttributeNameBefore;
+    }
+    return completeEnd(code3);
+  }
+  function completeAttributeName(code3) {
+    if (code3 === codes.dash || code3 === codes.dot || code3 === codes.colon || code3 === codes.underscore || asciiAlphanumeric(code3)) {
+      effects.consume(code3);
+      return completeAttributeName;
+    }
+    return completeAttributeNameAfter(code3);
+  }
+  function completeAttributeNameAfter(code3) {
+    if (code3 === codes.equalsTo) {
+      effects.consume(code3);
+      return completeAttributeValueBefore;
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return completeAttributeNameAfter;
+    }
+    return completeAttributeNameBefore(code3);
+  }
+  function completeAttributeValueBefore(code3) {
+    if (code3 === codes.eof || code3 === codes.lessThan || code3 === codes.equalsTo || code3 === codes.greaterThan || code3 === codes.graveAccent) {
+      return nok(code3);
+    }
+    if (code3 === codes.quotationMark || code3 === codes.apostrophe) {
+      effects.consume(code3);
+      markerB = code3;
+      return completeAttributeValueQuoted;
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return completeAttributeValueBefore;
+    }
+    return completeAttributeValueUnquoted(code3);
+  }
+  function completeAttributeValueQuoted(code3) {
+    if (code3 === markerB) {
+      effects.consume(code3);
+      markerB = null;
+      return completeAttributeValueQuotedAfter;
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return nok(code3);
+    }
+    effects.consume(code3);
+    return completeAttributeValueQuoted;
+  }
+  function completeAttributeValueUnquoted(code3) {
+    if (code3 === codes.eof || code3 === codes.quotationMark || code3 === codes.apostrophe || code3 === codes.slash || code3 === codes.lessThan || code3 === codes.equalsTo || code3 === codes.greaterThan || code3 === codes.graveAccent || markdownLineEndingOrSpace(code3)) {
+      return completeAttributeNameAfter(code3);
+    }
+    effects.consume(code3);
+    return completeAttributeValueUnquoted;
+  }
+  function completeAttributeValueQuotedAfter(code3) {
+    if (code3 === codes.slash || code3 === codes.greaterThan || markdownSpace(code3)) {
+      return completeAttributeNameBefore(code3);
+    }
+    return nok(code3);
+  }
+  function completeEnd(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.consume(code3);
+      return completeAfter;
+    }
+    return nok(code3);
+  }
+  function completeAfter(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return continuation(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return completeAfter;
+    }
+    return nok(code3);
+  }
+  function continuation(code3) {
+    if (code3 === codes.dash && marker === constants.htmlComment) {
+      effects.consume(code3);
+      return continuationCommentInside;
+    }
+    if (code3 === codes.lessThan && marker === constants.htmlRaw) {
+      effects.consume(code3);
+      return continuationRawTagOpen;
+    }
+    if (code3 === codes.greaterThan && marker === constants.htmlDeclaration) {
+      effects.consume(code3);
+      return continuationClose;
+    }
+    if (code3 === codes.questionMark && marker === constants.htmlInstruction) {
+      effects.consume(code3);
+      return continuationDeclarationInside;
+    }
+    if (code3 === codes.rightSquareBracket && marker === constants.htmlCdata) {
+      effects.consume(code3);
+      return continuationCdataInside;
+    }
+    if (markdownLineEnding(code3) && (marker === constants.htmlBasic || marker === constants.htmlComplete)) {
+      effects.exit(types2.htmlFlowData);
+      return effects.check(blankLineBefore, continuationAfter, continuationStart)(code3);
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.htmlFlowData);
+      return continuationStart(code3);
+    }
+    effects.consume(code3);
+    return continuation;
+  }
+  function continuationStart(code3) {
+    return effects.check(nonLazyContinuationStart, continuationStartNonLazy, continuationAfter)(code3);
+  }
+  function continuationStartNonLazy(code3) {
+    ok(markdownLineEnding(code3));
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return continuationBefore;
+  }
+  function continuationBefore(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return continuationStart(code3);
+    }
+    effects.enter(types2.htmlFlowData);
+    return continuation(code3);
+  }
+  function continuationCommentInside(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return continuationDeclarationInside;
+    }
+    return continuation(code3);
+  }
+  function continuationRawTagOpen(code3) {
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      buffer2 = "";
+      return continuationRawEndTag;
+    }
+    return continuation(code3);
+  }
+  function continuationRawEndTag(code3) {
+    if (code3 === codes.greaterThan) {
+      const name = buffer2.toLowerCase();
+      if (htmlRawNames.includes(name)) {
+        effects.consume(code3);
+        return continuationClose;
+      }
+      return continuation(code3);
+    }
+    if (asciiAlpha(code3) && buffer2.length < constants.htmlRawSizeMax) {
+      ok(code3 !== null);
+      effects.consume(code3);
+      buffer2 += String.fromCharCode(code3);
+      return continuationRawEndTag;
+    }
+    return continuation(code3);
+  }
+  function continuationCdataInside(code3) {
+    if (code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      return continuationDeclarationInside;
+    }
+    return continuation(code3);
+  }
+  function continuationDeclarationInside(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.consume(code3);
+      return continuationClose;
+    }
+    if (code3 === codes.dash && marker === constants.htmlComment) {
+      effects.consume(code3);
+      return continuationDeclarationInside;
+    }
+    return continuation(code3);
+  }
+  function continuationClose(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.htmlFlowData);
+      return continuationAfter(code3);
+    }
+    effects.consume(code3);
+    return continuationClose;
+  }
+  function continuationAfter(code3) {
+    effects.exit(types2.htmlFlow);
+    return ok3(code3);
+  }
+}
+function tokenizeNonLazyContinuationStart(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    if (markdownLineEnding(code3)) {
+      effects.enter(types2.lineEnding);
+      effects.consume(code3);
+      effects.exit(types2.lineEnding);
+      return after;
+    }
+    return nok(code3);
+  }
+  function after(code3) {
+    return self2.parser.lazy[self2.now().line] ? nok(code3) : ok3(code3);
+  }
+}
+function tokenizeBlankLineBefore(effects, ok3, nok) {
+  return start;
+  function start(code3) {
+    ok(markdownLineEnding(code3), "expected a line ending");
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return effects.attempt(blankLine, ok3, nok);
+  }
+}
+var htmlFlow, blankLineBefore, nonLazyContinuationStart;
+var init_html_flow = __esm(() => {
+  init_development();
+  init_dev();
+  init_micromark_util_html_tag_name();
+  init_default();
+  init_blank_line();
+  htmlFlow = {
+    concrete: true,
+    name: "htmlFlow",
+    resolveTo: resolveToHtmlFlow,
+    tokenize: tokenizeHtmlFlow
+  };
+  blankLineBefore = { partial: true, tokenize: tokenizeBlankLineBefore };
+  nonLazyContinuationStart = {
+    partial: true,
+    tokenize: tokenizeNonLazyContinuationStart
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/html-text.js
+function tokenizeHtmlText(effects, ok3, nok) {
+  const self2 = this;
+  let marker;
+  let index;
+  let returnState;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.lessThan, "expected `<`");
+    effects.enter(types2.htmlText);
+    effects.enter(types2.htmlTextData);
+    effects.consume(code3);
+    return open;
+  }
+  function open(code3) {
+    if (code3 === codes.exclamationMark) {
+      effects.consume(code3);
+      return declarationOpen;
+    }
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      return tagCloseStart;
+    }
+    if (code3 === codes.questionMark) {
+      effects.consume(code3);
+      return instruction;
+    }
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      return tagOpen;
+    }
+    return nok(code3);
+  }
+  function declarationOpen(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return commentOpenInside;
+    }
+    if (code3 === codes.leftSquareBracket) {
+      effects.consume(code3);
+      index = 0;
+      return cdataOpenInside;
+    }
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      return declaration;
+    }
+    return nok(code3);
+  }
+  function commentOpenInside(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return commentEnd;
+    }
+    return nok(code3);
+  }
+  function comment(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return commentClose;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = comment;
+      return lineEndingBefore(code3);
+    }
+    effects.consume(code3);
+    return comment;
+  }
+  function commentClose(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return commentEnd;
+    }
+    return comment(code3);
+  }
+  function commentEnd(code3) {
+    return code3 === codes.greaterThan ? end(code3) : code3 === codes.dash ? commentClose(code3) : comment(code3);
+  }
+  function cdataOpenInside(code3) {
+    const value = constants.cdataOpeningString;
+    if (code3 === value.charCodeAt(index++)) {
+      effects.consume(code3);
+      return index === value.length ? cdata : cdataOpenInside;
+    }
+    return nok(code3);
+  }
+  function cdata(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      return cdataClose;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = cdata;
+      return lineEndingBefore(code3);
+    }
+    effects.consume(code3);
+    return cdata;
+  }
+  function cdataClose(code3) {
+    if (code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      return cdataEnd;
+    }
+    return cdata(code3);
+  }
+  function cdataEnd(code3) {
+    if (code3 === codes.greaterThan) {
+      return end(code3);
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      return cdataEnd;
+    }
+    return cdata(code3);
+  }
+  function declaration(code3) {
+    if (code3 === codes.eof || code3 === codes.greaterThan) {
+      return end(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = declaration;
+      return lineEndingBefore(code3);
+    }
+    effects.consume(code3);
+    return declaration;
+  }
+  function instruction(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (code3 === codes.questionMark) {
+      effects.consume(code3);
+      return instructionClose;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = instruction;
+      return lineEndingBefore(code3);
+    }
+    effects.consume(code3);
+    return instruction;
+  }
+  function instructionClose(code3) {
+    return code3 === codes.greaterThan ? end(code3) : instruction(code3);
+  }
+  function tagCloseStart(code3) {
+    if (asciiAlpha(code3)) {
+      effects.consume(code3);
+      return tagClose;
+    }
+    return nok(code3);
+  }
+  function tagClose(code3) {
+    if (code3 === codes.dash || asciiAlphanumeric(code3)) {
+      effects.consume(code3);
+      return tagClose;
+    }
+    return tagCloseBetween(code3);
+  }
+  function tagCloseBetween(code3) {
+    if (markdownLineEnding(code3)) {
+      returnState = tagCloseBetween;
+      return lineEndingBefore(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return tagCloseBetween;
+    }
+    return end(code3);
+  }
+  function tagOpen(code3) {
+    if (code3 === codes.dash || asciiAlphanumeric(code3)) {
+      effects.consume(code3);
+      return tagOpen;
+    }
+    if (code3 === codes.slash || code3 === codes.greaterThan || markdownLineEndingOrSpace(code3)) {
+      return tagOpenBetween(code3);
+    }
+    return nok(code3);
+  }
+  function tagOpenBetween(code3) {
+    if (code3 === codes.slash) {
+      effects.consume(code3);
+      return end;
+    }
+    if (code3 === codes.colon || code3 === codes.underscore || asciiAlpha(code3)) {
+      effects.consume(code3);
+      return tagOpenAttributeName;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = tagOpenBetween;
+      return lineEndingBefore(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return tagOpenBetween;
+    }
+    return end(code3);
+  }
+  function tagOpenAttributeName(code3) {
+    if (code3 === codes.dash || code3 === codes.dot || code3 === codes.colon || code3 === codes.underscore || asciiAlphanumeric(code3)) {
+      effects.consume(code3);
+      return tagOpenAttributeName;
+    }
+    return tagOpenAttributeNameAfter(code3);
+  }
+  function tagOpenAttributeNameAfter(code3) {
+    if (code3 === codes.equalsTo) {
+      effects.consume(code3);
+      return tagOpenAttributeValueBefore;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = tagOpenAttributeNameAfter;
+      return lineEndingBefore(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return tagOpenAttributeNameAfter;
+    }
+    return tagOpenBetween(code3);
+  }
+  function tagOpenAttributeValueBefore(code3) {
+    if (code3 === codes.eof || code3 === codes.lessThan || code3 === codes.equalsTo || code3 === codes.greaterThan || code3 === codes.graveAccent) {
+      return nok(code3);
+    }
+    if (code3 === codes.quotationMark || code3 === codes.apostrophe) {
+      effects.consume(code3);
+      marker = code3;
+      return tagOpenAttributeValueQuoted;
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = tagOpenAttributeValueBefore;
+      return lineEndingBefore(code3);
+    }
+    if (markdownSpace(code3)) {
+      effects.consume(code3);
+      return tagOpenAttributeValueBefore;
+    }
+    effects.consume(code3);
+    return tagOpenAttributeValueUnquoted;
+  }
+  function tagOpenAttributeValueQuoted(code3) {
+    if (code3 === marker) {
+      effects.consume(code3);
+      marker = undefined;
+      return tagOpenAttributeValueQuotedAfter;
+    }
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      returnState = tagOpenAttributeValueQuoted;
+      return lineEndingBefore(code3);
+    }
+    effects.consume(code3);
+    return tagOpenAttributeValueQuoted;
+  }
+  function tagOpenAttributeValueUnquoted(code3) {
+    if (code3 === codes.eof || code3 === codes.quotationMark || code3 === codes.apostrophe || code3 === codes.lessThan || code3 === codes.equalsTo || code3 === codes.graveAccent) {
+      return nok(code3);
+    }
+    if (code3 === codes.slash || code3 === codes.greaterThan || markdownLineEndingOrSpace(code3)) {
+      return tagOpenBetween(code3);
+    }
+    effects.consume(code3);
+    return tagOpenAttributeValueUnquoted;
+  }
+  function tagOpenAttributeValueQuotedAfter(code3) {
+    if (code3 === codes.slash || code3 === codes.greaterThan || markdownLineEndingOrSpace(code3)) {
+      return tagOpenBetween(code3);
+    }
+    return nok(code3);
+  }
+  function end(code3) {
+    if (code3 === codes.greaterThan) {
+      effects.consume(code3);
+      effects.exit(types2.htmlTextData);
+      effects.exit(types2.htmlText);
+      return ok3;
+    }
+    return nok(code3);
+  }
+  function lineEndingBefore(code3) {
+    ok(returnState, "expected return state");
+    ok(markdownLineEnding(code3), "expected eol");
+    effects.exit(types2.htmlTextData);
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return lineEndingAfter;
+  }
+  function lineEndingAfter(code3) {
+    ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+    return markdownSpace(code3) ? factorySpace(effects, lineEndingAfterPrefix, types2.linePrefix, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize)(code3) : lineEndingAfterPrefix(code3);
+  }
+  function lineEndingAfterPrefix(code3) {
+    effects.enter(types2.htmlTextData);
+    return returnState(code3);
+  }
+}
+var htmlText;
+var init_html_text = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  htmlText = { name: "htmlText", tokenize: tokenizeHtmlText };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/label-end.js
+function resolveAllLabelEnd(events2) {
+  let index = -1;
+  const newEvents = [];
+  while (++index < events2.length) {
+    const token = events2[index][1];
+    newEvents.push(events2[index]);
+    if (token.type === types2.labelImage || token.type === types2.labelLink || token.type === types2.labelEnd) {
+      const offset = token.type === types2.labelImage ? 4 : 2;
+      token.type = types2.data;
+      index += offset;
+    }
+  }
+  if (events2.length !== newEvents.length) {
+    splice(events2, 0, events2.length, newEvents);
+  }
+  return events2;
+}
+function resolveToLabelEnd(events2, context) {
+  let index = events2.length;
+  let offset = 0;
+  let token;
+  let open;
+  let close;
+  let media;
+  while (index--) {
+    token = events2[index][1];
+    if (open) {
+      if (token.type === types2.link || token.type === types2.labelLink && token._inactive) {
+        break;
+      }
+      if (events2[index][0] === "enter" && token.type === types2.labelLink) {
+        token._inactive = true;
+      }
+    } else if (close) {
+      if (events2[index][0] === "enter" && (token.type === types2.labelImage || token.type === types2.labelLink) && !token._balanced) {
+        open = index;
+        if (token.type !== types2.labelLink) {
+          offset = 2;
+          break;
+        }
+      }
+    } else if (token.type === types2.labelEnd) {
+      close = index;
+    }
+  }
+  ok(open !== undefined, "`open` is supposed to be found");
+  ok(close !== undefined, "`close` is supposed to be found");
+  const group = {
+    type: events2[open][1].type === types2.labelLink ? types2.link : types2.image,
+    start: { ...events2[open][1].start },
+    end: { ...events2[events2.length - 1][1].end }
+  };
+  const label = {
+    type: types2.label,
+    start: { ...events2[open][1].start },
+    end: { ...events2[close][1].end }
+  };
+  const text5 = {
+    type: types2.labelText,
+    start: { ...events2[open + offset + 2][1].end },
+    end: { ...events2[close - 2][1].start }
+  };
+  media = [
+    ["enter", group, context],
+    ["enter", label, context]
+  ];
+  media = push(media, events2.slice(open + 1, open + offset + 3));
+  media = push(media, [["enter", text5, context]]);
+  ok(context.parser.constructs.insideSpan.null, "expected `insideSpan.null` to be populated");
+  media = push(media, resolveAll(context.parser.constructs.insideSpan.null, events2.slice(open + offset + 4, close - 3), context));
+  media = push(media, [
+    ["exit", text5, context],
+    events2[close - 2],
+    events2[close - 1],
+    ["exit", label, context]
+  ]);
+  media = push(media, events2.slice(close + 1));
+  media = push(media, [["exit", group, context]]);
+  splice(events2, open, events2.length, media);
+  return events2;
+}
+function tokenizeLabelEnd(effects, ok3, nok) {
+  const self2 = this;
+  let index = self2.events.length;
+  let labelStart;
+  let defined;
+  while (index--) {
+    if ((self2.events[index][1].type === types2.labelImage || self2.events[index][1].type === types2.labelLink) && !self2.events[index][1]._balanced) {
+      labelStart = self2.events[index][1];
+      break;
+    }
+  }
+  return start;
+  function start(code3) {
+    ok(code3 === codes.rightSquareBracket, "expected `]`");
+    if (!labelStart) {
+      return nok(code3);
+    }
+    if (labelStart._inactive) {
+      return labelEndNok(code3);
+    }
+    defined = self2.parser.defined.includes(normalizeIdentifier(self2.sliceSerialize({ start: labelStart.end, end: self2.now() })));
+    effects.enter(types2.labelEnd);
+    effects.enter(types2.labelMarker);
+    effects.consume(code3);
+    effects.exit(types2.labelMarker);
+    effects.exit(types2.labelEnd);
+    return after;
+  }
+  function after(code3) {
+    if (code3 === codes.leftParenthesis) {
+      return effects.attempt(resourceConstruct, labelEndOk, defined ? labelEndOk : labelEndNok)(code3);
+    }
+    if (code3 === codes.leftSquareBracket) {
+      return effects.attempt(referenceFullConstruct, labelEndOk, defined ? referenceNotFull : labelEndNok)(code3);
+    }
+    return defined ? labelEndOk(code3) : labelEndNok(code3);
+  }
+  function referenceNotFull(code3) {
+    return effects.attempt(referenceCollapsedConstruct, labelEndOk, labelEndNok)(code3);
+  }
+  function labelEndOk(code3) {
+    return ok3(code3);
+  }
+  function labelEndNok(code3) {
+    labelStart._balanced = true;
+    return nok(code3);
+  }
+}
+function tokenizeResource(effects, ok3, nok) {
+  return resourceStart;
+  function resourceStart(code3) {
+    ok(code3 === codes.leftParenthesis, "expected left paren");
+    effects.enter(types2.resource);
+    effects.enter(types2.resourceMarker);
+    effects.consume(code3);
+    effects.exit(types2.resourceMarker);
+    return resourceBefore;
+  }
+  function resourceBefore(code3) {
+    return markdownLineEndingOrSpace(code3) ? factoryWhitespace(effects, resourceOpen)(code3) : resourceOpen(code3);
+  }
+  function resourceOpen(code3) {
+    if (code3 === codes.rightParenthesis) {
+      return resourceEnd(code3);
+    }
+    return factoryDestination(effects, resourceDestinationAfter, resourceDestinationMissing, types2.resourceDestination, types2.resourceDestinationLiteral, types2.resourceDestinationLiteralMarker, types2.resourceDestinationRaw, types2.resourceDestinationString, constants.linkResourceDestinationBalanceMax)(code3);
+  }
+  function resourceDestinationAfter(code3) {
+    return markdownLineEndingOrSpace(code3) ? factoryWhitespace(effects, resourceBetween)(code3) : resourceEnd(code3);
+  }
+  function resourceDestinationMissing(code3) {
+    return nok(code3);
+  }
+  function resourceBetween(code3) {
+    if (code3 === codes.quotationMark || code3 === codes.apostrophe || code3 === codes.leftParenthesis) {
+      return factoryTitle(effects, resourceTitleAfter, nok, types2.resourceTitle, types2.resourceTitleMarker, types2.resourceTitleString)(code3);
+    }
+    return resourceEnd(code3);
+  }
+  function resourceTitleAfter(code3) {
+    return markdownLineEndingOrSpace(code3) ? factoryWhitespace(effects, resourceEnd)(code3) : resourceEnd(code3);
+  }
+  function resourceEnd(code3) {
+    if (code3 === codes.rightParenthesis) {
+      effects.enter(types2.resourceMarker);
+      effects.consume(code3);
+      effects.exit(types2.resourceMarker);
+      effects.exit(types2.resource);
+      return ok3;
+    }
+    return nok(code3);
+  }
+}
+function tokenizeReferenceFull(effects, ok3, nok) {
+  const self2 = this;
+  return referenceFull;
+  function referenceFull(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected left bracket");
+    return factoryLabel.call(self2, effects, referenceFullAfter, referenceFullMissing, types2.reference, types2.referenceMarker, types2.referenceString)(code3);
+  }
+  function referenceFullAfter(code3) {
+    return self2.parser.defined.includes(normalizeIdentifier(self2.sliceSerialize(self2.events[self2.events.length - 1][1]).slice(1, -1))) ? ok3(code3) : nok(code3);
+  }
+  function referenceFullMissing(code3) {
+    return nok(code3);
+  }
+}
+function tokenizeReferenceCollapsed(effects, ok3, nok) {
+  return referenceCollapsedStart;
+  function referenceCollapsedStart(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected left bracket");
+    effects.enter(types2.reference);
+    effects.enter(types2.referenceMarker);
+    effects.consume(code3);
+    effects.exit(types2.referenceMarker);
+    return referenceCollapsedOpen;
+  }
+  function referenceCollapsedOpen(code3) {
+    if (code3 === codes.rightSquareBracket) {
+      effects.enter(types2.referenceMarker);
+      effects.consume(code3);
+      effects.exit(types2.referenceMarker);
+      effects.exit(types2.reference);
+      return ok3;
+    }
+    return nok(code3);
+  }
+}
+var labelEnd, resourceConstruct, referenceFullConstruct, referenceCollapsedConstruct;
+var init_label_end = __esm(() => {
+  init_development();
+  init_dev10();
+  init_dev11();
+  init_dev12();
+  init_dev13();
+  init_dev();
+  init_dev6();
+  init_dev2();
+  init_default();
+  labelEnd = {
+    name: "labelEnd",
+    resolveAll: resolveAllLabelEnd,
+    resolveTo: resolveToLabelEnd,
+    tokenize: tokenizeLabelEnd
+  };
+  resourceConstruct = { tokenize: tokenizeResource };
+  referenceFullConstruct = { tokenize: tokenizeReferenceFull };
+  referenceCollapsedConstruct = { tokenize: tokenizeReferenceCollapsed };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/label-start-image.js
+function tokenizeLabelStartImage(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.exclamationMark, "expected `!`");
+    effects.enter(types2.labelImage);
+    effects.enter(types2.labelImageMarker);
+    effects.consume(code3);
+    effects.exit(types2.labelImageMarker);
+    return open;
+  }
+  function open(code3) {
+    if (code3 === codes.leftSquareBracket) {
+      effects.enter(types2.labelMarker);
+      effects.consume(code3);
+      effects.exit(types2.labelMarker);
+      effects.exit(types2.labelImage);
+      return after;
+    }
+    return nok(code3);
+  }
+  function after(code3) {
+    return code3 === codes.caret && "_hiddenFootnoteSupport" in self2.parser.constructs ? nok(code3) : ok3(code3);
+  }
+}
+var labelStartImage;
+var init_label_start_image = __esm(() => {
+  init_development();
+  init_default();
+  init_label_end();
+  labelStartImage = {
+    name: "labelStartImage",
+    resolveAll: labelEnd.resolveAll,
+    tokenize: tokenizeLabelStartImage
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/label-start-link.js
+function tokenizeLabelStartLink(effects, ok3, nok) {
+  const self2 = this;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    effects.enter(types2.labelLink);
+    effects.enter(types2.labelMarker);
+    effects.consume(code3);
+    effects.exit(types2.labelMarker);
+    effects.exit(types2.labelLink);
+    return after;
+  }
+  function after(code3) {
+    return code3 === codes.caret && "_hiddenFootnoteSupport" in self2.parser.constructs ? nok(code3) : ok3(code3);
+  }
+}
+var labelStartLink;
+var init_label_start_link = __esm(() => {
+  init_development();
+  init_default();
+  init_label_end();
+  labelStartLink = {
+    name: "labelStartLink",
+    resolveAll: labelEnd.resolveAll,
+    tokenize: tokenizeLabelStartLink
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/line-ending.js
+function tokenizeLineEnding(effects, ok3) {
+  return start;
+  function start(code3) {
+    ok(markdownLineEnding(code3), "expected eol");
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return factorySpace(effects, ok3, types2.linePrefix);
+  }
+}
+var lineEnding;
+var init_line_ending = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  lineEnding = { name: "lineEnding", tokenize: tokenizeLineEnding };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/thematic-break.js
+function tokenizeThematicBreak(effects, ok3, nok) {
+  let size2 = 0;
+  let marker;
+  return start;
+  function start(code3) {
+    effects.enter(types2.thematicBreak);
+    return before(code3);
+  }
+  function before(code3) {
+    ok(code3 === codes.asterisk || code3 === codes.dash || code3 === codes.underscore, "expected `*`, `-`, or `_`");
+    marker = code3;
+    return atBreak(code3);
+  }
+  function atBreak(code3) {
+    if (code3 === marker) {
+      effects.enter(types2.thematicBreakSequence);
+      return sequence2(code3);
+    }
+    if (size2 >= constants.thematicBreakMarkerCountMin && (code3 === codes.eof || markdownLineEnding(code3))) {
+      effects.exit(types2.thematicBreak);
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+  function sequence2(code3) {
+    if (code3 === marker) {
+      effects.consume(code3);
+      size2++;
+      return sequence2;
+    }
+    effects.exit(types2.thematicBreakSequence);
+    return markdownSpace(code3) ? factorySpace(effects, atBreak, types2.whitespace)(code3) : atBreak(code3);
+  }
+}
+var thematicBreak2;
+var init_thematic_break2 = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  thematicBreak2 = {
+    name: "thematicBreak",
+    tokenize: tokenizeThematicBreak
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/list.js
+function tokenizeListStart(effects, ok3, nok) {
+  const self2 = this;
+  const tail = self2.events[self2.events.length - 1];
+  let initialSize = tail && tail[1].type === types2.linePrefix ? tail[2].sliceSerialize(tail[1], true).length : 0;
+  let size2 = 0;
+  return start;
+  function start(code3) {
+    ok(self2.containerState, "expected state");
+    const kind = self2.containerState.type || (code3 === codes.asterisk || code3 === codes.plusSign || code3 === codes.dash ? types2.listUnordered : types2.listOrdered);
+    if (kind === types2.listUnordered ? !self2.containerState.marker || code3 === self2.containerState.marker : asciiDigit(code3)) {
+      if (!self2.containerState.type) {
+        self2.containerState.type = kind;
+        effects.enter(kind, { _container: true });
+      }
+      if (kind === types2.listUnordered) {
+        effects.enter(types2.listItemPrefix);
+        return code3 === codes.asterisk || code3 === codes.dash ? effects.check(thematicBreak2, nok, atMarker)(code3) : atMarker(code3);
+      }
+      if (!self2.interrupt || code3 === codes.digit1) {
+        effects.enter(types2.listItemPrefix);
+        effects.enter(types2.listItemValue);
+        return inside(code3);
+      }
+    }
+    return nok(code3);
+  }
+  function inside(code3) {
+    ok(self2.containerState, "expected state");
+    if (asciiDigit(code3) && ++size2 < constants.listItemValueSizeMax) {
+      effects.consume(code3);
+      return inside;
+    }
+    if ((!self2.interrupt || size2 < 2) && (self2.containerState.marker ? code3 === self2.containerState.marker : code3 === codes.rightParenthesis || code3 === codes.dot)) {
+      effects.exit(types2.listItemValue);
+      return atMarker(code3);
+    }
+    return nok(code3);
+  }
+  function atMarker(code3) {
+    ok(self2.containerState, "expected state");
+    ok(code3 !== codes.eof, "eof (`null`) is not a marker");
+    effects.enter(types2.listItemMarker);
+    effects.consume(code3);
+    effects.exit(types2.listItemMarker);
+    self2.containerState.marker = self2.containerState.marker || code3;
+    return effects.check(blankLine, self2.interrupt ? nok : onBlank, effects.attempt(listItemPrefixWhitespaceConstruct, endOfPrefix, otherPrefix));
+  }
+  function onBlank(code3) {
+    ok(self2.containerState, "expected state");
+    self2.containerState.initialBlankLine = true;
+    initialSize++;
+    return endOfPrefix(code3);
+  }
+  function otherPrefix(code3) {
+    if (markdownSpace(code3)) {
+      effects.enter(types2.listItemPrefixWhitespace);
+      effects.consume(code3);
+      effects.exit(types2.listItemPrefixWhitespace);
+      return endOfPrefix;
+    }
+    return nok(code3);
+  }
+  function endOfPrefix(code3) {
+    ok(self2.containerState, "expected state");
+    self2.containerState.size = initialSize + self2.sliceSerialize(effects.exit(types2.listItemPrefix), true).length;
+    return ok3(code3);
+  }
+}
+function tokenizeListContinuation(effects, ok3, nok) {
+  const self2 = this;
+  ok(self2.containerState, "expected state");
+  self2.containerState._closeFlow = undefined;
+  return effects.check(blankLine, onBlank, notBlank);
+  function onBlank(code3) {
+    ok(self2.containerState, "expected state");
+    ok(typeof self2.containerState.size === "number", "expected size");
+    self2.containerState.furtherBlankLines = self2.containerState.furtherBlankLines || self2.containerState.initialBlankLine;
+    return factorySpace(effects, ok3, types2.listItemIndent, self2.containerState.size + 1)(code3);
+  }
+  function notBlank(code3) {
+    ok(self2.containerState, "expected state");
+    if (self2.containerState.furtherBlankLines || !markdownSpace(code3)) {
+      self2.containerState.furtherBlankLines = undefined;
+      self2.containerState.initialBlankLine = undefined;
+      return notInCurrentItem(code3);
+    }
+    self2.containerState.furtherBlankLines = undefined;
+    self2.containerState.initialBlankLine = undefined;
+    return effects.attempt(indentConstruct, ok3, notInCurrentItem)(code3);
+  }
+  function notInCurrentItem(code3) {
+    ok(self2.containerState, "expected state");
+    self2.containerState._closeFlow = true;
+    self2.interrupt = undefined;
+    ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+    return factorySpace(effects, effects.attempt(list3, ok3, nok), types2.linePrefix, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize)(code3);
+  }
+}
+function tokenizeIndent(effects, ok3, nok) {
+  const self2 = this;
+  ok(self2.containerState, "expected state");
+  ok(typeof self2.containerState.size === "number", "expected size");
+  return factorySpace(effects, afterPrefix, types2.listItemIndent, self2.containerState.size + 1);
+  function afterPrefix(code3) {
+    ok(self2.containerState, "expected state");
+    const tail = self2.events[self2.events.length - 1];
+    return tail && tail[1].type === types2.listItemIndent && tail[2].sliceSerialize(tail[1], true).length === self2.containerState.size ? ok3(code3) : nok(code3);
+  }
+}
+function tokenizeListEnd(effects) {
+  ok(this.containerState, "expected state");
+  ok(typeof this.containerState.type === "string", "expected type");
+  effects.exit(this.containerState.type);
+}
+function tokenizeListItemPrefixWhitespace(effects, ok3, nok) {
+  const self2 = this;
+  ok(self2.parser.constructs.disable.null, "expected `disable.null` to be populated");
+  return factorySpace(effects, afterPrefix, types2.listItemPrefixWhitespace, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize + 1);
+  function afterPrefix(code3) {
+    const tail = self2.events[self2.events.length - 1];
+    return !markdownSpace(code3) && tail && tail[1].type === types2.listItemPrefixWhitespace ? ok3(code3) : nok(code3);
+  }
+}
+var list3, listItemPrefixWhitespaceConstruct, indentConstruct;
+var init_list2 = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  init_blank_line();
+  init_thematic_break2();
+  list3 = {
+    continuation: { tokenize: tokenizeListContinuation },
+    exit: tokenizeListEnd,
+    name: "list",
+    tokenize: tokenizeListStart
+  };
+  listItemPrefixWhitespaceConstruct = {
+    partial: true,
+    tokenize: tokenizeListItemPrefixWhitespace
+  };
+  indentConstruct = { partial: true, tokenize: tokenizeIndent };
+});
+
+// node_modules/micromark-core-commonmark/dev/lib/setext-underline.js
+function resolveToSetextUnderline(events2, context) {
+  let index = events2.length;
+  let content2;
+  let text5;
+  let definition3;
+  while (index--) {
+    if (events2[index][0] === "enter") {
+      if (events2[index][1].type === types2.content) {
+        content2 = index;
+        break;
+      }
+      if (events2[index][1].type === types2.paragraph) {
+        text5 = index;
+      }
+    } else {
+      if (events2[index][1].type === types2.content) {
+        events2.splice(index, 1);
+      }
+      if (!definition3 && events2[index][1].type === types2.definition) {
+        definition3 = index;
+      }
+    }
+  }
+  ok(text5 !== undefined, "expected a `text` index to be found");
+  ok(content2 !== undefined, "expected a `text` index to be found");
+  ok(events2[content2][2] === context, "enter context should be same");
+  ok(events2[events2.length - 1][2] === context, "enter context should be same");
+  const heading2 = {
+    type: types2.setextHeading,
+    start: { ...events2[content2][1].start },
+    end: { ...events2[events2.length - 1][1].end }
+  };
+  events2[text5][1].type = types2.setextHeadingText;
+  if (definition3) {
+    events2.splice(text5, 0, ["enter", heading2, context]);
+    events2.splice(definition3 + 1, 0, ["exit", events2[content2][1], context]);
+    events2[content2][1].end = { ...events2[definition3][1].end };
+  } else {
+    events2[content2][1] = heading2;
+  }
+  events2.push(["exit", heading2, context]);
+  return events2;
+}
+function tokenizeSetextUnderline(effects, ok3, nok) {
+  const self2 = this;
+  let marker;
+  return start;
+  function start(code3) {
+    let index = self2.events.length;
+    let paragraph2;
+    ok(code3 === codes.dash || code3 === codes.equalsTo, "expected `=` or `-`");
+    while (index--) {
+      if (self2.events[index][1].type !== types2.lineEnding && self2.events[index][1].type !== types2.linePrefix && self2.events[index][1].type !== types2.content) {
+        paragraph2 = self2.events[index][1].type === types2.paragraph;
+        break;
+      }
+    }
+    if (!self2.parser.lazy[self2.now().line] && (self2.interrupt || paragraph2)) {
+      effects.enter(types2.setextHeadingLine);
+      marker = code3;
+      return before(code3);
+    }
+    return nok(code3);
+  }
+  function before(code3) {
+    effects.enter(types2.setextHeadingLineSequence);
+    return inside(code3);
+  }
+  function inside(code3) {
+    if (code3 === marker) {
+      effects.consume(code3);
+      return inside;
+    }
+    effects.exit(types2.setextHeadingLineSequence);
+    return markdownSpace(code3) ? factorySpace(effects, after, types2.lineSuffix)(code3) : after(code3);
+  }
+  function after(code3) {
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit(types2.setextHeadingLine);
+      return ok3(code3);
+    }
+    return nok(code3);
+  }
+}
+var setextUnderline;
+var init_setext_underline = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  setextUnderline = {
+    name: "setextUnderline",
+    resolveTo: resolveToSetextUnderline,
+    tokenize: tokenizeSetextUnderline
+  };
+});
+
+// node_modules/micromark-core-commonmark/dev/index.js
+var init_dev14 = __esm(() => {
+  init_attention();
+  init_autolink();
+  init_blank_line();
+  init_block_quote();
+  init_character_escape();
+  init_character_reference();
+  init_code_fenced();
+  init_code_indented();
+  init_code_text();
+  init_content();
+  init_definition2();
+  init_hard_break_escape();
+  init_heading_atx();
+  init_html_flow();
+  init_html_text();
+  init_label_end();
+  init_label_start_image();
+  init_label_start_link();
+  init_line_ending();
+  init_list2();
+  init_setext_underline();
+  init_thematic_break2();
+});
+
+// node_modules/micromark-extension-gfm-footnote/dev/lib/syntax.js
+function gfmFootnote() {
+  return {
+    document: {
+      [codes.leftSquareBracket]: {
+        name: "gfmFootnoteDefinition",
+        tokenize: tokenizeDefinitionStart,
+        continuation: { tokenize: tokenizeDefinitionContinuation },
+        exit: gfmFootnoteDefinitionEnd
+      }
+    },
+    text: {
+      [codes.leftSquareBracket]: {
+        name: "gfmFootnoteCall",
+        tokenize: tokenizeGfmFootnoteCall
+      },
+      [codes.rightSquareBracket]: {
+        name: "gfmPotentialFootnoteCall",
+        add: "after",
+        tokenize: tokenizePotentialGfmFootnoteCall,
+        resolveTo: resolveToPotentialGfmFootnoteCall
+      }
+    }
+  };
+}
+function tokenizePotentialGfmFootnoteCall(effects, ok3, nok) {
+  const self2 = this;
+  let index = self2.events.length;
+  const defined = self2.parser.gfmFootnotes || (self2.parser.gfmFootnotes = []);
+  let labelStart;
+  while (index--) {
+    const token = self2.events[index][1];
+    if (token.type === types2.labelImage) {
+      labelStart = token;
+      break;
+    }
+    if (token.type === "gfmFootnoteCall" || token.type === types2.labelLink || token.type === types2.label || token.type === types2.image || token.type === types2.link) {
+      break;
+    }
+  }
+  return start;
+  function start(code3) {
+    ok(code3 === codes.rightSquareBracket, "expected `]`");
+    if (!labelStart || !labelStart._balanced) {
+      return nok(code3);
+    }
+    const id = normalizeIdentifier(self2.sliceSerialize({ start: labelStart.end, end: self2.now() }));
+    if (id.codePointAt(0) !== codes.caret || !defined.includes(id.slice(1))) {
+      return nok(code3);
+    }
+    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.consume(code3);
+    effects.exit("gfmFootnoteCallLabelMarker");
+    return ok3(code3);
+  }
+}
+function resolveToPotentialGfmFootnoteCall(events2, context) {
+  let index = events2.length;
+  let labelStart;
+  while (index--) {
+    if (events2[index][1].type === types2.labelImage && events2[index][0] === "enter") {
+      labelStart = events2[index][1];
+      break;
+    }
+  }
+  ok(labelStart, "expected `labelStart` to resolve");
+  events2[index + 1][1].type = types2.data;
+  events2[index + 3][1].type = "gfmFootnoteCallLabelMarker";
+  const call = {
+    type: "gfmFootnoteCall",
+    start: Object.assign({}, events2[index + 3][1].start),
+    end: Object.assign({}, events2[events2.length - 1][1].end)
+  };
+  const marker = {
+    type: "gfmFootnoteCallMarker",
+    start: Object.assign({}, events2[index + 3][1].end),
+    end: Object.assign({}, events2[index + 3][1].end)
+  };
+  marker.end.column++;
+  marker.end.offset++;
+  marker.end._bufferIndex++;
+  const string = {
+    type: "gfmFootnoteCallString",
+    start: Object.assign({}, marker.end),
+    end: Object.assign({}, events2[events2.length - 1][1].start)
+  };
+  const chunk = {
+    type: types2.chunkString,
+    contentType: "string",
+    start: Object.assign({}, string.start),
+    end: Object.assign({}, string.end)
+  };
+  const replacement = [
+    events2[index + 1],
+    events2[index + 2],
+    ["enter", call, context],
+    events2[index + 3],
+    events2[index + 4],
+    ["enter", marker, context],
+    ["exit", marker, context],
+    ["enter", string, context],
+    ["enter", chunk, context],
+    ["exit", chunk, context],
+    ["exit", string, context],
+    events2[events2.length - 2],
+    events2[events2.length - 1],
+    ["exit", call, context]
+  ];
+  events2.splice(index, events2.length - index + 1, ...replacement);
+  return events2;
+}
+function tokenizeGfmFootnoteCall(effects, ok3, nok) {
+  const self2 = this;
+  const defined = self2.parser.gfmFootnotes || (self2.parser.gfmFootnotes = []);
+  let size2 = 0;
+  let data;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    effects.enter("gfmFootnoteCall");
+    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.consume(code3);
+    effects.exit("gfmFootnoteCallLabelMarker");
+    return callStart;
+  }
+  function callStart(code3) {
+    if (code3 !== codes.caret)
+      return nok(code3);
+    effects.enter("gfmFootnoteCallMarker");
+    effects.consume(code3);
+    effects.exit("gfmFootnoteCallMarker");
+    effects.enter("gfmFootnoteCallString");
+    effects.enter("chunkString").contentType = "string";
+    return callData;
+  }
+  function callData(code3) {
+    if (size2 > constants.linkReferenceSizeMax || code3 === codes.rightSquareBracket && !data || code3 === codes.eof || code3 === codes.leftSquareBracket || markdownLineEndingOrSpace(code3)) {
+      return nok(code3);
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.exit("chunkString");
+      const token = effects.exit("gfmFootnoteCallString");
+      if (!defined.includes(normalizeIdentifier(self2.sliceSerialize(token)))) {
+        return nok(code3);
+      }
+      effects.enter("gfmFootnoteCallLabelMarker");
+      effects.consume(code3);
+      effects.exit("gfmFootnoteCallLabelMarker");
+      effects.exit("gfmFootnoteCall");
+      return ok3;
+    }
+    if (!markdownLineEndingOrSpace(code3)) {
+      data = true;
+    }
+    size2++;
+    effects.consume(code3);
+    return code3 === codes.backslash ? callEscape : callData;
+  }
+  function callEscape(code3) {
+    if (code3 === codes.leftSquareBracket || code3 === codes.backslash || code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      size2++;
+      return callData;
+    }
+    return callData(code3);
+  }
+}
+function tokenizeDefinitionStart(effects, ok3, nok) {
+  const self2 = this;
+  const defined = self2.parser.gfmFootnotes || (self2.parser.gfmFootnotes = []);
+  let identifier;
+  let size2 = 0;
+  let data;
+  return start;
+  function start(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    effects.enter("gfmFootnoteDefinition")._container = true;
+    effects.enter("gfmFootnoteDefinitionLabel");
+    effects.enter("gfmFootnoteDefinitionLabelMarker");
+    effects.consume(code3);
+    effects.exit("gfmFootnoteDefinitionLabelMarker");
+    return labelAtMarker;
+  }
+  function labelAtMarker(code3) {
+    if (code3 === codes.caret) {
+      effects.enter("gfmFootnoteDefinitionMarker");
+      effects.consume(code3);
+      effects.exit("gfmFootnoteDefinitionMarker");
+      effects.enter("gfmFootnoteDefinitionLabelString");
+      effects.enter("chunkString").contentType = "string";
+      return labelInside;
+    }
+    return nok(code3);
+  }
+  function labelInside(code3) {
+    if (size2 > constants.linkReferenceSizeMax || code3 === codes.rightSquareBracket && !data || code3 === codes.eof || code3 === codes.leftSquareBracket || markdownLineEndingOrSpace(code3)) {
+      return nok(code3);
+    }
+    if (code3 === codes.rightSquareBracket) {
+      effects.exit("chunkString");
+      const token = effects.exit("gfmFootnoteDefinitionLabelString");
+      identifier = normalizeIdentifier(self2.sliceSerialize(token));
+      effects.enter("gfmFootnoteDefinitionLabelMarker");
+      effects.consume(code3);
+      effects.exit("gfmFootnoteDefinitionLabelMarker");
+      effects.exit("gfmFootnoteDefinitionLabel");
+      return labelAfter;
+    }
+    if (!markdownLineEndingOrSpace(code3)) {
+      data = true;
+    }
+    size2++;
+    effects.consume(code3);
+    return code3 === codes.backslash ? labelEscape : labelInside;
+  }
+  function labelEscape(code3) {
+    if (code3 === codes.leftSquareBracket || code3 === codes.backslash || code3 === codes.rightSquareBracket) {
+      effects.consume(code3);
+      size2++;
+      return labelInside;
+    }
+    return labelInside(code3);
+  }
+  function labelAfter(code3) {
+    if (code3 === codes.colon) {
+      effects.enter("definitionMarker");
+      effects.consume(code3);
+      effects.exit("definitionMarker");
+      if (!defined.includes(identifier)) {
+        defined.push(identifier);
+      }
+      return factorySpace(effects, whitespaceAfter, "gfmFootnoteDefinitionWhitespace");
+    }
+    return nok(code3);
+  }
+  function whitespaceAfter(code3) {
+    return ok3(code3);
+  }
+}
+function tokenizeDefinitionContinuation(effects, ok3, nok) {
+  return effects.check(blankLine, ok3, effects.attempt(indent, ok3, nok));
+}
+function gfmFootnoteDefinitionEnd(effects) {
+  effects.exit("gfmFootnoteDefinition");
+}
+function tokenizeIndent2(effects, ok3, nok) {
+  const self2 = this;
+  return factorySpace(effects, afterPrefix, "gfmFootnoteDefinitionIndent", constants.tabSize + 1);
+  function afterPrefix(code3) {
+    const tail = self2.events[self2.events.length - 1];
+    return tail && tail[1].type === "gfmFootnoteDefinitionIndent" && tail[2].sliceSerialize(tail[1], true).length === constants.tabSize ? ok3(code3) : nok(code3);
+  }
+}
+var indent;
+var init_syntax2 = __esm(() => {
+  init_development();
+  init_dev14();
+  init_dev8();
+  init_dev();
+  init_dev2();
+  init_default();
+  indent = { tokenize: tokenizeIndent2, partial: true };
+});
+
+// node_modules/micromark-extension-gfm-footnote/dev/index.js
+var init_dev15 = __esm(() => {
+  init_syntax2();
+});
+
+// node_modules/micromark-extension-gfm-strikethrough/dev/lib/syntax.js
+function gfmStrikethrough(options) {
+  const options_ = options || {};
+  let single = options_.singleTilde;
+  const tokenizer = {
+    name: "strikethrough",
+    tokenize: tokenizeStrikethrough,
+    resolveAll: resolveAllStrikethrough
+  };
+  if (single === null || single === undefined) {
+    single = true;
+  }
+  return {
+    text: { [codes.tilde]: tokenizer },
+    insideSpan: { null: [tokenizer] },
+    attentionMarkers: { null: [codes.tilde] }
+  };
+  function resolveAllStrikethrough(events2, context) {
+    let index = -1;
+    while (++index < events2.length) {
+      if (events2[index][0] === "enter" && events2[index][1].type === "strikethroughSequenceTemporary" && events2[index][1]._close) {
+        let open = index;
+        while (open--) {
+          if (events2[open][0] === "exit" && events2[open][1].type === "strikethroughSequenceTemporary" && events2[open][1]._open && events2[index][1].end.offset - events2[index][1].start.offset === events2[open][1].end.offset - events2[open][1].start.offset) {
+            events2[index][1].type = "strikethroughSequence";
+            events2[open][1].type = "strikethroughSequence";
+            const strikethrough = {
+              type: "strikethrough",
+              start: Object.assign({}, events2[open][1].start),
+              end: Object.assign({}, events2[index][1].end)
+            };
+            const text5 = {
+              type: "strikethroughText",
+              start: Object.assign({}, events2[open][1].end),
+              end: Object.assign({}, events2[index][1].start)
+            };
+            const nextEvents = [
+              ["enter", strikethrough, context],
+              ["enter", events2[open][1], context],
+              ["exit", events2[open][1], context],
+              ["enter", text5, context]
+            ];
+            const insideSpan = context.parser.constructs.insideSpan.null;
+            if (insideSpan) {
+              splice(nextEvents, nextEvents.length, 0, resolveAll(insideSpan, events2.slice(open + 1, index), context));
+            }
+            splice(nextEvents, nextEvents.length, 0, [
+              ["exit", text5, context],
+              ["enter", events2[index][1], context],
+              ["exit", events2[index][1], context],
+              ["exit", strikethrough, context]
+            ]);
+            splice(events2, open - 1, index - open + 3, nextEvents);
+            index = open + nextEvents.length - 2;
+            break;
+          }
+        }
+      }
+    }
+    index = -1;
+    while (++index < events2.length) {
+      if (events2[index][1].type === "strikethroughSequenceTemporary") {
+        events2[index][1].type = types2.data;
+      }
+    }
+    return events2;
+  }
+  function tokenizeStrikethrough(effects, ok3, nok) {
+    const previous3 = this.previous;
+    const events2 = this.events;
+    let size2 = 0;
+    return start;
+    function start(code3) {
+      ok(code3 === codes.tilde, "expected `~`");
+      if (previous3 === codes.tilde && events2[events2.length - 1][1].type !== types2.characterEscape) {
+        return nok(code3);
+      }
+      effects.enter("strikethroughSequenceTemporary");
+      return more(code3);
+    }
+    function more(code3) {
+      const before = classifyCharacter(previous3);
+      if (code3 === codes.tilde) {
+        if (size2 > 1)
+          return nok(code3);
+        effects.consume(code3);
+        size2++;
+        return more;
+      }
+      if (size2 < 2 && !single)
+        return nok(code3);
+      const token = effects.exit("strikethroughSequenceTemporary");
+      const after = classifyCharacter(code3);
+      token._open = !after || after === constants.attentionSideAfter && Boolean(before);
+      token._close = !before || before === constants.attentionSideAfter && Boolean(after);
+      return ok3(code3);
+    }
+  }
+}
+var init_syntax3 = __esm(() => {
+  init_development();
+  init_dev6();
+  init_dev3();
+  init_default();
+});
+
+// node_modules/micromark-extension-gfm-strikethrough/dev/index.js
+var init_dev16 = __esm(() => {
+  init_syntax3();
+});
+
+// node_modules/micromark-extension-gfm-table/dev/lib/edit-map.js
+class EditMap {
+  constructor() {
+    this.map = [];
+  }
+  add(index, remove, add) {
+    addImplementation(this, index, remove, add);
+  }
+  consume(events2) {
+    this.map.sort(function(a, b2) {
+      return a[0] - b2[0];
+    });
+    if (this.map.length === 0) {
+      return;
+    }
+    let index = this.map.length;
+    const vecs = [];
+    while (index > 0) {
+      index -= 1;
+      vecs.push(events2.slice(this.map[index][0] + this.map[index][1]), this.map[index][2]);
+      events2.length = this.map[index][0];
+    }
+    vecs.push(events2.slice());
+    events2.length = 0;
+    let slice = vecs.pop();
+    while (slice) {
+      for (const element of slice) {
+        events2.push(element);
+      }
+      slice = vecs.pop();
+    }
+    this.map.length = 0;
+  }
+}
+function addImplementation(editMap, at, remove, add) {
+  let index = 0;
+  if (remove === 0 && add.length === 0) {
+    return;
+  }
+  while (index < editMap.map.length) {
+    if (editMap.map[index][0] === at) {
+      editMap.map[index][1] += remove;
+      editMap.map[index][2].push(...add);
+      return;
+    }
+    index += 1;
+  }
+  editMap.map.push([at, remove, add]);
+}
+
+// node_modules/micromark-extension-gfm-table/dev/lib/infer.js
+function gfmTableAlign(events2, index) {
+  ok(events2[index][1].type === "table", "expected table");
+  let inDelimiterRow = false;
+  const align = [];
+  while (index < events2.length) {
+    const event = events2[index];
+    if (inDelimiterRow) {
+      if (event[0] === "enter") {
+        if (event[1].type === "tableContent") {
+          align.push(events2[index + 1][1].type === "tableDelimiterMarker" ? "left" : "none");
+        }
+      } else if (event[1].type === "tableContent") {
+        if (events2[index - 1][1].type === "tableDelimiterMarker") {
+          const alignIndex = align.length - 1;
+          align[alignIndex] = align[alignIndex] === "left" ? "center" : "right";
+        }
+      } else if (event[1].type === "tableDelimiterRow") {
+        break;
+      }
+    } else if (event[0] === "enter" && event[1].type === "tableDelimiterRow") {
+      inDelimiterRow = true;
+    }
+    index += 1;
+  }
+  return align;
+}
+var init_infer = __esm(() => {
+  init_development();
+});
+
+// node_modules/micromark-extension-gfm-table/dev/lib/syntax.js
+function gfmTable() {
+  return {
+    flow: {
+      null: { name: "table", tokenize: tokenizeTable, resolveAll: resolveTable }
+    }
+  };
+}
+function tokenizeTable(effects, ok3, nok) {
+  const self2 = this;
+  let size2 = 0;
+  let sizeB = 0;
+  let seen;
+  return start;
+  function start(code3) {
+    let index = self2.events.length - 1;
+    while (index > -1) {
+      const type = self2.events[index][1].type;
+      if (type === types2.lineEnding || type === types2.linePrefix)
+        index--;
+      else
+        break;
+    }
+    const tail = index > -1 ? self2.events[index][1].type : null;
+    const next = tail === "tableHead" || tail === "tableRow" ? bodyRowStart : headRowBefore;
+    if (next === bodyRowStart && self2.parser.lazy[self2.now().line]) {
+      return nok(code3);
+    }
+    return next(code3);
+  }
+  function headRowBefore(code3) {
+    effects.enter("tableHead");
+    effects.enter("tableRow");
+    return headRowStart(code3);
+  }
+  function headRowStart(code3) {
+    if (code3 === codes.verticalBar) {
+      return headRowBreak(code3);
+    }
+    seen = true;
+    sizeB += 1;
+    return headRowBreak(code3);
+  }
+  function headRowBreak(code3) {
+    if (code3 === codes.eof) {
+      return nok(code3);
+    }
+    if (markdownLineEnding(code3)) {
+      if (sizeB > 1) {
+        sizeB = 0;
+        self2.interrupt = true;
+        effects.exit("tableRow");
+        effects.enter(types2.lineEnding);
+        effects.consume(code3);
+        effects.exit(types2.lineEnding);
+        return headDelimiterStart;
+      }
+      return nok(code3);
+    }
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, headRowBreak, types2.whitespace)(code3);
+    }
+    sizeB += 1;
+    if (seen) {
+      seen = false;
+      size2 += 1;
+    }
+    if (code3 === codes.verticalBar) {
+      effects.enter("tableCellDivider");
+      effects.consume(code3);
+      effects.exit("tableCellDivider");
+      seen = true;
+      return headRowBreak;
+    }
+    effects.enter(types2.data);
+    return headRowData(code3);
+  }
+  function headRowData(code3) {
+    if (code3 === codes.eof || code3 === codes.verticalBar || markdownLineEndingOrSpace(code3)) {
+      effects.exit(types2.data);
+      return headRowBreak(code3);
+    }
+    effects.consume(code3);
+    return code3 === codes.backslash ? headRowEscape : headRowData;
+  }
+  function headRowEscape(code3) {
+    if (code3 === codes.backslash || code3 === codes.verticalBar) {
+      effects.consume(code3);
+      return headRowData;
+    }
+    return headRowData(code3);
+  }
+  function headDelimiterStart(code3) {
+    self2.interrupt = false;
+    if (self2.parser.lazy[self2.now().line]) {
+      return nok(code3);
+    }
+    effects.enter("tableDelimiterRow");
+    seen = false;
+    if (markdownSpace(code3)) {
+      ok(self2.parser.constructs.disable.null, "expected `disabled.null`");
+      return factorySpace(effects, headDelimiterBefore, types2.linePrefix, self2.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize)(code3);
+    }
+    return headDelimiterBefore(code3);
+  }
+  function headDelimiterBefore(code3) {
+    if (code3 === codes.dash || code3 === codes.colon) {
+      return headDelimiterValueBefore(code3);
+    }
+    if (code3 === codes.verticalBar) {
+      seen = true;
+      effects.enter("tableCellDivider");
+      effects.consume(code3);
+      effects.exit("tableCellDivider");
+      return headDelimiterCellBefore;
+    }
+    return headDelimiterNok(code3);
+  }
+  function headDelimiterCellBefore(code3) {
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, headDelimiterValueBefore, types2.whitespace)(code3);
+    }
+    return headDelimiterValueBefore(code3);
+  }
+  function headDelimiterValueBefore(code3) {
+    if (code3 === codes.colon) {
+      sizeB += 1;
+      seen = true;
+      effects.enter("tableDelimiterMarker");
+      effects.consume(code3);
+      effects.exit("tableDelimiterMarker");
+      return headDelimiterLeftAlignmentAfter;
+    }
+    if (code3 === codes.dash) {
+      sizeB += 1;
+      return headDelimiterLeftAlignmentAfter(code3);
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      return headDelimiterCellAfter(code3);
+    }
+    return headDelimiterNok(code3);
+  }
+  function headDelimiterLeftAlignmentAfter(code3) {
+    if (code3 === codes.dash) {
+      effects.enter("tableDelimiterFiller");
+      return headDelimiterFiller(code3);
+    }
+    return headDelimiterNok(code3);
+  }
+  function headDelimiterFiller(code3) {
+    if (code3 === codes.dash) {
+      effects.consume(code3);
+      return headDelimiterFiller;
+    }
+    if (code3 === codes.colon) {
+      seen = true;
+      effects.exit("tableDelimiterFiller");
+      effects.enter("tableDelimiterMarker");
+      effects.consume(code3);
+      effects.exit("tableDelimiterMarker");
+      return headDelimiterRightAlignmentAfter;
+    }
+    effects.exit("tableDelimiterFiller");
+    return headDelimiterRightAlignmentAfter(code3);
+  }
+  function headDelimiterRightAlignmentAfter(code3) {
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, headDelimiterCellAfter, types2.whitespace)(code3);
+    }
+    return headDelimiterCellAfter(code3);
+  }
+  function headDelimiterCellAfter(code3) {
+    if (code3 === codes.verticalBar) {
+      return headDelimiterBefore(code3);
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      if (!seen || size2 !== sizeB) {
+        return headDelimiterNok(code3);
+      }
+      effects.exit("tableDelimiterRow");
+      effects.exit("tableHead");
+      return ok3(code3);
+    }
+    return headDelimiterNok(code3);
+  }
+  function headDelimiterNok(code3) {
+    return nok(code3);
+  }
+  function bodyRowStart(code3) {
+    effects.enter("tableRow");
+    return bodyRowBreak(code3);
+  }
+  function bodyRowBreak(code3) {
+    if (code3 === codes.verticalBar) {
+      effects.enter("tableCellDivider");
+      effects.consume(code3);
+      effects.exit("tableCellDivider");
+      return bodyRowBreak;
+    }
+    if (code3 === codes.eof || markdownLineEnding(code3)) {
+      effects.exit("tableRow");
+      return ok3(code3);
+    }
+    if (markdownSpace(code3)) {
+      return factorySpace(effects, bodyRowBreak, types2.whitespace)(code3);
+    }
+    effects.enter(types2.data);
+    return bodyRowData(code3);
+  }
+  function bodyRowData(code3) {
+    if (code3 === codes.eof || code3 === codes.verticalBar || markdownLineEndingOrSpace(code3)) {
+      effects.exit(types2.data);
+      return bodyRowBreak(code3);
+    }
+    effects.consume(code3);
+    return code3 === codes.backslash ? bodyRowEscape : bodyRowData;
+  }
+  function bodyRowEscape(code3) {
+    if (code3 === codes.backslash || code3 === codes.verticalBar) {
+      effects.consume(code3);
+      return bodyRowData;
+    }
+    return bodyRowData(code3);
+  }
+}
+function resolveTable(events2, context) {
+  let index = -1;
+  let inFirstCellAwaitingPipe = true;
+  let rowKind = 0;
+  let lastCell = [0, 0, 0, 0];
+  let cell = [0, 0, 0, 0];
+  let afterHeadAwaitingFirstBodyRow = false;
+  let lastTableEnd = 0;
+  let currentTable;
+  let currentBody;
+  let currentCell;
+  const map4 = new EditMap;
+  while (++index < events2.length) {
+    const event = events2[index];
+    const token = event[1];
+    if (event[0] === "enter") {
+      if (token.type === "tableHead") {
+        afterHeadAwaitingFirstBodyRow = false;
+        if (lastTableEnd !== 0) {
+          ok(currentTable, "there should be a table opening");
+          flushTableEnd(map4, context, lastTableEnd, currentTable, currentBody);
+          currentBody = undefined;
+          lastTableEnd = 0;
+        }
+        currentTable = {
+          type: "table",
+          start: Object.assign({}, token.start),
+          end: Object.assign({}, token.end)
+        };
+        map4.add(index, 0, [["enter", currentTable, context]]);
+      } else if (token.type === "tableRow" || token.type === "tableDelimiterRow") {
+        inFirstCellAwaitingPipe = true;
+        currentCell = undefined;
+        lastCell = [0, 0, 0, 0];
+        cell = [0, index + 1, 0, 0];
+        if (afterHeadAwaitingFirstBodyRow) {
+          afterHeadAwaitingFirstBodyRow = false;
+          currentBody = {
+            type: "tableBody",
+            start: Object.assign({}, token.start),
+            end: Object.assign({}, token.end)
+          };
+          map4.add(index, 0, [["enter", currentBody, context]]);
+        }
+        rowKind = token.type === "tableDelimiterRow" ? 2 : currentBody ? 3 : 1;
+      } else if (rowKind && (token.type === types2.data || token.type === "tableDelimiterMarker" || token.type === "tableDelimiterFiller")) {
+        inFirstCellAwaitingPipe = false;
+        if (cell[2] === 0) {
+          if (lastCell[1] !== 0) {
+            cell[0] = cell[1];
+            currentCell = flushCell(map4, context, lastCell, rowKind, undefined, currentCell);
+            lastCell = [0, 0, 0, 0];
+          }
+          cell[2] = index;
+        }
+      } else if (token.type === "tableCellDivider") {
+        if (inFirstCellAwaitingPipe) {
+          inFirstCellAwaitingPipe = false;
+        } else {
+          if (lastCell[1] !== 0) {
+            cell[0] = cell[1];
+            currentCell = flushCell(map4, context, lastCell, rowKind, undefined, currentCell);
+          }
+          lastCell = cell;
+          cell = [lastCell[1], index, 0, 0];
+        }
+      }
+    } else if (token.type === "tableHead") {
+      afterHeadAwaitingFirstBodyRow = true;
+      lastTableEnd = index;
+    } else if (token.type === "tableRow" || token.type === "tableDelimiterRow") {
+      lastTableEnd = index;
+      if (lastCell[1] !== 0) {
+        cell[0] = cell[1];
+        currentCell = flushCell(map4, context, lastCell, rowKind, index, currentCell);
+      } else if (cell[1] !== 0) {
+        currentCell = flushCell(map4, context, cell, rowKind, index, currentCell);
+      }
+      rowKind = 0;
+    } else if (rowKind && (token.type === types2.data || token.type === "tableDelimiterMarker" || token.type === "tableDelimiterFiller")) {
+      cell[3] = index;
+    }
+  }
+  if (lastTableEnd !== 0) {
+    ok(currentTable, "expected table opening");
+    flushTableEnd(map4, context, lastTableEnd, currentTable, currentBody);
+  }
+  map4.consume(context.events);
+  index = -1;
+  while (++index < context.events.length) {
+    const event = context.events[index];
+    if (event[0] === "enter" && event[1].type === "table") {
+      event[1]._align = gfmTableAlign(context.events, index);
+    }
+  }
+  return events2;
+}
+function flushCell(map4, context, range, rowKind, rowEnd, previousCell) {
+  const groupName = rowKind === 1 ? "tableHeader" : rowKind === 2 ? "tableDelimiter" : "tableData";
+  const valueName = "tableContent";
+  if (range[0] !== 0) {
+    ok(previousCell, "expected previous cell enter");
+    previousCell.end = Object.assign({}, getPoint(context.events, range[0]));
+    map4.add(range[0], 0, [["exit", previousCell, context]]);
+  }
+  const now = getPoint(context.events, range[1]);
+  previousCell = {
+    type: groupName,
+    start: Object.assign({}, now),
+    end: Object.assign({}, now)
+  };
+  map4.add(range[1], 0, [["enter", previousCell, context]]);
+  if (range[2] !== 0) {
+    const relatedStart = getPoint(context.events, range[2]);
+    const relatedEnd = getPoint(context.events, range[3]);
+    const valueToken = {
+      type: valueName,
+      start: Object.assign({}, relatedStart),
+      end: Object.assign({}, relatedEnd)
+    };
+    map4.add(range[2], 0, [["enter", valueToken, context]]);
+    ok(range[3] !== 0);
+    if (rowKind !== 2) {
+      const start = context.events[range[2]];
+      const end = context.events[range[3]];
+      start[1].end = Object.assign({}, end[1].end);
+      start[1].type = types2.chunkText;
+      start[1].contentType = constants.contentTypeText;
+      if (range[3] > range[2] + 1) {
+        const a = range[2] + 1;
+        const b2 = range[3] - range[2] - 1;
+        map4.add(a, b2, []);
+      }
+    }
+    map4.add(range[3] + 1, 0, [["exit", valueToken, context]]);
+  }
+  if (rowEnd !== undefined) {
+    previousCell.end = Object.assign({}, getPoint(context.events, rowEnd));
+    map4.add(rowEnd, 0, [["exit", previousCell, context]]);
+    previousCell = undefined;
+  }
+  return previousCell;
+}
+function flushTableEnd(map4, context, index, table3, tableBody) {
+  const exits = [];
+  const related = getPoint(context.events, index);
+  if (tableBody) {
+    tableBody.end = Object.assign({}, related);
+    exits.push(["exit", tableBody, context]);
+  }
+  table3.end = Object.assign({}, related);
+  exits.push(["exit", table3, context]);
+  map4.add(index + 1, 0, exits);
+}
+function getPoint(events2, index) {
+  const event = events2[index];
+  const side = event[0] === "enter" ? "start" : "end";
+  return event[1][side];
+}
+var init_syntax4 = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  init_infer();
+});
+
+// node_modules/micromark-extension-gfm-table/dev/index.js
+var init_dev17 = __esm(() => {
+  init_syntax4();
+});
+
+// node_modules/micromark-extension-gfm-task-list-item/dev/lib/syntax.js
+function gfmTaskListItem() {
+  return {
+    text: { [codes.leftSquareBracket]: tasklistCheck }
+  };
+}
+function tokenizeTasklistCheck(effects, ok3, nok) {
+  const self2 = this;
+  return open;
+  function open(code3) {
+    ok(code3 === codes.leftSquareBracket, "expected `[`");
+    if (self2.previous !== codes.eof || !self2._gfmTasklistFirstContentOfListItem) {
+      return nok(code3);
+    }
+    effects.enter("taskListCheck");
+    effects.enter("taskListCheckMarker");
+    effects.consume(code3);
+    effects.exit("taskListCheckMarker");
+    return inside;
+  }
+  function inside(code3) {
+    if (markdownLineEndingOrSpace(code3)) {
+      effects.enter("taskListCheckValueUnchecked");
+      effects.consume(code3);
+      effects.exit("taskListCheckValueUnchecked");
+      return close;
+    }
+    if (code3 === codes.uppercaseX || code3 === codes.lowercaseX) {
+      effects.enter("taskListCheckValueChecked");
+      effects.consume(code3);
+      effects.exit("taskListCheckValueChecked");
+      return close;
+    }
+    return nok(code3);
+  }
+  function close(code3) {
+    if (code3 === codes.rightSquareBracket) {
+      effects.enter("taskListCheckMarker");
+      effects.consume(code3);
+      effects.exit("taskListCheckMarker");
+      effects.exit("taskListCheck");
+      return after;
+    }
+    return nok(code3);
+  }
+  function after(code3) {
+    if (markdownLineEnding(code3)) {
+      return ok3(code3);
+    }
+    if (markdownSpace(code3)) {
+      return effects.check({ tokenize: spaceThenNonSpace }, ok3, nok)(code3);
+    }
+    return nok(code3);
+  }
+}
+function spaceThenNonSpace(effects, ok3, nok) {
+  return factorySpace(effects, after, types2.whitespace);
+  function after(code3) {
+    return code3 === codes.eof ? nok(code3) : ok3(code3);
+  }
+}
+var tasklistCheck;
+var init_syntax5 = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  tasklistCheck = { name: "tasklistCheck", tokenize: tokenizeTasklistCheck };
+});
+
+// node_modules/micromark-extension-gfm-task-list-item/dev/index.js
+var init_dev18 = __esm(() => {
+  init_syntax5();
+});
+
+// node_modules/micromark-extension-gfm/index.js
+function gfm(options) {
+  return combineExtensions([
+    gfmAutolinkLiteral(),
+    gfmFootnote(),
+    gfmStrikethrough(options),
+    gfmTable(),
+    gfmTaskListItem()
+  ]);
+}
+var init_micromark_extension_gfm = __esm(() => {
+  init_micromark_util_combine_extensions();
+  init_dev7();
+  init_dev15();
+  init_dev16();
+  init_dev17();
+  init_dev18();
+});
+
+// node_modules/remark-gfm/lib/index.js
+function remarkGfm(options) {
+  const self2 = this;
+  const settings = options || emptyOptions2;
+  const data = self2.data();
+  const micromarkExtensions = data.micromarkExtensions || (data.micromarkExtensions = []);
+  const fromMarkdownExtensions = data.fromMarkdownExtensions || (data.fromMarkdownExtensions = []);
+  const toMarkdownExtensions = data.toMarkdownExtensions || (data.toMarkdownExtensions = []);
+  micromarkExtensions.push(gfm(settings));
+  fromMarkdownExtensions.push(gfmFromMarkdown());
+  toMarkdownExtensions.push(gfmToMarkdown(settings));
+}
+var emptyOptions2;
+var init_lib13 = __esm(() => {
+  init_mdast_util_gfm();
+  init_micromark_extension_gfm();
+  emptyOptions2 = {};
+});
+
+// node_modules/remark-gfm/index.js
+var init_remark_gfm = __esm(() => {
+  init_lib13();
+});
+
+// node_modules/micromark/dev/lib/initialize/content.js
+function initializeContent(effects) {
+  const contentStart = effects.attempt(this.parser.constructs.contentInitial, afterContentStartConstruct, paragraphInitial);
+  let previous3;
+  return contentStart;
+  function afterContentStartConstruct(code3) {
+    ok(code3 === codes.eof || markdownLineEnding(code3), "expected eol or eof");
+    if (code3 === codes.eof) {
+      effects.consume(code3);
+      return;
+    }
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    return factorySpace(effects, contentStart, types2.linePrefix);
+  }
+  function paragraphInitial(code3) {
+    ok(code3 !== codes.eof && !markdownLineEnding(code3), "expected anything other than a line ending or EOF");
+    effects.enter(types2.paragraph);
+    return lineStart(code3);
+  }
+  function lineStart(code3) {
+    const token = effects.enter(types2.chunkText, {
+      contentType: constants.contentTypeText,
+      previous: previous3
+    });
+    if (previous3) {
+      previous3.next = token;
+    }
+    previous3 = token;
+    return data(code3);
+  }
+  function data(code3) {
+    if (code3 === codes.eof) {
+      effects.exit(types2.chunkText);
+      effects.exit(types2.paragraph);
+      effects.consume(code3);
+      return;
+    }
+    if (markdownLineEnding(code3)) {
+      effects.consume(code3);
+      effects.exit(types2.chunkText);
+      return lineStart;
+    }
+    effects.consume(code3);
+    return data;
+  }
+}
+var content2;
+var init_content2 = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_default();
+  content2 = { tokenize: initializeContent };
+});
+
+// node_modules/micromark/dev/lib/initialize/document.js
+function initializeDocument(effects) {
+  const self2 = this;
+  const stack = [];
+  let continued = 0;
+  let childFlow;
+  let childToken;
+  let lineStartOffset;
+  return start;
+  function start(code3) {
+    if (continued < stack.length) {
+      const item = stack[continued];
+      self2.containerState = item[1];
+      ok(item[0].continuation, "expected `continuation` to be defined on container construct");
+      return effects.attempt(item[0].continuation, documentContinue, checkNewContainers)(code3);
+    }
+    return checkNewContainers(code3);
+  }
+  function documentContinue(code3) {
+    ok(self2.containerState, "expected `containerState` to be defined after continuation");
+    continued++;
+    if (self2.containerState._closeFlow) {
+      self2.containerState._closeFlow = undefined;
+      if (childFlow) {
+        closeFlow();
+      }
+      const indexBeforeExits = self2.events.length;
+      let indexBeforeFlow = indexBeforeExits;
+      let point3;
+      while (indexBeforeFlow--) {
+        if (self2.events[indexBeforeFlow][0] === "exit" && self2.events[indexBeforeFlow][1].type === types2.chunkFlow) {
+          point3 = self2.events[indexBeforeFlow][1].end;
+          break;
+        }
+      }
+      ok(point3, "could not find previous flow chunk");
+      exitContainers(continued);
+      let index = indexBeforeExits;
+      while (index < self2.events.length) {
+        self2.events[index][1].end = { ...point3 };
+        index++;
+      }
+      splice(self2.events, indexBeforeFlow + 1, 0, self2.events.slice(indexBeforeExits));
+      self2.events.length = index;
+      return checkNewContainers(code3);
+    }
+    return start(code3);
+  }
+  function checkNewContainers(code3) {
+    if (continued === stack.length) {
+      if (!childFlow) {
+        return documentContinued(code3);
+      }
+      if (childFlow.currentConstruct && childFlow.currentConstruct.concrete) {
+        return flowStart(code3);
+      }
+      self2.interrupt = Boolean(childFlow.currentConstruct && !childFlow._gfmTableDynamicInterruptHack);
+    }
+    self2.containerState = {};
+    return effects.check(containerConstruct, thereIsANewContainer, thereIsNoNewContainer)(code3);
+  }
+  function thereIsANewContainer(code3) {
+    if (childFlow)
+      closeFlow();
+    exitContainers(continued);
+    return documentContinued(code3);
+  }
+  function thereIsNoNewContainer(code3) {
+    self2.parser.lazy[self2.now().line] = continued !== stack.length;
+    lineStartOffset = self2.now().offset;
+    return flowStart(code3);
+  }
+  function documentContinued(code3) {
+    self2.containerState = {};
+    return effects.attempt(containerConstruct, containerContinue, flowStart)(code3);
+  }
+  function containerContinue(code3) {
+    ok(self2.currentConstruct, "expected `currentConstruct` to be defined on tokenizer");
+    ok(self2.containerState, "expected `containerState` to be defined on tokenizer");
+    continued++;
+    stack.push([self2.currentConstruct, self2.containerState]);
+    return documentContinued(code3);
+  }
+  function flowStart(code3) {
+    if (code3 === codes.eof) {
+      if (childFlow)
+        closeFlow();
+      exitContainers(0);
+      effects.consume(code3);
+      return;
+    }
+    childFlow = childFlow || self2.parser.flow(self2.now());
+    effects.enter(types2.chunkFlow, {
+      _tokenizer: childFlow,
+      contentType: constants.contentTypeFlow,
+      previous: childToken
+    });
+    return flowContinue(code3);
+  }
+  function flowContinue(code3) {
+    if (code3 === codes.eof) {
+      writeToChild(effects.exit(types2.chunkFlow), true);
+      exitContainers(0);
+      effects.consume(code3);
+      return;
+    }
+    if (markdownLineEnding(code3)) {
+      effects.consume(code3);
+      writeToChild(effects.exit(types2.chunkFlow));
+      continued = 0;
+      self2.interrupt = undefined;
+      return start;
+    }
+    effects.consume(code3);
+    return flowContinue;
+  }
+  function writeToChild(token, endOfFile) {
+    ok(childFlow, "expected `childFlow` to be defined when continuing");
+    const stream = self2.sliceStream(token);
+    if (endOfFile)
+      stream.push(null);
+    token.previous = childToken;
+    if (childToken)
+      childToken.next = token;
+    childToken = token;
+    childFlow.defineSkip(token.start);
+    childFlow.write(stream);
+    if (self2.parser.lazy[token.start.line]) {
+      let index = childFlow.events.length;
+      while (index--) {
+        if (childFlow.events[index][1].start.offset < lineStartOffset && (!childFlow.events[index][1].end || childFlow.events[index][1].end.offset > lineStartOffset)) {
+          return;
+        }
+      }
+      const indexBeforeExits = self2.events.length;
+      let indexBeforeFlow = indexBeforeExits;
+      let seen;
+      let point3;
+      while (indexBeforeFlow--) {
+        if (self2.events[indexBeforeFlow][0] === "exit" && self2.events[indexBeforeFlow][1].type === types2.chunkFlow) {
+          if (seen) {
+            point3 = self2.events[indexBeforeFlow][1].end;
+            break;
+          }
+          seen = true;
+        }
+      }
+      ok(point3, "could not find previous flow chunk");
+      exitContainers(continued);
+      index = indexBeforeExits;
+      while (index < self2.events.length) {
+        self2.events[index][1].end = { ...point3 };
+        index++;
+      }
+      splice(self2.events, indexBeforeFlow + 1, 0, self2.events.slice(indexBeforeExits));
+      self2.events.length = index;
+    }
+  }
+  function exitContainers(size2) {
+    let index = stack.length;
+    while (index-- > size2) {
+      const entry = stack[index];
+      self2.containerState = entry[1];
+      ok(entry[0].exit, "expected `exit` to be defined on container construct");
+      entry[0].exit.call(self2, effects);
+    }
+    stack.length = size2;
+  }
+  function closeFlow() {
+    ok(self2.containerState, "expected `containerState` to be defined when closing flow");
+    ok(childFlow, "expected `childFlow` to be defined when closing it");
+    childFlow.write([codes.eof]);
+    childToken = undefined;
+    childFlow = undefined;
+    self2.containerState._closeFlow = undefined;
+  }
+}
+function tokenizeContainer(effects, ok3, nok) {
+  ok(this.parser.constructs.disable.null, "expected `disable.null` to be populated");
+  return factorySpace(effects, effects.attempt(this.parser.constructs.document, ok3, nok), types2.linePrefix, this.parser.constructs.disable.null.includes("codeIndented") ? undefined : constants.tabSize);
+}
+var document2, containerConstruct;
+var init_document = __esm(() => {
+  init_development();
+  init_dev8();
+  init_dev();
+  init_dev6();
+  init_default();
+  document2 = { tokenize: initializeDocument };
+  containerConstruct = { tokenize: tokenizeContainer };
+});
+
+// node_modules/micromark/dev/lib/initialize/flow.js
+function initializeFlow(effects) {
+  const self2 = this;
+  const initial = effects.attempt(blankLine, atBlankEnding, effects.attempt(this.parser.constructs.flowInitial, afterConstruct, factorySpace(effects, effects.attempt(this.parser.constructs.flow, afterConstruct, effects.attempt(content, afterConstruct)), types2.linePrefix)));
+  return initial;
+  function atBlankEnding(code3) {
+    ok(code3 === codes.eof || markdownLineEnding(code3), "expected eol or eof");
+    if (code3 === codes.eof) {
+      effects.consume(code3);
+      return;
+    }
+    effects.enter(types2.lineEndingBlank);
+    effects.consume(code3);
+    effects.exit(types2.lineEndingBlank);
+    self2.currentConstruct = undefined;
+    return initial;
+  }
+  function afterConstruct(code3) {
+    ok(code3 === codes.eof || markdownLineEnding(code3), "expected eol or eof");
+    if (code3 === codes.eof) {
+      effects.consume(code3);
+      return;
+    }
+    effects.enter(types2.lineEnding);
+    effects.consume(code3);
+    effects.exit(types2.lineEnding);
+    self2.currentConstruct = undefined;
+    return initial;
+  }
+}
+var flow;
+var init_flow = __esm(() => {
+  init_development();
+  init_dev14();
+  init_dev8();
+  init_dev();
+  init_default();
+  flow = { tokenize: initializeFlow };
+});
+
+// node_modules/micromark/dev/lib/initialize/text.js
+function initializeFactory(field) {
+  return {
+    resolveAll: createResolver(field === "text" ? resolveAllLineSuffixes : undefined),
+    tokenize: initializeText
+  };
+  function initializeText(effects) {
+    const self2 = this;
+    const constructs2 = this.parser.constructs[field];
+    const text6 = effects.attempt(constructs2, start, notText);
+    return start;
+    function start(code3) {
+      return atBreak(code3) ? text6(code3) : notText(code3);
+    }
+    function notText(code3) {
+      if (code3 === codes.eof) {
+        effects.consume(code3);
+        return;
+      }
+      effects.enter(types2.data);
+      effects.consume(code3);
+      return data;
+    }
+    function data(code3) {
+      if (atBreak(code3)) {
+        effects.exit(types2.data);
+        return text6(code3);
+      }
+      effects.consume(code3);
+      return data;
+    }
+    function atBreak(code3) {
+      if (code3 === codes.eof) {
+        return true;
+      }
+      const list4 = constructs2[code3];
+      let index = -1;
+      if (list4) {
+        ok(Array.isArray(list4), "expected `disable.null` to be populated");
+        while (++index < list4.length) {
+          const item = list4[index];
+          if (!item.previous || item.previous.call(self2, self2.previous)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+  }
+}
+function createResolver(extraResolver) {
+  return resolveAllText;
+  function resolveAllText(events2, context) {
+    let index = -1;
+    let enter;
+    while (++index <= events2.length) {
+      if (enter === undefined) {
+        if (events2[index] && events2[index][1].type === types2.data) {
+          enter = index;
+          index++;
+        }
+      } else if (!events2[index] || events2[index][1].type !== types2.data) {
+        if (index !== enter + 2) {
+          events2[enter][1].end = events2[index - 1][1].end;
+          events2.splice(enter + 2, index - enter - 2);
+          index = enter + 2;
+        }
+        enter = undefined;
+      }
+    }
+    return extraResolver ? extraResolver(events2, context) : events2;
+  }
+}
+function resolveAllLineSuffixes(events2, context) {
+  let eventIndex = 0;
+  while (++eventIndex <= events2.length) {
+    if ((eventIndex === events2.length || events2[eventIndex][1].type === types2.lineEnding) && events2[eventIndex - 1][1].type === types2.data) {
+      const data = events2[eventIndex - 1][1];
+      const chunks = context.sliceStream(data);
+      let index = chunks.length;
+      let bufferIndex = -1;
+      let size2 = 0;
+      let tabs;
+      while (index--) {
+        const chunk = chunks[index];
+        if (typeof chunk === "string") {
+          bufferIndex = chunk.length;
+          while (chunk.charCodeAt(bufferIndex - 1) === codes.space) {
+            size2++;
+            bufferIndex--;
+          }
+          if (bufferIndex)
+            break;
+          bufferIndex = -1;
+        } else if (chunk === codes.horizontalTab) {
+          tabs = true;
+          size2++;
+        } else if (chunk === codes.virtualSpace) {} else {
+          index++;
+          break;
+        }
+      }
+      if (context._contentTypeTextTrailing && eventIndex === events2.length) {
+        size2 = 0;
+      }
+      if (size2) {
+        const token = {
+          type: eventIndex === events2.length || tabs || size2 < constants.hardBreakPrefixSizeMin ? types2.lineSuffix : types2.hardBreakTrailing,
+          start: {
+            _bufferIndex: index ? bufferIndex : data.start._bufferIndex + bufferIndex,
+            _index: data.start._index + index,
+            line: data.end.line,
+            column: data.end.column - size2,
+            offset: data.end.offset - size2
+          },
+          end: { ...data.end }
+        };
+        data.end = { ...token.start };
+        if (data.start.offset === data.end.offset) {
+          Object.assign(data, token);
+        } else {
+          events2.splice(eventIndex, 0, ["enter", token, context], ["exit", token, context]);
+          eventIndex += 2;
+        }
+      }
+      eventIndex++;
+    }
+  }
+  return events2;
+}
+var resolver, string, text5;
+var init_text2 = __esm(() => {
+  init_development();
+  init_default();
+  resolver = { resolveAll: createResolver() };
+  string = initializeFactory("string");
+  text5 = initializeFactory("text");
+});
+
+// node_modules/micromark/dev/lib/constructs.js
+var exports_constructs = {};
+__export(exports_constructs, {
+  text: () => text6,
+  string: () => string2,
+  insideSpan: () => insideSpan,
+  flowInitial: () => flowInitial,
+  flow: () => flow2,
+  document: () => document3,
+  disable: () => disable,
+  contentInitial: () => contentInitial,
+  attentionMarkers: () => attentionMarkers
+});
+var document3, contentInitial, flowInitial, flow2, string2, text6, insideSpan, attentionMarkers, disable;
+var init_constructs = __esm(() => {
+  init_dev14();
+  init_default();
+  init_text2();
+  document3 = {
+    [codes.asterisk]: list3,
+    [codes.plusSign]: list3,
+    [codes.dash]: list3,
+    [codes.digit0]: list3,
+    [codes.digit1]: list3,
+    [codes.digit2]: list3,
+    [codes.digit3]: list3,
+    [codes.digit4]: list3,
+    [codes.digit5]: list3,
+    [codes.digit6]: list3,
+    [codes.digit7]: list3,
+    [codes.digit8]: list3,
+    [codes.digit9]: list3,
+    [codes.greaterThan]: blockQuote
+  };
+  contentInitial = {
+    [codes.leftSquareBracket]: definition2
+  };
+  flowInitial = {
+    [codes.horizontalTab]: codeIndented,
+    [codes.virtualSpace]: codeIndented,
+    [codes.space]: codeIndented
+  };
+  flow2 = {
+    [codes.numberSign]: headingAtx,
+    [codes.asterisk]: thematicBreak2,
+    [codes.dash]: [setextUnderline, thematicBreak2],
+    [codes.lessThan]: htmlFlow,
+    [codes.equalsTo]: setextUnderline,
+    [codes.underscore]: thematicBreak2,
+    [codes.graveAccent]: codeFenced,
+    [codes.tilde]: codeFenced
+  };
+  string2 = {
+    [codes.ampersand]: characterReference,
+    [codes.backslash]: characterEscape
+  };
+  text6 = {
+    [codes.carriageReturn]: lineEnding,
+    [codes.lineFeed]: lineEnding,
+    [codes.carriageReturnLineFeed]: lineEnding,
+    [codes.exclamationMark]: labelStartImage,
+    [codes.ampersand]: characterReference,
+    [codes.asterisk]: attention,
+    [codes.lessThan]: [autolink, htmlText],
+    [codes.leftSquareBracket]: labelStartLink,
+    [codes.backslash]: [hardBreakEscape, characterEscape],
+    [codes.rightSquareBracket]: labelEnd,
+    [codes.underscore]: attention,
+    [codes.graveAccent]: codeText
+  };
+  insideSpan = { null: [attention, resolver] };
+  attentionMarkers = { null: [codes.asterisk, codes.underscore] };
+  disable = { null: [] };
+});
+
+// node_modules/ms/index.js
+var require_ms = __commonJS((exports, module) => {
+  var s = 1000;
+  var m = s * 60;
+  var h = m * 60;
+  var d = h * 24;
+  var w = d * 7;
+  var y = d * 365.25;
+  module.exports = function(val, options) {
+    options = options || {};
+    var type = typeof val;
+    if (type === "string" && val.length > 0) {
+      return parse2(val);
+    } else if (type === "number" && isFinite(val)) {
+      return options.long ? fmtLong(val) : fmtShort(val);
+    }
+    throw new Error("val is not a non-empty string or a valid number. val=" + JSON.stringify(val));
+  };
+  function parse2(str) {
+    str = String(str);
+    if (str.length > 100) {
+      return;
+    }
+    var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(str);
+    if (!match) {
+      return;
+    }
+    var n = parseFloat(match[1]);
+    var type = (match[2] || "ms").toLowerCase();
+    switch (type) {
+      case "years":
+      case "year":
+      case "yrs":
+      case "yr":
+      case "y":
+        return n * y;
+      case "weeks":
+      case "week":
+      case "w":
+        return n * w;
+      case "days":
+      case "day":
+      case "d":
+        return n * d;
+      case "hours":
+      case "hour":
+      case "hrs":
+      case "hr":
+      case "h":
+        return n * h;
+      case "minutes":
+      case "minute":
+      case "mins":
+      case "min":
+      case "m":
+        return n * m;
+      case "seconds":
+      case "second":
+      case "secs":
+      case "sec":
+      case "s":
+        return n * s;
+      case "milliseconds":
+      case "millisecond":
+      case "msecs":
+      case "msec":
+      case "ms":
+        return n;
+      default:
+        return;
+    }
+  }
+  function fmtShort(ms) {
+    var msAbs = Math.abs(ms);
+    if (msAbs >= d) {
+      return Math.round(ms / d) + "d";
+    }
+    if (msAbs >= h) {
+      return Math.round(ms / h) + "h";
+    }
+    if (msAbs >= m) {
+      return Math.round(ms / m) + "m";
+    }
+    if (msAbs >= s) {
+      return Math.round(ms / s) + "s";
+    }
+    return ms + "ms";
+  }
+  function fmtLong(ms) {
+    var msAbs = Math.abs(ms);
+    if (msAbs >= d) {
+      return plural(ms, msAbs, d, "day");
+    }
+    if (msAbs >= h) {
+      return plural(ms, msAbs, h, "hour");
+    }
+    if (msAbs >= m) {
+      return plural(ms, msAbs, m, "minute");
+    }
+    if (msAbs >= s) {
+      return plural(ms, msAbs, s, "second");
+    }
+    return ms + " ms";
+  }
+  function plural(ms, msAbs, n, name) {
+    var isPlural = msAbs >= n * 1.5;
+    return Math.round(ms / n) + " " + name + (isPlural ? "s" : "");
+  }
+});
+
+// node_modules/debug/src/common.js
+var require_common = __commonJS((exports, module) => {
+  function setup(env) {
+    createDebug.debug = createDebug;
+    createDebug.default = createDebug;
+    createDebug.coerce = coerce;
+    createDebug.disable = disable2;
+    createDebug.enable = enable;
+    createDebug.enabled = enabled;
+    createDebug.humanize = require_ms();
+    createDebug.destroy = destroy;
+    Object.keys(env).forEach((key) => {
+      createDebug[key] = env[key];
+    });
+    createDebug.names = [];
+    createDebug.skips = [];
+    createDebug.formatters = {};
+    function selectColor(namespace) {
+      let hash = 0;
+      for (let i = 0;i < namespace.length; i++) {
+        hash = (hash << 5) - hash + namespace.charCodeAt(i);
+        hash |= 0;
+      }
+      return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
+    }
+    createDebug.selectColor = selectColor;
+    function createDebug(namespace) {
+      let prevTime;
+      let enableOverride = null;
+      let namespacesCache;
+      let enabledCache;
+      function debug(...args) {
+        if (!debug.enabled) {
+          return;
+        }
+        const self2 = debug;
+        const curr = Number(new Date);
+        const ms = curr - (prevTime || curr);
+        self2.diff = ms;
+        self2.prev = prevTime;
+        self2.curr = curr;
+        prevTime = curr;
+        args[0] = createDebug.coerce(args[0]);
+        if (typeof args[0] !== "string") {
+          args.unshift("%O");
+        }
+        let index = 0;
+        args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+          if (match === "%%") {
+            return "%";
+          }
+          index++;
+          const formatter = createDebug.formatters[format];
+          if (typeof formatter === "function") {
+            const val = args[index];
+            match = formatter.call(self2, val);
+            args.splice(index, 1);
+            index--;
+          }
+          return match;
+        });
+        createDebug.formatArgs.call(self2, args);
+        const logFn = self2.log || createDebug.log;
+        logFn.apply(self2, args);
+      }
+      debug.namespace = namespace;
+      debug.useColors = createDebug.useColors();
+      debug.color = createDebug.selectColor(namespace);
+      debug.extend = extend;
+      debug.destroy = createDebug.destroy;
+      Object.defineProperty(debug, "enabled", {
+        enumerable: true,
+        configurable: false,
+        get: () => {
+          if (enableOverride !== null) {
+            return enableOverride;
+          }
+          if (namespacesCache !== createDebug.namespaces) {
+            namespacesCache = createDebug.namespaces;
+            enabledCache = createDebug.enabled(namespace);
+          }
+          return enabledCache;
+        },
+        set: (v) => {
+          enableOverride = v;
+        }
+      });
+      if (typeof createDebug.init === "function") {
+        createDebug.init(debug);
+      }
+      return debug;
+    }
+    function extend(namespace, delimiter) {
+      const newDebug = createDebug(this.namespace + (typeof delimiter === "undefined" ? ":" : delimiter) + namespace);
+      newDebug.log = this.log;
+      return newDebug;
+    }
+    function enable(namespaces) {
+      createDebug.save(namespaces);
+      createDebug.namespaces = namespaces;
+      createDebug.names = [];
+      createDebug.skips = [];
+      const split = (typeof namespaces === "string" ? namespaces : "").trim().replace(/\s+/g, ",").split(",").filter(Boolean);
+      for (const ns of split) {
+        if (ns[0] === "-") {
+          createDebug.skips.push(ns.slice(1));
+        } else {
+          createDebug.names.push(ns);
+        }
+      }
+    }
+    function matchesTemplate(search, template) {
+      let searchIndex = 0;
+      let templateIndex = 0;
+      let starIndex = -1;
+      let matchIndex = 0;
+      while (searchIndex < search.length) {
+        if (templateIndex < template.length && (template[templateIndex] === search[searchIndex] || template[templateIndex] === "*")) {
+          if (template[templateIndex] === "*") {
+            starIndex = templateIndex;
+            matchIndex = searchIndex;
+            templateIndex++;
+          } else {
+            searchIndex++;
+            templateIndex++;
+          }
+        } else if (starIndex !== -1) {
+          templateIndex = starIndex + 1;
+          matchIndex++;
+          searchIndex = matchIndex;
+        } else {
+          return false;
+        }
+      }
+      while (templateIndex < template.length && template[templateIndex] === "*") {
+        templateIndex++;
+      }
+      return templateIndex === template.length;
+    }
+    function disable2() {
+      const namespaces = [
+        ...createDebug.names,
+        ...createDebug.skips.map((namespace) => "-" + namespace)
+      ].join(",");
+      createDebug.enable("");
+      return namespaces;
+    }
+    function enabled(name) {
+      for (const skip of createDebug.skips) {
+        if (matchesTemplate(name, skip)) {
+          return false;
+        }
+      }
+      for (const ns of createDebug.names) {
+        if (matchesTemplate(name, ns)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    function coerce(val) {
+      if (val instanceof Error) {
+        return val.stack || val.message;
+      }
+      return val;
+    }
+    function destroy() {
+      console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+    }
+    createDebug.enable(createDebug.load());
+    return createDebug;
+  }
+  module.exports = setup;
+});
+
+// node_modules/debug/src/browser.js
+var require_browser = __commonJS((exports, module) => {
+  exports.formatArgs = formatArgs;
+  exports.save = save;
+  exports.load = load;
+  exports.useColors = useColors;
+  exports.storage = localstorage();
+  exports.destroy = (() => {
+    let warned = false;
+    return () => {
+      if (!warned) {
+        warned = true;
+        console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+      }
+    };
+  })();
+  exports.colors = [
+    "#0000CC",
+    "#0000FF",
+    "#0033CC",
+    "#0033FF",
+    "#0066CC",
+    "#0066FF",
+    "#0099CC",
+    "#0099FF",
+    "#00CC00",
+    "#00CC33",
+    "#00CC66",
+    "#00CC99",
+    "#00CCCC",
+    "#00CCFF",
+    "#3300CC",
+    "#3300FF",
+    "#3333CC",
+    "#3333FF",
+    "#3366CC",
+    "#3366FF",
+    "#3399CC",
+    "#3399FF",
+    "#33CC00",
+    "#33CC33",
+    "#33CC66",
+    "#33CC99",
+    "#33CCCC",
+    "#33CCFF",
+    "#6600CC",
+    "#6600FF",
+    "#6633CC",
+    "#6633FF",
+    "#66CC00",
+    "#66CC33",
+    "#9900CC",
+    "#9900FF",
+    "#9933CC",
+    "#9933FF",
+    "#99CC00",
+    "#99CC33",
+    "#CC0000",
+    "#CC0033",
+    "#CC0066",
+    "#CC0099",
+    "#CC00CC",
+    "#CC00FF",
+    "#CC3300",
+    "#CC3333",
+    "#CC3366",
+    "#CC3399",
+    "#CC33CC",
+    "#CC33FF",
+    "#CC6600",
+    "#CC6633",
+    "#CC9900",
+    "#CC9933",
+    "#CCCC00",
+    "#CCCC33",
+    "#FF0000",
+    "#FF0033",
+    "#FF0066",
+    "#FF0099",
+    "#FF00CC",
+    "#FF00FF",
+    "#FF3300",
+    "#FF3333",
+    "#FF3366",
+    "#FF3399",
+    "#FF33CC",
+    "#FF33FF",
+    "#FF6600",
+    "#FF6633",
+    "#FF9900",
+    "#FF9933",
+    "#FFCC00",
+    "#FFCC33"
+  ];
+  function useColors() {
+    if (typeof window !== "undefined" && window.process && (window.process.type === "renderer" || window.process.__nwjs)) {
+      return true;
+    }
+    if (typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+      return false;
+    }
+    let m;
+    return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || typeof navigator !== "undefined" && navigator.userAgent && (m = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/)) && parseInt(m[1], 10) >= 31 || typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
+  }
+  function formatArgs(args) {
+    args[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args[0] + (this.useColors ? "%c " : " ") + "+" + module.exports.humanize(this.diff);
+    if (!this.useColors) {
+      return;
+    }
+    const c = "color: " + this.color;
+    args.splice(1, 0, c, "color: inherit");
+    let index = 0;
+    let lastC = 0;
+    args[0].replace(/%[a-zA-Z%]/g, (match) => {
+      if (match === "%%") {
+        return;
+      }
+      index++;
+      if (match === "%c") {
+        lastC = index;
+      }
+    });
+    args.splice(lastC, 0, c);
+  }
+  exports.log = console.debug || console.log || (() => {});
+  function save(namespaces) {
+    try {
+      if (namespaces) {
+        exports.storage.setItem("debug", namespaces);
+      } else {
+        exports.storage.removeItem("debug");
+      }
+    } catch (error) {}
+  }
+  function load() {
+    let r;
+    try {
+      r = exports.storage.getItem("debug") || exports.storage.getItem("DEBUG");
+    } catch (error) {}
+    if (!r && typeof process !== "undefined" && "env" in process) {
+      r = process.env.DEBUG;
+    }
+    return r;
+  }
+  function localstorage() {
+    try {
+      return localStorage;
+    } catch (error) {}
+  }
+  module.exports = require_common()(exports);
+  var { formatters } = module.exports;
+  formatters.j = function(v) {
+    try {
+      return JSON.stringify(v);
+    } catch (error) {
+      return "[UnexpectedJSONParseError]: " + error.message;
+    }
+  };
+});
+
+// node_modules/debug/src/node.js
+var require_node = __commonJS((exports, module) => {
+  var tty = __require("tty");
+  var util = __require("util");
+  exports.init = init;
+  exports.log = log;
+  exports.formatArgs = formatArgs;
+  exports.save = save;
+  exports.load = load;
+  exports.useColors = useColors;
+  exports.destroy = util.deprecate(() => {}, "Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+  exports.colors = [6, 2, 3, 4, 5, 1];
+  try {
+    const supportsColor = (()=>{throw new Error("Cannot require module "+"supports-color");})();
+    if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
+      exports.colors = [
+        20,
+        21,
+        26,
+        27,
+        32,
+        33,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        56,
+        57,
+        62,
+        63,
+        68,
+        69,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        92,
+        93,
+        98,
+        99,
+        112,
+        113,
+        128,
+        129,
+        134,
+        135,
+        148,
+        149,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        178,
+        179,
+        184,
+        185,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        214,
+        215,
+        220,
+        221
+      ];
+    }
+  } catch (error) {}
+  exports.inspectOpts = Object.keys(process.env).filter((key) => {
+    return /^debug_/i.test(key);
+  }).reduce((obj, key) => {
+    const prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
+      return k.toUpperCase();
+    });
+    let val = process.env[key];
+    if (/^(yes|on|true|enabled)$/i.test(val)) {
+      val = true;
+    } else if (/^(no|off|false|disabled)$/i.test(val)) {
+      val = false;
+    } else if (val === "null") {
+      val = null;
+    } else {
+      val = Number(val);
+    }
+    obj[prop] = val;
+    return obj;
+  }, {});
+  function useColors() {
+    return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(process.stderr.fd);
+  }
+  function formatArgs(args) {
+    const { namespace: name, useColors: useColors2 } = this;
+    if (useColors2) {
+      const c = this.color;
+      const colorCode = "\x1B[3" + (c < 8 ? c : "8;5;" + c);
+      const prefix = `  ${colorCode};1m${name} \x1B[0m`;
+      args[0] = prefix + args[0].split(`
+`).join(`
+` + prefix);
+      args.push(colorCode + "m+" + module.exports.humanize(this.diff) + "\x1B[0m");
+    } else {
+      args[0] = getDate() + name + " " + args[0];
+    }
+  }
+  function getDate() {
+    if (exports.inspectOpts.hideDate) {
+      return "";
+    }
+    return new Date().toISOString() + " ";
+  }
+  function log(...args) {
+    return process.stderr.write(util.formatWithOptions(exports.inspectOpts, ...args) + `
+`);
+  }
+  function save(namespaces) {
+    if (namespaces) {
+      process.env.DEBUG = namespaces;
+    } else {
+      delete process.env.DEBUG;
+    }
+  }
+  function load() {
+    return process.env.DEBUG;
+  }
+  function init(debug) {
+    debug.inspectOpts = {};
+    const keys = Object.keys(exports.inspectOpts);
+    for (let i = 0;i < keys.length; i++) {
+      debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+    }
+  }
+  module.exports = require_common()(exports);
+  var { formatters } = module.exports;
+  formatters.o = function(v) {
+    this.inspectOpts.colors = this.useColors;
+    return util.inspect(v, this.inspectOpts).split(`
+`).map((str) => str.trim()).join(" ");
+  };
+  formatters.O = function(v) {
+    this.inspectOpts.colors = this.useColors;
+    return util.inspect(v, this.inspectOpts);
+  };
+});
+
+// node_modules/debug/src/index.js
+var require_src = __commonJS((exports, module) => {
+  if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
+    module.exports = require_browser();
+  } else {
+    module.exports = require_node();
+  }
+});
+
+// node_modules/micromark/dev/lib/create-tokenizer.js
+function createTokenizer(parser, initialize, from) {
+  let point3 = {
+    _bufferIndex: -1,
+    _index: 0,
+    line: from && from.line || 1,
+    column: from && from.column || 1,
+    offset: from && from.offset || 0
+  };
+  const columnStart = {};
+  const resolveAllConstructs = [];
+  let chunks = [];
+  let stack = [];
+  let consumed = true;
+  const effects = {
+    attempt: constructFactory(onsuccessfulconstruct),
+    check: constructFactory(onsuccessfulcheck),
+    consume,
+    enter,
+    exit: exit3,
+    interrupt: constructFactory(onsuccessfulcheck, { interrupt: true })
+  };
+  const context = {
+    code: codes.eof,
+    containerState: {},
+    defineSkip,
+    events: [],
+    now,
+    parser,
+    previous: codes.eof,
+    sliceSerialize,
+    sliceStream,
+    write
+  };
+  let state = initialize.tokenize.call(context, effects);
+  let expectedCode;
+  if (initialize.resolveAll) {
+    resolveAllConstructs.push(initialize);
+  }
+  return context;
+  function write(slice) {
+    chunks = push(chunks, slice);
+    main();
+    if (chunks[chunks.length - 1] !== codes.eof) {
+      return [];
+    }
+    addResult(initialize, 0);
+    context.events = resolveAll(resolveAllConstructs, context.events, context);
+    return context.events;
+  }
+  function sliceSerialize(token, expandTabs) {
+    return serializeChunks(sliceStream(token), expandTabs);
+  }
+  function sliceStream(token) {
+    return sliceChunks(chunks, token);
+  }
+  function now() {
+    const { _bufferIndex, _index, line: line3, column: column2, offset } = point3;
+    return { _bufferIndex, _index, line: line3, column: column2, offset };
+  }
+  function defineSkip(value) {
+    columnStart[value.line] = value.column;
+    accountForPotentialSkip();
+    debug("position: define skip: `%j`", point3);
+  }
+  function main() {
+    let chunkIndex;
+    while (point3._index < chunks.length) {
+      const chunk = chunks[point3._index];
+      if (typeof chunk === "string") {
+        chunkIndex = point3._index;
+        if (point3._bufferIndex < 0) {
+          point3._bufferIndex = 0;
+        }
+        while (point3._index === chunkIndex && point3._bufferIndex < chunk.length) {
+          go(chunk.charCodeAt(point3._bufferIndex));
+        }
+      } else {
+        go(chunk);
+      }
+    }
+  }
+  function go(code3) {
+    ok(consumed === true, "expected character to be consumed");
+    consumed = undefined;
+    debug("main: passing `%s` to %s", code3, state && state.name);
+    expectedCode = code3;
+    ok(typeof state === "function", "expected state");
+    state = state(code3);
+  }
+  function consume(code3) {
+    ok(code3 === expectedCode, "expected given code to equal expected code");
+    debug("consume: `%s`", code3);
+    ok(consumed === undefined, "expected code to not have been consumed: this might be because `return x(code)` instead of `return x` was used");
+    ok(code3 === null ? context.events.length === 0 || context.events[context.events.length - 1][0] === "exit" : context.events[context.events.length - 1][0] === "enter", "expected last token to be open");
+    if (markdownLineEnding(code3)) {
+      point3.line++;
+      point3.column = 1;
+      point3.offset += code3 === codes.carriageReturnLineFeed ? 2 : 1;
+      accountForPotentialSkip();
+      debug("position: after eol: `%j`", point3);
+    } else if (code3 !== codes.virtualSpace) {
+      point3.column++;
+      point3.offset++;
+    }
+    if (point3._bufferIndex < 0) {
+      point3._index++;
+    } else {
+      point3._bufferIndex++;
+      if (point3._bufferIndex === chunks[point3._index].length) {
+        point3._bufferIndex = -1;
+        point3._index++;
+      }
+    }
+    context.previous = code3;
+    consumed = true;
+  }
+  function enter(type, fields) {
+    const token = fields || {};
+    token.type = type;
+    token.start = now();
+    ok(typeof type === "string", "expected string type");
+    ok(type.length > 0, "expected non-empty string");
+    debug("enter: `%s`", type);
+    context.events.push(["enter", token, context]);
+    stack.push(token);
+    return token;
+  }
+  function exit3(type) {
+    ok(typeof type === "string", "expected string type");
+    ok(type.length > 0, "expected non-empty string");
+    const token = stack.pop();
+    ok(token, "cannot close w/o open tokens");
+    token.end = now();
+    ok(type === token.type, "expected exit token to match current token");
+    ok(!(token.start._index === token.end._index && token.start._bufferIndex === token.end._bufferIndex), "expected non-empty token (`" + type + "`)");
+    debug("exit: `%s`", token.type);
+    context.events.push(["exit", token, context]);
+    return token;
+  }
+  function onsuccessfulconstruct(construct2, info) {
+    addResult(construct2, info.from);
+  }
+  function onsuccessfulcheck(_, info) {
+    info.restore();
+  }
+  function constructFactory(onreturn, fields) {
+    return hook;
+    function hook(constructs2, returnState, bogusState) {
+      let listOfConstructs;
+      let constructIndex;
+      let currentConstruct;
+      let info;
+      return Array.isArray(constructs2) ? handleListOfConstructs(constructs2) : ("tokenize" in constructs2) ? handleListOfConstructs([constructs2]) : handleMapOfConstructs(constructs2);
+      function handleMapOfConstructs(map4) {
+        return start;
+        function start(code3) {
+          const left = code3 !== null && map4[code3];
+          const all2 = code3 !== null && map4.null;
+          const list4 = [
+            ...Array.isArray(left) ? left : left ? [left] : [],
+            ...Array.isArray(all2) ? all2 : all2 ? [all2] : []
+          ];
+          return handleListOfConstructs(list4)(code3);
+        }
+      }
+      function handleListOfConstructs(list4) {
+        listOfConstructs = list4;
+        constructIndex = 0;
+        if (list4.length === 0) {
+          ok(bogusState, "expected `bogusState` to be given");
+          return bogusState;
+        }
+        return handleConstruct(list4[constructIndex]);
+      }
+      function handleConstruct(construct2) {
+        return start;
+        function start(code3) {
+          info = store();
+          currentConstruct = construct2;
+          if (!construct2.partial) {
+            context.currentConstruct = construct2;
+          }
+          ok(context.parser.constructs.disable.null, "expected `disable.null` to be populated");
+          if (construct2.name && context.parser.constructs.disable.null.includes(construct2.name)) {
+            return nok(code3);
+          }
+          return construct2.tokenize.call(fields ? Object.assign(Object.create(context), fields) : context, effects, ok3, nok)(code3);
+        }
+      }
+      function ok3(code3) {
+        ok(code3 === expectedCode, "expected code");
+        consumed = true;
+        onreturn(currentConstruct, info);
+        return returnState;
+      }
+      function nok(code3) {
+        ok(code3 === expectedCode, "expected code");
+        consumed = true;
+        info.restore();
+        if (++constructIndex < listOfConstructs.length) {
+          return handleConstruct(listOfConstructs[constructIndex]);
+        }
+        return bogusState;
+      }
+    }
+  }
+  function addResult(construct2, from2) {
+    if (construct2.resolveAll && !resolveAllConstructs.includes(construct2)) {
+      resolveAllConstructs.push(construct2);
+    }
+    if (construct2.resolve) {
+      splice(context.events, from2, context.events.length - from2, construct2.resolve(context.events.slice(from2), context));
+    }
+    if (construct2.resolveTo) {
+      context.events = construct2.resolveTo(context.events, context);
+    }
+    ok(construct2.partial || context.events.length === 0 || context.events[context.events.length - 1][0] === "exit", "expected last token to end");
+  }
+  function store() {
+    const startPoint = now();
+    const startPrevious = context.previous;
+    const startCurrentConstruct = context.currentConstruct;
+    const startEventsIndex = context.events.length;
+    const startStack = Array.from(stack);
+    return { from: startEventsIndex, restore };
+    function restore() {
+      point3 = startPoint;
+      context.previous = startPrevious;
+      context.currentConstruct = startCurrentConstruct;
+      context.events.length = startEventsIndex;
+      stack = startStack;
+      accountForPotentialSkip();
+      debug("position: restore: `%j`", point3);
+    }
+  }
+  function accountForPotentialSkip() {
+    if (point3.line in columnStart && point3.column < 2) {
+      point3.column = columnStart[point3.line];
+      point3.offset += columnStart[point3.line] - 1;
+    }
+  }
+}
+function sliceChunks(chunks, token) {
+  const startIndex = token.start._index;
+  const startBufferIndex = token.start._bufferIndex;
+  const endIndex = token.end._index;
+  const endBufferIndex = token.end._bufferIndex;
+  let view2;
+  if (startIndex === endIndex) {
+    ok(endBufferIndex > -1, "expected non-negative end buffer index");
+    ok(startBufferIndex > -1, "expected non-negative start buffer index");
+    view2 = [chunks[startIndex].slice(startBufferIndex, endBufferIndex)];
+  } else {
+    view2 = chunks.slice(startIndex, endIndex);
+    if (startBufferIndex > -1) {
+      const head = view2[0];
+      if (typeof head === "string") {
+        view2[0] = head.slice(startBufferIndex);
+      } else {
+        ok(startBufferIndex === 0, "expected `startBufferIndex` to be `0`");
+        view2.shift();
+      }
+    }
+    if (endBufferIndex > 0) {
+      view2.push(chunks[endIndex].slice(0, endBufferIndex));
+    }
+  }
+  return view2;
+}
+function serializeChunks(chunks, expandTabs) {
+  let index = -1;
+  const result = [];
+  let atTab;
+  while (++index < chunks.length) {
+    const chunk = chunks[index];
+    let value;
+    if (typeof chunk === "string") {
+      value = chunk;
+    } else
+      switch (chunk) {
+        case codes.carriageReturn: {
+          value = values2.cr;
+          break;
+        }
+        case codes.lineFeed: {
+          value = values2.lf;
+          break;
+        }
+        case codes.carriageReturnLineFeed: {
+          value = values2.cr + values2.lf;
+          break;
+        }
+        case codes.horizontalTab: {
+          value = expandTabs ? values2.space : values2.ht;
+          break;
+        }
+        case codes.virtualSpace: {
+          if (!expandTabs && atTab)
+            continue;
+          value = values2.space;
+          break;
+        }
+        default: {
+          ok(typeof chunk === "number", "expected number");
+          value = String.fromCharCode(chunk);
+        }
+      }
+    atTab = chunk === codes.horizontalTab;
+    result.push(value);
+  }
+  return result.join("");
+}
+var import_debug, debug;
+var init_create_tokenizer = __esm(() => {
+  init_development();
+  init_dev();
+  init_dev6();
+  init_default();
+  import_debug = __toESM(require_src(), 1);
+  debug = import_debug.default("micromark");
+});
+
+// node_modules/micromark/dev/lib/parse.js
+function parse2(options) {
+  const settings = options || {};
+  const constructs2 = combineExtensions([exports_constructs, ...settings.extensions || []]);
+  const parser = {
+    constructs: constructs2,
+    content: create(content2),
+    defined: [],
+    document: create(document2),
+    flow: create(flow),
+    lazy: {},
+    string: create(string),
+    text: create(text5)
+  };
+  return parser;
+  function create(initial) {
+    return creator;
+    function creator(from) {
+      return createTokenizer(parser, initial, from);
+    }
+  }
+}
+var init_parse = __esm(() => {
+  init_micromark_util_combine_extensions();
+  init_content2();
+  init_document();
+  init_flow();
+  init_text2();
+  init_constructs();
+  init_create_tokenizer();
+});
+
+// node_modules/micromark/dev/lib/postprocess.js
+function postprocess(events2) {
+  while (!subtokenize(events2)) {}
+  return events2;
+}
+var init_postprocess = __esm(() => {
+  init_dev9();
+});
+
+// node_modules/micromark/dev/lib/preprocess.js
+function preprocess() {
+  let column2 = 1;
+  let buffer2 = "";
+  let start = true;
+  let atCarriageReturn;
+  return preprocessor;
+  function preprocessor(value, encoding, end) {
+    const chunks = [];
+    let match;
+    let next;
+    let startPosition;
+    let endPosition;
+    let code3;
+    value = buffer2 + (typeof value === "string" ? value.toString() : new TextDecoder(encoding || undefined).decode(value));
+    startPosition = 0;
+    buffer2 = "";
+    if (start) {
+      if (value.charCodeAt(0) === codes.byteOrderMarker) {
+        startPosition++;
+      }
+      start = undefined;
+    }
+    while (startPosition < value.length) {
+      search.lastIndex = startPosition;
+      match = search.exec(value);
+      endPosition = match && match.index !== undefined ? match.index : value.length;
+      code3 = value.charCodeAt(endPosition);
+      if (!match) {
+        buffer2 = value.slice(startPosition);
+        break;
+      }
+      if (code3 === codes.lf && startPosition === endPosition && atCarriageReturn) {
+        chunks.push(codes.carriageReturnLineFeed);
+        atCarriageReturn = undefined;
+      } else {
+        if (atCarriageReturn) {
+          chunks.push(codes.carriageReturn);
+          atCarriageReturn = undefined;
+        }
+        if (startPosition < endPosition) {
+          chunks.push(value.slice(startPosition, endPosition));
+          column2 += endPosition - startPosition;
+        }
+        switch (code3) {
+          case codes.nul: {
+            chunks.push(codes.replacementCharacter);
+            column2++;
+            break;
+          }
+          case codes.ht: {
+            next = Math.ceil(column2 / constants.tabSize) * constants.tabSize;
+            chunks.push(codes.horizontalTab);
+            while (column2++ < next)
+              chunks.push(codes.virtualSpace);
+            break;
+          }
+          case codes.lf: {
+            chunks.push(codes.lineFeed);
+            column2 = 1;
+            break;
+          }
+          default: {
+            atCarriageReturn = true;
+            column2 = 1;
+          }
+        }
+      }
+      startPosition = endPosition + 1;
+    }
+    if (end) {
+      if (atCarriageReturn)
+        chunks.push(codes.carriageReturn);
+      if (buffer2)
+        chunks.push(buffer2);
+      chunks.push(codes.eof);
+    }
+    return chunks;
+  }
+}
+var search;
+var init_preprocess = __esm(() => {
+  init_default();
+  search = /[\0\t\n\r]/g;
+});
+
+// node_modules/micromark/dev/index.js
+var init_dev19 = __esm(() => {
+  init_parse();
+  init_postprocess();
+  init_preprocess();
+});
+
+// node_modules/unist-util-stringify-position/lib/index.js
+function stringifyPosition(value) {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  if ("position" in value || "type" in value) {
+    return position(value.position);
+  }
+  if ("start" in value || "end" in value) {
+    return position(value);
+  }
+  if ("line" in value || "column" in value) {
+    return point3(value);
+  }
+  return "";
+}
+function point3(point4) {
+  return index(point4 && point4.line) + ":" + index(point4 && point4.column);
+}
+function position(pos) {
+  return point3(pos && pos.start) + "-" + point3(pos && pos.end);
+}
+function index(value) {
+  return value && typeof value === "number" ? value : 1;
+}
+
+// node_modules/unist-util-stringify-position/index.js
+var init_unist_util_stringify_position = () => {};
+
+// node_modules/mdast-util-from-markdown/dev/lib/index.js
+function fromMarkdown(value, encoding, options) {
+  if (encoding && typeof encoding === "object") {
+    options = encoding;
+    encoding = undefined;
+  }
+  return compiler(options)(postprocess(parse2(options).document().write(preprocess()(value, encoding, true))));
+}
+function compiler(options) {
+  const config = {
+    transforms: [],
+    canContainEols: ["emphasis", "fragment", "heading", "paragraph", "strong"],
+    enter: {
+      autolink: opener(link2),
+      autolinkProtocol: onenterdata,
+      autolinkEmail: onenterdata,
+      atxHeading: opener(heading2),
+      blockQuote: opener(blockQuote2),
+      characterEscape: onenterdata,
+      characterReference: onenterdata,
+      codeFenced: opener(codeFlow),
+      codeFencedFenceInfo: buffer2,
+      codeFencedFenceMeta: buffer2,
+      codeIndented: opener(codeFlow, buffer2),
+      codeText: opener(codeText2, buffer2),
+      codeTextData: onenterdata,
+      data: onenterdata,
+      codeFlowValue: onenterdata,
+      definition: opener(definition3),
+      definitionDestinationString: buffer2,
+      definitionLabelString: buffer2,
+      definitionTitleString: buffer2,
+      emphasis: opener(emphasis2),
+      hardBreakEscape: opener(hardBreak2),
+      hardBreakTrailing: opener(hardBreak2),
+      htmlFlow: opener(html2, buffer2),
+      htmlFlowData: onenterdata,
+      htmlText: opener(html2, buffer2),
+      htmlTextData: onenterdata,
+      image: opener(image2),
+      label: buffer2,
+      link: opener(link2),
+      listItem: opener(listItem2),
+      listItemValue: onenterlistitemvalue,
+      listOrdered: opener(list4, onenterlistordered),
+      listUnordered: opener(list4),
+      paragraph: opener(paragraph2),
+      reference: onenterreference,
+      referenceString: buffer2,
+      resourceDestinationString: buffer2,
+      resourceTitleString: buffer2,
+      setextHeading: opener(heading2),
+      strong: opener(strong2),
+      thematicBreak: opener(thematicBreak3)
+    },
+    exit: {
+      atxHeading: closer(),
+      atxHeadingSequence: onexitatxheadingsequence,
+      autolink: closer(),
+      autolinkEmail: onexitautolinkemail,
+      autolinkProtocol: onexitautolinkprotocol,
+      blockQuote: closer(),
+      characterEscapeValue: onexitdata,
+      characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
+      characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
+      characterReferenceValue: onexitcharacterreferencevalue,
+      characterReference: onexitcharacterreference,
+      codeFenced: closer(onexitcodefenced),
+      codeFencedFence: onexitcodefencedfence,
+      codeFencedFenceInfo: onexitcodefencedfenceinfo,
+      codeFencedFenceMeta: onexitcodefencedfencemeta,
+      codeFlowValue: onexitdata,
+      codeIndented: closer(onexitcodeindented),
+      codeText: closer(onexitcodetext),
+      codeTextData: onexitdata,
+      data: onexitdata,
+      definition: closer(),
+      definitionDestinationString: onexitdefinitiondestinationstring,
+      definitionLabelString: onexitdefinitionlabelstring,
+      definitionTitleString: onexitdefinitiontitlestring,
+      emphasis: closer(),
+      hardBreakEscape: closer(onexithardbreak),
+      hardBreakTrailing: closer(onexithardbreak),
+      htmlFlow: closer(onexithtmlflow),
+      htmlFlowData: onexitdata,
+      htmlText: closer(onexithtmltext),
+      htmlTextData: onexitdata,
+      image: closer(onexitimage),
+      label: onexitlabel,
+      labelText: onexitlabeltext,
+      lineEnding: onexitlineending,
+      link: closer(onexitlink),
+      listItem: closer(),
+      listOrdered: closer(),
+      listUnordered: closer(),
+      paragraph: closer(),
+      referenceString: onexitreferencestring,
+      resourceDestinationString: onexitresourcedestinationstring,
+      resourceTitleString: onexitresourcetitlestring,
+      resource: onexitresource,
+      setextHeading: closer(onexitsetextheading),
+      setextHeadingLineSequence: onexitsetextheadinglinesequence,
+      setextHeadingText: onexitsetextheadingtext,
+      strong: closer(),
+      thematicBreak: closer()
+    }
+  };
+  configure2(config, (options || {}).mdastExtensions || []);
+  const data = {};
+  return compile;
+  function compile(events2) {
+    let tree = { type: "root", children: [] };
+    const context = {
+      stack: [tree],
+      tokenStack: [],
+      config,
+      enter,
+      exit: exit3,
+      buffer: buffer2,
+      resume,
+      data
+    };
+    const listStack = [];
+    let index2 = -1;
+    while (++index2 < events2.length) {
+      if (events2[index2][1].type === types2.listOrdered || events2[index2][1].type === types2.listUnordered) {
+        if (events2[index2][0] === "enter") {
+          listStack.push(index2);
+        } else {
+          const tail = listStack.pop();
+          ok(typeof tail === "number", "expected list to be open");
+          index2 = prepareList(events2, tail, index2);
+        }
+      }
+    }
+    index2 = -1;
+    while (++index2 < events2.length) {
+      const handler = config[events2[index2][0]];
+      if (own4.call(handler, events2[index2][1].type)) {
+        handler[events2[index2][1].type].call(Object.assign({ sliceSerialize: events2[index2][2].sliceSerialize }, context), events2[index2][1]);
+      }
+    }
+    if (context.tokenStack.length > 0) {
+      const tail = context.tokenStack[context.tokenStack.length - 1];
+      const handler = tail[1] || defaultOnError;
+      handler.call(context, undefined, tail[0]);
+    }
+    tree.position = {
+      start: point4(events2.length > 0 ? events2[0][1].start : { line: 1, column: 1, offset: 0 }),
+      end: point4(events2.length > 0 ? events2[events2.length - 2][1].end : { line: 1, column: 1, offset: 0 })
+    };
+    index2 = -1;
+    while (++index2 < config.transforms.length) {
+      tree = config.transforms[index2](tree) || tree;
+    }
+    return tree;
+  }
+  function prepareList(events2, start, length) {
+    let index2 = start - 1;
+    let containerBalance = -1;
+    let listSpread = false;
+    let listItem3;
+    let lineIndex;
+    let firstBlankLineIndex;
+    let atMarker;
+    while (++index2 <= length) {
+      const event = events2[index2];
+      switch (event[1].type) {
+        case types2.listUnordered:
+        case types2.listOrdered:
+        case types2.blockQuote: {
+          if (event[0] === "enter") {
+            containerBalance++;
+          } else {
+            containerBalance--;
+          }
+          atMarker = undefined;
+          break;
+        }
+        case types2.lineEndingBlank: {
+          if (event[0] === "enter") {
+            if (listItem3 && !atMarker && !containerBalance && !firstBlankLineIndex) {
+              firstBlankLineIndex = index2;
+            }
+            atMarker = undefined;
+          }
+          break;
+        }
+        case types2.linePrefix:
+        case types2.listItemValue:
+        case types2.listItemMarker:
+        case types2.listItemPrefix:
+        case types2.listItemPrefixWhitespace: {
+          break;
+        }
+        default: {
+          atMarker = undefined;
+        }
+      }
+      if (!containerBalance && event[0] === "enter" && event[1].type === types2.listItemPrefix || containerBalance === -1 && event[0] === "exit" && (event[1].type === types2.listUnordered || event[1].type === types2.listOrdered)) {
+        if (listItem3) {
+          let tailIndex = index2;
+          lineIndex = undefined;
+          while (tailIndex--) {
+            const tailEvent = events2[tailIndex];
+            if (tailEvent[1].type === types2.lineEnding || tailEvent[1].type === types2.lineEndingBlank) {
+              if (tailEvent[0] === "exit")
+                continue;
+              if (lineIndex) {
+                events2[lineIndex][1].type = types2.lineEndingBlank;
+                listSpread = true;
+              }
+              tailEvent[1].type = types2.lineEnding;
+              lineIndex = tailIndex;
+            } else if (tailEvent[1].type === types2.linePrefix || tailEvent[1].type === types2.blockQuotePrefix || tailEvent[1].type === types2.blockQuotePrefixWhitespace || tailEvent[1].type === types2.blockQuoteMarker || tailEvent[1].type === types2.listItemIndent) {} else {
+              break;
+            }
+          }
+          if (firstBlankLineIndex && (!lineIndex || firstBlankLineIndex < lineIndex)) {
+            listItem3._spread = true;
+          }
+          listItem3.end = Object.assign({}, lineIndex ? events2[lineIndex][1].start : event[1].end);
+          events2.splice(lineIndex || index2, 0, ["exit", listItem3, event[2]]);
+          index2++;
+          length++;
+        }
+        if (event[1].type === types2.listItemPrefix) {
+          const item = {
+            type: "listItem",
+            _spread: false,
+            start: Object.assign({}, event[1].start),
+            end: undefined
+          };
+          listItem3 = item;
+          events2.splice(index2, 0, ["enter", item, event[2]]);
+          index2++;
+          length++;
+          firstBlankLineIndex = undefined;
+          atMarker = true;
+        }
+      }
+    }
+    events2[start][1]._spread = listSpread;
+    return length;
+  }
+  function opener(create, and2) {
+    return open;
+    function open(token) {
+      enter.call(this, create(token), token);
+      if (and2)
+        and2.call(this, token);
+    }
+  }
+  function buffer2() {
+    this.stack.push({ type: "fragment", children: [] });
+  }
+  function enter(node2, token, errorHandler) {
+    const parent = this.stack[this.stack.length - 1];
+    ok(parent, "expected `parent`");
+    ok("children" in parent, "expected `parent`");
+    const siblings = parent.children;
+    siblings.push(node2);
+    this.stack.push(node2);
+    this.tokenStack.push([token, errorHandler || undefined]);
+    node2.position = {
+      start: point4(token.start),
+      end: undefined
+    };
+  }
+  function closer(and2) {
+    return close;
+    function close(token) {
+      if (and2)
+        and2.call(this, token);
+      exit3.call(this, token);
+    }
+  }
+  function exit3(token, onExitError) {
+    const node2 = this.stack.pop();
+    ok(node2, "expected `node`");
+    const open = this.tokenStack.pop();
+    if (!open) {
+      throw new Error("Cannot close `" + token.type + "` (" + stringifyPosition({ start: token.start, end: token.end }) + "): it’s not open");
+    } else if (open[0].type !== token.type) {
+      if (onExitError) {
+        onExitError.call(this, token, open[0]);
+      } else {
+        const handler = open[1] || defaultOnError;
+        handler.call(this, token, open[0]);
+      }
+    }
+    ok(node2.type !== "fragment", "unexpected fragment `exit`ed");
+    ok(node2.position, "expected `position` to be defined");
+    node2.position.end = point4(token.end);
+  }
+  function resume() {
+    return toString(this.stack.pop());
+  }
+  function onenterlistordered() {
+    this.data.expectingFirstListItemValue = true;
+  }
+  function onenterlistitemvalue(token) {
+    if (this.data.expectingFirstListItemValue) {
+      const ancestor = this.stack[this.stack.length - 2];
+      ok(ancestor, "expected nodes on stack");
+      ok(ancestor.type === "list", "expected list on stack");
+      ancestor.start = Number.parseInt(this.sliceSerialize(token), constants.numericBaseDecimal);
+      this.data.expectingFirstListItemValue = undefined;
+    }
+  }
+  function onexitcodefencedfenceinfo() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "code", "expected code on stack");
+    node2.lang = data2;
+  }
+  function onexitcodefencedfencemeta() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "code", "expected code on stack");
+    node2.meta = data2;
+  }
+  function onexitcodefencedfence() {
+    if (this.data.flowCodeInside)
+      return;
+    this.buffer();
+    this.data.flowCodeInside = true;
+  }
+  function onexitcodefenced() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "code", "expected code on stack");
+    node2.value = data2.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, "");
+    this.data.flowCodeInside = undefined;
+  }
+  function onexitcodeindented() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "code", "expected code on stack");
+    node2.value = data2.replace(/(\r?\n|\r)$/g, "");
+  }
+  function onexitdefinitionlabelstring(token) {
+    const label = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "definition", "expected definition on stack");
+    node2.label = label;
+    node2.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+  }
+  function onexitdefinitiontitlestring() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "definition", "expected definition on stack");
+    node2.title = data2;
+  }
+  function onexitdefinitiondestinationstring() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "definition", "expected definition on stack");
+    node2.url = data2;
+  }
+  function onexitatxheadingsequence(token) {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "heading", "expected heading on stack");
+    if (!node2.depth) {
+      const depth = this.sliceSerialize(token).length;
+      ok(depth === 1 || depth === 2 || depth === 3 || depth === 4 || depth === 5 || depth === 6, "expected `depth` between `1` and `6`");
+      node2.depth = depth;
+    }
+  }
+  function onexitsetextheadingtext() {
+    this.data.setextHeadingSlurpLineEnding = true;
+  }
+  function onexitsetextheadinglinesequence(token) {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "heading", "expected heading on stack");
+    node2.depth = this.sliceSerialize(token).codePointAt(0) === codes.equalsTo ? 1 : 2;
+  }
+  function onexitsetextheading() {
+    this.data.setextHeadingSlurpLineEnding = undefined;
+  }
+  function onenterdata(token) {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok("children" in node2, "expected parent on stack");
+    const siblings = node2.children;
+    let tail = siblings[siblings.length - 1];
+    if (!tail || tail.type !== "text") {
+      tail = text7();
+      tail.position = {
+        start: point4(token.start),
+        end: undefined
+      };
+      siblings.push(tail);
+    }
+    this.stack.push(tail);
+  }
+  function onexitdata(token) {
+    const tail = this.stack.pop();
+    ok(tail, "expected a `node` to be on the stack");
+    ok("value" in tail, "expected a `literal` to be on the stack");
+    ok(tail.position, "expected `node` to have an open position");
+    tail.value += this.sliceSerialize(token);
+    tail.position.end = point4(token.end);
+  }
+  function onexitlineending(token) {
+    const context = this.stack[this.stack.length - 1];
+    ok(context, "expected `node`");
+    if (this.data.atHardBreak) {
+      ok("children" in context, "expected `parent`");
+      const tail = context.children[context.children.length - 1];
+      ok(tail.position, "expected tail to have a starting position");
+      tail.position.end = point4(token.end);
+      this.data.atHardBreak = undefined;
+      return;
+    }
+    if (!this.data.setextHeadingSlurpLineEnding && config.canContainEols.includes(context.type)) {
+      onenterdata.call(this, token);
+      onexitdata.call(this, token);
+    }
+  }
+  function onexithardbreak() {
+    this.data.atHardBreak = true;
+  }
+  function onexithtmlflow() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "html", "expected html on stack");
+    node2.value = data2;
+  }
+  function onexithtmltext() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "html", "expected html on stack");
+    node2.value = data2;
+  }
+  function onexitcodetext() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "inlineCode", "expected inline code on stack");
+    node2.value = data2;
+  }
+  function onexitlink() {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "link", "expected link on stack");
+    if (this.data.inReference) {
+      const referenceType = this.data.referenceType || "shortcut";
+      node2.type += "Reference";
+      node2.referenceType = referenceType;
+      delete node2.url;
+      delete node2.title;
+    } else {
+      delete node2.identifier;
+      delete node2.label;
+    }
+    this.data.referenceType = undefined;
+  }
+  function onexitimage() {
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "image", "expected image on stack");
+    if (this.data.inReference) {
+      const referenceType = this.data.referenceType || "shortcut";
+      node2.type += "Reference";
+      node2.referenceType = referenceType;
+      delete node2.url;
+      delete node2.title;
+    } else {
+      delete node2.identifier;
+      delete node2.label;
+    }
+    this.data.referenceType = undefined;
+  }
+  function onexitlabeltext(token) {
+    const string3 = this.sliceSerialize(token);
+    const ancestor = this.stack[this.stack.length - 2];
+    ok(ancestor, "expected ancestor on stack");
+    ok(ancestor.type === "image" || ancestor.type === "link", "expected image or link on stack");
+    ancestor.label = decodeString(string3);
+    ancestor.identifier = normalizeIdentifier(string3).toLowerCase();
+  }
+  function onexitlabel() {
+    const fragment2 = this.stack[this.stack.length - 1];
+    ok(fragment2, "expected node on stack");
+    ok(fragment2.type === "fragment", "expected fragment on stack");
+    const value = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "image" || node2.type === "link", "expected image or link on stack");
+    this.data.inReference = true;
+    if (node2.type === "link") {
+      const children = fragment2.children;
+      node2.children = children;
+    } else {
+      node2.alt = value;
+    }
+  }
+  function onexitresourcedestinationstring() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "image" || node2.type === "link", "expected image or link on stack");
+    node2.url = data2;
+  }
+  function onexitresourcetitlestring() {
+    const data2 = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "image" || node2.type === "link", "expected image or link on stack");
+    node2.title = data2;
+  }
+  function onexitresource() {
+    this.data.inReference = undefined;
+  }
+  function onenterreference() {
+    this.data.referenceType = "collapsed";
+  }
+  function onexitreferencestring(token) {
+    const label = this.resume();
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "image" || node2.type === "link", "expected image reference or link reference on stack");
+    node2.label = label;
+    node2.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+    this.data.referenceType = "full";
+  }
+  function onexitcharacterreferencemarker(token) {
+    ok(token.type === "characterReferenceMarkerNumeric" || token.type === "characterReferenceMarkerHexadecimal");
+    this.data.characterReferenceType = token.type;
+  }
+  function onexitcharacterreferencevalue(token) {
+    const data2 = this.sliceSerialize(token);
+    const type = this.data.characterReferenceType;
+    let value;
+    if (type) {
+      value = decodeNumericCharacterReference(data2, type === types2.characterReferenceMarkerNumeric ? constants.numericBaseDecimal : constants.numericBaseHexadecimal);
+      this.data.characterReferenceType = undefined;
+    } else {
+      const result = decodeNamedCharacterReference(data2);
+      ok(result !== false, "expected reference to decode");
+      value = result;
+    }
+    const tail = this.stack[this.stack.length - 1];
+    ok(tail, "expected `node`");
+    ok("value" in tail, "expected `node.value`");
+    tail.value += value;
+  }
+  function onexitcharacterreference(token) {
+    const tail = this.stack.pop();
+    ok(tail, "expected `node`");
+    ok(tail.position, "expected `node.position`");
+    tail.position.end = point4(token.end);
+  }
+  function onexitautolinkprotocol(token) {
+    onexitdata.call(this, token);
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "link", "expected link on stack");
+    node2.url = this.sliceSerialize(token);
+  }
+  function onexitautolinkemail(token) {
+    onexitdata.call(this, token);
+    const node2 = this.stack[this.stack.length - 1];
+    ok(node2, "expected node on stack");
+    ok(node2.type === "link", "expected link on stack");
+    node2.url = "mailto:" + this.sliceSerialize(token);
+  }
+  function blockQuote2() {
+    return { type: "blockquote", children: [] };
+  }
+  function codeFlow() {
+    return { type: "code", lang: null, meta: null, value: "" };
+  }
+  function codeText2() {
+    return { type: "inlineCode", value: "" };
+  }
+  function definition3() {
+    return {
+      type: "definition",
+      identifier: "",
+      label: null,
+      title: null,
+      url: ""
+    };
+  }
+  function emphasis2() {
+    return { type: "emphasis", children: [] };
+  }
+  function heading2() {
+    return {
+      type: "heading",
+      depth: 0,
+      children: []
+    };
+  }
+  function hardBreak2() {
+    return { type: "break" };
+  }
+  function html2() {
+    return { type: "html", value: "" };
+  }
+  function image2() {
+    return { type: "image", title: null, url: "", alt: null };
+  }
+  function link2() {
+    return { type: "link", title: null, url: "", children: [] };
+  }
+  function list4(token) {
+    return {
+      type: "list",
+      ordered: token.type === "listOrdered",
+      start: null,
+      spread: token._spread,
+      children: []
+    };
+  }
+  function listItem2(token) {
+    return {
+      type: "listItem",
+      spread: token._spread,
+      checked: null,
+      children: []
+    };
+  }
+  function paragraph2() {
+    return { type: "paragraph", children: [] };
+  }
+  function strong2() {
+    return { type: "strong", children: [] };
+  }
+  function text7() {
+    return { type: "text", value: "" };
+  }
+  function thematicBreak3() {
+    return { type: "thematicBreak" };
+  }
+}
+function point4(d) {
+  return { line: d.line, column: d.column, offset: d.offset };
+}
+function configure2(combined, extensions) {
+  let index2 = -1;
+  while (++index2 < extensions.length) {
+    const value = extensions[index2];
+    if (Array.isArray(value)) {
+      configure2(combined, value);
+    } else {
+      extension(combined, value);
+    }
+  }
+}
+function extension(combined, extension2) {
+  let key;
+  for (key in extension2) {
+    if (own4.call(extension2, key)) {
+      switch (key) {
+        case "canContainEols": {
+          const right = extension2[key];
+          if (right) {
+            combined[key].push(...right);
+          }
+          break;
+        }
+        case "transforms": {
+          const right = extension2[key];
+          if (right) {
+            combined[key].push(...right);
+          }
+          break;
+        }
+        case "enter":
+        case "exit": {
+          const right = extension2[key];
+          if (right) {
+            Object.assign(combined[key], right);
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+function defaultOnError(left, right) {
+  if (left) {
+    throw new Error("Cannot close `" + left.type + "` (" + stringifyPosition({ start: left.start, end: left.end }) + "): a different token (`" + right.type + "`, " + stringifyPosition({ start: right.start, end: right.end }) + ") is open");
+  } else {
+    throw new Error("Cannot close document, a token (`" + right.type + "`, " + stringifyPosition({ start: right.start, end: right.end }) + ") is still open");
+  }
+}
+var own4;
+var init_lib14 = __esm(() => {
+  init_development();
+  init_mdast_util_to_string();
+  init_dev19();
+  init_dev4();
+  init_dev5();
+  init_dev2();
+  init_default();
+  init_decode_named_character_reference();
+  init_unist_util_stringify_position();
+  own4 = {}.hasOwnProperty;
+});
+
+// node_modules/mdast-util-from-markdown/dev/index.js
+var init_dev20 = __esm(() => {
+  init_lib14();
+});
+
+// node_modules/remark-parse/lib/index.js
+function remarkParse(options) {
+  const self2 = this;
+  self2.parser = parser;
+  function parser(doc) {
+    return fromMarkdown(doc, {
+      ...self2.data("settings"),
+      ...options,
+      extensions: self2.data("micromarkExtensions") || [],
+      mdastExtensions: self2.data("fromMarkdownExtensions") || []
+    });
+  }
+}
+var init_lib15 = __esm(() => {
+  init_dev20();
+});
+
+// node_modules/remark-parse/index.js
+var init_remark_parse = __esm(() => {
+  init_lib15();
+});
+
+// node_modules/remark-stringify/lib/index.js
+function remarkStringify(options) {
+  const self2 = this;
+  self2.compiler = compiler2;
+  function compiler2(tree) {
+    return toMarkdown(tree, {
+      ...self2.data("settings"),
+      ...options,
+      extensions: self2.data("toMarkdownExtensions") || []
+    });
+  }
+}
+var init_lib16 = __esm(() => {
+  init_mdast_util_to_markdown();
+});
+
+// node_modules/remark-stringify/index.js
+var init_remark_stringify = __esm(() => {
+  init_lib16();
+});
+
+// node_modules/bail/index.js
+function bail(error) {
+  if (error) {
+    throw error;
+  }
+}
+
+// node_modules/extend/index.js
+var require_extend = __commonJS((exports, module) => {
+  var hasOwn = Object.prototype.hasOwnProperty;
+  var toStr = Object.prototype.toString;
+  var defineProperty = Object.defineProperty;
+  var gOPD = Object.getOwnPropertyDescriptor;
+  var isArray = function isArray2(arr) {
+    if (typeof Array.isArray === "function") {
+      return Array.isArray(arr);
+    }
+    return toStr.call(arr) === "[object Array]";
+  };
+  var isPlainObject = function isPlainObject2(obj) {
+    if (!obj || toStr.call(obj) !== "[object Object]") {
+      return false;
+    }
+    var hasOwnConstructor = hasOwn.call(obj, "constructor");
+    var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, "isPrototypeOf");
+    if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
+      return false;
+    }
+    var key;
+    for (key in obj) {}
+    return typeof key === "undefined" || hasOwn.call(obj, key);
+  };
+  var setProperty = function setProperty2(target, options) {
+    if (defineProperty && options.name === "__proto__") {
+      defineProperty(target, options.name, {
+        enumerable: true,
+        configurable: true,
+        value: options.newValue,
+        writable: true
+      });
+    } else {
+      target[options.name] = options.newValue;
+    }
+  };
+  var getProperty = function getProperty2(obj, name) {
+    if (name === "__proto__") {
+      if (!hasOwn.call(obj, name)) {
+        return;
+      } else if (gOPD) {
+        return gOPD(obj, name).value;
+      }
+    }
+    return obj[name];
+  };
+  module.exports = function extend() {
+    var options, name, src, copy, copyIsArray, clone;
+    var target = arguments[0];
+    var i = 1;
+    var length = arguments.length;
+    var deep = false;
+    if (typeof target === "boolean") {
+      deep = target;
+      target = arguments[1] || {};
+      i = 2;
+    }
+    if (target == null || typeof target !== "object" && typeof target !== "function") {
+      target = {};
+    }
+    for (;i < length; ++i) {
+      options = arguments[i];
+      if (options != null) {
+        for (name in options) {
+          src = getProperty(target, name);
+          copy = getProperty(options, name);
+          if (target !== copy) {
+            if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+              if (copyIsArray) {
+                copyIsArray = false;
+                clone = src && isArray(src) ? src : [];
+              } else {
+                clone = src && isPlainObject(src) ? src : {};
+              }
+              setProperty(target, { name, newValue: extend(deep, clone, copy) });
+            } else if (typeof copy !== "undefined") {
+              setProperty(target, { name, newValue: copy });
+            }
+          }
+        }
+      }
+    }
+    return target;
+  };
+});
+
+// node_modules/is-plain-obj/index.js
+function isPlainObject(value) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(Symbol.toStringTag in value) && !(Symbol.iterator in value);
+}
+
+// node_modules/trough/lib/index.js
+function trough() {
+  const fns = [];
+  const pipeline = { run, use };
+  return pipeline;
+  function run(...values3) {
+    let middlewareIndex = -1;
+    const callback = values3.pop();
+    if (typeof callback !== "function") {
+      throw new TypeError("Expected function as last argument, not " + callback);
+    }
+    next(null, ...values3);
+    function next(error, ...output) {
+      const fn = fns[++middlewareIndex];
+      let index2 = -1;
+      if (error) {
+        callback(error);
+        return;
+      }
+      while (++index2 < values3.length) {
+        if (output[index2] === null || output[index2] === undefined) {
+          output[index2] = values3[index2];
+        }
+      }
+      values3 = output;
+      if (fn) {
+        wrap(fn, next)(...output);
+      } else {
+        callback(null, ...output);
+      }
+    }
+  }
+  function use(middelware) {
+    if (typeof middelware !== "function") {
+      throw new TypeError("Expected `middelware` to be a function, not " + middelware);
+    }
+    fns.push(middelware);
+    return pipeline;
+  }
+}
+function wrap(middleware, callback) {
+  let called;
+  return wrapped;
+  function wrapped(...parameters) {
+    const fnExpectsCallback = middleware.length > parameters.length;
+    let result;
+    if (fnExpectsCallback) {
+      parameters.push(done);
+    }
+    try {
+      result = middleware.apply(this, parameters);
+    } catch (error) {
+      const exception = error;
+      if (fnExpectsCallback && called) {
+        throw exception;
+      }
+      return done(exception);
+    }
+    if (!fnExpectsCallback) {
+      if (result && result.then && typeof result.then === "function") {
+        result.then(then, done);
+      } else if (result instanceof Error) {
+        done(result);
+      } else {
+        then(result);
+      }
+    }
+  }
+  function done(error, ...output) {
+    if (!called) {
+      called = true;
+      callback(error, ...output);
+    }
+  }
+  function then(value) {
+    done(null, value);
+  }
+}
+
+// node_modules/trough/index.js
+var init_trough = () => {};
+
+// node_modules/vfile-message/lib/index.js
+var VFileMessage;
+var init_lib17 = __esm(() => {
+  init_unist_util_stringify_position();
+  VFileMessage = class VFileMessage extends Error {
+    constructor(causeOrReason, optionsOrParentOrPlace, origin) {
+      super();
+      if (typeof optionsOrParentOrPlace === "string") {
+        origin = optionsOrParentOrPlace;
+        optionsOrParentOrPlace = undefined;
+      }
+      let reason = "";
+      let options = {};
+      let legacyCause = false;
+      if (optionsOrParentOrPlace) {
+        if ("line" in optionsOrParentOrPlace && "column" in optionsOrParentOrPlace) {
+          options = { place: optionsOrParentOrPlace };
+        } else if ("start" in optionsOrParentOrPlace && "end" in optionsOrParentOrPlace) {
+          options = { place: optionsOrParentOrPlace };
+        } else if ("type" in optionsOrParentOrPlace) {
+          options = {
+            ancestors: [optionsOrParentOrPlace],
+            place: optionsOrParentOrPlace.position
+          };
+        } else {
+          options = { ...optionsOrParentOrPlace };
+        }
+      }
+      if (typeof causeOrReason === "string") {
+        reason = causeOrReason;
+      } else if (!options.cause && causeOrReason) {
+        legacyCause = true;
+        reason = causeOrReason.message;
+        options.cause = causeOrReason;
+      }
+      if (!options.ruleId && !options.source && typeof origin === "string") {
+        const index2 = origin.indexOf(":");
+        if (index2 === -1) {
+          options.ruleId = origin;
+        } else {
+          options.source = origin.slice(0, index2);
+          options.ruleId = origin.slice(index2 + 1);
+        }
+      }
+      if (!options.place && options.ancestors && options.ancestors) {
+        const parent = options.ancestors[options.ancestors.length - 1];
+        if (parent) {
+          options.place = parent.position;
+        }
+      }
+      const start = options.place && "start" in options.place ? options.place.start : options.place;
+      this.ancestors = options.ancestors || undefined;
+      this.cause = options.cause || undefined;
+      this.column = start ? start.column : undefined;
+      this.fatal = undefined;
+      this.file = "";
+      this.message = reason;
+      this.line = start ? start.line : undefined;
+      this.name = stringifyPosition(options.place) || "1:1";
+      this.place = options.place || undefined;
+      this.reason = this.message;
+      this.ruleId = options.ruleId || undefined;
+      this.source = options.source || undefined;
+      this.stack = legacyCause && options.cause && typeof options.cause.stack === "string" ? options.cause.stack : "";
+      this.actual = undefined;
+      this.expected = undefined;
+      this.note = undefined;
+      this.url = undefined;
+    }
+  };
+  VFileMessage.prototype.file = "";
+  VFileMessage.prototype.name = "";
+  VFileMessage.prototype.reason = "";
+  VFileMessage.prototype.message = "";
+  VFileMessage.prototype.stack = "";
+  VFileMessage.prototype.column = undefined;
+  VFileMessage.prototype.line = undefined;
+  VFileMessage.prototype.ancestors = undefined;
+  VFileMessage.prototype.cause = undefined;
+  VFileMessage.prototype.fatal = undefined;
+  VFileMessage.prototype.place = undefined;
+  VFileMessage.prototype.ruleId = undefined;
+  VFileMessage.prototype.source = undefined;
+});
+
+// node_modules/vfile-message/index.js
+var init_vfile_message = __esm(() => {
+  init_lib17();
+});
+
+// node_modules/vfile/lib/minpath.js
+import { default as default2 } from "node:path";
+var init_minpath = () => {};
+
+// node_modules/vfile/lib/minproc.js
+import { default as default3 } from "node:process";
+var init_minproc = () => {};
+
+// node_modules/vfile/lib/minurl.shared.js
+function isUrl(fileUrlOrPath) {
+  return Boolean(fileUrlOrPath !== null && typeof fileUrlOrPath === "object" && "href" in fileUrlOrPath && fileUrlOrPath.href && "protocol" in fileUrlOrPath && fileUrlOrPath.protocol && fileUrlOrPath.auth === undefined);
+}
+
+// node_modules/vfile/lib/minurl.js
+import { fileURLToPath } from "node:url";
+var init_minurl = () => {};
+
+// node_modules/vfile/lib/index.js
+class VFile {
+  constructor(value) {
+    let options;
+    if (!value) {
+      options = {};
+    } else if (isUrl(value)) {
+      options = { path: value };
+    } else if (typeof value === "string" || isUint8Array(value)) {
+      options = { value };
+    } else {
+      options = value;
+    }
+    this.cwd = "cwd" in options ? "" : default3.cwd();
+    this.data = {};
+    this.history = [];
+    this.messages = [];
+    this.value;
+    this.map;
+    this.result;
+    this.stored;
+    let index2 = -1;
+    while (++index2 < order.length) {
+      const field2 = order[index2];
+      if (field2 in options && options[field2] !== undefined && options[field2] !== null) {
+        this[field2] = field2 === "history" ? [...options[field2]] : options[field2];
+      }
+    }
+    let field;
+    for (field in options) {
+      if (!order.includes(field)) {
+        this[field] = options[field];
+      }
+    }
+  }
+  get basename() {
+    return typeof this.path === "string" ? default2.basename(this.path) : undefined;
+  }
+  set basename(basename) {
+    assertNonEmpty(basename, "basename");
+    assertPart(basename, "basename");
+    this.path = default2.join(this.dirname || "", basename);
+  }
+  get dirname() {
+    return typeof this.path === "string" ? default2.dirname(this.path) : undefined;
+  }
+  set dirname(dirname) {
+    assertPath(this.basename, "dirname");
+    this.path = default2.join(dirname || "", this.basename);
+  }
+  get extname() {
+    return typeof this.path === "string" ? default2.extname(this.path) : undefined;
+  }
+  set extname(extname) {
+    assertPart(extname, "extname");
+    assertPath(this.dirname, "extname");
+    if (extname) {
+      if (extname.codePointAt(0) !== 46) {
+        throw new Error("`extname` must start with `.`");
+      }
+      if (extname.includes(".", 1)) {
+        throw new Error("`extname` cannot contain multiple dots");
+      }
+    }
+    this.path = default2.join(this.dirname, this.stem + (extname || ""));
+  }
+  get path() {
+    return this.history[this.history.length - 1];
+  }
+  set path(path2) {
+    if (isUrl(path2)) {
+      path2 = fileURLToPath(path2);
+    }
+    assertNonEmpty(path2, "path");
+    if (this.path !== path2) {
+      this.history.push(path2);
+    }
+  }
+  get stem() {
+    return typeof this.path === "string" ? default2.basename(this.path, this.extname) : undefined;
+  }
+  set stem(stem) {
+    assertNonEmpty(stem, "stem");
+    assertPart(stem, "stem");
+    this.path = default2.join(this.dirname || "", stem + (this.extname || ""));
+  }
+  fail(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = true;
+    throw message;
+  }
+  info(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = undefined;
+    return message;
+  }
+  message(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = new VFileMessage(causeOrReason, optionsOrParentOrPlace, origin);
+    if (this.path) {
+      message.name = this.path + ":" + message.name;
+      message.file = this.path;
+    }
+    message.fatal = false;
+    this.messages.push(message);
+    return message;
+  }
+  toString(encoding) {
+    if (this.value === undefined) {
+      return "";
+    }
+    if (typeof this.value === "string") {
+      return this.value;
+    }
+    const decoder = new TextDecoder(encoding || undefined);
+    return decoder.decode(this.value);
+  }
+}
+function assertPart(part, name) {
+  if (part && part.includes(default2.sep)) {
+    throw new Error("`" + name + "` cannot be a path: did not expect `" + default2.sep + "`");
+  }
+}
+function assertNonEmpty(part, name) {
+  if (!part) {
+    throw new Error("`" + name + "` cannot be empty");
+  }
+}
+function assertPath(path2, name) {
+  if (!path2) {
+    throw new Error("Setting `" + name + "` requires `path` to be set too");
+  }
+}
+function isUint8Array(value) {
+  return Boolean(value && typeof value === "object" && "byteLength" in value && "byteOffset" in value);
+}
+var order;
+var init_lib18 = __esm(() => {
+  init_vfile_message();
+  init_minpath();
+  init_minproc();
+  init_minurl();
+  order = [
+    "history",
+    "path",
+    "basename",
+    "stem",
+    "extname",
+    "dirname"
+  ];
+});
+
+// node_modules/vfile/index.js
+var init_vfile = __esm(() => {
+  init_lib18();
+});
+
+// node_modules/unified/lib/callable-instance.js
+var CallableInstance = function(property) {
+  const self2 = this;
+  const constr = self2.constructor;
+  const proto = constr.prototype;
+  const value = proto[property];
+  const apply = function() {
+    return value.apply(apply, arguments);
+  };
+  Object.setPrototypeOf(apply, proto);
+  return apply;
+};
+
+// node_modules/unified/lib/index.js
+function assertParser(name, value) {
+  if (typeof value !== "function") {
+    throw new TypeError("Cannot `" + name + "` without `parser`");
+  }
+}
+function assertCompiler(name, value) {
+  if (typeof value !== "function") {
+    throw new TypeError("Cannot `" + name + "` without `compiler`");
+  }
+}
+function assertUnfrozen(name, frozen) {
+  if (frozen) {
+    throw new Error("Cannot call `" + name + "` on a frozen processor.\nCreate a new processor first, by calling it: use `processor()` instead of `processor`.");
+  }
+}
+function assertNode(node2) {
+  if (!isPlainObject(node2) || typeof node2.type !== "string") {
+    throw new TypeError("Expected node, got `" + node2 + "`");
+  }
+}
+function assertDone(name, asyncName, complete) {
+  if (!complete) {
+    throw new Error("`" + name + "` finished async. Use `" + asyncName + "` instead");
+  }
+}
+function vfile(value) {
+  return looksLikeAVFile(value) ? value : new VFile(value);
+}
+function looksLikeAVFile(value) {
+  return Boolean(value && typeof value === "object" && "message" in value && "messages" in value);
+}
+function looksLikeAValue(value) {
+  return typeof value === "string" || isUint8Array2(value);
+}
+function isUint8Array2(value) {
+  return Boolean(value && typeof value === "object" && "byteLength" in value && "byteOffset" in value);
+}
+var import_extend, own5, Processor, unified;
+var init_lib19 = __esm(() => {
+  init_development();
+  init_trough();
+  init_vfile();
+  import_extend = __toESM(require_extend(), 1);
+  own5 = {}.hasOwnProperty;
+  Processor = class Processor extends CallableInstance {
+    constructor() {
+      super("copy");
+      this.Compiler = undefined;
+      this.Parser = undefined;
+      this.attachers = [];
+      this.compiler = undefined;
+      this.freezeIndex = -1;
+      this.frozen = undefined;
+      this.namespace = {};
+      this.parser = undefined;
+      this.transformers = trough();
+    }
+    copy() {
+      const destination = new Processor;
+      let index2 = -1;
+      while (++index2 < this.attachers.length) {
+        const attacher = this.attachers[index2];
+        destination.use(...attacher);
+      }
+      destination.data(import_extend.default(true, {}, this.namespace));
+      return destination;
+    }
+    data(key, value) {
+      if (typeof key === "string") {
+        if (arguments.length === 2) {
+          assertUnfrozen("data", this.frozen);
+          this.namespace[key] = value;
+          return this;
+        }
+        return own5.call(this.namespace, key) && this.namespace[key] || undefined;
+      }
+      if (key) {
+        assertUnfrozen("data", this.frozen);
+        this.namespace = key;
+        return this;
+      }
+      return this.namespace;
+    }
+    freeze() {
+      if (this.frozen) {
+        return this;
+      }
+      const self2 = this;
+      while (++this.freezeIndex < this.attachers.length) {
+        const [attacher, ...options] = this.attachers[this.freezeIndex];
+        if (options[0] === false) {
+          continue;
+        }
+        if (options[0] === true) {
+          options[0] = undefined;
+        }
+        const transformer = attacher.call(self2, ...options);
+        if (typeof transformer === "function") {
+          this.transformers.use(transformer);
+        }
+      }
+      this.frozen = true;
+      this.freezeIndex = Number.POSITIVE_INFINITY;
+      return this;
+    }
+    parse(file) {
+      this.freeze();
+      const realFile = vfile(file);
+      const parser = this.parser || this.Parser;
+      assertParser("parse", parser);
+      return parser(String(realFile), realFile);
+    }
+    process(file, done) {
+      const self2 = this;
+      this.freeze();
+      assertParser("process", this.parser || this.Parser);
+      assertCompiler("process", this.compiler || this.Compiler);
+      return done ? executor(undefined, done) : new Promise(executor);
+      function executor(resolve, reject) {
+        const realFile = vfile(file);
+        const parseTree = self2.parse(realFile);
+        self2.run(parseTree, realFile, function(error, tree, file2) {
+          if (error || !tree || !file2) {
+            return realDone(error);
+          }
+          const compileTree = tree;
+          const compileResult = self2.stringify(compileTree, file2);
+          if (looksLikeAValue(compileResult)) {
+            file2.value = compileResult;
+          } else {
+            file2.result = compileResult;
+          }
+          realDone(error, file2);
+        });
+        function realDone(error, file2) {
+          if (error || !file2) {
+            reject(error);
+          } else if (resolve) {
+            resolve(file2);
+          } else {
+            ok(done, "`done` is defined if `resolve` is not");
+            done(undefined, file2);
+          }
+        }
+      }
+    }
+    processSync(file) {
+      let complete = false;
+      let result;
+      this.freeze();
+      assertParser("processSync", this.parser || this.Parser);
+      assertCompiler("processSync", this.compiler || this.Compiler);
+      this.process(file, realDone);
+      assertDone("processSync", "process", complete);
+      ok(result, "we either bailed on an error or have a tree");
+      return result;
+      function realDone(error, file2) {
+        complete = true;
+        bail(error);
+        result = file2;
+      }
+    }
+    run(tree, file, done) {
+      assertNode(tree);
+      this.freeze();
+      const transformers = this.transformers;
+      if (!done && typeof file === "function") {
+        done = file;
+        file = undefined;
+      }
+      return done ? executor(undefined, done) : new Promise(executor);
+      function executor(resolve, reject) {
+        ok(typeof file !== "function", "`file` can’t be a `done` anymore, we checked");
+        const realFile = vfile(file);
+        transformers.run(tree, realFile, realDone);
+        function realDone(error, outputTree, file2) {
+          const resultingTree = outputTree || tree;
+          if (error) {
+            reject(error);
+          } else if (resolve) {
+            resolve(resultingTree);
+          } else {
+            ok(done, "`done` is defined if `resolve` is not");
+            done(undefined, resultingTree, file2);
+          }
+        }
+      }
+    }
+    runSync(tree, file) {
+      let complete = false;
+      let result;
+      this.run(tree, file, realDone);
+      assertDone("runSync", "run", complete);
+      ok(result, "we either bailed on an error or have a tree");
+      return result;
+      function realDone(error, tree2) {
+        bail(error);
+        result = tree2;
+        complete = true;
+      }
+    }
+    stringify(tree, file) {
+      this.freeze();
+      const realFile = vfile(file);
+      const compiler2 = this.compiler || this.Compiler;
+      assertCompiler("stringify", compiler2);
+      assertNode(tree);
+      return compiler2(tree, realFile);
+    }
+    use(value, ...parameters) {
+      const attachers = this.attachers;
+      const namespace = this.namespace;
+      assertUnfrozen("use", this.frozen);
+      if (value === null || value === undefined) {} else if (typeof value === "function") {
+        addPlugin(value, parameters);
+      } else if (typeof value === "object") {
+        if (Array.isArray(value)) {
+          addList(value);
+        } else {
+          addPreset(value);
+        }
+      } else {
+        throw new TypeError("Expected usable value, not `" + value + "`");
+      }
+      return this;
+      function add(value2) {
+        if (typeof value2 === "function") {
+          addPlugin(value2, []);
+        } else if (typeof value2 === "object") {
+          if (Array.isArray(value2)) {
+            const [plugin, ...parameters2] = value2;
+            addPlugin(plugin, parameters2);
+          } else {
+            addPreset(value2);
+          }
+        } else {
+          throw new TypeError("Expected usable value, not `" + value2 + "`");
+        }
+      }
+      function addPreset(result) {
+        if (!("plugins" in result) && !("settings" in result)) {
+          throw new Error("Expected usable value but received an empty preset, which is probably a mistake: presets typically come with `plugins` and sometimes with `settings`, but this has neither");
+        }
+        addList(result.plugins);
+        if (result.settings) {
+          namespace.settings = import_extend.default(true, namespace.settings, result.settings);
+        }
+      }
+      function addList(plugins) {
+        let index2 = -1;
+        if (plugins === null || plugins === undefined) {} else if (Array.isArray(plugins)) {
+          while (++index2 < plugins.length) {
+            const thing = plugins[index2];
+            add(thing);
+          }
+        } else {
+          throw new TypeError("Expected a list of plugins, not `" + plugins + "`");
+        }
+      }
+      function addPlugin(plugin, parameters2) {
+        let index2 = -1;
+        let entryIndex = -1;
+        while (++index2 < attachers.length) {
+          if (attachers[index2][0] === plugin) {
+            entryIndex = index2;
+            break;
+          }
+        }
+        if (entryIndex === -1) {
+          attachers.push([plugin, ...parameters2]);
+        } else if (parameters2.length > 0) {
+          let [primary, ...rest] = parameters2;
+          const currentPrimary = attachers[entryIndex][1];
+          if (isPlainObject(currentPrimary) && isPlainObject(primary)) {
+            primary = import_extend.default(true, currentPrimary, primary);
+          }
+          attachers[entryIndex] = [plugin, primary, ...rest];
+        }
+      }
+    }
+  };
+  unified = new Processor().freeze();
+});
+
+// node_modules/unified/index.js
+var init_unified = __esm(() => {
+  init_lib19();
+});
+
+// node_modules/chat/dist/chunk-V25FKIIL.js
+function isListNode(node2) {
+  return node2.type === "list";
+}
+function isTableNode(node2) {
+  return node2.type === "table";
+}
+function tableToAscii(node2) {
+  const rows = [];
+  for (const row of node2.children) {
+    const cells = [];
+    for (const cell of row.children) {
+      cells.push(toString(cell));
+    }
+    rows.push(cells);
+  }
+  if (rows.length === 0) {
+    return "";
+  }
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+  return tableElementToAscii(headers, dataRows);
+}
+function tableElementToAscii(headers, rows) {
+  const allRows = [headers, ...rows];
+  const colCount = Math.max(...allRows.map((r) => r.length));
+  if (colCount === 0) {
+    return "";
+  }
+  const colWidths = Array.from({ length: colCount }, () => 0);
+  for (const row of allRows) {
+    for (let i = 0;i < colCount; i++) {
+      const cellLen = (row[i] || "").length;
+      if (cellLen > colWidths[i]) {
+        colWidths[i] = cellLen;
+      }
+    }
+  }
+  const formatRow = (cells) => Array.from({ length: colCount }, (_, i) => (cells[i] || "").padEnd(colWidths[i])).join(" | ").trimEnd();
+  const lines = [];
+  lines.push(formatRow(headers));
+  lines.push(colWidths.map((w) => "-".repeat(w)).join("-|-"));
+  for (const row of rows) {
+    lines.push(formatRow(row));
+  }
+  return lines.join(`
+`);
+}
+function getNodeChildren(node2) {
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    return node2.children;
+  }
+  return [];
+}
+function getNodeValue(node2) {
+  if ("value" in node2 && typeof node2.value === "string") {
+    return node2.value;
+  }
+  return "";
+}
+function parseMarkdown(markdown) {
+  const processor = unified().use(remarkParse).use(remarkGfm);
+  return processor.parse(markdown);
+}
+function stringifyMarkdown(ast, options) {
+  const processor = unified().use(remarkStringify, options).use(remarkGfm);
+  return processor.stringify(ast);
+}
+function toPlainText(ast) {
+  return toString(ast);
+}
+function markdownToPlainText(markdown) {
+  const ast = parseMarkdown(markdown);
+  return toString(ast);
+}
+function walkAst(node2, visitor) {
+  if ("children" in node2 && Array.isArray(node2.children)) {
+    node2.children = node2.children.map((child) => {
+      const result = visitor(child);
+      if (result === null) {
+        return null;
+      }
+      return walkAst(result, visitor);
+    }).filter((n) => n !== null);
+  }
+  return node2;
+}
+function text7(value) {
+  return { type: "text", value };
+}
+function paragraph2(children) {
+  return { type: "paragraph", children };
+}
+function root2(children) {
+  return { type: "root", children };
+}
+function isCardElement(value) {
+  return typeof value === "object" && value !== null && "type" in value && value.type === "card";
+}
+function Card(options = {}) {
+  return {
+    type: "card",
+    title: options.title,
+    subtitle: options.subtitle,
+    imageUrl: options.imageUrl,
+    children: options.children ?? []
+  };
+}
+function Text(content3, options = {}) {
+  return {
+    type: "text",
+    content: content3,
+    style: options.style
+  };
+}
+function Image(options) {
+  return {
+    type: "image",
+    url: options.url,
+    alt: options.alt
+  };
+}
+function Divider() {
+  return { type: "divider" };
+}
+function Section(children) {
+  return {
+    type: "section",
+    children
+  };
+}
+function Actions(children) {
+  return {
+    type: "actions",
+    children
+  };
+}
+function Button(options) {
+  return {
+    type: "button",
+    id: options.id,
+    label: options.label,
+    style: options.style,
+    value: options.value,
+    disabled: options.disabled,
+    actionType: options.actionType,
+    callbackUrl: options.callbackUrl
+  };
+}
+function LinkButton(options) {
+  return {
+    type: "link-button",
+    url: options.url,
+    label: options.label,
+    style: options.style
+  };
+}
+function Field(options) {
+  return {
+    type: "field",
+    label: options.label,
+    value: options.value
+  };
+}
+function Fields(children) {
+  return {
+    type: "fields",
+    children
+  };
+}
+function Table2(options) {
+  return {
+    type: "table",
+    headers: options.headers,
+    rows: options.rows,
+    align: options.align
+  };
+}
+function CardLink(options) {
+  return {
+    type: "link",
+    url: options.url,
+    label: options.label
+  };
+}
+function cardToFallbackText(card) {
+  const parts = [];
+  if (card.title) {
+    parts.push(`**${card.title}**`);
+  }
+  if (card.subtitle) {
+    parts.push(card.subtitle);
+  }
+  for (const child of card.children) {
+    const text22 = cardChildToFallbackText(child);
+    if (text22) {
+      parts.push(text22);
+    }
+  }
+  return parts.join(`
+`);
+}
+function cardChildToFallbackText(child) {
+  switch (child.type) {
+    case "text":
+      return child.content;
+    case "link":
+      return `${child.label} (${child.url})`;
+    case "fields":
+      return child.children.map((f) => `${f.label}: ${f.value}`).join(`
+`);
+    case "actions":
+      return null;
+    case "table":
+      return tableElementToAscii(child.headers, child.rows);
+    case "section":
+      return child.children.map((c) => cardChildToFallbackText(c)).filter(Boolean).join(`
+`);
+    default:
+      return null;
+  }
+}
+function isModalElement(value) {
+  return typeof value === "object" && value !== null && "type" in value && value.type === "modal";
+}
+function filterModalChildren(children) {
+  const validChildren = children.filter((c) => typeof c === "object" && c !== null && ("type" in c) && VALID_MODAL_CHILD_TYPES.includes(c.type));
+  if (validChildren.length < children.length) {
+    console.warn("[chat] Modal contains unsupported child elements that were ignored");
+  }
+  return validChildren;
+}
+function Modal(options) {
+  return {
+    type: "modal",
+    callbackId: options.callbackId,
+    callbackUrl: options.callbackUrl,
+    title: options.title,
+    submitLabel: options.submitLabel,
+    closeLabel: options.closeLabel,
+    notifyOnClose: options.notifyOnClose,
+    privateMetadata: options.privateMetadata,
+    children: options.children ?? []
+  };
+}
+function TextInput(options) {
+  return {
+    type: "text_input",
+    id: options.id,
+    label: options.label,
+    placeholder: options.placeholder,
+    initialValue: options.initialValue,
+    multiline: options.multiline,
+    optional: options.optional,
+    maxLength: options.maxLength
+  };
+}
+function Select(options) {
+  if (!options.options || options.options.length === 0) {
+    throw new Error("Select requires at least one option");
+  }
+  return {
+    type: "select",
+    id: options.id,
+    label: options.label,
+    placeholder: options.placeholder,
+    options: options.options,
+    initialOption: options.initialOption,
+    optional: options.optional
+  };
+}
+function ExternalSelect(options) {
+  return {
+    type: "external_select",
+    id: options.id,
+    initialOption: options.initialOption,
+    label: options.label,
+    placeholder: options.placeholder,
+    minQueryLength: options.minQueryLength,
+    optional: options.optional
+  };
+}
+function SelectOption(options) {
+  return {
+    label: options.label,
+    value: options.value,
+    description: options.description
+  };
+}
+function RadioSelect(options) {
+  if (!options.options || options.options.length === 0) {
+    throw new Error("RadioSelect requires at least one option");
+  }
+  return {
+    type: "radio_select",
+    id: options.id,
+    label: options.label,
+    options: options.options,
+    initialOption: options.initialOption,
+    optional: options.optional
+  };
+}
+function isJSXElement(value) {
+  return typeof value === "object" && value !== null && value.$$typeof === JSX_ELEMENT;
+}
+function processChildren(children) {
+  if (children == null) {
+    return [];
+  }
+  if (Array.isArray(children)) {
+    return children.flatMap(processChildren);
+  }
+  if (isJSXElement(children)) {
+    const resolved = resolveJSXElement(children);
+    if (resolved) {
+      return [resolved];
+    }
+    return [];
+  }
+  if (typeof children === "object" && "type" in children) {
+    return [children];
+  }
+  if (typeof children === "string" || typeof children === "number") {
+    return [String(children)];
+  }
+  return [];
+}
+function isTextProps(props) {
+  return !(("id" in props) || ("url" in props) || ("label" in props));
+}
+function isButtonProps(props) {
+  return "id" in props && typeof props.id === "string" && !("url" in props);
+}
+function isLinkButtonProps(props) {
+  return "url" in props && typeof props.url === "string" && !("id" in props);
+}
+function isCardLinkProps(props) {
+  return "url" in props && typeof props.url === "string" && !("id" in props) && !("alt" in props) && !("style" in props);
+}
+function isImageProps(props) {
+  return "url" in props && typeof props.url === "string";
+}
+function isFieldProps(props) {
+  return "label" in props && "value" in props && typeof props.label === "string" && typeof props.value === "string";
+}
+function isCardProps(props) {
+  return !(("id" in props) || ("url" in props) || ("callbackId" in props)) && (("title" in props) || ("subtitle" in props) || ("imageUrl" in props));
+}
+function isModalProps(props) {
+  return "callbackId" in props && "title" in props;
+}
+function isTextInputProps(props) {
+  return "id" in props && "label" in props && !("options" in props) && !("value" in props);
+}
+function isSelectProps(props) {
+  return "id" in props && "label" in props && !("value" in props);
+}
+function isExternalSelectProps(props) {
+  return "id" in props && "label" in props && !("value" in props) && !("children" in props);
+}
+function isSelectOptionProps(props) {
+  return "label" in props && "value" in props && !("id" in props);
+}
+function resolveJSXElement(element) {
+  const { type, props, children } = element;
+  const processedChildren = processChildren(children);
+  if (type === Text) {
+    const textProps = isTextProps(props) ? props : { style: undefined };
+    const content3 = processedChildren.length > 0 ? processedChildren.map(String).join("") : String(textProps.children ?? "");
+    return Text(content3, { style: textProps.style });
+  }
+  if (type === Section) {
+    return Section(processedChildren);
+  }
+  if (type === Actions) {
+    return Actions(processedChildren);
+  }
+  if (type === Fields) {
+    return Fields(processedChildren);
+  }
+  if (type === Button) {
+    if (!isButtonProps(props)) {
+      throw new Error("Button requires an 'id' prop");
+    }
+    const label = processedChildren.length > 0 ? processedChildren.map(String).join("") : props.label ?? "";
+    return Button({
+      id: props.id,
+      label,
+      style: props.style,
+      value: props.value,
+      actionType: props.actionType,
+      callbackUrl: props.callbackUrl,
+      disabled: props.disabled
+    });
+  }
+  if (type === LinkButton) {
+    if (!isLinkButtonProps(props)) {
+      throw new Error("LinkButton requires a 'url' prop");
+    }
+    const label = processedChildren.length > 0 ? processedChildren.map(String).join("") : props.label ?? "";
+    return LinkButton({
+      url: props.url,
+      label,
+      style: props.style
+    });
+  }
+  if (type === CardLink) {
+    if (!isCardLinkProps(props)) {
+      throw new Error("CardLink requires a 'url' prop");
+    }
+    const label = processedChildren.length > 0 ? processedChildren.map(String).join("") : props.label ?? "";
+    return CardLink({
+      url: props.url,
+      label
+    });
+  }
+  if (type === Image) {
+    if (!isImageProps(props)) {
+      throw new Error("Image requires a 'url' prop");
+    }
+    return Image({ url: props.url, alt: props.alt });
+  }
+  if (type === Field) {
+    if (!isFieldProps(props)) {
+      throw new Error("Field requires 'label' and 'value' props");
+    }
+    return Field({
+      label: props.label,
+      value: props.value
+    });
+  }
+  if (type === Divider) {
+    return Divider();
+  }
+  if (type === Modal) {
+    if (!isModalProps(props)) {
+      throw new Error("Modal requires 'callbackId' and 'title' props");
+    }
+    return Modal({
+      callbackId: props.callbackId,
+      callbackUrl: props.callbackUrl,
+      title: props.title,
+      submitLabel: props.submitLabel,
+      closeLabel: props.closeLabel,
+      notifyOnClose: props.notifyOnClose,
+      privateMetadata: props.privateMetadata,
+      children: filterModalChildren(processedChildren)
+    });
+  }
+  if (type === TextInput) {
+    if (!isTextInputProps(props)) {
+      throw new Error("TextInput requires 'id' and 'label' props");
+    }
+    return TextInput({
+      id: props.id,
+      label: props.label,
+      placeholder: props.placeholder,
+      initialValue: props.initialValue,
+      multiline: props.multiline,
+      optional: props.optional,
+      maxLength: props.maxLength
+    });
+  }
+  if (type === Select) {
+    if (!isSelectProps(props)) {
+      throw new Error("Select requires 'id' and 'label' props");
+    }
+    return Select({
+      id: props.id,
+      label: props.label,
+      placeholder: props.placeholder,
+      initialOption: props.initialOption,
+      optional: props.optional,
+      options: processedChildren
+    });
+  }
+  if (type === ExternalSelect) {
+    if (!isExternalSelectProps(props)) {
+      throw new Error("ExternalSelect requires 'id' and 'label' props");
+    }
+    return ExternalSelect({
+      id: props.id,
+      initialOption: props.initialOption,
+      label: props.label,
+      placeholder: props.placeholder,
+      minQueryLength: props.minQueryLength,
+      optional: props.optional
+    });
+  }
+  if (type === RadioSelect) {
+    if (!isSelectProps(props)) {
+      throw new Error("RadioSelect requires 'id' and 'label' props");
+    }
+    return RadioSelect({
+      id: props.id,
+      label: props.label,
+      initialOption: props.initialOption,
+      optional: props.optional,
+      options: processedChildren
+    });
+  }
+  if (type === SelectOption) {
+    if (!isSelectOptionProps(props)) {
+      throw new Error("SelectOption requires 'label' and 'value' props");
+    }
+    return SelectOption({
+      label: props.label,
+      value: props.value,
+      description: props.description
+    });
+  }
+  if (type === Table2) {
+    const tableProps = props;
+    return Table2({
+      headers: tableProps.headers,
+      rows: tableProps.rows
+    });
+  }
+  const cardProps = isCardProps(props) ? props : {};
+  return Card({
+    title: cardProps.title,
+    subtitle: cardProps.subtitle,
+    imageUrl: cardProps.imageUrl,
+    children: processedChildren
+  });
+}
+function toCardElement(jsxElement) {
+  if (isJSXElement(jsxElement)) {
+    const resolved = resolveJSXElement(jsxElement);
+    if (resolved && typeof resolved === "object" && "type" in resolved && resolved.type === "card") {
+      return resolved;
+    }
+  }
+  if (typeof jsxElement === "object" && jsxElement !== null && "type" in jsxElement && jsxElement.type === "card") {
+    return jsxElement;
+  }
+  return null;
+}
+function toModalElement(jsxElement) {
+  if (isJSXElement(jsxElement)) {
+    const resolved = resolveJSXElement(jsxElement);
+    if (resolved && typeof resolved === "object" && "type" in resolved && resolved.type === "modal") {
+      return resolved;
+    }
+  }
+  if (isModalElement(jsxElement)) {
+    return jsxElement;
+  }
+  return null;
+}
+function isJSX(value) {
+  if (isJSXElement(value)) {
+    return true;
+  }
+  if (typeof value === "object" && value !== null && "$$typeof" in value && typeof value.$$typeof === "symbol") {
+    const symbolStr = value.$$typeof.toString();
+    return symbolStr.includes("react.element") || symbolStr.includes("react.transitional.element");
+  }
+  return false;
+}
+var BaseFormatConverter = class {
+  renderList(node2, depth, nodeConverter, unorderedBullet = "-") {
+    const indent2 = "  ".repeat(depth);
+    const start = node2.start ?? 1;
+    const lines = [];
+    for (const [i, item] of getNodeChildren(node2).entries()) {
+      const prefix = node2.ordered ? `${start + i}.` : unorderedBullet;
+      let isFirstContent = true;
+      for (const child of getNodeChildren(item)) {
+        if (isListNode(child)) {
+          lines.push(this.renderList(child, depth + 1, nodeConverter, unorderedBullet));
+          continue;
+        }
+        const text22 = nodeConverter(child);
+        if (!text22.trim()) {
+          continue;
+        }
+        if (isFirstContent) {
+          lines.push(`${indent2}${prefix} ${text22}`);
+          isFirstContent = false;
+        } else {
+          lines.push(`${indent2}  ${text22}`);
+        }
+      }
+    }
+    return lines.join(`
+`);
+  }
+  defaultNodeToText(node2, nodeConverter) {
+    const children = getNodeChildren(node2);
+    if (children.length > 0) {
+      return children.map(nodeConverter).join("");
+    }
+    return getNodeValue(node2);
+  }
+  fromAstWithNodeConverter(ast, nodeConverter) {
+    const parts = [];
+    for (const node2 of ast.children) {
+      parts.push(nodeConverter(node2));
+    }
+    return parts.join(`
+
+`);
+  }
+  extractPlainText(platformText) {
+    return toPlainText(this.toAst(platformText));
+  }
+  fromMarkdown(markdown) {
+    return this.fromAst(parseMarkdown(markdown));
+  }
+  toMarkdown(platformText) {
+    return stringifyMarkdown(this.toAst(platformText));
+  }
+  toPlainText(platformText) {
+    return this.extractPlainText(platformText);
+  }
+  renderPostable(message) {
+    if (typeof message === "string") {
+      return message;
+    }
+    if ("raw" in message) {
+      return message.raw;
+    }
+    if ("markdown" in message) {
+      return this.fromMarkdown(message.markdown);
+    }
+    if ("ast" in message) {
+      return this.fromAst(message.ast);
+    }
+    if ("card" in message) {
+      return message.fallbackText || this.cardToFallbackText(message.card);
+    }
+    if ("type" in message && message.type === "card") {
+      return this.cardToFallbackText(message);
+    }
+    throw new Error("Invalid PostableMessage format");
+  }
+  cardToFallbackText(card) {
+    const parts = [];
+    if (card.title) {
+      parts.push(`**${card.title}**`);
+    }
+    if (card.subtitle) {
+      parts.push(card.subtitle);
+    }
+    for (const child of card.children) {
+      const text22 = this.cardChildToFallbackText(child);
+      if (text22) {
+        parts.push(text22);
+      }
+    }
+    return parts.join(`
+`);
+  }
+  cardChildToFallbackText(child) {
+    switch (child.type) {
+      case "text":
+        return child.content;
+      case "fields":
+        return child.children.map((f) => `**${f.label}**: ${f.value}`).join(`
+`);
+      case "actions":
+        return null;
+      case "table":
+        return tableElementToAscii(child.headers, child.rows);
+      case "section":
+        return child.children.map((c) => this.cardChildToFallbackText(c)).filter(Boolean).join(`
+`);
+      default:
+        return null;
+    }
+  }
+}, VALID_MODAL_CHILD_TYPES, JSX_ELEMENT;
+var init_chunk_V25FKIIL = __esm(() => {
+  init_mdast_util_to_string();
+  init_remark_gfm();
+  init_remark_parse();
+  init_remark_stringify();
+  init_unified();
+  VALID_MODAL_CHILD_TYPES = [
+    "text_input",
+    "select",
+    "external_select",
+    "radio_select",
+    "text",
+    "fields"
+  ];
+  JSX_ELEMENT = /* @__PURE__ */ Symbol.for("chat.jsx.element");
+});
+
+// node_modules/chat/dist/chunk-HD375J7S.js
+var init_chunk_HD375J7S = () => {};
+
+// node_modules/@workflow/serde/dist/index.js
+var WORKFLOW_SERIALIZE, WORKFLOW_DESERIALIZE;
+var init_dist2 = __esm(() => {
+  WORKFLOW_SERIALIZE = Symbol.for("workflow-serialize");
+  WORKFLOW_DESERIALIZE = Symbol.for("workflow-deserialize");
+});
+
+// node_modules/remend/dist/index.js
+var cn, un, fn, $, dn, gn, O = (n, r, e) => (r in n) ? cn(n, r, { enumerable: true, configurable: true, writable: true, value: e }) : n[r] = e, I = (n, r) => {
+  for (var e in r || (r = {}))
+    dn.call(r, e) && O(n, e, r[e]);
+  if ($)
+    for (var e of $(r))
+      gn.call(r, e) && O(n, e, r[e]);
+  return n;
+}, k = (n, r) => un(n, fn(r)), c = (n, r) => {
+  let e = false, i = false;
+  for (let s = 0;s < r; s += 1) {
+    if (n[s] === "\\" && s + 1 < n.length && n[s + 1] === "`") {
+      s += 1;
+      continue;
+    }
+    if (n.substring(s, s + 3) === "```") {
+      i = !i, s += 2;
+      continue;
+    }
+    !i && n[s] === "`" && (e = !e);
+  }
+  return e || i;
+}, hn = (n, r) => {
+  let e = n.substring(r, r + 3) === "```", i = r > 0 && n.substring(r - 1, r + 2) === "```", s = r > 1 && n.substring(r - 2, r + 1) === "```";
+  return e || i || s;
+}, L = (n) => {
+  let r = 0;
+  for (let e = 0;e < n.length; e += 1) {
+    if (n[e] === "\\" && e + 1 < n.length && n[e + 1] === "`") {
+      e += 1;
+      continue;
+    }
+    n[e] === "`" && !hn(n, e) && (r += 1);
+  }
+  return r;
+}, f = (n, r) => {
+  let e = false, i = false, s = -1;
+  for (let o = 0;o < n.length; o += 1) {
+    if (n[o] === "\\" && o + 1 < n.length && n[o + 1] === "`") {
+      o += 1;
+      continue;
+    }
+    if (n.substring(o, o + 3) === "```") {
+      i = !i, o += 2;
+      continue;
+    }
+    if (!i && n[o] === "`")
+      if (e) {
+        if (s < r && r < o)
+          return true;
+        e = false, s = -1;
+      } else
+        e = true, s = o;
+  }
+  return false;
+}, mn, E = (n) => !n || typeof n != "string" || !n.includes(">") ? n : n.replace(mn, (r, e, i, s) => c(n, s) ? r : `${e}\\>${i}`), M, N, y, R, U, W, K, d, b2, H, D, w, G, F, T, g = (n) => {
+  if (!n)
+    return false;
+  let r = n.charCodeAt(0);
+  return r >= 48 && r <= 57 || r >= 65 && r <= 90 || r >= 97 && r <= 122 || r === 95 ? true : H.test(n);
+}, X = (n, r) => {
+  let e = 1;
+  for (let i = r - 1;i >= 0; i -= 1)
+    if (n[i] === "]")
+      e += 1;
+    else if (n[i] === "[" && (e -= 1, e === 0))
+      return i;
+  return -1;
+}, C = (n, r) => {
+  let e = 1;
+  for (let i = r + 1;i < n.length; i += 1)
+    if (n[i] === "[")
+      e += 1;
+    else if (n[i] === "]" && (e -= 1, e === 0))
+      return i;
+  return -1;
+}, h = (n, r) => {
+  let e = false, i = false;
+  for (let s = 0;s < n.length && s < r; s += 1) {
+    if (n[s] === "\\" && n[s + 1] === "$") {
+      s += 1;
+      continue;
+    }
+    n[s] === "$" && (n[s + 1] === "$" ? (i = !i, s += 1, e = false) : i || (e = !e));
+  }
+  return e || i;
+}, In = (n, r) => {
+  for (let e = r;e < n.length; e += 1) {
+    if (n[e] === ")")
+      return true;
+    if (n[e] === `
+`)
+      return false;
+  }
+  return false;
+}, m = (n, r) => {
+  for (let e = r - 1;e >= 0; e -= 1) {
+    if (n[e] === ")")
+      return false;
+    if (n[e] === "(")
+      return e > 0 && n[e - 1] === "]" ? In(n, r) : false;
+    if (n[e] === `
+`)
+      return false;
+  }
+  return false;
+}, z = (n, r) => {
+  for (let e = r - 1;e >= 0; e -= 1) {
+    if (n[e] === ">")
+      return false;
+    if (n[e] === "<") {
+      let i = e + 1 < n.length ? n[e + 1] : "";
+      return i >= "a" && i <= "z" || i >= "A" && i <= "Z" || i === "/";
+    }
+    if (n[e] === `
+`)
+      return false;
+  }
+  return false;
+}, p = (n, r, e) => {
+  let i = 0;
+  for (let l = r - 1;l >= 0; l -= 1)
+    if (n[l] === `
+`) {
+      i = l + 1;
+      break;
+    }
+  let s = n.length;
+  for (let l = r;l < n.length; l += 1)
+    if (n[l] === `
+`) {
+      s = l;
+      break;
+    }
+  let o = n.substring(i, s), t = 0, a = false;
+  for (let l of o)
+    if (l === e)
+      t += 1;
+    else if (l !== " " && l !== "\t") {
+      a = true;
+      break;
+    }
+  return t >= 3 && !a;
+}, kn = (n, r, e, i) => e === "\\" || n.includes("$") && h(n, r) ? true : e !== "*" && i === "*" ? (r < n.length - 2 ? n[r + 2] : "") !== "*" : !!(e === "*" || e && i && g(e) && g(i) || (!e || e === " " || e === "\t" || e === `
+`) && (!i || i === " " || i === "\t" || i === `
+`)), Y = (n) => {
+  let r = 0, e = false, i = n.length;
+  for (let s = 0;s < i; s += 1) {
+    if (n[s] === "`" && s + 2 < i && n[s + 1] === "`" && n[s + 2] === "`") {
+      e = !e, s += 2;
+      continue;
+    }
+    if (e || n[s] !== "*")
+      continue;
+    let o = s > 0 ? n[s - 1] : "", t = s < i - 1 ? n[s + 1] : "";
+    kn(n, s, o, t) || (r += 1);
+  }
+  return r;
+}, bn = (n, r, e, i) => !!(e === "\\" || n.includes("$") && h(n, r) || m(n, r) || z(n, r) || e === "_" || i === "_" || e && i && g(e) && g(i)), Tn = (n) => {
+  let r = 0, e = false, i = n.length;
+  for (let s = 0;s < i; s += 1) {
+    if (n[s] === "`" && s + 2 < i && n[s + 1] === "`" && n[s + 2] === "`") {
+      e = !e, s += 2;
+      continue;
+    }
+    if (e || n[s] !== "_")
+      continue;
+    let o = s > 0 ? n[s - 1] : "", t = s < i - 1 ? n[s + 1] : "";
+    bn(n, s, o, t) || (r += 1);
+  }
+  return r;
+}, Cn = (n) => {
+  let r = 0, e = 0, i = false;
+  for (let s = 0;s < n.length; s += 1) {
+    if (n[s] === "`" && s + 2 < n.length && n[s + 1] === "`" && n[s + 2] === "`") {
+      e >= 3 && (r += Math.floor(e / 3)), e = 0, i = !i, s += 2;
+      continue;
+    }
+    i || (n[s] === "*" ? e += 1 : (e >= 3 && (r += Math.floor(e / 3)), e = 0));
+  }
+  return e >= 3 && (r += Math.floor(e / 3)), r;
+}, A = (n) => {
+  let r = 0, e = false;
+  for (let i = 0;i < n.length; i += 1) {
+    if (n[i] === "`" && i + 2 < n.length && n[i + 1] === "`" && n[i + 2] === "`") {
+      e = !e, i += 2;
+      continue;
+    }
+    e || n[i] === "*" && i + 1 < n.length && n[i + 1] === "*" && (r += 1, i += 1);
+  }
+  return r;
+}, v = (n) => {
+  let r = 0, e = false;
+  for (let i = 0;i < n.length; i += 1) {
+    if (n[i] === "`" && i + 2 < n.length && n[i + 1] === "`" && n[i + 2] === "`") {
+      e = !e, i += 2;
+      continue;
+    }
+    e || n[i] === "_" && i + 1 < n.length && n[i + 1] === "_" && (r += 1, i += 1);
+  }
+  return r;
+}, An = (n, r, e) => {
+  if (!r || d.test(r))
+    return true;
+  let s = n.substring(0, e).lastIndexOf(`
+`), o = s === -1 ? 0 : s + 1, t = n.substring(o, e);
+  return b2.test(t) && r.includes(`
+`) ? true : p(n, e, "*");
+}, j = (n) => {
+  let r = n.match(M);
+  if (!r)
+    return n;
+  let e = r[2], i = n.lastIndexOf(r[1]);
+  return c(n, i) || f(n, i) || An(n, e, i) ? n : A(n) % 2 === 1 ? e.endsWith("*") ? `${n}*` : `${n}**` : n;
+}, Bn = (n, r, e) => {
+  if (!r || d.test(r))
+    return true;
+  let s = n.substring(0, e).lastIndexOf(`
+`), o = s === -1 ? 0 : s + 1, t = n.substring(o, e);
+  return b2.test(t) && r.includes(`
+`) ? true : p(n, e, "_");
+}, Q = (n) => {
+  let r = n.match(N);
+  if (!r) {
+    let o = n.match(G);
+    if (o) {
+      let t = n.lastIndexOf(o[1]);
+      if (!(c(n, t) || f(n, t)) && v(n) % 2 === 1)
+        return `${n}_`;
+    }
+    return n;
+  }
+  let e = r[2], i = n.lastIndexOf(r[1]);
+  return c(n, i) || f(n, i) || Bn(n, e, i) ? n : v(n) % 2 === 1 ? `${n}__` : n;
+}, Sn = (n) => {
+  let r = false;
+  for (let e = 0;e < n.length; e += 1) {
+    if (n[e] === "`" && e + 2 < n.length && n[e + 1] === "`" && n[e + 2] === "`") {
+      r = !r, e += 2;
+      continue;
+    }
+    if (!r && n[e] === "*" && n[e - 1] !== "*" && n[e + 1] !== "*" && n[e - 1] !== "\\" && !h(n, e)) {
+      let i = e > 0 ? n[e - 1] : "", s = e < n.length - 1 ? n[e + 1] : "";
+      if ((!i || i === " " || i === "\t" || i === `
+`) && (!s || s === " " || s === "\t" || s === `
+`) || i && s && g(i) && g(s))
+        continue;
+      return e;
+    }
+  }
+  return -1;
+}, Z = (n) => {
+  if (!n.match(R))
+    return n;
+  let e = Sn(n);
+  if (e === -1 || c(n, e) || f(n, e))
+    return n;
+  let i = n.substring(e + 1);
+  return !i || d.test(i) ? n : Y(n) % 2 === 1 ? `${n}*` : n;
+}, q = (n) => {
+  let r = false;
+  for (let e = 0;e < n.length; e += 1) {
+    if (n[e] === "`" && e + 2 < n.length && n[e + 1] === "`" && n[e + 2] === "`") {
+      r = !r, e += 2;
+      continue;
+    }
+    if (!r && n[e] === "_" && n[e - 1] !== "_" && n[e + 1] !== "_" && n[e - 1] !== "\\" && !h(n, e) && !m(n, e)) {
+      let i = e > 0 ? n[e - 1] : "", s = e < n.length - 1 ? n[e + 1] : "";
+      if (i && s && g(i) && g(s))
+        continue;
+      return e;
+    }
+  }
+  return -1;
+}, _n = (n) => {
+  let r = n.length;
+  for (;r > 0 && n[r - 1] === `
+`; )
+    r -= 1;
+  if (r < n.length) {
+    let e = n.slice(0, r), i = n.slice(r);
+    return `${e}_${i}`;
+  }
+  return `${n}_`;
+}, Pn = (n) => {
+  if (!n.endsWith("**"))
+    return null;
+  let r = n.slice(0, -2);
+  if (A(r) % 2 !== 1)
+    return null;
+  let i = r.indexOf("**"), s = q(r);
+  return i !== -1 && s !== -1 && i < s ? `${r}_**` : null;
+}, J = (n) => {
+  if (!n.match(U))
+    return n;
+  let e = q(n);
+  if (e === -1)
+    return n;
+  let i = n.substring(e + 1);
+  if (!i || d.test(i) || c(n, e) || f(n, e))
+    return n;
+  if (Tn(n) % 2 === 1) {
+    let o = Pn(n);
+    return o !== null ? o : _n(n);
+  }
+  return n;
+}, $n = (n) => {
+  let r = A(n), e = Y(n);
+  return r % 2 === 0 && e % 2 === 0;
+}, On = (n, r, e) => !r || d.test(r) || c(n, e) || f(n, e) ? true : p(n, e, "*"), V = (n) => {
+  if (w.test(n))
+    return n;
+  let r = n.match(y);
+  if (!r)
+    return n;
+  let e = r[2], i = n.lastIndexOf(r[1]);
+  return On(n, e, i) ? n : Cn(n) % 2 === 1 ? $n(n) ? n : `${n}***` : n;
+}, Ln, x = (n) => {
+  let r = n.match(Ln);
+  return !r || r.index === undefined || c(n, r.index) ? n : n.substring(0, r.index).trimEnd();
+}, En = (n) => !n.match(D) || n.includes(`
+`) ? null : n.endsWith("``") && !n.endsWith("```") ? `${n}\`` : n, Mn = (n) => (n.match(/```/g) || []).length % 2 === 1, nn = (n) => {
+  let r = En(n);
+  if (r !== null)
+    return r;
+  let e = n.match(W);
+  if (e && !Mn(n)) {
+    let i = e[2];
+    if (!i || d.test(i))
+      return n;
+    if (L(n) % 2 === 1)
+      return `${n}\``;
+  }
+  return n;
+}, en = (n, r) => r >= 2 && n.substring(r - 2, r + 1) === "```" || r >= 1 && n.substring(r - 1, r + 2) === "```" || r <= n.length - 3 && n.substring(r, r + 3) === "```", Nn = (n) => {
+  let r = 0, e = false;
+  for (let i = 0;i < n.length - 1; i += 1)
+    n[i] === "`" && !en(n, i) && (e = !e), !e && n[i] === "$" && n[i + 1] === "$" && (r += 1, i += 1);
+  return r;
+}, yn = (n) => {
+  let r = 0, e = false;
+  for (let i = 0;i < n.length; i += 1) {
+    if (n[i] === "\\") {
+      i += 1;
+      continue;
+    }
+    if (n[i] === "`" && !en(n, i)) {
+      e = !e;
+      continue;
+    }
+    !e && n[i] === "$" && (i + 1 < n.length && n[i + 1] === "$" ? i += 1 : r += 1);
+  }
+  return r;
+}, Rn = (n) => {
+  if (n.endsWith("$") && !n.endsWith("$$"))
+    return `${n}$`;
+  let r = n.indexOf("$$");
+  return r !== -1 && n.indexOf(`
+`, r) !== -1 && !n.endsWith(`
+`) ? `${n}
+$$` : `${n}$$`;
+}, rn = (n) => Nn(n) % 2 === 0 ? n : Rn(n), sn = (n) => yn(n) % 2 === 1 ? `${n}$` : n, Un = (n, r, e) => {
+  if (n.substring(r + 2).includes(")"))
+    return null;
+  let s = X(n, r);
+  if (s === -1 || c(n, s))
+    return null;
+  let o = s > 0 && n[s - 1] === "!", t = o ? s - 1 : s, a = n.substring(0, t);
+  if (o)
+    return a;
+  let l = n.substring(s + 1, r);
+  return e === "text-only" ? `${a}${l}` : `${a}[${l}](streamdown:incomplete-link)`;
+}, on = (n, r) => {
+  for (let e = 0;e < r; e++)
+    if (n[e] === "[" && !c(n, e)) {
+      if (e > 0 && n[e - 1] === "!")
+        continue;
+      let i = C(n, e);
+      if (i === -1)
+        return e;
+      if (i + 1 < n.length && n[i + 1] === "(") {
+        let s = n.indexOf(")", i + 2);
+        s !== -1 && (e = s);
+      }
+    }
+  return r;
+}, Wn = (n, r, e) => {
+  let i = r > 0 && n[r - 1] === "!", s = i ? r - 1 : r;
+  if (!n.substring(r + 1).includes("]")) {
+    let a = n.substring(0, s);
+    if (i)
+      return a;
+    if (e === "text-only") {
+      let l = on(n, r);
+      return n.substring(0, l) + n.substring(l + 1);
+    }
+    return `${n}](streamdown:incomplete-link)`;
+  }
+  if (C(n, r) === -1) {
+    let a = n.substring(0, s);
+    if (i)
+      return a;
+    if (e === "text-only") {
+      let l = on(n, r);
+      return n.substring(0, l) + n.substring(l + 1);
+    }
+    return `${n}](streamdown:incomplete-link)`;
+  }
+  return null;
+}, B = (n, r = "protocol") => {
+  let e = n.lastIndexOf("](");
+  if (e !== -1 && !c(n, e)) {
+    let i = Un(n, e, r);
+    if (i !== null)
+      return i;
+  }
+  for (let i = n.length - 1;i >= 0; i -= 1)
+    if (n[i] === "[" && !c(n, i)) {
+      let s = Wn(n, i, r);
+      if (s !== null)
+        return s;
+    }
+  return n;
+}, Kn, Hn, Dn, wn, ln = (n) => {
+  if (!n || typeof n != "string")
+    return n;
+  let r = n.lastIndexOf(`
+`);
+  if (r === -1)
+    return n;
+  let e = n.substring(r + 1), i = n.substring(0, r), s = e.trim();
+  if (Kn.test(s) && !e.match(Hn)) {
+    let t = i.split(`
+`).at(-1);
+    if (t && t.trim().length > 0)
+      return `${n}​`;
+  }
+  if (Dn.test(s) && !e.match(wn)) {
+    let t = i.split(`
+`).at(-1);
+    if (t && t.trim().length > 0)
+      return `${n}​`;
+  }
+  return n;
+}, Gn, tn = (n) => !n || typeof n != "string" || !n.includes("~") ? n : n.replace(Gn, (r, e) => c(n, e) ? r : "\\~"), an = (n) => {
+  var e, i;
+  let r = n.match(K);
+  if (r) {
+    let s = r[2];
+    if (!s || d.test(s))
+      return n;
+    let o = n.lastIndexOf(r[1]);
+    if (c(n, o) || f(n, o))
+      return n;
+    if (((e = n.match(T)) == null ? undefined : e.length) % 2 === 1)
+      return `${n}~~`;
+  } else {
+    let s = n.match(F);
+    if (s) {
+      let o = n.lastIndexOf(s[0].slice(0, 2));
+      if (c(n, o) || f(n, o))
+        return n;
+      if (((i = n.match(T)) == null ? undefined : i.length) % 2 === 1)
+        return `${n}~`;
+    }
+  }
+  return n;
+}, S = (n) => n !== false, Fn = (n) => n === true, u, Xn, zn = (n) => {
+  var e;
+  let r = (e = n == null ? undefined : n.linkMode) != null ? e : "protocol";
+  return Xn.filter(({ handler: i, optionKey: s }) => i.name === "links" ? S(n == null ? undefined : n.links) || S(n == null ? undefined : n.images) : i.name === "inlineKatex" ? Fn(n == null ? undefined : n.inlineKatex) : S(n == null ? undefined : n[s])).map(({ handler: i, earlyReturn: s }) => i.name === "links" ? { handler: k(I({}, i), { handle: (o) => B(o, r) }), earlyReturn: r === "protocol" ? s : undefined } : { handler: i, earlyReturn: s });
+}, vn = (n, r) => {
+  var t;
+  if (!n || typeof n != "string")
+    return n;
+  let e = n.endsWith(" ") && !n.endsWith("  ") ? n.slice(0, -1) : n, i = zn(r), s = ((t = r == null ? undefined : r.handlers) != null ? t : []).map((a) => {
+    var l;
+    return { handler: k(I({}, a), { priority: (l = a.priority) != null ? l : u.DEFAULT }), earlyReturn: undefined };
+  }), o = [...i, ...s].sort((a, l) => {
+    var _, P;
+    return ((_ = a.handler.priority) != null ? _ : 0) - ((P = l.handler.priority) != null ? P : 0);
+  });
+  for (let { handler: a, earlyReturn: l } of o)
+    if (e = a.handle(e), l != null && l(e))
+      return e;
+  return e;
+}, $e;
+var init_dist3 = __esm(() => {
+  cn = Object.defineProperty;
+  un = Object.defineProperties;
+  fn = Object.getOwnPropertyDescriptors;
+  $ = Object.getOwnPropertySymbols;
+  dn = Object.prototype.hasOwnProperty;
+  gn = Object.prototype.propertyIsEnumerable;
+  mn = /^(\s*(?:[-*+]|\d+[.)]) +)>(=?\s*[$]?\d)/gm;
+  M = /(\*\*)([^*]*\*?)$/;
+  N = /(__)([^_]*?)$/;
+  y = /(\*\*\*)([^*]*?)$/;
+  R = /(\*)([^*]*?)$/;
+  U = /(_)([^_]*?)$/;
+  W = /(`)([^`]*?)$/;
+  K = /(~~)([^~]*?)$/;
+  d = /^[\s_~*`]*$/;
+  b2 = /^[\s]*[-*+][\s]+$/;
+  H = /[\p{L}\p{N}_]/u;
+  D = /^```[^`\n]*```?$/;
+  w = /^\*{4,}$/;
+  G = /(__)([^_]+)_$/;
+  F = /(~~)([^~]+)~$/;
+  T = /~~/g;
+  Ln = /<[a-zA-Z/][^>]*$/;
+  Kn = /^-{1,2}$/;
+  Hn = /^[\s]*-{1,2}[\s]+$/;
+  Dn = /^={1,2}$/;
+  wn = /^[\s]*={1,2}[\s]+$/;
+  Gn = new RegExp("(?<=[\\p{L}\\p{N}_])~(?!~)(?=[\\p{L}\\p{N}_])", "gu");
+  u = { SINGLE_TILDE: 0, COMPARISON_OPERATORS: 5, HTML_TAGS: 10, SETEXT_HEADINGS: 15, LINKS: 20, BOLD_ITALIC: 30, BOLD: 35, ITALIC_DOUBLE_UNDERSCORE: 40, ITALIC_SINGLE_ASTERISK: 41, ITALIC_SINGLE_UNDERSCORE: 42, INLINE_CODE: 50, STRIKETHROUGH: 60, KATEX: 70, INLINE_KATEX: 75, DEFAULT: 100 };
+  Xn = [{ handler: { name: "singleTilde", handle: tn, priority: u.SINGLE_TILDE }, optionKey: "singleTilde" }, { handler: { name: "comparisonOperators", handle: E, priority: u.COMPARISON_OPERATORS }, optionKey: "comparisonOperators" }, { handler: { name: "htmlTags", handle: x, priority: u.HTML_TAGS }, optionKey: "htmlTags" }, { handler: { name: "setextHeadings", handle: ln, priority: u.SETEXT_HEADINGS }, optionKey: "setextHeadings" }, { handler: { name: "links", handle: B, priority: u.LINKS }, optionKey: "links", earlyReturn: (n) => n.endsWith("](streamdown:incomplete-link)") }, { handler: { name: "boldItalic", handle: V, priority: u.BOLD_ITALIC }, optionKey: "boldItalic" }, { handler: { name: "bold", handle: j, priority: u.BOLD }, optionKey: "bold" }, { handler: { name: "italicDoubleUnderscore", handle: Q, priority: u.ITALIC_DOUBLE_UNDERSCORE }, optionKey: "italic" }, { handler: { name: "italicSingleAsterisk", handle: Z, priority: u.ITALIC_SINGLE_ASTERISK }, optionKey: "italic" }, { handler: { name: "italicSingleUnderscore", handle: J, priority: u.ITALIC_SINGLE_UNDERSCORE }, optionKey: "italic" }, { handler: { name: "inlineCode", handle: nn, priority: u.INLINE_CODE }, optionKey: "inlineCode" }, { handler: { name: "strikethrough", handle: an, priority: u.STRIKETHROUGH }, optionKey: "strikethrough" }, { handler: { name: "katex", handle: rn, priority: u.KATEX }, optionKey: "katex" }, { handler: { name: "inlineKatex", handle: sn, priority: u.INLINE_KATEX }, optionKey: "inlineKatex" }];
+  $e = vn;
+});
+
+// node_modules/chat/dist/index.js
+function encodeCallbackValue(token) {
+  return `${CALLBACK_TOKEN_PREFIX}${token}`;
+}
+function decodeCallbackValue(value) {
+  if (!value?.startsWith(CALLBACK_TOKEN_PREFIX)) {
+    return { callbackToken: undefined };
+  }
+  return { callbackToken: value.slice(CALLBACK_TOKEN_PREFIX.length) };
+}
+function generateToken() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
+async function processActionsElement(actions, stateAdapter) {
+  return {
+    type: "actions",
+    children: await Promise.all(actions.children.map(async (el) => {
+      if (el.type !== "button" || !el.callbackUrl) {
+        return el;
+      }
+      const token = generateToken();
+      const stored = {
+        url: el.callbackUrl,
+        originalValue: el.value
+      };
+      await stateAdapter.set(`${CALLBACK_CACHE_KEY_PREFIX}${token}`, stored, CALLBACK_TTL_MS);
+      const processed = {
+        type: "button",
+        id: el.id,
+        label: el.label,
+        style: el.style,
+        disabled: el.disabled,
+        value: encodeCallbackValue(token),
+        actionType: el.actionType
+      };
+      return processed;
+    }))
+  };
+}
+function hasCallbackButtons(children) {
+  for (const child of children) {
+    if (child.type === "actions") {
+      for (const el of child.children) {
+        if (el.type === "button" && el.callbackUrl) {
+          return true;
+        }
+      }
+    }
+    if (child.type === "section" && "children" in child && hasCallbackButtons(child.children)) {
+      return true;
+    }
+  }
+  return false;
+}
+async function processChildren2(children, stateAdapter) {
+  const result = [];
+  for (const child of children) {
+    if (child.type === "actions") {
+      result.push(await processActionsElement(child, stateAdapter));
+    } else if (child.type === "section" && "children" in child) {
+      result.push({
+        ...child,
+        children: await processChildren2(child.children, stateAdapter)
+      });
+    } else {
+      result.push(child);
+    }
+  }
+  return result;
+}
+async function processCardCallbackUrls(card, stateAdapter) {
+  if (!hasCallbackButtons(card.children)) {
+    return card;
+  }
+  return {
+    ...card,
+    children: await processChildren2(card.children, stateAdapter)
+  };
+}
+async function resolveCallbackUrl(token, stateAdapter) {
+  const stored = await stateAdapter.get(`${CALLBACK_CACHE_KEY_PREFIX}${token}`);
+  if (!stored) {
+    return null;
+  }
+  if (typeof stored === "string") {
+    return { url: stored };
+  }
+  return stored;
+}
+async function postToCallbackUrl(callbackUrl, payload) {
+  try {
+    const response = await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      return {
+        error: new Error(`Callback URL returned ${response.status}: ${await response.text().catch(() => "")}`),
+        status: response.status
+      };
+    }
+    return { status: response.status };
+  } catch (error) {
+    return { error };
+  }
+}
+function setChatSingleton(chat) {
+  _singleton = chat;
+}
+function getChatSingleton() {
+  if (!_singleton) {
+    throw new Error("No Chat singleton registered. Call chat.registerSingleton() first.");
+  }
+  return _singleton;
+}
+function hasChatSingleton() {
+  return _singleton !== null;
+}
+async function* fromFullStream(stream) {
+  let needsSeparator = false;
+  let hasEmittedText = false;
+  for await (const event of stream) {
+    if (typeof event === "string") {
+      yield event;
+      continue;
+    }
+    if (event === null || typeof event !== "object" || !("type" in event)) {
+      continue;
+    }
+    const typed = event;
+    if (STREAM_CHUNK_TYPES.has(typed.type)) {
+      yield event;
+      continue;
+    }
+    const textContent = typed.text ?? typed.delta ?? typed.textDelta;
+    if (typed.type === "text-delta" && typeof textContent === "string") {
+      if (needsSeparator && hasEmittedText) {
+        yield `
+
+`;
+      }
+      needsSeparator = false;
+      hasEmittedText = true;
+      yield textContent;
+    } else if (typed.type === "finish-step") {
+      needsSeparator = true;
+    }
+  }
+}
+function setMessageAdapter(message, adapter) {
+  adapterMap.set(message, adapter);
+}
+function isPostableObject(value) {
+  return typeof value === "object" && value !== null && value.$$typeof === POSTABLE_OBJECT;
+}
+async function postPostableObject(obj, adapter, threadId, postFn, logger2) {
+  const context = (raw) => ({
+    adapter,
+    logger: logger2,
+    messageId: raw.id,
+    threadId: raw.threadId ?? threadId
+  });
+  if (obj.isSupported(adapter) && adapter.postObject) {
+    const raw = await adapter.postObject(threadId, obj.kind, obj.getPostData());
+    obj.onPosted(context(raw));
+  } else {
+    const raw = await postFn(threadId, obj.getFallbackText());
+    obj.onPosted(context(raw));
+  }
+}
+function isLazyConfig(config) {
+  return "adapterName" in config && !("adapter" in config);
+}
+function isAsyncIterable(value) {
+  return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
+}
+function deriveChannelId(adapter, threadId) {
+  return adapter.channelIdFromThreadId(threadId);
+}
+function extractMessageContent(message) {
+  if (typeof message === "string") {
+    return {
+      plainText: message,
+      formatted: root2([paragraph2([text7(message)])]),
+      attachments: []
+    };
+  }
+  if ("raw" in message) {
+    return {
+      plainText: message.raw,
+      formatted: root2([paragraph2([text7(message.raw)])]),
+      attachments: message.attachments || []
+    };
+  }
+  if ("markdown" in message) {
+    const ast = parseMarkdown(message.markdown);
+    return {
+      plainText: toPlainText(ast),
+      formatted: ast,
+      attachments: message.attachments || []
+    };
+  }
+  if ("ast" in message) {
+    return {
+      plainText: toPlainText(message.ast),
+      formatted: message.ast,
+      attachments: message.attachments || []
+    };
+  }
+  if ("card" in message) {
+    const fallbackText = message.fallbackText || cardToFallbackText(message.card);
+    return {
+      plainText: fallbackText,
+      formatted: root2([paragraph2([text7(fallbackText)])]),
+      attachments: []
+    };
+  }
+  if ("type" in message && message.type === "card") {
+    const fallbackText = cardToFallbackText(message);
+    return {
+      plainText: fallbackText,
+      formatted: root2([paragraph2([text7(fallbackText)])]),
+      attachments: []
+    };
+  }
+  throw new Error("Invalid PostableMessage format");
+}
+function isClean(text22) {
+  return $e(text22).length <= text22.length;
+}
+function findCleanPrefix(text22) {
+  if (text22.length === 0 || isClean(text22)) {
+    return text22;
+  }
+  for (let i = text22.length - 1;i >= 0; i--) {
+    if (INLINE_MARKER_CHARS.has(text22[i])) {
+      while (i > 0 && text22[i - 1] === text22[i]) {
+        i--;
+      }
+      const candidate = text22.slice(0, i);
+      if (isClean(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return "";
+}
+function isInsideCodeFence(text22) {
+  let inside = false;
+  for (const line3 of text22.split(`
+`)) {
+    const trimmed = line3.trimStart();
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+function getCommittablePrefix(text22) {
+  const endsWithNewline = text22.endsWith(`
+`);
+  const lines = text22.split(`
+`);
+  if (!endsWithNewline && lines.length > 0) {
+    lines.pop();
+  }
+  if (endsWithNewline && lines.length > 0 && lines.at(-1) === "") {
+    lines.pop();
+  }
+  let heldCount = 0;
+  let separatorFound = false;
+  for (let i = lines.length - 1;i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (trimmed === "") {
+      break;
+    }
+    if (TABLE_SEPARATOR_RE.test(trimmed)) {
+      separatorFound = true;
+      break;
+    }
+    if (TABLE_ROW_RE.test(trimmed)) {
+      heldCount++;
+    } else {
+      break;
+    }
+  }
+  if (separatorFound || heldCount === 0) {
+    return text22;
+  }
+  const commitLineCount = lines.length - heldCount;
+  const committedLines = lines.slice(0, commitLineCount);
+  let result = committedLines.join(`
+`);
+  if (committedLines.length > 0) {
+    result += `
+`;
+  }
+  return result;
+}
+function wrapTablesForAppend(text22, closeFences = false) {
+  const hadTrailingNewline = text22.endsWith(`
+`);
+  const lines = text22.split(`
+`);
+  if (hadTrailingNewline && lines.length > 0 && lines.at(-1) === "") {
+    lines.pop();
+  }
+  const result = [];
+  let inTable = false;
+  let inUserCodeFence = false;
+  for (let i = 0;i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!inTable && (trimmed.startsWith("```") || trimmed.startsWith("~~~"))) {
+      inUserCodeFence = !inUserCodeFence;
+      result.push(lines[i]);
+      continue;
+    }
+    if (inUserCodeFence) {
+      result.push(lines[i]);
+      continue;
+    }
+    const isTableLine = trimmed !== "" && (TABLE_ROW_RE.test(trimmed) || TABLE_SEPARATOR_RE.test(trimmed));
+    if (isTableLine && !inTable) {
+      let hasSeparator = false;
+      for (let j2 = i;j2 < lines.length; j2++) {
+        const t = lines[j2].trim();
+        if (TABLE_SEPARATOR_RE.test(t)) {
+          hasSeparator = true;
+          break;
+        }
+        if (t === "" || !TABLE_ROW_RE.test(t)) {
+          break;
+        }
+      }
+      if (hasSeparator) {
+        result.push("```");
+        inTable = true;
+      }
+    } else if (!isTableLine && inTable) {
+      result.push("```");
+      inTable = false;
+    }
+    result.push(lines[i]);
+  }
+  if (inTable && closeFences) {
+    result.push("```");
+  }
+  let output = result.join(`
+`);
+  if (hadTrailingNewline) {
+    output += `
+`;
+  }
+  return output;
+}
+function isLazyConfig2(config) {
+  return "adapterName" in config && !("adapter" in config);
+}
+function isAsyncIterable2(value) {
+  return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
+}
+function extractMessageContent2(message) {
+  if (typeof message === "string") {
+    return {
+      plainText: message,
+      formatted: root2([paragraph2([text7(message)])]),
+      attachments: []
+    };
+  }
+  if ("raw" in message) {
+    return {
+      plainText: message.raw,
+      formatted: root2([paragraph2([text7(message.raw)])]),
+      attachments: message.attachments || []
+    };
+  }
+  if ("markdown" in message) {
+    const ast = parseMarkdown(message.markdown);
+    return {
+      plainText: toPlainText(ast),
+      formatted: ast,
+      attachments: message.attachments || []
+    };
+  }
+  if ("ast" in message) {
+    return {
+      plainText: toPlainText(message.ast),
+      formatted: message.ast,
+      attachments: message.attachments || []
+    };
+  }
+  if ("card" in message) {
+    const fallbackText = message.fallbackText || cardToFallbackText(message.card);
+    return {
+      plainText: fallbackText,
+      formatted: root2([paragraph2([text7(fallbackText)])]),
+      attachments: []
+    };
+  }
+  if ("type" in message && message.type === "card") {
+    const fallbackText = cardToFallbackText(message);
+    return {
+      plainText: fallbackText,
+      formatted: root2([paragraph2([text7(fallbackText)])]),
+      attachments: []
+    };
+  }
+  throw new Error("Invalid PostableMessage format");
+}
+function reviver(_key, value) {
+  if (value && typeof value === "object" && "_type" in value) {
+    const typed = value;
+    if (typed._type === "chat:Thread") {
+      return ThreadImpl.fromJSON(value);
+    }
+    if (typed._type === "chat:Channel") {
+      return ChannelImpl.fromJSON(value);
+    }
+    if (typed._type === "chat:Message") {
+      return Message.fromJSON(value);
+    }
+  }
+  return value;
+}
+function isTombstone(value) {
+  return typeof value === "object" && value !== null && value[TOMBSTONE_MARKER] === true;
+}
+function keyFor(userKey) {
+  return `${KEY_PREFIX2}${userKey}`;
+}
+function parseDuration(value) {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value === "number") {
+    return value;
+  }
+  const match = DURATION_RE.exec(value);
+  if (!match) {
+    throw new Error(`Invalid duration: ${value} (expected number of ms, or "<n>[smhd]")`);
+  }
+  const n = Number.parseInt(match[1], 10);
+  const unit = match[2];
+  return n * MS_PER_UNIT[unit];
+}
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function getEmoji(name) {
+  let emojiValue = emojiRegistry.get(name);
+  if (!emojiValue) {
+    emojiValue = Object.freeze({
+      name,
+      toString: () => `{{emoji:${name}}}`,
+      toJSON: () => `{{emoji:${name}}}`
+    });
+    emojiRegistry.set(name, emojiValue);
+  }
+  return emojiValue;
+}
+function convertEmojiPlaceholders(text22, platform, resolver2 = defaultEmojiResolver) {
+  return text22.replace(EMOJI_PLACEHOLDER_REGEX, (_, emojiName) => {
+    switch (platform) {
+      case "slack":
+        return `:${resolver2.toSlack(emojiName)}:`;
+      case "gchat":
+        return resolver2.toGChat(emojiName);
+      case "teams":
+        return resolver2.toGChat(emojiName);
+      case "discord":
+        return resolver2.toDiscord(emojiName);
+      case "messenger":
+        return resolver2.toGChat(emojiName);
+      case "github":
+        return resolver2.toGChat(emojiName);
+      case "linear":
+        return resolver2.toGChat(emojiName);
+      case "whatsapp":
+        return resolver2.toGChat(emojiName);
+      default:
+        return resolver2.toGChat(emojiName);
+    }
+  });
+}
+function createEmoji(customEmoji) {
+  const wellKnownEmoji = [
+    "thumbs_up",
+    "thumbs_down",
+    "clap",
+    "wave",
+    "pray",
+    "muscle",
+    "ok_hand",
+    "point_up",
+    "point_down",
+    "point_left",
+    "point_right",
+    "raised_hands",
+    "shrug",
+    "facepalm",
+    "heart",
+    "smile",
+    "laugh",
+    "thinking",
+    "sad",
+    "cry",
+    "angry",
+    "love_eyes",
+    "cool",
+    "wink",
+    "surprised",
+    "worried",
+    "confused",
+    "neutral",
+    "sleeping",
+    "sick",
+    "mind_blown",
+    "relieved",
+    "grimace",
+    "rolling_eyes",
+    "hug",
+    "zany",
+    "check",
+    "x",
+    "question",
+    "exclamation",
+    "warning",
+    "stop",
+    "info",
+    "100",
+    "fire",
+    "star",
+    "sparkles",
+    "lightning",
+    "boom",
+    "eyes",
+    "green_circle",
+    "yellow_circle",
+    "red_circle",
+    "blue_circle",
+    "white_circle",
+    "black_circle",
+    "rocket",
+    "party",
+    "confetti",
+    "balloon",
+    "gift",
+    "trophy",
+    "medal",
+    "lightbulb",
+    "gear",
+    "wrench",
+    "hammer",
+    "bug",
+    "link",
+    "lock",
+    "unlock",
+    "key",
+    "pin",
+    "memo",
+    "clipboard",
+    "calendar",
+    "clock",
+    "hourglass",
+    "bell",
+    "megaphone",
+    "speech_bubble",
+    "email",
+    "inbox",
+    "outbox",
+    "package",
+    "folder",
+    "file",
+    "chart_up",
+    "chart_down",
+    "coffee",
+    "pizza",
+    "beer",
+    "arrow_up",
+    "arrow_down",
+    "arrow_left",
+    "arrow_right",
+    "refresh",
+    "sun",
+    "cloud",
+    "rain",
+    "snow",
+    "rainbow"
+  ];
+  const helper = {
+    custom: (name) => getEmoji(name)
+  };
+  for (const name of wellKnownEmoji) {
+    helper[name] = getEmoji(name);
+  }
+  if (customEmoji) {
+    for (const key of Object.keys(customEmoji)) {
+      helper[key] = getEmoji(key);
+    }
+    defaultEmojiResolver.extend(customEmoji);
+  }
+  return helper;
+}
+var CALLBACK_TOKEN_PREFIX = "__cb:", CALLBACK_CACHE_KEY_PREFIX = "chat:callback:", CALLBACK_TTL_MS, _singleton = null, STREAM_CHUNK_TYPES, adapterMap, Message, POSTABLE_OBJECT, ChatError, LockError, NotImplementedError, ConsoleLogger = class _ConsoleLogger {
+  prefix;
+  level;
+  constructor(level = "info", prefix = "chat-sdk") {
+    this.level = level;
+    this.prefix = prefix;
+  }
+  shouldLog(level) {
+    const levels = ["debug", "info", "warn", "error", "silent"];
+    return levels.indexOf(level) >= levels.indexOf(this.level);
+  }
+  child(prefix) {
+    return new _ConsoleLogger(this.level, `${this.prefix}:${prefix}`);
+  }
+  debug(message, ...args) {
+    if (this.shouldLog("debug")) {
+      console.debug(`[${this.prefix}] ${message}`, ...args);
+    }
+  }
+  info(message, ...args) {
+    if (this.shouldLog("info")) {
+      console.info(`[${this.prefix}] ${message}`, ...args);
+    }
+  }
+  warn(message, ...args) {
+    if (this.shouldLog("warn")) {
+      console.warn(`[${this.prefix}] ${message}`, ...args);
+    }
+  }
+  error(message, ...args) {
+    if (this.shouldLog("error")) {
+      console.error(`[${this.prefix}] ${message}`, ...args);
+    }
+  }
+}, THREAD_STATE_TTL_MS, CHANNEL_STATE_KEY_PREFIX = "channel-state:", ChannelImpl, StreamingMarkdownRenderer = class {
+  accumulated = "";
+  dirty = true;
+  cachedRender = "";
+  finished = false;
+  fenceToggles = 0;
+  incompleteLine = "";
+  options;
+  constructor(options = {}) {
+    this.options = {
+      wrapTablesForAppend: options.wrapTablesForAppend ?? true
+    };
+  }
+  push(chunk) {
+    this.accumulated += chunk;
+    this.dirty = true;
+    this.incompleteLine += chunk;
+    const parts = this.incompleteLine.split(`
+`);
+    this.incompleteLine = parts.pop() ?? "";
+    for (const line3 of parts) {
+      const trimmed = line3.trimStart();
+      if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+        this.fenceToggles++;
+      }
+    }
+  }
+  isAccumulatedInsideFence() {
+    let inside = this.fenceToggles % 2 === 1;
+    const trimmed = this.incompleteLine.trimStart();
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      inside = !inside;
+    }
+    return inside;
+  }
+  render() {
+    if (!this.dirty) {
+      return this.cachedRender;
+    }
+    this.dirty = false;
+    if (this.finished) {
+      this.cachedRender = $e(this.accumulated);
+      return this.cachedRender;
+    }
+    if (this.isAccumulatedInsideFence()) {
+      this.cachedRender = $e(this.accumulated);
+      return this.cachedRender;
+    }
+    const committable = getCommittablePrefix(this.accumulated);
+    this.cachedRender = $e(committable);
+    return this.cachedRender;
+  }
+  getCommittableText() {
+    if (this.finished) {
+      return this.formatAppendOnlyText(this.accumulated, true);
+    }
+    let text22 = this.accumulated;
+    if (text22.length > 0 && !text22.endsWith(`
+`)) {
+      const lastNewline = text22.lastIndexOf(`
+`);
+      const withoutIncompleteLine = lastNewline >= 0 ? text22.slice(0, lastNewline + 1) : "";
+      if (isInsideCodeFence(withoutIncompleteLine)) {
+        return this.formatAppendOnlyText(text22);
+      }
+      text22 = withoutIncompleteLine;
+    }
+    if (isInsideCodeFence(text22)) {
+      return this.formatAppendOnlyText(text22);
+    }
+    const committed = getCommittablePrefix(text22);
+    const wrapped = this.formatAppendOnlyText(committed);
+    if (isInsideCodeFence(wrapped)) {
+      return wrapped;
+    }
+    return findCleanPrefix(wrapped);
+  }
+  getText() {
+    return this.accumulated;
+  }
+  finish() {
+    this.finished = true;
+    this.dirty = true;
+    return this.render();
+  }
+  formatAppendOnlyText(text22, closeFences = false) {
+    if (!this.options.wrapTablesForAppend) {
+      return text22;
+    }
+    return wrapTablesForAppend(text22, closeFences);
+  }
+}, INLINE_MARKER_CHARS, TABLE_ROW_RE, TABLE_SEPARATOR_RE, THREAD_STATE_KEY_PREFIX = "thread-state:", ThreadImpl, DEFAULT_MAX_MESSAGES = 100, DEFAULT_TTL_MS, KEY_PREFIX = "msg-history:", ThreadHistoryCache = class {
+  state;
+  maxMessages;
+  ttlMs;
+  constructor(state, config) {
+    this.state = state;
+    this.maxMessages = config?.maxMessages ?? DEFAULT_MAX_MESSAGES;
+    this.ttlMs = config?.ttlMs ?? DEFAULT_TTL_MS;
+  }
+  async append(threadId, message) {
+    const key = `${KEY_PREFIX}${threadId}`;
+    const serialized = message.toJSON();
+    serialized.raw = null;
+    await this.state.appendToList(key, serialized, {
+      maxLength: this.maxMessages,
+      ttlMs: this.ttlMs
+    });
+  }
+  async getMessages(threadId, limit) {
+    const key = `${KEY_PREFIX}${threadId}`;
+    const stored = await this.state.getList(key);
+    const sliced = limit && stored.length > limit ? stored.slice(stored.length - limit) : stored;
+    return sliced.map((s) => Message.fromJSON(s));
+  }
+}, KEY_PREFIX2 = "transcripts:user:", DEFAULT_MAX_PER_USER = 200, DEFAULT_LIST_LIMIT = 50, DURATION_RE, TOMBSTONE_MARKER = "__chatSdkTombstone", MS_PER_UNIT, TranscriptsApiImpl = class {
+  state;
+  maxPerUser;
+  retentionMs;
+  storeFormatted;
+  constructor(state, config) {
+    this.state = state;
+    this.maxPerUser = config.maxPerUser ?? DEFAULT_MAX_PER_USER;
+    this.retentionMs = parseDuration(config.retention);
+    this.storeFormatted = config.storeFormatted ?? false;
+  }
+  async append(thread, message, options) {
+    const isMessage = message instanceof Message;
+    let userKey;
+    let role;
+    let platformMessageId;
+    if (isMessage) {
+      userKey = message.userKey;
+      role = "user";
+      platformMessageId = message.id;
+      if (!userKey) {
+        return null;
+      }
+    } else {
+      userKey = options?.userKey;
+      role = message.role;
+      platformMessageId = message.platformMessageId;
+      if (!userKey) {
+        throw new Error("transcripts.append: options.userKey is required when appending an AppendInput");
+      }
+    }
+    const entry = {
+      id: crypto.randomUUID(),
+      userKey,
+      role,
+      text: message.text,
+      platform: thread.adapter.name,
+      threadId: thread.id,
+      timestamp: Date.now()
+    };
+    if (this.storeFormatted && message.formatted) {
+      entry.formatted = message.formatted;
+    }
+    if (platformMessageId !== undefined) {
+      entry.platformMessageId = platformMessageId;
+    }
+    await this.state.appendToList(keyFor(userKey), entry, {
+      maxLength: this.maxPerUser,
+      ttlMs: this.retentionMs
+    });
+    return entry;
+  }
+  async list(query) {
+    const raw = await this.state.getList(keyFor(query.userKey));
+    let filtered = raw.filter((entry) => !isTombstone(entry));
+    if (query.platforms && query.platforms.length > 0) {
+      const platforms = new Set(query.platforms);
+      filtered = filtered.filter((m2) => platforms.has(m2.platform));
+    }
+    if (query.threadId !== undefined) {
+      const tid = query.threadId;
+      filtered = filtered.filter((m2) => m2.threadId === tid);
+    }
+    if (query.roles && query.roles.length > 0) {
+      const roles2 = new Set(query.roles);
+      filtered = filtered.filter((m2) => roles2.has(m2.role));
+    }
+    const limit = query.limit ?? DEFAULT_LIST_LIMIT;
+    if (filtered.length > limit) {
+      filtered = filtered.slice(filtered.length - limit);
+    }
+    return filtered;
+  }
+  async count(query) {
+    const raw = await this.state.getList(keyFor(query.userKey));
+    return raw.filter((entry) => !isTombstone(entry)).length;
+  }
+  async delete(target) {
+    const key = keyFor(target.userKey);
+    const existing = await this.state.getList(key);
+    const previous3 = existing.filter((entry) => !isTombstone(entry)).length;
+    const tombstone = { [TOMBSTONE_MARKER]: true };
+    await this.state.appendToList(key, tombstone, {
+      maxLength: 1,
+      ttlMs: this.retentionMs
+    });
+    return { deleted: previous3 };
+  }
+}, DEFAULT_LOCK_TTL_MS = 30000, SLACK_USER_ID_REGEX, DISCORD_SNOWFLAKE_REGEX, LINEAR_UUID_REGEX, NUMERIC_REGEX, DEDUPE_TTL_MS, MODAL_CONTEXT_TTL_MS, Chat = class {
+  registerSingleton() {
+    setChatSingleton(this);
+    return this;
+  }
+  get transcripts() {
+    if (!this._transcripts) {
+      throw new Error("chat.transcripts is not configured — pass `transcripts` and `identity` to ChatConfig to enable it");
+    }
+    return this._transcripts;
+  }
+  static getSingleton() {
+    return getChatSingleton();
+  }
+  static hasSingleton() {
+    return hasChatSingleton();
+  }
+  adapters;
+  _stateAdapter;
+  userName;
+  logger;
+  _streamingUpdateIntervalMs;
+  _fallbackStreamingPlaceholderText;
+  _dedupeTtlMs;
+  _onLockConflict;
+  _threadHistory;
+  _identity;
+  _transcripts;
+  _concurrencyStrategy;
+  _concurrencyConfig;
+  _concurrentSlots = /* @__PURE__ */ new Map;
+  _lockScope;
+  mentionHandlers = [];
+  directMessageHandlers = [];
+  messagePatterns = [];
+  subscribedMessageHandlers = [];
+  reactionHandlers = [];
+  actionHandlers = [];
+  optionsLoadHandlers = [];
+  modalSubmitHandlers = [];
+  modalCloseHandlers = [];
+  slashCommandHandlers = [];
+  assistantThreadStartedHandlers = [];
+  assistantContextChangedHandlers = [];
+  appHomeOpenedHandlers = [];
+  memberJoinedChannelHandlers = [];
+  initPromise = null;
+  initialized = false;
+  webhooks;
+  constructor(config) {
+    this.userName = config.userName;
+    this._stateAdapter = config.state;
+    this.adapters = /* @__PURE__ */ new Map;
+    this._streamingUpdateIntervalMs = config.streamingUpdateIntervalMs ?? 500;
+    this._fallbackStreamingPlaceholderText = config.fallbackStreamingPlaceholderText !== undefined ? config.fallbackStreamingPlaceholderText : "...";
+    this._dedupeTtlMs = config.dedupeTtlMs ?? DEDUPE_TTL_MS;
+    this._onLockConflict = config.onLockConflict;
+    this._lockScope = config.lockScope;
+    if (typeof config.logger === "string") {
+      this.logger = new ConsoleLogger(config.logger);
+    } else {
+      this.logger = config.logger || new ConsoleLogger("info");
+    }
+    const concurrency = config.concurrency;
+    if (concurrency) {
+      if (typeof concurrency === "string") {
+        this._concurrencyStrategy = concurrency;
+        this._concurrencyConfig = {
+          debounceMs: 1500,
+          maxConcurrent: Number.POSITIVE_INFINITY,
+          maxQueueSize: 10,
+          onQueueFull: "drop-oldest",
+          queueEntryTtlMs: 90000
+        };
+      } else {
+        if (concurrency.maxConcurrent !== undefined && concurrency.maxConcurrent < 1) {
+          throw new Error(`concurrency.maxConcurrent must be >= 1 (got ${concurrency.maxConcurrent})`);
+        }
+        if (concurrency.maxConcurrent !== undefined && concurrency.strategy !== "concurrent") {
+          this.logger.warn(`concurrency.maxConcurrent has no effect when strategy is "${concurrency.strategy}" — it only applies to the "concurrent" strategy.`);
+        }
+        this._concurrencyStrategy = concurrency.strategy;
+        this._concurrencyConfig = {
+          debounceMs: concurrency.debounceMs ?? 1500,
+          maxConcurrent: concurrency.maxConcurrent ?? Number.POSITIVE_INFINITY,
+          maxQueueSize: concurrency.maxQueueSize ?? 10,
+          onQueueFull: concurrency.onQueueFull ?? "drop-oldest",
+          queueEntryTtlMs: concurrency.queueEntryTtlMs ?? 90000
+        };
+      }
+    } else {
+      this._concurrencyStrategy = "drop";
+      this._concurrencyConfig = {
+        debounceMs: 1500,
+        maxConcurrent: Number.POSITIVE_INFINITY,
+        maxQueueSize: 10,
+        onQueueFull: "drop-oldest",
+        queueEntryTtlMs: 90000
+      };
+    }
+    this._threadHistory = new ThreadHistoryCache(this._stateAdapter, config.threadHistory ?? config.messageHistory);
+    if (config.transcripts) {
+      if (!config.identity) {
+        throw new Error("ChatConfig.transcripts requires ChatConfig.identity to be set — the cross-platform user key must be resolvable");
+      }
+      this._identity = config.identity;
+      this._transcripts = new TranscriptsApiImpl(this._stateAdapter, config.transcripts);
+    } else {
+      this._identity = config.identity;
+    }
+    const webhooks = {};
+    for (const [name, adapter] of Object.entries(config.adapters)) {
+      this.adapters.set(name, adapter);
+      webhooks[name] = (request, options) => this.handleWebhook(name, request, options);
+    }
+    this.webhooks = webhooks;
+    this.logger.debug("Chat instance created", {
+      adapters: Object.keys(config.adapters)
+    });
+  }
+  async handleWebhook(adapterName, request, options) {
+    await this.ensureInitialized();
+    const adapter = this.adapters.get(adapterName);
+    if (!adapter) {
+      return new Response(`Unknown adapter: ${adapterName}`, { status: 404 });
+    }
+    return adapter.handleWebhook(request, options);
+  }
+  async ensureInitialized() {
+    if (this.initialized) {
+      return;
+    }
+    if (!this.initPromise) {
+      this.initPromise = this.doInitialize();
+    }
+    await this.initPromise;
+  }
+  async doInitialize() {
+    this.logger.info("Initializing chat instance...");
+    await this._stateAdapter.connect();
+    this.logger.debug("State connected");
+    const initPromises = Array.from(this.adapters.values()).map(async (adapter) => {
+      this.logger.debug("Initializing adapter", adapter.name);
+      const result = await adapter.initialize(this);
+      this.logger.debug("Adapter initialized", adapter.name);
+      return result;
+    });
+    await Promise.all(initPromises);
+    this.initialized = true;
+    this.logger.info("Chat instance initialized", {
+      adapters: Array.from(this.adapters.keys())
+    });
+  }
+  async shutdown() {
+    this.logger.info("Shutting down chat instance...");
+    const shutdownPromises = Array.from(this.adapters.values()).map(async (adapter) => {
+      if (!adapter.disconnect) {
+        return;
+      }
+      this.logger.debug("Disconnecting adapter", adapter.name);
+      await adapter.disconnect();
+      this.logger.debug("Adapter disconnected", adapter.name);
+    });
+    const results = await Promise.allSettled(shutdownPromises);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        this.logger.error("Adapter disconnect failed", result.reason);
+      }
+    }
+    await this._stateAdapter.disconnect();
+    this.initialized = false;
+    this.initPromise = null;
+    this.logger.info("Chat instance shut down");
+  }
+  async initialize() {
+    await this.ensureInitialized();
+  }
+  onNewMention(handler) {
+    this.mentionHandlers.push(handler);
+    this.logger.debug("Registered mention handler");
+  }
+  onDirectMessage(handler) {
+    this.directMessageHandlers.push(handler);
+    this.logger.debug("Registered direct message handler");
+  }
+  onNewMessage(pattern, handler) {
+    this.messagePatterns.push({ pattern, handler });
+    this.logger.debug("Registered message pattern handler", {
+      pattern: pattern.toString()
+    });
+  }
+  onSubscribedMessage(handler) {
+    this.subscribedMessageHandlers.push(handler);
+    this.logger.debug("Registered subscribed message handler");
+  }
+  onReaction(emojiOrHandler, handler) {
+    if (typeof emojiOrHandler === "function") {
+      this.reactionHandlers.push({ emoji: [], handler: emojiOrHandler });
+      this.logger.debug("Registered reaction handler for all emoji");
+    } else if (handler) {
+      this.reactionHandlers.push({ emoji: emojiOrHandler, handler });
+      this.logger.debug("Registered reaction handler", {
+        emoji: emojiOrHandler.map((e) => typeof e === "string" ? e : e.name)
+      });
+    }
+  }
+  onAction(actionIdOrHandler, handler) {
+    if (typeof actionIdOrHandler === "function") {
+      this.actionHandlers.push({ actionIds: [], handler: actionIdOrHandler });
+      this.logger.debug("Registered action handler for all actions");
+    } else if (handler) {
+      const actionIds = Array.isArray(actionIdOrHandler) ? actionIdOrHandler : [actionIdOrHandler];
+      this.actionHandlers.push({ actionIds, handler });
+      this.logger.debug("Registered action handler", { actionIds });
+    }
+  }
+  onOptionsLoad(actionIdOrHandler, handler) {
+    if (typeof actionIdOrHandler === "function") {
+      this.optionsLoadHandlers.push({
+        actionIds: [],
+        handler: actionIdOrHandler
+      });
+      this.logger.debug("Registered options load handler for all action IDs");
+    } else if (handler) {
+      const actionIds = Array.isArray(actionIdOrHandler) ? actionIdOrHandler : [actionIdOrHandler];
+      this.optionsLoadHandlers.push({ actionIds, handler });
+      this.logger.debug("Registered options load handler", { actionIds });
+    }
+  }
+  onModalSubmit(callbackIdOrHandler, handler) {
+    if (typeof callbackIdOrHandler === "function") {
+      this.modalSubmitHandlers.push({
+        callbackIds: [],
+        handler: callbackIdOrHandler
+      });
+      this.logger.debug("Registered modal submit handler for all modals");
+    } else if (handler) {
+      const callbackIds = Array.isArray(callbackIdOrHandler) ? callbackIdOrHandler : [callbackIdOrHandler];
+      this.modalSubmitHandlers.push({ callbackIds, handler });
+      this.logger.debug("Registered modal submit handler", { callbackIds });
+    }
+  }
+  onModalClose(callbackIdOrHandler, handler) {
+    if (typeof callbackIdOrHandler === "function") {
+      this.modalCloseHandlers.push({
+        callbackIds: [],
+        handler: callbackIdOrHandler
+      });
+      this.logger.debug("Registered modal close handler for all modals");
+    } else if (handler) {
+      const callbackIds = Array.isArray(callbackIdOrHandler) ? callbackIdOrHandler : [callbackIdOrHandler];
+      this.modalCloseHandlers.push({ callbackIds, handler });
+      this.logger.debug("Registered modal close handler", { callbackIds });
+    }
+  }
+  onSlashCommand(commandOrHandler, handler) {
+    if (typeof commandOrHandler === "function") {
+      this.slashCommandHandlers.push({
+        commands: [],
+        handler: commandOrHandler
+      });
+      this.logger.debug("Registered slash command handler for all commands");
+    } else if (handler) {
+      const commands = Array.isArray(commandOrHandler) ? commandOrHandler : [commandOrHandler];
+      const normalizedCommands = commands.map((cmd) => cmd.startsWith("/") ? cmd : `/${cmd}`);
+      this.slashCommandHandlers.push({ commands: normalizedCommands, handler });
+      this.logger.debug("Registered slash command handler", {
+        commands: normalizedCommands
+      });
+    }
+  }
+  onAssistantThreadStarted(handler) {
+    this.assistantThreadStartedHandlers.push(handler);
+    this.logger.debug("Registered assistant thread started handler");
+  }
+  onAssistantContextChanged(handler) {
+    this.assistantContextChangedHandlers.push(handler);
+    this.logger.debug("Registered assistant context changed handler");
+  }
+  onAppHomeOpened(handler) {
+    this.appHomeOpenedHandlers.push(handler);
+    this.logger.debug("Registered app home opened handler");
+  }
+  onMemberJoinedChannel(handler) {
+    this.memberJoinedChannelHandlers.push(handler);
+    this.logger.debug("Registered member joined channel handler");
+  }
+  getAdapter(name) {
+    return this.adapters.get(name);
+  }
+  reviver() {
+    this.registerSingleton();
+    return reviver;
+  }
+  processMessage(adapter, threadId, messageOrFactory, options) {
+    const task = (async () => {
+      const message = typeof messageOrFactory === "function" ? await messageOrFactory() : messageOrFactory;
+      await this.handleIncomingMessage(adapter, threadId, message);
+    })();
+    const tracked = task.catch((err) => {
+      this.logger.error("Message processing error", { error: err, threadId });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(tracked);
+    }
+    return task;
+  }
+  processReaction(event, options) {
+    const task = this.handleReactionEvent(event).catch((err) => {
+      this.logger.error("Reaction processing error", {
+        error: err,
+        emoji: event.emoji,
+        messageId: event.messageId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processAction(event, options) {
+    const task = this.handleActionEvent(event, options).catch((err) => {
+      this.logger.error("Action processing error", {
+        error: err,
+        actionId: event.actionId,
+        messageId: event.messageId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+    return task;
+  }
+  async processOptionsLoad(event, _options) {
+    const matchingHandlers = [
+      ...this.optionsLoadHandlers.filter(({ actionIds }) => actionIds.length > 0 && actionIds.includes(event.actionId)),
+      ...this.optionsLoadHandlers.filter(({ actionIds }) => actionIds.length === 0)
+    ];
+    for (const { handler } of matchingHandlers) {
+      try {
+        const options = await handler(event);
+        if (options) {
+          return options;
+        }
+      } catch (err) {
+        this.logger.error("Options load handler error", {
+          error: err,
+          actionId: event.actionId
+        });
+      }
+    }
+  }
+  async processModalSubmit(event, contextId, options) {
+    const { callbackUrl, relatedThread, relatedMessage, relatedChannel } = await this.retrieveModalContext(event.adapter.name, contextId);
+    const fullEvent = {
+      ...event,
+      relatedThread,
+      relatedMessage,
+      relatedChannel
+    };
+    let result;
+    for (const { callbackIds, handler } of this.modalSubmitHandlers) {
+      if (callbackIds.length === 0 || callbackIds.includes(event.callbackId)) {
+        try {
+          const response = await handler(fullEvent);
+          if (response) {
+            result = response;
+            break;
+          }
+        } catch (err) {
+          this.logger.error("Modal submit handler error", {
+            error: err,
+            callbackId: event.callbackId
+          });
+        }
+      }
+    }
+    if (callbackUrl && result?.action !== "errors") {
+      const task = postToCallbackUrl(callbackUrl, {
+        type: "modal_submit",
+        callbackId: event.callbackId,
+        values: event.values,
+        user: { id: event.user.userId, name: event.user.userName }
+      }).then(({ error }) => {
+        if (error) {
+          this.logger.error("Modal callbackUrl POST failed", {
+            callbackUrl,
+            error
+          });
+        }
+      }).catch((error) => {
+        this.logger.error("Modal callbackUrl POST failed", {
+          callbackUrl,
+          error
+        });
+      });
+      if (options?.waitUntil) {
+        options.waitUntil(task);
+      }
+    }
+    return result;
+  }
+  processModalClose(event, contextId, options) {
+    const task = (async () => {
+      const { relatedThread, relatedMessage, relatedChannel } = await this.retrieveModalContext(event.adapter.name, contextId);
+      const fullEvent = {
+        ...event,
+        relatedThread,
+        relatedMessage,
+        relatedChannel
+      };
+      for (const { callbackIds, handler } of this.modalCloseHandlers) {
+        if (callbackIds.length === 0 || callbackIds.includes(event.callbackId)) {
+          await handler(fullEvent);
+        }
+      }
+    })().catch((err) => {
+      this.logger.error("Modal close handler error", {
+        error: err,
+        callbackId: event.callbackId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processSlashCommand(event, options) {
+    const task = this.handleSlashCommandEvent(event, options).catch((err) => {
+      this.logger.error("Slash command processing error", {
+        error: err,
+        command: event.command,
+        text: event.text
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processAssistantThreadStarted(event, options) {
+    const task = (async () => {
+      for (const handler of this.assistantThreadStartedHandlers) {
+        await handler(event);
+      }
+    })().catch((err) => {
+      this.logger.error("Assistant thread started handler error", {
+        error: err,
+        threadId: event.threadId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processAssistantContextChanged(event, options) {
+    const task = (async () => {
+      for (const handler of this.assistantContextChangedHandlers) {
+        await handler(event);
+      }
+    })().catch((err) => {
+      this.logger.error("Assistant context changed handler error", {
+        error: err,
+        threadId: event.threadId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processAppHomeOpened(event, options) {
+    const task = (async () => {
+      for (const handler of this.appHomeOpenedHandlers) {
+        await handler(event);
+      }
+    })().catch((err) => {
+      this.logger.error("App home opened handler error", {
+        error: err,
+        userId: event.userId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  processMemberJoinedChannel(event, options) {
+    const task = (async () => {
+      for (const handler of this.memberJoinedChannelHandlers) {
+        await handler(event);
+      }
+    })().catch((err) => {
+      this.logger.error("Member joined channel handler error", {
+        error: err,
+        channelId: event.channelId,
+        userId: event.userId
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(task);
+    }
+  }
+  async handleSlashCommandEvent(event, options) {
+    this.logger.debug("Incoming slash command", {
+      adapter: event.adapter.name,
+      command: event.command,
+      text: event.text,
+      user: event.user.userName
+    });
+    if (event.user.isMe) {
+      this.logger.debug("Skipping slash command from self", {
+        command: event.command
+      });
+      return;
+    }
+    const channel = new ChannelImpl({
+      id: event.channelId,
+      adapter: event.adapter,
+      stateAdapter: this._stateAdapter
+    });
+    const fullEvent = {
+      ...event,
+      channel,
+      openModal: async (modal) => {
+        if (!(event.triggerId || options?.onOpenModal)) {
+          this.logger.warn("Cannot open modal: no triggerId available");
+          return;
+        }
+        if (!(options?.onOpenModal || event.adapter.openModal)) {
+          this.logger.warn(`Cannot open modal: ${event.adapter.name} does not support modals`);
+          return;
+        }
+        let modalElement = modal;
+        if (isJSX(modal)) {
+          const converted = toModalElement(modal);
+          if (!converted) {
+            throw new Error("Invalid JSX element: must be a Modal element");
+          }
+          modalElement = converted;
+        }
+        const contextId = crypto.randomUUID();
+        await this.storeModalContext(event.adapter.name, contextId, undefined, undefined, channel, modalElement.callbackUrl);
+        if (options?.onOpenModal) {
+          return options.onOpenModal(modalElement, contextId);
+        }
+        if (event.triggerId && event.adapter.openModal) {
+          return event.adapter.openModal(event.triggerId, modalElement, contextId);
+        }
+        return;
+      }
+    };
+    this.logger.debug("Checking slash command handlers", {
+      handlerCount: this.slashCommandHandlers.length,
+      command: event.command
+    });
+    for (const { commands, handler } of this.slashCommandHandlers) {
+      if (commands.length === 0) {
+        this.logger.debug("Running catch-all slash command handler");
+        await handler(fullEvent);
+        continue;
+      }
+      if (commands.includes(event.command)) {
+        this.logger.debug("Running matched slash command handler", {
+          command: event.command
+        });
+        await handler(fullEvent);
+      }
+    }
+  }
+  async storeModalContext(adapterName, contextId, thread, message, channel, callbackUrl) {
+    const key = `modal-context:${adapterName}:${contextId}`;
+    const context = {
+      thread: thread?.toJSON(),
+      message: message?.toJSON(),
+      channel: channel?.toJSON(),
+      callbackUrl
+    };
+    try {
+      await this._stateAdapter.set(key, context, MODAL_CONTEXT_TTL_MS);
+    } catch (err) {
+      this.logger.error("Failed to store modal context", {
+        contextId,
+        error: err
+      });
+    }
+  }
+  async retrieveModalContext(adapterName, contextId) {
+    if (!contextId) {
+      return {
+        callbackUrl: undefined,
+        relatedThread: undefined,
+        relatedMessage: undefined,
+        relatedChannel: undefined
+      };
+    }
+    const key = `modal-context:${adapterName}:${contextId}`;
+    const stored = await this._stateAdapter.get(key);
+    if (!stored) {
+      return {
+        callbackUrl: undefined,
+        relatedThread: undefined,
+        relatedMessage: undefined,
+        relatedChannel: undefined
+      };
+    }
+    await this._stateAdapter.delete(key);
+    const adapter = this.adapters.get(adapterName);
+    let relatedThread;
+    if (stored.thread) {
+      relatedThread = ThreadImpl.fromJSON(stored.thread, adapter);
+    }
+    let relatedMessage;
+    if (stored.message && relatedThread) {
+      const message = Message.fromJSON(stored.message);
+      relatedMessage = relatedThread.createSentMessageFromMessage(message);
+    }
+    let relatedChannel;
+    if (stored.channel) {
+      relatedChannel = ChannelImpl.fromJSON(stored.channel, adapter);
+    }
+    return {
+      callbackUrl: stored.callbackUrl,
+      relatedThread,
+      relatedMessage,
+      relatedChannel
+    };
+  }
+  async handleActionEvent(event, options) {
+    this.logger.debug("Incoming action", {
+      adapter: event.adapter.name,
+      actionId: event.actionId,
+      value: event.value,
+      user: event.user.userName,
+      messageId: event.messageId,
+      threadId: event.threadId
+    });
+    if (event.user.isMe) {
+      this.logger.debug("Skipping action from self", {
+        actionId: event.actionId
+      });
+      return;
+    }
+    const { callbackToken } = decodeCallbackValue(event.value);
+    let resolved = null;
+    if (callbackToken) {
+      resolved = await resolveCallbackUrl(callbackToken, this._stateAdapter);
+    }
+    const actionEvent = resolved ? { ...event, value: resolved.originalValue } : event;
+    let callbackUrlPromise;
+    if (resolved) {
+      const callbackUrl = resolved.url;
+      callbackUrlPromise = (async () => {
+        const { error } = await postToCallbackUrl(callbackUrl, {
+          type: "action",
+          actionId: event.actionId,
+          value: resolved.originalValue,
+          user: { id: event.user.userId, name: event.user.userName },
+          threadId: event.threadId,
+          messageId: event.messageId
+        });
+        if (error) {
+          this.logger.error("Button callbackUrl POST failed", {
+            callbackUrl,
+            actionId: event.actionId,
+            error
+          });
+        }
+      })();
+    }
+    const isSubscribed = false;
+    const messageForThread = event.messageId ? new Message({
+      id: event.messageId,
+      threadId: event.threadId,
+      text: "",
+      formatted: { type: "root", children: [] },
+      raw: event.raw,
+      author: event.user,
+      metadata: { dateSent: /* @__PURE__ */ new Date, edited: false },
+      attachments: []
+    }) : {};
+    const thread = event.threadId ? await this.createThread(event.adapter, event.threadId, messageForThread, isSubscribed) : null;
+    const fullEvent = {
+      ...actionEvent,
+      thread,
+      openModal: async (modal) => {
+        if (!(event.triggerId || options?.onOpenModal)) {
+          this.logger.warn("Cannot open modal: no triggerId available");
+          return;
+        }
+        if (!(options?.onOpenModal || event.adapter.openModal)) {
+          this.logger.warn(`Cannot open modal: ${event.adapter.name} does not support modals`);
+          return;
+        }
+        let modalElement = modal;
+        if (isJSX(modal)) {
+          const converted = toModalElement(modal);
+          if (!converted) {
+            throw new Error("Invalid JSX element: must be a Modal element");
+          }
+          modalElement = converted;
+        }
+        let message;
+        if (thread) {
+          const isEphemeralMessage = event.messageId?.startsWith("ephemeral:");
+          if (isEphemeralMessage) {
+            const recentMessage = thread.recentMessages[0];
+            if (recentMessage && typeof recentMessage.toJSON === "function") {
+              message = recentMessage;
+            }
+          } else if (event.messageId && event.adapter.fetchMessage) {
+            const fetched = await event.adapter.fetchMessage(event.threadId, event.messageId).catch(() => null);
+            if (fetched) {
+              message = new Message(fetched);
+            } else {
+              const recentMessage = thread.recentMessages[0];
+              if (recentMessage && typeof recentMessage.toJSON === "function") {
+                message = recentMessage;
+              }
+            }
+          }
+        }
+        const contextId = crypto.randomUUID();
+        const channel = thread ? thread.channel : undefined;
+        await this.storeModalContext(event.adapter.name, contextId, thread ? thread : undefined, message, channel, modalElement.callbackUrl);
+        if (options?.onOpenModal) {
+          return options.onOpenModal(modalElement, contextId);
+        }
+        if (event.triggerId && event.adapter.openModal) {
+          return event.adapter.openModal(event.triggerId, modalElement, contextId);
+        }
+        return;
+      }
+    };
+    this.logger.debug("Checking action handlers", {
+      handlerCount: this.actionHandlers.length,
+      actionId: event.actionId
+    });
+    for (const { actionIds, handler } of this.actionHandlers) {
+      if (actionIds.length === 0) {
+        this.logger.debug("Running catch-all action handler");
+        await handler(fullEvent);
+        continue;
+      }
+      if (actionIds.includes(event.actionId)) {
+        this.logger.debug("Running matched action handler", {
+          actionId: event.actionId
+        });
+        await handler(fullEvent);
+      }
+    }
+    if (callbackUrlPromise) {
+      await callbackUrlPromise;
+    }
+  }
+  async handleReactionEvent(event) {
+    this.logger.debug("Incoming reaction", {
+      adapter: event.adapter?.name,
+      emoji: event.emoji,
+      rawEmoji: event.rawEmoji,
+      added: event.added,
+      user: event.user.userName,
+      messageId: event.messageId,
+      threadId: event.threadId
+    });
+    if (event.user.isMe) {
+      this.logger.debug("Skipping reaction from self", {
+        emoji: event.emoji
+      });
+      return;
+    }
+    if (!event.adapter) {
+      this.logger.error("Reaction event missing adapter");
+      return;
+    }
+    const isSubscribed = await this._stateAdapter.isSubscribed(event.threadId);
+    const thread = await this.createThread(event.adapter, event.threadId, event.message ?? {}, isSubscribed);
+    const fullEvent = {
+      ...event,
+      adapter: event.adapter,
+      thread
+    };
+    this.logger.debug("Checking reaction handlers", {
+      handlerCount: this.reactionHandlers.length,
+      emoji: event.emoji.name,
+      rawEmoji: event.rawEmoji
+    });
+    for (const { emoji: emojiFilter, handler } of this.reactionHandlers) {
+      if (emojiFilter.length === 0) {
+        this.logger.debug("Running catch-all reaction handler");
+        await handler(fullEvent);
+        continue;
+      }
+      const matches = emojiFilter.some((filter) => {
+        if (filter === fullEvent.emoji) {
+          return true;
+        }
+        const filterName = typeof filter === "string" ? filter : filter.name;
+        return filterName === fullEvent.emoji.name || filterName === fullEvent.rawEmoji;
+      });
+      this.logger.debug("Reaction filter check", {
+        filterEmoji: emojiFilter.map((e) => typeof e === "string" ? e : e.name),
+        eventEmoji: fullEvent.emoji.name,
+        matches
+      });
+      if (matches) {
+        this.logger.debug("Running matched reaction handler");
+        await handler(fullEvent);
+      }
+    }
+  }
+  getState() {
+    return this._stateAdapter;
+  }
+  getUserName() {
+    return this.userName;
+  }
+  getLogger(prefix) {
+    if (prefix) {
+      return this.logger.child(prefix);
+    }
+    return this.logger;
+  }
+  async openDM(user) {
+    const userId = typeof user === "string" ? user : user.userId;
+    const adapter = this.inferAdapterFromUserId(userId);
+    if (!adapter.openDM) {
+      throw new ChatError(`Adapter "${adapter.name}" does not support openDM`, "NOT_SUPPORTED");
+    }
+    const threadId = await adapter.openDM(userId);
+    return this.createThread(adapter, threadId, {}, false);
+  }
+  async getUser(user) {
+    const userId = typeof user === "string" ? user : user.userId;
+    const adapter = this.inferAdapterFromUserId(userId);
+    if (!adapter.getUser) {
+      throw new ChatError(`Adapter "${adapter.name}" does not support getUser`, "NOT_SUPPORTED");
+    }
+    return adapter.getUser(userId);
+  }
+  channel(channelId) {
+    const adapterName = channelId.split(":")[0];
+    if (!adapterName) {
+      throw new ChatError(`Invalid channel ID: ${channelId}`, "INVALID_CHANNEL_ID");
+    }
+    const adapter = this.adapters.get(adapterName);
+    if (!adapter) {
+      throw new ChatError(`Adapter "${adapterName}" not found for channel ID "${channelId}"`, "ADAPTER_NOT_FOUND");
+    }
+    return new ChannelImpl({
+      id: channelId,
+      adapter,
+      stateAdapter: this._stateAdapter
+    });
+  }
+  thread(threadId) {
+    const adapterName = threadId.split(":")[0];
+    if (!adapterName) {
+      throw new ChatError(`Invalid thread ID: ${threadId}`, "INVALID_THREAD_ID");
+    }
+    const adapter = this.adapters.get(adapterName);
+    if (!adapter) {
+      throw new ChatError(`Adapter "${adapterName}" not found for thread ID "${threadId}"`, "ADAPTER_NOT_FOUND");
+    }
+    return this.createThread(adapter, threadId, {}, false);
+  }
+  inferAdapterFromUserId(userId) {
+    if (userId.startsWith("users/")) {
+      const adapter = this.adapters.get("gchat");
+      if (adapter) {
+        return adapter;
+      }
+    }
+    if (userId.startsWith("29:")) {
+      const adapter = this.adapters.get("teams");
+      if (adapter) {
+        return adapter;
+      }
+    }
+    if (LINEAR_UUID_REGEX.test(userId)) {
+      const adapter = this.adapters.get("linear");
+      if (adapter) {
+        return adapter;
+      }
+    }
+    if (SLACK_USER_ID_REGEX.test(userId)) {
+      const adapter = this.adapters.get("slack");
+      if (adapter) {
+        return adapter;
+      }
+    }
+    if (NUMERIC_REGEX.test(userId)) {
+      const candidates = [];
+      if (DISCORD_SNOWFLAKE_REGEX.test(userId) && this.adapters.has("discord")) {
+        candidates.push("discord");
+      }
+      if (this.adapters.has("telegram")) {
+        candidates.push("telegram");
+      }
+      if (this.adapters.has("github")) {
+        candidates.push("github");
+      }
+      if (candidates.length === 1) {
+        const adapter = this.adapters.get(candidates[0]);
+        if (adapter) {
+          return adapter;
+        }
+      }
+      if (candidates.length > 1) {
+        throw new ChatError(`Numeric userId "${userId}" is ambiguous between adapters: ${candidates.join(", ")}. Call the platform's adapter directly (e.g. \`adapter.getUser(userId)\`).`, "AMBIGUOUS_USER_ID");
+      }
+    }
+    throw new ChatError(`Cannot infer adapter from userId "${userId}". Expected: Slack ("U..."), Teams ("29:..."), Google Chat ("users/..."), Linear (UUID), or Discord/Telegram/GitHub (numeric).`, "UNKNOWN_USER_ID_FORMAT");
+  }
+  async getLockKey(adapter, threadId) {
+    const channelId = adapter.channelIdFromThreadId(threadId);
+    let scope;
+    if (typeof this._lockScope === "function") {
+      const isDM = adapter.isDM?.(threadId) ?? false;
+      scope = await this._lockScope({
+        adapter,
+        channelId,
+        isDM,
+        threadId
+      });
+    } else {
+      scope = this._lockScope ?? adapter.lockScope ?? "thread";
+    }
+    return scope === "channel" ? channelId : threadId;
+  }
+  async handleIncomingMessage(adapter, threadId, message) {
+    setMessageAdapter(message, adapter);
+    this.logger.debug("Incoming message", {
+      adapter: adapter.name,
+      threadId,
+      messageId: message.id,
+      text: message.text,
+      author: message.author.userName,
+      authorUserId: message.author.userId,
+      isBot: message.author.isBot,
+      isMe: message.author.isMe
+    });
+    if (message.author.isMe) {
+      this.logger.debug("Skipping message from self (isMe=true)", {
+        adapter: adapter.name,
+        threadId,
+        author: message.author.userName
+      });
+      return;
+    }
+    const dedupeKey = `dedupe:${adapter.name}:${message.id}`;
+    const isFirstProcess = await this._stateAdapter.setIfNotExists(dedupeKey, true, this._dedupeTtlMs);
+    if (!isFirstProcess) {
+      this.logger.debug("Skipping duplicate message", {
+        adapter: adapter.name,
+        messageId: message.id
+      });
+      return;
+    }
+    if (adapter.persistThreadHistory || adapter.persistMessageHistory) {
+      const channelId = adapter.channelIdFromThreadId(threadId);
+      const appends = [this._threadHistory.append(threadId, message)];
+      if (channelId !== threadId) {
+        appends.push(this._threadHistory.append(channelId, message));
+      }
+      await Promise.all(appends);
+    }
+    const lockKey = await this.getLockKey(adapter, threadId);
+    const strategy = this._concurrencyStrategy;
+    if (strategy === "concurrent") {
+      await this.handleConcurrent(adapter, threadId, message);
+      return;
+    }
+    if (strategy === "queue" || strategy === "debounce" || strategy === "burst") {
+      await this.handleQueueOrDebounce(adapter, threadId, lockKey, message, strategy);
+      return;
+    }
+    await this.handleDrop(adapter, threadId, lockKey, message);
+  }
+  async handleDrop(adapter, threadId, lockKey, message) {
+    let lock = await this._stateAdapter.acquireLock(lockKey, DEFAULT_LOCK_TTL_MS);
+    if (!lock) {
+      const resolution = typeof this._onLockConflict === "function" ? await this._onLockConflict(threadId, message) : this._onLockConflict ?? "drop";
+      if (resolution === "force") {
+        this.logger.info("Force-releasing lock on thread", {
+          threadId,
+          lockKey
+        });
+        await this._stateAdapter.forceReleaseLock(lockKey);
+        lock = await this._stateAdapter.acquireLock(lockKey, DEFAULT_LOCK_TTL_MS);
+      }
+      if (!lock) {
+        this.logger.warn("Could not acquire lock on thread", {
+          threadId,
+          lockKey
+        });
+        throw new LockError(`Could not acquire lock on thread ${threadId}. Another instance may be processing.`);
+      }
+    }
+    this.logger.debug("Lock acquired", {
+      threadId,
+      lockKey,
+      token: lock.token
+    });
+    try {
+      await this.dispatchToHandlers(adapter, threadId, message);
+    } finally {
+      await this._stateAdapter.releaseLock(lock);
+      this.logger.debug("Lock released", { threadId, lockKey });
+    }
+  }
+  async handleQueueOrDebounce(adapter, threadId, lockKey, message, strategy) {
+    const { maxQueueSize, queueEntryTtlMs, onQueueFull, debounceMs } = this._concurrencyConfig;
+    const lock = await this._stateAdapter.acquireLock(lockKey, DEFAULT_LOCK_TTL_MS);
+    if (!lock) {
+      const effectiveMaxSize = strategy === "debounce" ? 1 : maxQueueSize;
+      const depth = await this._stateAdapter.queueDepth(lockKey);
+      if (depth >= effectiveMaxSize && strategy !== "debounce" && onQueueFull === "drop-newest") {
+        this.logger.info("message-dropped", {
+          threadId,
+          lockKey,
+          messageId: message.id,
+          reason: "queue-full"
+        });
+        return;
+      }
+      await this._stateAdapter.enqueue(lockKey, {
+        message,
+        enqueuedAt: Date.now(),
+        expiresAt: Date.now() + queueEntryTtlMs
+      }, effectiveMaxSize);
+      this.logger.info(strategy === "debounce" ? "message-debounce-reset" : "message-queued", {
+        threadId,
+        lockKey,
+        messageId: message.id,
+        queueDepth: Math.min(depth + 1, effectiveMaxSize)
+      });
+      return;
+    }
+    this.logger.debug("Lock acquired", {
+      threadId,
+      lockKey,
+      token: lock.token
+    });
+    try {
+      if (strategy === "debounce") {
+        await this._stateAdapter.enqueue(lockKey, {
+          message,
+          enqueuedAt: Date.now(),
+          expiresAt: Date.now() + queueEntryTtlMs
+        }, 1);
+        this.logger.info("message-debouncing", {
+          threadId,
+          lockKey,
+          messageId: message.id,
+          debounceMs
+        });
+        await this.debounceLoop(lock, adapter, threadId, lockKey);
+      } else if (strategy === "burst") {
+        await this._stateAdapter.enqueue(lockKey, {
+          message,
+          enqueuedAt: Date.now(),
+          expiresAt: Date.now() + queueEntryTtlMs
+        }, maxQueueSize);
+        this.logger.info("message-debouncing", {
+          threadId,
+          lockKey,
+          messageId: message.id,
+          debounceMs
+        });
+        await sleep(debounceMs);
+        await this._stateAdapter.extendLock(lock, DEFAULT_LOCK_TTL_MS);
+        await this.drainQueue(lock, adapter, threadId, lockKey);
+      } else {
+        await this.dispatchToHandlers(adapter, threadId, message);
+        await this.drainQueue(lock, adapter, threadId, lockKey);
+      }
+    } finally {
+      await this._stateAdapter.releaseLock(lock);
+      this.logger.debug("Lock released", { threadId, lockKey });
+    }
+  }
+  async debounceLoop(lock, adapter, threadId, lockKey) {
+    const { debounceMs } = this._concurrencyConfig;
+    while (true) {
+      await sleep(debounceMs);
+      await this._stateAdapter.extendLock(lock, DEFAULT_LOCK_TTL_MS);
+      const entry = await this._stateAdapter.dequeue(lockKey);
+      if (!entry) {
+        break;
+      }
+      const msg = this.rehydrateMessage(entry.message, adapter);
+      if (Date.now() > entry.expiresAt) {
+        this.logger.info("message-expired", {
+          threadId,
+          lockKey,
+          messageId: msg.id
+        });
+        continue;
+      }
+      const depth = await this._stateAdapter.queueDepth(lockKey);
+      if (depth > 0) {
+        this.logger.info("message-superseded", {
+          threadId,
+          lockKey,
+          droppedId: msg.id
+        });
+        continue;
+      }
+      this.logger.info("message-dequeued", {
+        threadId,
+        lockKey,
+        messageId: msg.id
+      });
+      await this.dispatchToHandlers(adapter, threadId, msg);
+      break;
+    }
+  }
+  async drainQueue(lock, adapter, threadId, lockKey) {
+    while (true) {
+      const pending = [];
+      while (true) {
+        const entry = await this._stateAdapter.dequeue(lockKey);
+        if (!entry) {
+          break;
+        }
+        const msg = this.rehydrateMessage(entry.message, adapter);
+        if (Date.now() <= entry.expiresAt) {
+          pending.push({ message: msg, expiresAt: entry.expiresAt });
+        } else {
+          this.logger.info("message-expired", {
+            threadId,
+            lockKey,
+            messageId: msg.id
+          });
+        }
+      }
+      if (pending.length === 0) {
+        return;
+      }
+      await this._stateAdapter.extendLock(lock, DEFAULT_LOCK_TTL_MS);
+      const latest = pending.at(-1);
+      if (!latest) {
+        return;
+      }
+      const skipped = pending.slice(0, -1).map((e) => e.message);
+      this.logger.info("message-dequeued", {
+        threadId,
+        lockKey,
+        messageId: latest.message.id,
+        skippedCount: skipped.length,
+        totalSinceLastHandler: pending.length
+      });
+      const context = {
+        skipped,
+        totalSinceLastHandler: pending.length
+      };
+      await this.dispatchToHandlers(adapter, threadId, latest.message, context);
+    }
+  }
+  async handleConcurrent(adapter, threadId, message) {
+    const { maxConcurrent } = this._concurrencyConfig;
+    if (!Number.isFinite(maxConcurrent)) {
+      await this.dispatchToHandlers(adapter, threadId, message);
+      return;
+    }
+    await this.acquireConcurrentSlot(threadId, maxConcurrent);
+    try {
+      await this.dispatchToHandlers(adapter, threadId, message);
+    } finally {
+      this.releaseConcurrentSlot(threadId);
+    }
+  }
+  acquireConcurrentSlot(threadId, maxConcurrent) {
+    let slot = this._concurrentSlots.get(threadId);
+    if (!slot) {
+      slot = { inFlight: 0, waiters: [] };
+      this._concurrentSlots.set(threadId, slot);
+    }
+    if (slot.inFlight < maxConcurrent) {
+      slot.inFlight++;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      slot.waiters.push(resolve);
+    });
+  }
+  releaseConcurrentSlot(threadId) {
+    const slot = this._concurrentSlots.get(threadId);
+    if (!slot) {
+      return;
+    }
+    const next = slot.waiters.shift();
+    if (next) {
+      next();
+      return;
+    }
+    slot.inFlight--;
+    if (slot.inFlight === 0 && slot.waiters.length === 0) {
+      this._concurrentSlots.delete(threadId);
+    }
+  }
+  async dispatchToHandlers(adapter, threadId, message, context) {
+    message.isMention = message.isMention || this.detectMention(adapter, message);
+    const isSubscribed = await this._stateAdapter.isSubscribed(threadId);
+    this.logger.debug("Subscription check", {
+      threadId,
+      isSubscribed,
+      subscribedHandlerCount: this.subscribedMessageHandlers.length
+    });
+    const thread = await this.createThread(adapter, threadId, message, isSubscribed);
+    if (this._identity && message.userKey === undefined) {
+      try {
+        const resolved = await this._identity({
+          adapter: adapter.name,
+          author: message.author,
+          message
+        });
+        if (resolved) {
+          message.userKey = resolved;
+        }
+      } catch (err) {
+        this.logger.warn("Identity resolver threw; skipping userKey", {
+          error: err,
+          adapter: adapter.name,
+          threadId,
+          authorUserId: message.author.userId
+        });
+      }
+    }
+    const isDM = adapter.isDM?.(threadId) ?? false;
+    if (isDM && this.directMessageHandlers.length > 0) {
+      this.logger.debug("Direct message received - calling handlers", {
+        threadId,
+        handlerCount: this.directMessageHandlers.length
+      });
+      const channel = thread.channel;
+      for (const handler of this.directMessageHandlers) {
+        await handler(thread, message, channel, context);
+      }
+      return;
+    }
+    if (isDM) {
+      message.isMention = true;
+    }
+    if (isSubscribed) {
+      this.logger.debug("Message in subscribed thread - calling handlers", {
+        threadId,
+        handlerCount: this.subscribedMessageHandlers.length
+      });
+      await this.runHandlers(this.subscribedMessageHandlers, thread, message, context);
+      return;
+    }
+    if (message.isMention) {
+      this.logger.debug("Bot mentioned", {
+        threadId,
+        text: message.text.slice(0, 100)
+      });
+      await this.runHandlers(this.mentionHandlers, thread, message, context);
+      return;
+    }
+    this.logger.debug("Checking message patterns", {
+      patternCount: this.messagePatterns.length,
+      patterns: this.messagePatterns.map((p2) => p2.pattern.toString()),
+      messageText: message.text
+    });
+    let matchedPattern = false;
+    for (const { pattern, handler } of this.messagePatterns) {
+      const matches = pattern.test(message.text);
+      this.logger.debug("Pattern test", {
+        pattern: pattern.toString(),
+        text: message.text,
+        matches
+      });
+      if (matches) {
+        this.logger.debug("Message matched pattern - calling handler", {
+          pattern: pattern.toString()
+        });
+        matchedPattern = true;
+        await handler(thread, message, context);
+      }
+    }
+    if (!matchedPattern) {
+      this.logger.debug("No handlers matched message", {
+        threadId,
+        text: message.text.slice(0, 100)
+      });
+    }
+  }
+  createThread(adapter, threadId, initialMessage, isSubscribedContext = false) {
+    const channelId = adapter.channelIdFromThreadId(threadId);
+    const isDM = adapter.isDM?.(threadId) ?? false;
+    const channelVisibility = adapter.getChannelVisibility?.(threadId) ?? "unknown";
+    return new ThreadImpl({
+      id: threadId,
+      adapter,
+      channelId,
+      stateAdapter: this._stateAdapter,
+      initialMessage,
+      isSubscribedContext,
+      isDM,
+      channelVisibility,
+      currentMessage: initialMessage,
+      logger: this.logger,
+      streamingUpdateIntervalMs: this._streamingUpdateIntervalMs,
+      fallbackStreamingPlaceholderText: this._fallbackStreamingPlaceholderText,
+      threadHistory: adapter.persistThreadHistory || adapter.persistMessageHistory ? this._threadHistory : undefined
+    });
+  }
+  detectMention(adapter, message) {
+    const botUserName = adapter.userName || this.userName;
+    const botUserId = adapter.botUserId;
+    const usernamePattern = new RegExp(`@${this.escapeRegex(botUserName)}\\b`, "i");
+    if (usernamePattern.test(message.text)) {
+      return true;
+    }
+    if (botUserId) {
+      const userIdPattern = new RegExp(`@${this.escapeRegex(botUserId)}\\b`, "i");
+      if (userIdPattern.test(message.text)) {
+        return true;
+      }
+      const discordPattern = new RegExp(`<@!?${this.escapeRegex(botUserId)}>`, "i");
+      if (discordPattern.test(message.text)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  rehydrateMessage(raw, adapter) {
+    if (raw instanceof Message) {
+      if (adapter) {
+        setMessageAdapter(raw, adapter);
+      }
+      return raw;
+    }
+    const obj = raw;
+    let msg;
+    if (obj._type === "chat:Message") {
+      msg = Message.fromJSON(obj);
+    } else {
+      const metadata = obj.metadata;
+      const dateSent = metadata.dateSent;
+      const editedAt = metadata.editedAt;
+      msg = new Message({
+        id: obj.id,
+        threadId: obj.threadId,
+        text: obj.text,
+        formatted: obj.formatted,
+        raw: obj.raw,
+        author: obj.author,
+        metadata: {
+          dateSent: dateSent instanceof Date ? dateSent : new Date(dateSent),
+          edited: metadata.edited,
+          editedAt: editedAt ? new Date(editedAt instanceof Date ? editedAt.toISOString() : editedAt) : undefined
+        },
+        attachments: obj.attachments ?? [],
+        isMention: obj.isMention,
+        links: obj.links ?? []
+      });
+    }
+    if (adapter) {
+      setMessageAdapter(msg, adapter);
+    }
+    const rehydrate = adapter?.rehydrateAttachment?.bind(adapter);
+    if (rehydrate && msg.attachments.length > 0) {
+      msg.attachments = msg.attachments.map((att) => att.fetchData ? att : rehydrate(att));
+    }
+    return msg;
+  }
+  async runHandlers(handlers, thread, message, context) {
+    for (const handler of handlers) {
+      await handler(thread, message, context);
+    }
+  }
+}, emojiRegistry, DEFAULT_EMOJI_MAP, EmojiResolver = class {
+  emojiMap;
+  slackToNormalized;
+  gchatToNormalized;
+  constructor(customMap) {
+    this.emojiMap = { ...DEFAULT_EMOJI_MAP, ...customMap };
+    this.slackToNormalized = /* @__PURE__ */ new Map;
+    this.gchatToNormalized = /* @__PURE__ */ new Map;
+    this.buildReverseMaps();
+  }
+  buildReverseMaps() {
+    for (const [normalized, formats] of Object.entries(this.emojiMap)) {
+      const slackFormats = Array.isArray(formats.slack) ? formats.slack : [formats.slack];
+      for (const slack of slackFormats) {
+        this.slackToNormalized.set(slack.toLowerCase(), normalized);
+      }
+      const gchatFormats = Array.isArray(formats.gchat) ? formats.gchat : [formats.gchat];
+      for (const gchat of gchatFormats) {
+        this.gchatToNormalized.set(gchat, normalized);
+      }
+    }
+  }
+  fromSlack(slackEmoji) {
+    const cleaned = slackEmoji.replace(/^:|:$/g, "").toLowerCase();
+    const normalized = this.slackToNormalized.get(cleaned) ?? slackEmoji;
+    return getEmoji(normalized);
+  }
+  fromGChat(gchatEmoji) {
+    const normalized = this.gchatToNormalized.get(gchatEmoji) ?? gchatEmoji;
+    return getEmoji(normalized);
+  }
+  fromTeams(teamsReaction) {
+    const teamsMap = {
+      like: "thumbs_up",
+      heart: "heart",
+      laugh: "laugh",
+      surprised: "surprised",
+      sad: "sad",
+      angry: "angry"
+    };
+    const normalized = teamsMap[teamsReaction] ?? teamsReaction;
+    return getEmoji(normalized);
+  }
+  toSlack(emoji2) {
+    const name = typeof emoji2 === "string" ? emoji2 : emoji2.name;
+    const formats = this.emojiMap[name];
+    if (!formats) {
+      return name;
+    }
+    return Array.isArray(formats.slack) ? formats.slack[0] : formats.slack;
+  }
+  toGChat(emoji2) {
+    const name = typeof emoji2 === "string" ? emoji2 : emoji2.name;
+    const formats = this.emojiMap[name];
+    if (!formats) {
+      return name;
+    }
+    return Array.isArray(formats.gchat) ? formats.gchat[0] : formats.gchat;
+  }
+  toDiscord(emoji2) {
+    return this.toGChat(emoji2);
+  }
+  matches(rawEmoji, normalized) {
+    const name = typeof normalized === "string" ? normalized : normalized.name;
+    const formats = this.emojiMap[name];
+    if (!formats) {
+      return rawEmoji === name;
+    }
+    const slackFormats = Array.isArray(formats.slack) ? formats.slack : [formats.slack];
+    const gchatFormats = Array.isArray(formats.gchat) ? formats.gchat : [formats.gchat];
+    const cleanedRaw = rawEmoji.replace(/^:|:$/g, "").toLowerCase();
+    return slackFormats.some((s) => s.toLowerCase() === cleanedRaw) || gchatFormats.includes(rawEmoji);
+  }
+  extend(customMap) {
+    Object.assign(this.emojiMap, customMap);
+    this.buildReverseMaps();
+  }
+}, defaultEmojiResolver, EMOJI_PLACEHOLDER_REGEX, emoji, cardChildToFallbackText2, isCardElement2;
+var init_dist4 = __esm(() => {
+  init_chunk_V25FKIIL();
+  init_chunk_HD375J7S();
+  init_dist2();
+  init_dist2();
+  init_dist2();
+  init_dist3();
+  CALLBACK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  STREAM_CHUNK_TYPES = /* @__PURE__ */ new Set([
+    "markdown_text",
+    "task_update",
+    "plan_update"
+  ]);
+  adapterMap = /* @__PURE__ */ new WeakMap;
+  Message = class _Message {
+    id;
+    threadId;
+    text;
+    formatted;
+    raw;
+    author;
+    metadata;
+    attachments;
+    isMention;
+    userKey;
+    links;
+    _subjectPromise;
+    get subject() {
+      if (this._subjectPromise) {
+        return this._subjectPromise;
+      }
+      const adapter = adapterMap.get(this);
+      if (!adapter?.fetchSubject) {
+        this._subjectPromise = Promise.resolve(null);
+        return this._subjectPromise;
+      }
+      this._subjectPromise = adapter.fetchSubject(this.raw).catch(() => null);
+      return this._subjectPromise;
+    }
+    constructor(data) {
+      this.id = data.id;
+      this.threadId = data.threadId;
+      this.text = data.text;
+      this.formatted = data.formatted;
+      this.raw = data.raw;
+      this.author = data.author;
+      this.metadata = data.metadata;
+      this.attachments = data.attachments;
+      this.isMention = data.isMention;
+      this.links = data.links ?? [];
+    }
+    toJSON() {
+      return {
+        _type: "chat:Message",
+        id: this.id,
+        threadId: this.threadId,
+        text: this.text,
+        formatted: this.formatted,
+        raw: this.raw,
+        author: {
+          userId: this.author.userId,
+          userName: this.author.userName,
+          fullName: this.author.fullName,
+          isBot: this.author.isBot,
+          isMe: this.author.isMe
+        },
+        metadata: {
+          dateSent: this.metadata.dateSent.toISOString(),
+          edited: this.metadata.edited,
+          editedAt: this.metadata.editedAt?.toISOString()
+        },
+        attachments: this.attachments.map((att) => ({
+          type: att.type,
+          url: att.url,
+          name: att.name,
+          mimeType: att.mimeType,
+          size: att.size,
+          width: att.width,
+          height: att.height,
+          fetchMetadata: att.fetchMetadata
+        })),
+        isMention: this.isMention,
+        links: this.links.length > 0 ? this.links.map((link22) => ({
+          url: link22.url,
+          title: link22.title,
+          description: link22.description,
+          imageUrl: link22.imageUrl,
+          siteName: link22.siteName
+        })) : undefined
+      };
+    }
+    static fromJSON(json3) {
+      return new _Message({
+        id: json3.id,
+        threadId: json3.threadId,
+        text: json3.text,
+        formatted: json3.formatted,
+        raw: json3.raw,
+        author: json3.author,
+        metadata: {
+          dateSent: new Date(json3.metadata.dateSent),
+          edited: json3.metadata.edited,
+          editedAt: json3.metadata.editedAt ? new Date(json3.metadata.editedAt) : undefined
+        },
+        attachments: json3.attachments,
+        isMention: json3.isMention,
+        links: json3.links
+      });
+    }
+    static [WORKFLOW_SERIALIZE](instance) {
+      return instance.toJSON();
+    }
+    static [WORKFLOW_DESERIALIZE](data) {
+      return _Message.fromJSON(data);
+    }
+  };
+  POSTABLE_OBJECT = /* @__PURE__ */ Symbol.for("chat.postable");
+  ChatError = class extends Error {
+    code;
+    cause;
+    constructor(message, code3, cause) {
+      super(message);
+      this.name = "ChatError";
+      this.code = code3;
+      this.cause = cause;
+    }
+  };
+  LockError = class extends ChatError {
+    constructor(message, cause) {
+      super(message, "LOCK_FAILED", cause);
+      this.name = "LockError";
+    }
+  };
+  NotImplementedError = class extends ChatError {
+    feature;
+    constructor(message, feature, cause) {
+      super(message, "NOT_IMPLEMENTED", cause);
+      this.name = "NotImplementedError";
+      this.feature = feature;
+    }
+  };
+  THREAD_STATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  ChannelImpl = class _ChannelImpl {
+    id;
+    isDM;
+    channelVisibility;
+    _adapter;
+    _adapterName;
+    _stateAdapterInstance;
+    _name = null;
+    _threadHistory;
+    constructor(config) {
+      this.id = config.id;
+      this.isDM = config.isDM ?? false;
+      this.channelVisibility = config.channelVisibility ?? "unknown";
+      if (isLazyConfig(config)) {
+        this._adapterName = config.adapterName;
+      } else {
+        this._adapter = config.adapter;
+        this._stateAdapterInstance = config.stateAdapter;
+        this._threadHistory = config.threadHistory;
+      }
+    }
+    get adapter() {
+      if (this._adapter) {
+        return this._adapter;
+      }
+      if (!this._adapterName) {
+        throw new Error("Channel has no adapter configured");
+      }
+      const chat = getChatSingleton();
+      const adapter = chat.getAdapter(this._adapterName);
+      if (!adapter) {
+        throw new Error(`Adapter "${this._adapterName}" not found in Chat singleton`);
+      }
+      this._adapter = adapter;
+      return adapter;
+    }
+    get _stateAdapter() {
+      if (this._stateAdapterInstance) {
+        return this._stateAdapterInstance;
+      }
+      const chat = getChatSingleton();
+      this._stateAdapterInstance = chat.getState();
+      return this._stateAdapterInstance;
+    }
+    get name() {
+      return this._name;
+    }
+    get state() {
+      return this._stateAdapter.get(`${CHANNEL_STATE_KEY_PREFIX}${this.id}`);
+    }
+    async setState(newState, options) {
+      const key = `${CHANNEL_STATE_KEY_PREFIX}${this.id}`;
+      if (options?.replace) {
+        await this._stateAdapter.set(key, newState, THREAD_STATE_TTL_MS);
+      } else {
+        const existing = await this._stateAdapter.get(key);
+        const merged = { ...existing, ...newState };
+        await this._stateAdapter.set(key, merged, THREAD_STATE_TTL_MS);
+      }
+    }
+    get messages() {
+      const adapter = this.adapter;
+      const channelId = this.id;
+      const threadHistory = this._threadHistory;
+      return {
+        async* [Symbol.asyncIterator]() {
+          let cursor;
+          let yieldedAny = false;
+          while (true) {
+            const fetchOptions = { cursor, direction: "backward" };
+            const result = adapter.fetchChannelMessages ? await adapter.fetchChannelMessages(channelId, fetchOptions) : await adapter.fetchMessages(channelId, fetchOptions);
+            const reversed = [...result.messages].reverse();
+            for (const message of reversed) {
+              yieldedAny = true;
+              yield message;
+            }
+            if (!result.nextCursor || result.messages.length === 0) {
+              break;
+            }
+            cursor = result.nextCursor;
+          }
+          if (!yieldedAny && threadHistory) {
+            const cached = await threadHistory.getMessages(channelId);
+            for (let i = cached.length - 1;i >= 0; i--) {
+              yield cached[i];
+            }
+          }
+        }
+      };
+    }
+    threads() {
+      const adapter = this.adapter;
+      const channelId = this.id;
+      return {
+        async* [Symbol.asyncIterator]() {
+          if (!adapter.listThreads) {
+            return;
+          }
+          let cursor;
+          while (true) {
+            const result = await adapter.listThreads(channelId, {
+              cursor
+            });
+            for (const thread of result.threads) {
+              yield thread;
+            }
+            if (!result.nextCursor || result.threads.length === 0) {
+              break;
+            }
+            cursor = result.nextCursor;
+          }
+        }
+      };
+    }
+    async fetchMetadata() {
+      if (this.adapter.fetchChannelInfo) {
+        const info = await this.adapter.fetchChannelInfo(this.id);
+        this._name = info.name ?? null;
+        return info;
+      }
+      return {
+        id: this.id,
+        isDM: this.isDM,
+        metadata: {}
+      };
+    }
+    async post(message) {
+      if (isPostableObject(message)) {
+        await this.handlePostableObject(message);
+        return message;
+      }
+      if (isAsyncIterable(message)) {
+        let accumulated = "";
+        for await (const chunk of fromFullStream(message)) {
+          if (typeof chunk === "string") {
+            accumulated += chunk;
+          } else if (chunk.type === "markdown_text") {
+            accumulated += chunk.text;
+          }
+        }
+        return this.postSingleMessage({ markdown: accumulated });
+      }
+      let postable = message;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      }
+      postable = await this.processCallbackUrls(postable);
+      return this.postSingleMessage(postable);
+    }
+    async handlePostableObject(obj) {
+      await postPostableObject(obj, this.adapter, this.id, (threadId, message) => this.adapter.postChannelMessage ? this.adapter.postChannelMessage(threadId, message) : this.adapter.postMessage(threadId, message));
+    }
+    async postSingleMessage(postable) {
+      const rawMessage = this.adapter.postChannelMessage ? await this.adapter.postChannelMessage(this.id, postable) : await this.adapter.postMessage(this.id, postable);
+      const sent = this.createSentMessage(rawMessage.id, postable, rawMessage.threadId);
+      if (this._threadHistory) {
+        await this._threadHistory.append(this.id, new Message(sent));
+      }
+      return sent;
+    }
+    async postEphemeral(user, message, options) {
+      const { fallbackToDM } = options;
+      const userId = typeof user === "string" ? user : user.userId;
+      let postable;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      } else {
+        postable = message;
+      }
+      postable = await this.processCallbackUrls(postable);
+      if (this.adapter.postEphemeral) {
+        return this.adapter.postEphemeral(this.id, userId, postable);
+      }
+      if (!fallbackToDM) {
+        return null;
+      }
+      if (this.adapter.openDM) {
+        const dmThreadId = await this.adapter.openDM(userId);
+        const result = await this.adapter.postMessage(dmThreadId, postable);
+        return {
+          id: result.id,
+          threadId: dmThreadId,
+          usedFallback: true,
+          raw: result.raw
+        };
+      }
+      return null;
+    }
+    async schedule(message, options) {
+      let postable;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      } else {
+        postable = message;
+      }
+      postable = await this.processCallbackUrls(postable);
+      if (!this.adapter.scheduleMessage) {
+        throw new NotImplementedError("Scheduled messages are not supported by this adapter", "scheduling");
+      }
+      return this.adapter.scheduleMessage(this.id, postable, options);
+    }
+    async processCallbackUrls(postable) {
+      if (typeof postable === "string") {
+        return postable;
+      }
+      if ("type" in postable && postable.type === "card") {
+        return processCardCallbackUrls(postable, this._stateAdapter);
+      }
+      if ("card" in postable && postable.card?.type === "card") {
+        const processed = await processCardCallbackUrls(postable.card, this._stateAdapter);
+        if (processed !== postable.card) {
+          return { ...postable, card: processed };
+        }
+      }
+      return postable;
+    }
+    async startTyping(status) {
+      await this.adapter.startTyping(this.id, status);
+    }
+    mentionUser(userId) {
+      return `<@${userId}>`;
+    }
+    toJSON() {
+      return {
+        _type: "chat:Channel",
+        id: this.id,
+        adapterName: this._adapterName ?? this.adapter.name,
+        channelVisibility: this.channelVisibility,
+        isDM: this.isDM
+      };
+    }
+    static fromJSON(json3, adapter) {
+      const channel = new _ChannelImpl({
+        id: json3.id,
+        adapterName: json3.adapterName,
+        channelVisibility: json3.channelVisibility,
+        isDM: json3.isDM
+      });
+      if (adapter) {
+        channel._adapter = adapter;
+      }
+      return channel;
+    }
+    static [WORKFLOW_SERIALIZE](instance) {
+      return instance.toJSON();
+    }
+    static [WORKFLOW_DESERIALIZE](data) {
+      return _ChannelImpl.fromJSON(data);
+    }
+    createSentMessage(messageId, postable, threadIdOverride) {
+      const adapter = this.adapter;
+      const threadId = threadIdOverride || this.id;
+      const self2 = this;
+      const { plainText, formatted, attachments } = extractMessageContent(postable);
+      const sentMessage = {
+        id: messageId,
+        threadId,
+        text: plainText,
+        formatted,
+        raw: null,
+        author: {
+          userId: "self",
+          userName: adapter.userName,
+          fullName: adapter.userName,
+          isBot: true,
+          isMe: true
+        },
+        metadata: {
+          dateSent: /* @__PURE__ */ new Date,
+          edited: false
+        },
+        attachments,
+        links: [],
+        toJSON() {
+          return new Message(this).toJSON();
+        },
+        async edit(newContent) {
+          let editPostable = newContent;
+          if (isJSX(newContent)) {
+            const card = toCardElement(newContent);
+            if (!card) {
+              throw new Error("Invalid JSX element: must be a Card element");
+            }
+            editPostable = card;
+          }
+          editPostable = await self2.processCallbackUrls(editPostable);
+          await adapter.editMessage(threadId, messageId, editPostable);
+          return self2.createSentMessage(messageId, editPostable);
+        },
+        async delete() {
+          await adapter.deleteMessage(threadId, messageId);
+        },
+        async addReaction(emoji2) {
+          await adapter.addReaction(threadId, messageId, emoji2);
+        },
+        async removeReaction(emoji2) {
+          await adapter.removeReaction(threadId, messageId, emoji2);
+        }
+      };
+      return sentMessage;
+    }
+  };
+  INLINE_MARKER_CHARS = /* @__PURE__ */ new Set(["*", "~", "`", "["]);
+  TABLE_ROW_RE = /^\|.*\|$/;
+  TABLE_SEPARATOR_RE = /^\|[\s:]*-{1,}[\s:]*(\|[\s:]*-{1,}[\s:]*)*\|$/;
+  ThreadImpl = class _ThreadImpl {
+    id;
+    channelId;
+    isDM;
+    channelVisibility;
+    _adapter;
+    _adapterName;
+    _stateAdapterInstance;
+    _recentMessages = [];
+    _isSubscribedContext;
+    _currentMessage;
+    _streamingUpdateIntervalMs;
+    _fallbackStreamingPlaceholderText;
+    _channel;
+    _threadHistory;
+    _logger;
+    constructor(config) {
+      this.id = config.id;
+      this.channelId = config.channelId;
+      this.isDM = config.isDM ?? false;
+      this.channelVisibility = config.channelVisibility ?? "unknown";
+      this._isSubscribedContext = config.isSubscribedContext ?? false;
+      this._currentMessage = config.currentMessage;
+      this._logger = config.logger;
+      this._streamingUpdateIntervalMs = config.streamingUpdateIntervalMs ?? 500;
+      this._fallbackStreamingPlaceholderText = config.fallbackStreamingPlaceholderText !== undefined ? config.fallbackStreamingPlaceholderText : "...";
+      if (isLazyConfig2(config)) {
+        this._adapterName = config.adapterName;
+      } else {
+        this._adapter = config.adapter;
+        this._stateAdapterInstance = config.stateAdapter;
+        this._threadHistory = config.threadHistory;
+      }
+      if (config.initialMessage) {
+        this._recentMessages = [config.initialMessage];
+      }
+    }
+    get adapter() {
+      if (this._adapter) {
+        return this._adapter;
+      }
+      if (!this._adapterName) {
+        throw new Error("Thread has no adapter configured");
+      }
+      const chat = getChatSingleton();
+      const adapter = chat.getAdapter(this._adapterName);
+      if (!adapter) {
+        throw new Error(`Adapter "${this._adapterName}" not found in Chat singleton`);
+      }
+      this._adapter = adapter;
+      return adapter;
+    }
+    get _stateAdapter() {
+      if (this._stateAdapterInstance) {
+        return this._stateAdapterInstance;
+      }
+      const chat = getChatSingleton();
+      this._stateAdapterInstance = chat.getState();
+      return this._stateAdapterInstance;
+    }
+    get recentMessages() {
+      return this._recentMessages;
+    }
+    set recentMessages(messages2) {
+      this._recentMessages = messages2;
+    }
+    get state() {
+      return this._stateAdapter.get(`${THREAD_STATE_KEY_PREFIX}${this.id}`);
+    }
+    async setState(newState, options) {
+      const key = `${THREAD_STATE_KEY_PREFIX}${this.id}`;
+      if (options?.replace) {
+        await this._stateAdapter.set(key, newState, THREAD_STATE_TTL_MS);
+      } else {
+        const existing = await this._stateAdapter.get(key);
+        const merged = { ...existing, ...newState };
+        await this._stateAdapter.set(key, merged, THREAD_STATE_TTL_MS);
+      }
+    }
+    get channel() {
+      if (!this._channel) {
+        const channelId = deriveChannelId(this.adapter, this.id);
+        this._channel = new ChannelImpl({
+          id: channelId,
+          adapter: this.adapter,
+          stateAdapter: this._stateAdapter,
+          isDM: this.isDM,
+          channelVisibility: this.channelVisibility,
+          threadHistory: this._threadHistory
+        });
+      }
+      return this._channel;
+    }
+    get messages() {
+      const adapter = this.adapter;
+      const threadId = this.id;
+      const threadHistory = this._threadHistory;
+      return {
+        async* [Symbol.asyncIterator]() {
+          let cursor;
+          let yieldedAny = false;
+          while (true) {
+            const result = await adapter.fetchMessages(threadId, {
+              cursor,
+              direction: "backward"
+            });
+            const reversed = [...result.messages].reverse();
+            for (const message of reversed) {
+              yieldedAny = true;
+              yield message;
+            }
+            if (!result.nextCursor || result.messages.length === 0) {
+              break;
+            }
+            cursor = result.nextCursor;
+          }
+          if (!yieldedAny && threadHistory) {
+            const cached = await threadHistory.getMessages(threadId);
+            for (let i = cached.length - 1;i >= 0; i--) {
+              yield cached[i];
+            }
+          }
+        }
+      };
+    }
+    get allMessages() {
+      const adapter = this.adapter;
+      const threadId = this.id;
+      const threadHistory = this._threadHistory;
+      return {
+        async* [Symbol.asyncIterator]() {
+          let cursor;
+          let yieldedAny = false;
+          while (true) {
+            const result = await adapter.fetchMessages(threadId, {
+              limit: 100,
+              cursor,
+              direction: "forward"
+            });
+            for (const message of result.messages) {
+              yieldedAny = true;
+              yield message;
+            }
+            if (!result.nextCursor || result.messages.length === 0) {
+              break;
+            }
+            cursor = result.nextCursor;
+          }
+          if (!yieldedAny && threadHistory) {
+            const cached = await threadHistory.getMessages(threadId);
+            for (const message of cached) {
+              yield message;
+            }
+          }
+        }
+      };
+    }
+    async getParticipants() {
+      const seen = /* @__PURE__ */ new Map;
+      if (this._currentMessage && !this._currentMessage.author.isMe && !this._currentMessage.author.isBot) {
+        seen.set(this._currentMessage.author.userId, this._currentMessage.author);
+      }
+      for await (const message of this.allMessages) {
+        if (message.author.isMe || message.author.isBot || seen.has(message.author.userId)) {
+          continue;
+        }
+        seen.set(message.author.userId, message.author);
+      }
+      return [...seen.values()];
+    }
+    async isSubscribed() {
+      if (this._isSubscribedContext) {
+        return true;
+      }
+      return this._stateAdapter.isSubscribed(this.id);
+    }
+    async subscribe() {
+      await this._stateAdapter.subscribe(this.id);
+      if (this.adapter.onThreadSubscribe) {
+        await this.adapter.onThreadSubscribe(this.id);
+      }
+    }
+    async unsubscribe() {
+      await this._stateAdapter.unsubscribe(this.id);
+    }
+    async post(message) {
+      if (isPostableObject(message)) {
+        if (message.kind === "stream") {
+          const data = message.getPostData();
+          const streamOptions = {
+            ...data.options.updateIntervalMs ? { updateIntervalMs: data.options.updateIntervalMs } : {},
+            ...data.options.groupTasks ? { taskDisplayMode: data.options.groupTasks } : {},
+            ...data.options.endWith ? { stopBlocks: data.options.endWith } : {}
+          };
+          await this.handleStream(data.stream, streamOptions);
+          return message;
+        }
+        await this.handlePostableObject(message);
+        return message;
+      }
+      if (isAsyncIterable2(message)) {
+        return this.handleStream(message);
+      }
+      let postable = message;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      }
+      postable = await this.processCallbackUrls(postable);
+      const rawMessage = await this.adapter.postMessage(this.id, postable);
+      const result = this.createSentMessage(rawMessage.id, postable, rawMessage.threadId);
+      if (this._threadHistory) {
+        await this._threadHistory.append(this.id, new Message(result));
+      }
+      return result;
+    }
+    async handlePostableObject(obj) {
+      await postPostableObject(obj, this.adapter, this.id, (threadId, message) => this.adapter.postMessage(threadId, message), this._logger);
+    }
+    async postEphemeral(user, message, options) {
+      const { fallbackToDM } = options;
+      const userId = typeof user === "string" ? user : user.userId;
+      let postable;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      } else {
+        postable = message;
+      }
+      postable = await this.processCallbackUrls(postable);
+      if (this.adapter.postEphemeral) {
+        return this.adapter.postEphemeral(this.id, userId, postable);
+      }
+      if (!fallbackToDM) {
+        return null;
+      }
+      if (this.adapter.openDM) {
+        const dmThreadId = await this.adapter.openDM(userId);
+        const result = await this.adapter.postMessage(dmThreadId, postable);
+        return {
+          id: result.id,
+          threadId: dmThreadId,
+          usedFallback: true,
+          raw: result.raw
+        };
+      }
+      return null;
+    }
+    async processCallbackUrls(postable) {
+      if (typeof postable === "string") {
+        return postable;
+      }
+      if ("type" in postable && postable.type === "card") {
+        return processCardCallbackUrls(postable, this._stateAdapter);
+      }
+      if ("card" in postable && postable.card?.type === "card") {
+        const processed = await processCardCallbackUrls(postable.card, this._stateAdapter);
+        if (processed !== postable.card) {
+          return { ...postable, card: processed };
+        }
+      }
+      return postable;
+    }
+    async schedule(message, options) {
+      let postable;
+      if (isJSX(message)) {
+        const card = toCardElement(message);
+        if (!card) {
+          throw new Error("Invalid JSX element: must be a Card element");
+        }
+        postable = card;
+      } else {
+        postable = message;
+      }
+      postable = await this.processCallbackUrls(postable);
+      if (!this.adapter.scheduleMessage) {
+        throw new NotImplementedError("Scheduled messages are not supported by this adapter", "scheduling");
+      }
+      return this.adapter.scheduleMessage(this.id, postable, options);
+    }
+    async handleStream(rawStream, callerOptions) {
+      const textStream = fromFullStream(rawStream);
+      const options = {
+        updateIntervalMs: this._streamingUpdateIntervalMs,
+        ...callerOptions
+      };
+      if (this._currentMessage) {
+        options.recipientUserId = this._currentMessage.author.userId;
+        options.recipientTeamId = this.extractSlackRecipientTeamId(this._currentMessage.raw);
+      }
+      if (this.adapter.stream) {
+        let accumulated = "";
+        const wrappedStream = {
+          [Symbol.asyncIterator]: () => {
+            const iterator = textStream[Symbol.asyncIterator]();
+            return {
+              async next() {
+                const result = await iterator.next();
+                if (!result.done) {
+                  const value = result.value;
+                  if (typeof value === "string") {
+                    accumulated += value;
+                  } else if (value.type === "markdown_text") {
+                    accumulated += value.text;
+                  }
+                }
+                return result;
+              }
+            };
+          }
+        };
+        const raw = await this.adapter.stream(this.id, wrappedStream, options);
+        if (raw) {
+          const sent = this.createSentMessage(raw.id, { markdown: accumulated }, raw.threadId);
+          if (this._threadHistory) {
+            await this._threadHistory.append(this.id, new Message(sent));
+          }
+          return sent;
+        }
+      }
+      const textOnlyStream = {
+        [Symbol.asyncIterator]: () => {
+          const iterator = textStream[Symbol.asyncIterator]();
+          return {
+            async next() {
+              while (true) {
+                const result = await iterator.next();
+                if (result.done) {
+                  return { value: undefined, done: true };
+                }
+                const value = result.value;
+                if (typeof value === "string") {
+                  return { value, done: false };
+                }
+                if (value.type === "markdown_text") {
+                  return { value: value.text, done: false };
+                }
+              }
+            }
+          };
+        }
+      };
+      return this.fallbackStream(textOnlyStream, options);
+    }
+    extractSlackRecipientTeamId(raw) {
+      if (!raw || typeof raw !== "object") {
+        return;
+      }
+      const payload = raw;
+      if (typeof payload.team_id === "string" && payload.team_id) {
+        return payload.team_id;
+      }
+      if (typeof payload.team === "string" && payload.team) {
+        return payload.team;
+      }
+      if (payload.team && typeof payload.team === "object" && typeof payload.team.id === "string" && payload.team.id) {
+        return payload.team.id;
+      }
+      if (typeof payload.user?.team_id === "string" && payload.user.team_id) {
+        return payload.user.team_id;
+      }
+      return;
+    }
+    async startTyping(status) {
+      await this.adapter.startTyping(this.id, status);
+    }
+    async fallbackStream(textStream, options) {
+      const intervalMs = options?.updateIntervalMs ?? this._streamingUpdateIntervalMs;
+      const placeholderText = this._fallbackStreamingPlaceholderText;
+      let msg = placeholderText === null ? null : await this.adapter.postMessage(this.id, placeholderText);
+      let threadIdForEdits = this.id;
+      const renderer = new StreamingMarkdownRenderer;
+      let lastEditContent = "";
+      let stopped = false;
+      let pendingEdit = null;
+      let timerId = null;
+      if (msg) {
+        threadIdForEdits = msg.threadId || this.id;
+        lastEditContent = placeholderText ?? "";
+      }
+      const scheduleNextEdit = () => {
+        timerId = setTimeout(() => {
+          pendingEdit = doEditAndReschedule();
+        }, intervalMs);
+      };
+      const doEditAndReschedule = async () => {
+        if (stopped || !msg) {
+          return;
+        }
+        const content3 = renderer.render();
+        if (content3.trim() && content3 !== lastEditContent) {
+          try {
+            await this.adapter.editMessage(threadIdForEdits, msg.id, {
+              markdown: content3
+            });
+            lastEditContent = content3;
+          } catch (error) {
+            this._logger?.warn("fallbackStream edit failed", error);
+          }
+        }
+        if (!stopped) {
+          scheduleNextEdit();
+        }
+      };
+      if (msg) {
+        scheduleNextEdit();
+      }
+      try {
+        for await (const chunk of textStream) {
+          renderer.push(chunk);
+          if (!msg) {
+            const content3 = renderer.render();
+            if (content3.trim()) {
+              msg = await this.adapter.postMessage(this.id, {
+                markdown: content3
+              });
+              threadIdForEdits = msg.threadId || this.id;
+              lastEditContent = content3;
+              scheduleNextEdit();
+            }
+          }
+        }
+      } finally {
+        stopped = true;
+        if (timerId) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+      }
+      if (pendingEdit) {
+        await pendingEdit;
+      }
+      const accumulated = renderer.getText();
+      const finalContent = renderer.finish();
+      if (!msg) {
+        msg = await this.adapter.postMessage(this.id, {
+          markdown: accumulated.trim() ? accumulated : " "
+        });
+        threadIdForEdits = msg.threadId || this.id;
+        lastEditContent = accumulated;
+      }
+      if (finalContent.trim() && finalContent !== lastEditContent) {
+        await this.adapter.editMessage(threadIdForEdits, msg.id, {
+          markdown: accumulated
+        });
+      }
+      const sent = this.createSentMessage(msg.id, { markdown: accumulated }, threadIdForEdits);
+      if (this._threadHistory) {
+        await this._threadHistory.append(this.id, new Message(sent));
+      }
+      return sent;
+    }
+    async refresh() {
+      const result = await this.adapter.fetchMessages(this.id, { limit: 50 });
+      if (result.messages.length > 0) {
+        this._recentMessages = result.messages;
+      } else if (this._threadHistory) {
+        this._recentMessages = await this._threadHistory.getMessages(this.id, 50);
+      } else {
+        this._recentMessages = [];
+      }
+    }
+    mentionUser(userId) {
+      return `<@${userId}>`;
+    }
+    toJSON() {
+      return {
+        _type: "chat:Thread",
+        id: this.id,
+        channelId: this.channelId,
+        channelVisibility: this.channelVisibility,
+        currentMessage: this._currentMessage?.toJSON(),
+        isDM: this.isDM,
+        adapterName: this._adapterName ?? this.adapter.name
+      };
+    }
+    static fromJSON(json3, adapter) {
+      const thread = new _ThreadImpl({
+        id: json3.id,
+        adapterName: json3.adapterName,
+        channelId: json3.channelId,
+        channelVisibility: json3.channelVisibility,
+        currentMessage: json3.currentMessage ? Message.fromJSON(json3.currentMessage) : undefined,
+        isDM: json3.isDM
+      });
+      if (adapter) {
+        thread._adapter = adapter;
+      }
+      return thread;
+    }
+    static [WORKFLOW_SERIALIZE](instance) {
+      return instance.toJSON();
+    }
+    static [WORKFLOW_DESERIALIZE](data) {
+      return _ThreadImpl.fromJSON(data);
+    }
+    createSentMessage(messageId, postable, threadIdOverride) {
+      const adapter = this.adapter;
+      const threadId = threadIdOverride || this.id;
+      const self2 = this;
+      const { plainText, formatted, attachments } = extractMessageContent2(postable);
+      const sentMessage = {
+        id: messageId,
+        threadId,
+        text: plainText,
+        formatted,
+        raw: null,
+        links: [],
+        author: {
+          userId: "self",
+          userName: adapter.userName,
+          fullName: adapter.userName,
+          isBot: true,
+          isMe: true
+        },
+        metadata: {
+          dateSent: /* @__PURE__ */ new Date,
+          edited: false
+        },
+        attachments,
+        toJSON() {
+          return new Message(this).toJSON();
+        },
+        async edit(newContent) {
+          let postable2 = newContent;
+          if (isJSX(newContent)) {
+            const card = toCardElement(newContent);
+            if (!card) {
+              throw new Error("Invalid JSX element: must be a Card element");
+            }
+            postable2 = card;
+          }
+          postable2 = await self2.processCallbackUrls(postable2);
+          await adapter.editMessage(threadId, messageId, postable2);
+          return self2.createSentMessage(messageId, postable2);
+        },
+        async delete() {
+          await adapter.deleteMessage(threadId, messageId);
+        },
+        async addReaction(emoji2) {
+          await adapter.addReaction(threadId, messageId, emoji2);
+        },
+        async removeReaction(emoji2) {
+          await adapter.removeReaction(threadId, messageId, emoji2);
+        }
+      };
+      return sentMessage;
+    }
+    createSentMessageFromMessage(message) {
+      const adapter = this.adapter;
+      const threadId = this.id;
+      const messageId = message.id;
+      const self2 = this;
+      return {
+        id: message.id,
+        threadId: message.threadId,
+        text: message.text,
+        formatted: message.formatted,
+        raw: message.raw,
+        author: message.author,
+        metadata: message.metadata,
+        attachments: message.attachments,
+        links: message.links,
+        isMention: message.isMention,
+        toJSON() {
+          return message.toJSON();
+        },
+        async edit(newContent) {
+          let postable = newContent;
+          if (isJSX(newContent)) {
+            const card = toCardElement(newContent);
+            if (!card) {
+              throw new Error("Invalid JSX element: must be a Card element");
+            }
+            postable = card;
+          }
+          postable = await self2.processCallbackUrls(postable);
+          await adapter.editMessage(threadId, messageId, postable);
+          return self2.createSentMessage(messageId, postable, threadId);
+        },
+        async delete() {
+          await adapter.deleteMessage(threadId, messageId);
+        },
+        async addReaction(emoji2) {
+          await adapter.addReaction(threadId, messageId, emoji2);
+        },
+        async removeReaction(emoji2) {
+          await adapter.removeReaction(threadId, messageId, emoji2);
+        }
+      };
+    }
+  };
+  DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  DURATION_RE = /^(\d+)([smhd])$/;
+  MS_PER_UNIT = {
+    s: 1000,
+    m: 60000,
+    h: 3600000,
+    d: 86400000
+  };
+  SLACK_USER_ID_REGEX = /^[UW][A-Z0-9]+$/;
+  DISCORD_SNOWFLAKE_REGEX = /^\d{17,19}$/;
+  LINEAR_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  NUMERIC_REGEX = /^\d+$/;
+  DEDUPE_TTL_MS = 5 * 60 * 1000;
+  MODAL_CONTEXT_TTL_MS = 24 * 60 * 60 * 1000;
+  emojiRegistry = /* @__PURE__ */ new Map;
+  DEFAULT_EMOJI_MAP = {
+    thumbs_up: { slack: ["+1", "thumbsup"], gchat: "\uD83D\uDC4D" },
+    thumbs_down: { slack: ["-1", "thumbsdown"], gchat: "\uD83D\uDC4E" },
+    clap: { slack: "clap", gchat: "\uD83D\uDC4F" },
+    wave: { slack: "wave", gchat: "\uD83D\uDC4B" },
+    pray: { slack: "pray", gchat: "\uD83D\uDE4F" },
+    muscle: { slack: "muscle", gchat: "\uD83D\uDCAA" },
+    ok_hand: { slack: "ok_hand", gchat: "\uD83D\uDC4C" },
+    point_up: { slack: "point_up", gchat: "\uD83D\uDC46" },
+    point_down: { slack: "point_down", gchat: "\uD83D\uDC47" },
+    point_left: { slack: "point_left", gchat: "\uD83D\uDC48" },
+    point_right: { slack: "point_right", gchat: "\uD83D\uDC49" },
+    raised_hands: { slack: "raised_hands", gchat: "\uD83D\uDE4C" },
+    shrug: { slack: "shrug", gchat: "\uD83E\uDD37" },
+    facepalm: { slack: "facepalm", gchat: "\uD83E\uDD26" },
+    heart: { slack: "heart", gchat: ["❤️", "❤"] },
+    smile: { slack: ["smile", "slightly_smiling_face"], gchat: "\uD83D\uDE0A" },
+    laugh: { slack: ["laughing", "satisfied", "joy"], gchat: ["\uD83D\uDE02", "\uD83D\uDE06"] },
+    thinking: { slack: "thinking_face", gchat: "\uD83E\uDD14" },
+    sad: { slack: ["cry", "sad", "white_frowning_face"], gchat: "\uD83D\uDE22" },
+    cry: { slack: "sob", gchat: "\uD83D\uDE2D" },
+    angry: { slack: "angry", gchat: "\uD83D\uDE20" },
+    love_eyes: { slack: "heart_eyes", gchat: "\uD83D\uDE0D" },
+    cool: { slack: "sunglasses", gchat: "\uD83D\uDE0E" },
+    wink: { slack: "wink", gchat: "\uD83D\uDE09" },
+    surprised: { slack: "open_mouth", gchat: "\uD83D\uDE2E" },
+    worried: { slack: "worried", gchat: "\uD83D\uDE1F" },
+    confused: { slack: "confused", gchat: "\uD83D\uDE15" },
+    neutral: { slack: "neutral_face", gchat: "\uD83D\uDE10" },
+    sleeping: { slack: "sleeping", gchat: "\uD83D\uDE34" },
+    sick: { slack: "nauseated_face", gchat: "\uD83E\uDD22" },
+    mind_blown: { slack: "exploding_head", gchat: "\uD83E\uDD2F" },
+    relieved: { slack: "relieved", gchat: "\uD83D\uDE0C" },
+    grimace: { slack: "grimacing", gchat: "\uD83D\uDE2C" },
+    rolling_eyes: { slack: "rolling_eyes", gchat: "\uD83D\uDE44" },
+    hug: { slack: "hugging_face", gchat: "\uD83E\uDD17" },
+    zany: { slack: "zany_face", gchat: "\uD83E\uDD2A" },
+    check: {
+      slack: ["white_check_mark", "heavy_check_mark"],
+      gchat: ["✅", "✔️"]
+    },
+    x: { slack: ["x", "heavy_multiplication_x"], gchat: ["❌", "✖️"] },
+    question: { slack: "question", gchat: ["❓", "?"] },
+    exclamation: { slack: "exclamation", gchat: "❗" },
+    warning: { slack: "warning", gchat: "⚠️" },
+    stop: { slack: "octagonal_sign", gchat: "\uD83D\uDED1" },
+    info: { slack: "information_source", gchat: "ℹ️" },
+    "100": { slack: "100", gchat: "\uD83D\uDCAF" },
+    fire: { slack: "fire", gchat: "\uD83D\uDD25" },
+    star: { slack: "star", gchat: "⭐" },
+    sparkles: { slack: "sparkles", gchat: "✨" },
+    lightning: { slack: "zap", gchat: "⚡" },
+    boom: { slack: "boom", gchat: "\uD83D\uDCA5" },
+    eyes: { slack: "eyes", gchat: "\uD83D\uDC40" },
+    green_circle: { slack: "large_green_circle", gchat: "\uD83D\uDFE2" },
+    yellow_circle: { slack: "large_yellow_circle", gchat: "\uD83D\uDFE1" },
+    red_circle: { slack: "red_circle", gchat: "\uD83D\uDD34" },
+    blue_circle: { slack: "large_blue_circle", gchat: "\uD83D\uDD35" },
+    white_circle: { slack: "white_circle", gchat: "⚪" },
+    black_circle: { slack: "black_circle", gchat: "⚫" },
+    rocket: { slack: "rocket", gchat: "\uD83D\uDE80" },
+    party: { slack: ["tada", "partying_face"], gchat: ["\uD83C\uDF89", "\uD83E\uDD73"] },
+    confetti: { slack: "confetti_ball", gchat: "\uD83C\uDF8A" },
+    balloon: { slack: "balloon", gchat: "\uD83C\uDF88" },
+    gift: { slack: "gift", gchat: "\uD83C\uDF81" },
+    trophy: { slack: "trophy", gchat: "\uD83C\uDFC6" },
+    medal: { slack: "first_place_medal", gchat: "\uD83E\uDD47" },
+    lightbulb: { slack: "bulb", gchat: "\uD83D\uDCA1" },
+    gear: { slack: "gear", gchat: "⚙️" },
+    wrench: { slack: "wrench", gchat: "\uD83D\uDD27" },
+    hammer: { slack: "hammer", gchat: "\uD83D\uDD28" },
+    bug: { slack: "bug", gchat: "\uD83D\uDC1B" },
+    link: { slack: "link", gchat: "\uD83D\uDD17" },
+    lock: { slack: "lock", gchat: "\uD83D\uDD12" },
+    unlock: { slack: "unlock", gchat: "\uD83D\uDD13" },
+    key: { slack: "key", gchat: "\uD83D\uDD11" },
+    pin: { slack: "pushpin", gchat: "\uD83D\uDCCC" },
+    memo: { slack: "memo", gchat: "\uD83D\uDCDD" },
+    clipboard: { slack: "clipboard", gchat: "\uD83D\uDCCB" },
+    calendar: { slack: "calendar", gchat: "\uD83D\uDCC5" },
+    clock: { slack: "clock1", gchat: "\uD83D\uDD50" },
+    hourglass: { slack: "hourglass", gchat: "⏳" },
+    bell: { slack: "bell", gchat: "\uD83D\uDD14" },
+    megaphone: { slack: "mega", gchat: "\uD83D\uDCE2" },
+    speech_bubble: { slack: "speech_balloon", gchat: "\uD83D\uDCAC" },
+    email: { slack: "email", gchat: "\uD83D\uDCE7" },
+    inbox: { slack: "inbox_tray", gchat: "\uD83D\uDCE5" },
+    outbox: { slack: "outbox_tray", gchat: "\uD83D\uDCE4" },
+    package: { slack: "package", gchat: "\uD83D\uDCE6" },
+    folder: { slack: "file_folder", gchat: "\uD83D\uDCC1" },
+    file: { slack: "page_facing_up", gchat: "\uD83D\uDCC4" },
+    chart_up: { slack: "chart_with_upwards_trend", gchat: "\uD83D\uDCC8" },
+    chart_down: { slack: "chart_with_downwards_trend", gchat: "\uD83D\uDCC9" },
+    coffee: { slack: "coffee", gchat: "☕" },
+    pizza: { slack: "pizza", gchat: "\uD83C\uDF55" },
+    beer: { slack: "beer", gchat: "\uD83C\uDF7A" },
+    arrow_up: { slack: "arrow_up", gchat: "⬆️" },
+    arrow_down: { slack: "arrow_down", gchat: "⬇️" },
+    arrow_left: { slack: "arrow_left", gchat: "⬅️" },
+    arrow_right: { slack: "arrow_right", gchat: "➡️" },
+    refresh: { slack: "arrows_counterclockwise", gchat: "\uD83D\uDD04" },
+    sun: { slack: "sunny", gchat: "☀️" },
+    cloud: { slack: "cloud", gchat: "☁️" },
+    rain: { slack: "rain_cloud", gchat: "\uD83C\uDF27️" },
+    snow: { slack: "snowflake", gchat: "❄️" },
+    rainbow: { slack: "rainbow", gchat: "\uD83C\uDF08" }
+  };
+  defaultEmojiResolver = new EmojiResolver;
+  EMOJI_PLACEHOLDER_REGEX = /\{\{emoji:([a-z0-9_]+)\}\}/gi;
+  emoji = createEmoji();
+  cardChildToFallbackText2 = cardChildToFallbackText;
+  isCardElement2 = isCardElement;
+});
+
+// node_modules/@chat-adapter/shared/dist/index.js
+function extractCard(message) {
+  if (isCardElement2(message)) {
+    return message;
+  }
+  if (typeof message === "object" && message !== null && "card" in message) {
+    return message.card;
+  }
+  return null;
+}
+function extractFiles(message) {
+  if (typeof message === "object" && message !== null && "files" in message) {
+    return message.files ?? [];
+  }
+  return [];
+}
+function extractPostableAttachments(message) {
+  if (typeof message === "object" && message !== null && "attachments" in message) {
+    return message.attachments ?? [];
+  }
+  return [];
+}
+function createEmojiConverter(platform) {
+  return (text8) => convertEmojiPlaceholders(text8, platform);
+}
+function cardToFallbackText2(card, options = {}) {
+  const { boldFormat = "*", lineBreak = `
+`, platform } = options;
+  const convertText = platform ? createEmojiConverter(platform) : (t) => t;
+  const parts = [];
+  if (card.title) {
+    parts.push(`${boldFormat}${convertText(card.title)}${boldFormat}`);
+  }
+  if (card.subtitle) {
+    parts.push(convertText(card.subtitle));
+  }
+  for (const child of card.children) {
+    const text8 = childToFallbackText(child, convertText);
+    if (text8) {
+      parts.push(text8);
+    }
+  }
+  return parts.join(lineBreak);
+}
+function childToFallbackText(child, convertText) {
+  switch (child.type) {
+    case "text":
+      return convertText(child.content);
+    case "link":
+      return `${convertText(child.label)} (${child.url})`;
+    case "fields":
+      return child.children.map((f2) => `${convertText(f2.label)}: ${convertText(f2.value)}`).join(`
+`);
+    case "actions":
+      return null;
+    case "section":
+      return child.children.map((c2) => childToFallbackText(c2, convertText)).filter(Boolean).join(`
+`);
+    case "table":
+      return tableElementToAscii(child.headers, child.rows);
+    case "divider":
+      return "---";
+    default:
+      return cardChildToFallbackText2(child);
+  }
+}
+var AdapterError, AdapterRateLimitError, AuthenticationError, ResourceNotFoundError, PermissionError, ValidationError, NetworkError;
+var init_dist5 = __esm(() => {
+  init_dist4();
+  init_dist4();
+  AdapterError = class extends Error {
+    adapter;
+    code;
+    constructor(message, adapter, code3) {
+      super(message);
+      this.name = "AdapterError";
+      this.adapter = adapter;
+      this.code = code3;
+    }
+  };
+  AdapterRateLimitError = class extends AdapterError {
+    retryAfter;
+    constructor(adapter, retryAfter) {
+      super(`Rate limited by ${adapter}${retryAfter ? `, retry after ${retryAfter}s` : ""}`, adapter, "RATE_LIMITED");
+      this.name = "AdapterRateLimitError";
+      this.retryAfter = retryAfter;
+    }
+  };
+  AuthenticationError = class extends AdapterError {
+    constructor(adapter, message) {
+      super(message || `Authentication failed for ${adapter}`, adapter, "AUTH_FAILED");
+      this.name = "AuthenticationError";
+    }
+  };
+  ResourceNotFoundError = class extends AdapterError {
+    resourceType;
+    resourceId;
+    constructor(adapter, resourceType, resourceId) {
+      const idPart = resourceId ? ` '${resourceId}'` : "";
+      super(`${resourceType}${idPart} not found in ${adapter}`, adapter, "NOT_FOUND");
+      this.name = "ResourceNotFoundError";
+      this.resourceType = resourceType;
+      this.resourceId = resourceId;
+    }
+  };
+  PermissionError = class extends AdapterError {
+    action;
+    requiredScope;
+    constructor(adapter, action, requiredScope) {
+      const scopePart = requiredScope ? ` (requires: ${requiredScope})` : "";
+      super(`Permission denied: cannot ${action} in ${adapter}${scopePart}`, adapter, "PERMISSION_DENIED");
+      this.name = "PermissionError";
+      this.action = action;
+      this.requiredScope = requiredScope;
+    }
+  };
+  ValidationError = class extends AdapterError {
+    constructor(adapter, message) {
+      super(message, adapter, "VALIDATION_ERROR");
+      this.name = "ValidationError";
+    }
+  };
+  NetworkError = class extends AdapterError {
+    originalError;
+    constructor(adapter, message, originalError) {
+      super(message || `Network error communicating with ${adapter}`, adapter, "NETWORK_ERROR");
+      this.name = "NetworkError";
+      this.originalError = originalError;
+    }
+  };
+});
+
+// node_modules/@chat-adapter/telegram/dist/index.js
+import { timingSafeEqual } from "crypto";
+function convertLabel(label) {
+  return convertEmojiPlaceholders(label, "gchat");
+}
+function toInlineKeyboardRow(actions) {
+  const row = [];
+  for (const action of actions.children) {
+    if (action.type === "button") {
+      row.push({
+        text: convertLabel(action.label),
+        callback_data: encodeTelegramCallbackData(action.id, action.value)
+      });
+      continue;
+    }
+    if (action.type === "link-button") {
+      row.push({
+        text: convertLabel(action.label),
+        url: action.url
+      });
+    }
+  }
+  return row;
+}
+function collectInlineKeyboardRows(children, rows) {
+  for (const child of children) {
+    if (child.type === "actions") {
+      const row = toInlineKeyboardRow(child);
+      if (row.length > 0) {
+        rows.push(row);
+      }
+      continue;
+    }
+    if (child.type === "section") {
+      collectInlineKeyboardRows(child.children, rows);
+    }
+  }
+}
+function cardToTelegramInlineKeyboard(card) {
+  const rows = [];
+  collectInlineKeyboardRows(card.children, rows);
+  if (rows.length === 0) {
+    return;
+  }
+  return {
+    inline_keyboard: rows
+  };
+}
+function emptyTelegramInlineKeyboard() {
+  return { inline_keyboard: [] };
+}
+function encodeTelegramCallbackData(actionId, value) {
+  const payload = { a: actionId };
+  if (typeof value === "string") {
+    payload.v = value;
+  }
+  const callbackData = `${CALLBACK_DATA_PREFIX}${JSON.stringify(payload)}`;
+  if (Buffer.byteLength(callbackData, "utf8") > TELEGRAM_CALLBACK_DATA_LIMIT_BYTES) {
+    throw new ValidationError("telegram", `Callback payload too large for Telegram (max ${TELEGRAM_CALLBACK_DATA_LIMIT_BYTES} bytes).`);
+  }
+  return callbackData;
+}
+function decodeTelegramCallbackData(data) {
+  if (!data) {
+    return { actionId: "telegram_callback", value: undefined };
+  }
+  if (!data.startsWith(CALLBACK_DATA_PREFIX)) {
+    return { actionId: data, value: data };
+  }
+  try {
+    const decoded = JSON.parse(data.slice(CALLBACK_DATA_PREFIX.length));
+    if (typeof decoded.a === "string" && decoded.a) {
+      return {
+        actionId: decoded.a,
+        value: typeof decoded.v === "string" ? decoded.v : undefined
+      };
+    }
+  } catch {}
+  return { actionId: data, value: data };
+}
+function toBotApiParseMode(mode) {
+  return mode === "MarkdownV2" ? "MarkdownV2" : undefined;
+}
+function escapeMarkdownV2(text8) {
+  return text8.replace(MARKDOWNV2_SPECIAL_CHARS, "\\$1");
+}
+function findUnescapedPositions(text8, marker) {
+  const positions = [];
+  for (let i = 0;i < text8.length; i++) {
+    if (text8[i] !== marker) {
+      continue;
+    }
+    let backslashes = 0;
+    let j2 = i - 1;
+    while (j2 >= 0 && text8[j2] === "\\") {
+      backslashes++;
+      j2--;
+    }
+    if (backslashes % 2 === 0) {
+      positions.push(i);
+    }
+  }
+  return positions;
+}
+function findUnescapedPositionsOutsideCode(text8, marker) {
+  const positions = [];
+  let inFence = false;
+  let inInline = false;
+  let backslashes = 0;
+  for (let i = 0;i < text8.length; i++) {
+    const ch = text8[i];
+    if (ch === "\\") {
+      backslashes++;
+      continue;
+    }
+    const escaped = backslashes % 2 === 1;
+    backslashes = 0;
+    if (ch === "`" && !escaped) {
+      const isTriple = text8[i + 1] === "`" && text8[i + 2] === "`";
+      if (isTriple && !inInline) {
+        inFence = !inFence;
+        i += 2;
+        continue;
+      }
+      if (!inFence) {
+        inInline = !inInline;
+      }
+      continue;
+    }
+    if (ch === marker && !escaped && !inFence && !inInline) {
+      positions.push(i);
+    }
+  }
+  return positions;
+}
+function endsWithOrphanBackslash(text8) {
+  let trailing = 0;
+  for (let i = text8.length - 1;i >= 0 && text8[i] === "\\"; i--) {
+    trailing++;
+  }
+  return trailing % 2 === 1;
+}
+function trimToMarkdownV2SafeBoundary(text8) {
+  let current = text8;
+  const maxIterations = current.length + 1;
+  for (let i = 0;i < maxIterations; i++) {
+    if (endsWithOrphanBackslash(current)) {
+      current = current.slice(0, -1);
+      continue;
+    }
+    let minUnsafePosition = current.length;
+    for (const marker of MARKDOWN_V2_ENTITY_MARKERS) {
+      const positions = marker === "`" ? findUnescapedPositions(current, marker) : findUnescapedPositionsOutsideCode(current, marker);
+      if (positions.length % 2 === 1) {
+        const lastUnpaired = positions.at(-1) ?? current.length;
+        if (lastUnpaired < minUnsafePosition) {
+          minUnsafePosition = lastUnpaired;
+        }
+      }
+    }
+    const openBrackets = findUnescapedPositionsOutsideCode(current, "[");
+    const closeBrackets = findUnescapedPositionsOutsideCode(current, "]");
+    if (openBrackets.length > closeBrackets.length) {
+      const lastOpen = openBrackets.at(-1) ?? current.length;
+      if (lastOpen < minUnsafePosition) {
+        minUnsafePosition = lastOpen;
+      }
+    }
+    if (minUnsafePosition >= current.length) {
+      return current;
+    }
+    current = current.slice(0, minUnsafePosition);
+  }
+  return current;
+}
+function truncateForTelegram(text8, limit, parseMode) {
+  const isMarkdownV2 = parseMode === "MarkdownV2";
+  if (text8.length <= limit) {
+    return isMarkdownV2 ? trimToMarkdownV2SafeBoundary(text8) : text8;
+  }
+  const ellipsis = isMarkdownV2 ? MARKDOWN_V2_ELLIPSIS : PLAIN_ELLIPSIS;
+  let slice = text8.slice(0, limit - ellipsis.length);
+  if (isMarkdownV2) {
+    slice = trimToMarkdownV2SafeBoundary(slice);
+  }
+  return `${slice}${ellipsis}`;
+}
+function escapeCodeBlock(text8) {
+  return text8.replace(CODE_BLOCK_SPECIAL_CHARS, "\\$1");
+}
+function escapeLinkUrl(text8) {
+  return text8.replace(LINK_URL_SPECIAL_CHARS, "\\$1");
+}
+function renderMarkdownV2(node2) {
+  switch (node2.type) {
+    case "root":
+      return node2.children.map(renderMarkdownV2).join(`
+
+`);
+    case "paragraph":
+      return node2.children.map(renderMarkdownV2).join("");
+    case "text":
+      return escapeMarkdownV2(node2.value);
+    case "strong":
+      return `*${node2.children.map(renderMarkdownV2).join("")}*`;
+    case "emphasis":
+      return `_${node2.children.map(renderMarkdownV2).join("")}_`;
+    case "delete":
+      return `~${node2.children.map(renderMarkdownV2).join("")}~`;
+    case "inlineCode":
+      return `\`${escapeCodeBlock(node2.value)}\``;
+    case "code": {
+      const lang = node2.lang ?? "";
+      const val = escapeCodeBlock(node2.value);
+      return `\`\`\`${lang}
+${val}
+\`\`\``;
+    }
+    case "link": {
+      const linkText = node2.children.map(renderMarkdownV2).join("");
+      const url2 = escapeLinkUrl(node2.url);
+      return `[${linkText}](${url2})`;
+    }
+    case "blockquote": {
+      const inner = node2.children.map(renderMarkdownV2).join(`
+`);
+      return inner.split(`
+`).map((line3) => `>${line3}`).join(`
+`);
+    }
+    case "list":
+      return node2.children.map((item, i) => {
+        const content3 = item.children.map(renderMarkdownV2).join(`
+`);
+        if (node2.ordered) {
+          return `${escapeMarkdownV2(`${i + 1}.`)} ${content3}`;
+        }
+        return `\\- ${content3}`;
+      }).join(`
+`);
+    case "listItem":
+      return node2.children.map(renderMarkdownV2).join(`
+`);
+    case "heading": {
+      const text8 = node2.children.map(renderMarkdownV2).join("");
+      return `*${text8}*`;
+    }
+    case "thematicBreak":
+      return escapeMarkdownV2("———");
+    case "break":
+      return `
+`;
+    case "image": {
+      const alt = escapeMarkdownV2(node2.alt ?? "");
+      const url2 = escapeLinkUrl(node2.url);
+      return `[${alt}](${url2})`;
+    }
+    case "html":
+      return escapeMarkdownV2(node2.value);
+    case "linkReference":
+    case "imageReference":
+      if ("children" in node2 && node2.children.length > 0) {
+        return node2.children.map(renderMarkdownV2).join("");
+      }
+      return escapeMarkdownV2(node2.label ?? node2.identifier);
+    case "definition":
+      return "";
+    case "footnoteDefinition":
+      return "";
+    case "footnoteReference":
+      return escapeMarkdownV2(`[^${node2.label ?? node2.identifier}]`);
+    case "yaml":
+      return "";
+    case "table":
+    case "tableRow":
+    case "tableCell":
+      throw new Error(`Telegram MarkdownV2 renderer received a ${node2.type} node; fromAst should have preprocessed it into a code block.`);
+    default: {
+      throw new Error(`Unhandled case: ${node2}`);
+    }
+  }
+}
+function applyTelegramEntities(text8, entities) {
+  if (entities.length === 0) {
+    return text8;
+  }
+  const sorted = [...entities].sort((a, b3) => {
+    const offsetDiff = b3.offset - a.offset;
+    if (offsetDiff !== 0) {
+      return offsetDiff;
+    }
+    return a.length - b3.length;
+  });
+  let result = text8;
+  for (const entity2 of sorted) {
+    const start = entity2.offset;
+    const end = entity2.offset + entity2.length;
+    const entityText = result.slice(start, end);
+    let replacement;
+    switch (entity2.type) {
+      case "text_link": {
+        if (entity2.url) {
+          replacement = `[${escapeMarkdownInEntity(entityText)}](${entity2.url})`;
+        }
+        break;
+      }
+      case "bold": {
+        replacement = `**${entityText}**`;
+        break;
+      }
+      case "italic": {
+        replacement = `*${entityText}*`;
+        break;
+      }
+      case "code": {
+        replacement = `\`${entityText}\``;
+        break;
+      }
+      case "pre": {
+        const lang = entity2.language ?? "";
+        replacement = `\`\`\`${lang}
+${entityText}
+\`\`\``;
+        break;
+      }
+      case "strikethrough": {
+        replacement = `~~${entityText}~~`;
+        break;
+      }
+      default:
+        break;
+    }
+    if (replacement !== undefined) {
+      result = result.slice(0, start) + replacement + result.slice(end);
+    }
+  }
+  return result;
+}
+function createTelegramAdapter(config) {
+  return new TelegramAdapter(config ?? {});
+}
+var CALLBACK_DATA_PREFIX = "chat:", TELEGRAM_CALLBACK_DATA_LIMIT_BYTES = 64, MARKDOWNV2_SPECIAL_CHARS, CODE_BLOCK_SPECIAL_CHARS, LINK_URL_SPECIAL_CHARS, TELEGRAM_MESSAGE_LIMIT = 4096, TELEGRAM_CAPTION_LIMIT = 1024, MARKDOWN_V2_ENTITY_MARKERS, MARKDOWN_V2_ELLIPSIS = "\\.\\.\\.", PLAIN_ELLIPSIS = "...", TelegramFormatConverter, TELEGRAM_API_BASE = "https://api.telegram.org", TELEGRAM_SECRET_TOKEN_HEADER = "x-telegram-bot-api-secret-token", MESSAGE_ID_PATTERN, trimTrailingSlashes = (url2) => {
+  let end = url2.length;
+  while (end > 0 && url2[end - 1] === "/") {
+    end--;
+  }
+  return url2.slice(0, end);
+}, MESSAGE_SEQUENCE_PATTERN, ATTACHMENT_UPLOADS, LEADING_AT_PATTERN, EMOJI_PLACEHOLDER_PATTERN, EMOJI_NAME_PATTERN, TELEGRAM_DEFAULT_POLLING_TIMEOUT_SECONDS = 30, TELEGRAM_DEFAULT_POLLING_LIMIT = 100, TELEGRAM_DEFAULT_POLLING_RETRY_DELAY_MS = 1000, TELEGRAM_DEFAULT_STREAM_UPDATE_INTERVAL_MS = 250, TELEGRAM_MARKDOWN_PARSE_ERROR_PATTERN, TELEGRAM_MAX_POLLING_LIMIT = 100, TELEGRAM_MIN_POLLING_LIMIT = 1, TELEGRAM_MIN_POLLING_TIMEOUT_SECONDS = 0, TELEGRAM_MAX_POLLING_TIMEOUT_SECONDS = 300, escapeMarkdownInEntity = (text8) => text8.replace(/([[\]()\\])/g, "\\$1"), TelegramAdapter = class {
+  name = "telegram";
+  lockScope = "channel";
+  persistThreadHistory = true;
+  botToken;
+  apiBaseUrl;
+  secretToken;
+  warnedNoVerification = false;
+  logger;
+  formatConverter = new TelegramFormatConverter;
+  messageCache = /* @__PURE__ */ new Map;
+  chat = null;
+  _botUserId;
+  _userName;
+  hasExplicitUserName;
+  mode;
+  longPolling;
+  _runtimeMode = "webhook";
+  pollingAbortController = null;
+  pollingTask = null;
+  pollingActive = false;
+  nextDraftId = Math.max(1, Date.now() % 2147483647);
+  get botUserId() {
+    return this._botUserId;
+  }
+  get userName() {
+    return this._userName;
+  }
+  get isPolling() {
+    return this.pollingActive;
+  }
+  get runtimeMode() {
+    return this._runtimeMode;
+  }
+  constructor(config = {}) {
+    const botToken = config.botToken ?? process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      throw new ValidationError("telegram", "botToken is required. Set TELEGRAM_BOT_TOKEN or provide it in config.");
+    }
+    this.botToken = botToken;
+    this.apiBaseUrl = trimTrailingSlashes(config.apiUrl ?? config.apiBaseUrl ?? process.env.TELEGRAM_API_BASE_URL ?? TELEGRAM_API_BASE);
+    this.secretToken = config.secretToken ?? process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
+    this.logger = config.logger ?? new ConsoleLogger("info").child("telegram");
+    const userName = config.userName ?? process.env.TELEGRAM_BOT_USERNAME;
+    this._userName = this.normalizeUserName(userName ?? "bot");
+    this.hasExplicitUserName = Boolean(userName);
+    this.mode = config.mode ?? "auto";
+    this.longPolling = config.longPolling;
+    if (!["auto", "webhook", "polling"].includes(this.mode)) {
+      throw new ValidationError("telegram", `Invalid mode: ${this.mode}. Expected "auto", "webhook", or "polling".`);
+    }
+  }
+  async initialize(chat) {
+    this.chat = chat;
+    if (!this.hasExplicitUserName) {
+      const chatUserName = chat.getUserName?.();
+      if (typeof chatUserName === "string" && chatUserName.trim()) {
+        this._userName = this.normalizeUserName(chatUserName);
+      }
+    }
+    try {
+      const me = await this.telegramFetch("getMe");
+      this._botUserId = String(me.id);
+      if (!this.hasExplicitUserName && me.username) {
+        this._userName = this.normalizeUserName(me.username);
+      }
+      this.logger.info("Telegram adapter initialized", {
+        botUserId: this._botUserId,
+        userName: this._userName
+      });
+    } catch (error) {
+      this.logger.warn("Failed to fetch Telegram bot identity", {
+        error: String(error)
+      });
+    }
+    const runtimeMode = await this.resolveRuntimeMode();
+    this._runtimeMode = runtimeMode;
+    if (runtimeMode === "polling") {
+      const pollingConfig = this.longPolling;
+      if (this.mode === "auto") {
+        await this.startPolling(pollingConfig ? { ...pollingConfig, deleteWebhook: false } : { deleteWebhook: false });
+      } else {
+        await this.startPolling(pollingConfig);
+      }
+    }
+  }
+  async getUser(userId) {
+    try {
+      const chat = await this.telegramFetch("getChat", {
+        chat_id: userId
+      });
+      if (chat.type !== "private") {
+        return null;
+      }
+      const fullName = [chat.first_name, chat.last_name].filter(Boolean).join(" ");
+      return {
+        email: undefined,
+        fullName: fullName || String(chat.id),
+        isBot: false,
+        userId: String(chat.id),
+        userName: chat.username || chat.first_name || String(chat.id)
+      };
+    } catch {
+      return null;
+    }
+  }
+  async handleWebhook(request, options) {
+    if (this.secretToken) {
+      const headerToken = request.headers.get(TELEGRAM_SECRET_TOKEN_HEADER);
+      let valid = false;
+      try {
+        valid = !!headerToken && timingSafeEqual(Buffer.from(headerToken), Buffer.from(this.secretToken));
+      } catch {}
+      if (!valid) {
+        this.logger.warn("Telegram webhook rejected due to invalid secret token");
+        return new Response("Invalid secret token", { status: 401 });
+      }
+    } else if (!this.warnedNoVerification) {
+      this.warnedNoVerification = true;
+      this.logger.warn("Telegram webhook verification is disabled. Set TELEGRAM_WEBHOOK_SECRET_TOKEN or secretToken to verify incoming requests.");
+    }
+    let update2;
+    try {
+      update2 = await request.json();
+    } catch {
+      return new Response("Invalid JSON", { status: 400 });
+    }
+    if (!this.chat) {
+      this.logger.warn("Chat instance not initialized, ignoring Telegram webhook");
+      return new Response("OK", { status: 200 });
+    }
+    try {
+      this.processUpdate(update2, options);
+    } catch (error) {
+      this.logger.warn("Failed to process Telegram webhook update", {
+        error: String(error),
+        updateId: update2.update_id
+      });
+    }
+    return new Response("OK", { status: 200 });
+  }
+  async startPolling(config) {
+    if (!this.chat) {
+      throw new ValidationError("telegram", "Cannot start polling before initialize()");
+    }
+    if (this.pollingActive) {
+      this.logger.debug("Telegram polling already active");
+      return;
+    }
+    const resolvedConfig = this.resolvePollingConfig(config);
+    const previousRuntimeMode = this._runtimeMode;
+    this.pollingActive = true;
+    try {
+      if (resolvedConfig.deleteWebhook) {
+        await this.resetWebhook(resolvedConfig.dropPendingUpdates);
+      }
+      this._runtimeMode = "polling";
+    } catch (error) {
+      this.pollingActive = false;
+      this._runtimeMode = previousRuntimeMode;
+      throw error;
+    }
+    this.logger.info("Telegram polling started", {
+      limit: resolvedConfig.limit,
+      timeout: resolvedConfig.timeout,
+      allowedUpdates: resolvedConfig.allowedUpdates
+    });
+    this.pollingTask = this.pollingLoop(resolvedConfig).finally(() => {
+      this.pollingActive = false;
+      this.pollingAbortController = null;
+      this.pollingTask = null;
+    });
+  }
+  async stopPolling() {
+    if (!this.pollingActive) {
+      return;
+    }
+    this.pollingActive = false;
+    this.pollingAbortController?.abort();
+    if (this.pollingTask) {
+      await this.pollingTask;
+    }
+    this.logger.info("Telegram polling stopped");
+  }
+  async resetWebhook(dropPendingUpdates = false) {
+    await this.telegramFetch("deleteWebhook", {
+      drop_pending_updates: dropPendingUpdates
+    });
+    this.logger.info("Telegram webhook reset", {
+      dropPendingUpdates
+    });
+  }
+  async resolveRuntimeMode() {
+    if (this.mode === "webhook") {
+      return "webhook";
+    }
+    if (this.mode === "polling") {
+      return "polling";
+    }
+    const webhookInfo = await this.fetchWebhookInfo();
+    if (!webhookInfo) {
+      this.logger.warn("Telegram auto mode could not verify webhook status; keeping webhook mode");
+      return "webhook";
+    }
+    if (typeof webhookInfo.url === "string" && webhookInfo.url.trim()) {
+      this.logger.debug("Telegram auto mode selected webhook mode", {
+        webhookUrl: webhookInfo.url
+      });
+      return "webhook";
+    }
+    if (this.isLikelyServerlessRuntime()) {
+      this.logger.warn("Telegram auto mode detected serverless runtime without webhook URL; keeping webhook mode");
+      return "webhook";
+    }
+    this.logger.info("Telegram auto mode selected polling mode");
+    return "polling";
+  }
+  async fetchWebhookInfo() {
+    try {
+      return await this.telegramFetch("getWebhookInfo");
+    } catch (error) {
+      this.logger.warn("Failed to fetch Telegram webhook info", {
+        error: String(error)
+      });
+      return null;
+    }
+  }
+  isLikelyServerlessRuntime() {
+    if (typeof process === "undefined" || !process.env) {
+      return false;
+    }
+    return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV?.includes("AWS_Lambda") || process.env.FUNCTIONS_WORKER_RUNTIME || process.env.NETLIFY || process.env.K_SERVICE);
+  }
+  processUpdate(update2, options) {
+    const messageUpdate = update2.message ?? update2.edited_message ?? update2.channel_post ?? update2.edited_channel_post;
+    if (messageUpdate) {
+      this.handleIncomingMessageUpdate(messageUpdate, options);
+    }
+    if (update2.callback_query) {
+      this.handleCallbackQuery(update2.callback_query, options);
+    }
+    if (update2.message_reaction) {
+      this.handleMessageReactionUpdate(update2.message_reaction, options);
+    }
+  }
+  handleIncomingMessageUpdate(telegramMessage, options) {
+    if (!this.chat) {
+      return;
+    }
+    const threadId = this.encodeThreadId({
+      chatId: String(telegramMessage.chat.id),
+      messageThreadId: telegramMessage.message_thread_id
+    });
+    const parsedMessage = this.parseTelegramMessage(telegramMessage, threadId);
+    this.cacheMessage(parsedMessage);
+    this.chat.processMessage(this, threadId, parsedMessage, options);
+  }
+  handleCallbackQuery(callbackQuery, options) {
+    if (!(this.chat && callbackQuery.message)) {
+      return;
+    }
+    const threadId = this.encodeThreadId({
+      chatId: String(callbackQuery.message.chat.id),
+      messageThreadId: callbackQuery.message.message_thread_id
+    });
+    const messageId = this.encodeMessageId(String(callbackQuery.message.chat.id), callbackQuery.message.message_id);
+    const { actionId, value } = decodeTelegramCallbackData(callbackQuery.data);
+    this.chat.processAction({
+      adapter: this,
+      actionId,
+      value,
+      messageId,
+      threadId,
+      user: this.toAuthor(callbackQuery.from),
+      raw: callbackQuery
+    }, options);
+    const ackTask = this.telegramFetch("answerCallbackQuery", {
+      callback_query_id: callbackQuery.id
+    }).catch((error) => {
+      this.logger.warn("Failed to acknowledge Telegram callback query", {
+        callbackQueryId: callbackQuery.id,
+        error: String(error)
+      });
+    });
+    if (options?.waitUntil) {
+      options.waitUntil(ackTask);
+    }
+  }
+  handleMessageReactionUpdate(reactionUpdate, options) {
+    if (!this.chat) {
+      return;
+    }
+    const threadId = this.encodeThreadId({
+      chatId: String(reactionUpdate.chat.id),
+      messageThreadId: reactionUpdate.message_thread_id
+    });
+    const messageId = this.encodeMessageId(String(reactionUpdate.chat.id), reactionUpdate.message_id);
+    const oldReactions = new Set(reactionUpdate.old_reaction.map((reaction) => this.reactionKey(reaction)));
+    const newReactions = new Set(reactionUpdate.new_reaction.map((reaction) => this.reactionKey(reaction)));
+    const actor = reactionUpdate.user ? this.toAuthor(reactionUpdate.user) : this.toReactionActorAuthor(reactionUpdate.chat);
+    for (const reaction of reactionUpdate.new_reaction) {
+      const key = this.reactionKey(reaction);
+      if (!oldReactions.has(key)) {
+        this.chat.processReaction({
+          adapter: this,
+          threadId,
+          messageId,
+          emoji: this.reactionToEmojiValue(reaction),
+          rawEmoji: key,
+          added: true,
+          user: actor,
+          raw: reactionUpdate
+        }, options);
+      }
+    }
+    for (const reaction of reactionUpdate.old_reaction) {
+      const key = this.reactionKey(reaction);
+      if (!newReactions.has(key)) {
+        this.chat.processReaction({
+          adapter: this,
+          threadId,
+          messageId,
+          emoji: this.reactionToEmojiValue(reaction),
+          rawEmoji: key,
+          added: false,
+          user: actor,
+          raw: reactionUpdate
+        }, options);
+      }
+    }
+  }
+  async postMessage(threadId, message) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const card = extractCard(message);
+    const replyMarkup = card ? cardToTelegramInlineKeyboard(card) : undefined;
+    const parseMode = this.resolveParseMode(message, card);
+    const plainText = truncateForTelegram(convertEmojiPlaceholders(this.renderPlainTextMessage(message, card), "gchat"), TELEGRAM_MESSAGE_LIMIT, "plain");
+    const text8 = truncateForTelegram(convertEmojiPlaceholders(card ? this.formatConverter.fromMarkdown(cardToFallbackText2(card, { boldFormat: "**" })) : this.formatConverter.renderPostable(message), "gchat"), TELEGRAM_MESSAGE_LIMIT, parseMode);
+    const files = extractFiles(message);
+    if (files.length > 1) {
+      throw new ValidationError("telegram", "Telegram adapter supports a single file upload per message");
+    }
+    const attachments = extractPostableAttachments(message);
+    if (attachments.length > 1) {
+      throw new ValidationError("telegram", "Telegram adapter supports a single attachment upload per message");
+    }
+    if (files.length > 0 && attachments.length > 0) {
+      throw new ValidationError("telegram", "Telegram adapter does not support mixing file uploads and attachments in one message");
+    }
+    let rawMessage;
+    if (files.length === 1) {
+      const [file] = files;
+      if (!file) {
+        throw new ValidationError("telegram", "File upload payload is empty");
+      }
+      rawMessage = await this.sendDocument(parsedThread, file, text8, plainText, replyMarkup, parseMode);
+    } else if (attachments.length === 1) {
+      const [attachment] = attachments;
+      if (!attachment) {
+        throw new ValidationError("telegram", "Attachment upload payload is empty");
+      }
+      rawMessage = await this.sendAttachment(parsedThread, attachment, text8, plainText, replyMarkup, parseMode);
+    } else {
+      if (!text8.trim()) {
+        throw new ValidationError("telegram", "Message text cannot be empty");
+      }
+      rawMessage = await this.withTelegramMarkdownFallback(parseMode, (resolvedParseMode, resolvedText) => this.telegramFetch("sendMessage", {
+        chat_id: parsedThread.chatId,
+        message_thread_id: parsedThread.messageThreadId,
+        text: resolvedText,
+        reply_markup: replyMarkup,
+        parse_mode: toBotApiParseMode(resolvedParseMode)
+      }), {
+        initialText: text8,
+        fallbackText: plainText,
+        method: "sendMessage",
+        threadId
+      });
+    }
+    const resultingThreadId = this.encodeThreadId({
+      chatId: String(rawMessage.chat.id),
+      messageThreadId: rawMessage.message_thread_id ?? parsedThread.messageThreadId
+    });
+    const parsedMessage = this.parseTelegramMessage(rawMessage, resultingThreadId);
+    this.cacheMessage(parsedMessage);
+    return {
+      id: parsedMessage.id,
+      threadId: parsedMessage.threadId,
+      raw: rawMessage
+    };
+  }
+  async postChannelMessage(channelId, message) {
+    return this.postMessage(channelId, message);
+  }
+  async editMessage(threadId, messageId, message) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const {
+      chatId,
+      messageId: telegramMessageId,
+      compositeId
+    } = this.decodeCompositeMessageId(messageId, parsedThread.chatId);
+    const card = extractCard(message);
+    const replyMarkup = card ? cardToTelegramInlineKeyboard(card) : undefined;
+    const parseMode = this.resolveParseMode(message, card);
+    const plainText = truncateForTelegram(convertEmojiPlaceholders(this.renderPlainTextMessage(message, card), "gchat"), TELEGRAM_MESSAGE_LIMIT, "plain");
+    const text8 = truncateForTelegram(convertEmojiPlaceholders(card ? this.formatConverter.fromMarkdown(cardToFallbackText2(card, { boldFormat: "**" })) : this.formatConverter.renderPostable(message), "gchat"), TELEGRAM_MESSAGE_LIMIT, parseMode);
+    if (!text8.trim()) {
+      throw new ValidationError("telegram", "Message text cannot be empty");
+    }
+    const result = await this.withTelegramMarkdownFallback(parseMode, (resolvedParseMode, resolvedText) => this.telegramFetch("editMessageText", {
+      chat_id: chatId,
+      message_id: telegramMessageId,
+      text: resolvedText,
+      reply_markup: replyMarkup ?? emptyTelegramInlineKeyboard(),
+      parse_mode: toBotApiParseMode(resolvedParseMode)
+    }), {
+      initialText: text8,
+      fallbackText: plainText,
+      messageId,
+      method: "editMessageText",
+      threadId
+    });
+    if (result === true) {
+      const existing = this.findCachedMessage(compositeId);
+      if (!existing) {
+        throw new NotImplementedError("Telegram returned a non-message edit result and no cached message was found", "editMessage");
+      }
+      const updated = new Message({
+        ...existing,
+        text: text8,
+        formatted: this.formatConverter.toAst(text8),
+        metadata: {
+          ...existing.metadata,
+          edited: true,
+          editedAt: /* @__PURE__ */ new Date
+        }
+      });
+      this.cacheMessage(updated);
+      return {
+        id: updated.id,
+        threadId: updated.threadId,
+        raw: updated.raw
+      };
+    }
+    const resultingThreadId = this.encodeThreadId({
+      chatId: String(result.chat.id),
+      messageThreadId: result.message_thread_id ?? parsedThread.messageThreadId
+    });
+    const parsedMessage = this.parseTelegramMessage(result, resultingThreadId);
+    this.cacheMessage(parsedMessage);
+    return {
+      id: parsedMessage.id,
+      threadId: parsedMessage.threadId,
+      raw: result
+    };
+  }
+  async deleteMessage(threadId, messageId) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const {
+      chatId,
+      messageId: telegramMessageId,
+      compositeId
+    } = this.decodeCompositeMessageId(messageId, parsedThread.chatId);
+    await this.telegramFetch("deleteMessage", {
+      chat_id: chatId,
+      message_id: telegramMessageId
+    });
+    this.deleteCachedMessage(compositeId);
+  }
+  async addReaction(threadId, messageId, emoji2) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const { chatId, messageId: telegramMessageId } = this.decodeCompositeMessageId(messageId, parsedThread.chatId);
+    await this.telegramFetch("setMessageReaction", {
+      chat_id: chatId,
+      message_id: telegramMessageId,
+      reaction: [this.toTelegramReaction(emoji2)]
+    });
+  }
+  async removeReaction(threadId, messageId, _emoji) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const { chatId, messageId: telegramMessageId } = this.decodeCompositeMessageId(messageId, parsedThread.chatId);
+    await this.telegramFetch("setMessageReaction", {
+      chat_id: chatId,
+      message_id: telegramMessageId,
+      reaction: []
+    });
+  }
+  async startTyping(threadId) {
+    const parsedThread = this.resolveThreadId(threadId);
+    await this.telegramFetch("sendChatAction", {
+      chat_id: parsedThread.chatId,
+      message_thread_id: parsedThread.messageThreadId,
+      action: "typing"
+    });
+  }
+  async stream(threadId, textStream, options) {
+    if (!this.isDM(threadId)) {
+      return null;
+    }
+    const parsedThread = this.resolveThreadId(threadId);
+    const updateIntervalMs = this.clampInteger(options?.updateIntervalMs, TELEGRAM_DEFAULT_STREAM_UPDATE_INTERVAL_MS, 0, Number.MAX_SAFE_INTEGER);
+    const renderer = new StreamingMarkdownRenderer;
+    const draftId = this.createDraftId();
+    let accumulated = "";
+    let lastDraftText = null;
+    let lastFlushAt = 0;
+    let draftStreamingEnabled = true;
+    let streamUsesMarkdown = true;
+    const renderMarkdownForTelegram = (text8) => convertEmojiPlaceholders(this.formatConverter.fromMarkdown(text8), "gchat");
+    const renderMarkdownText = (text8) => truncateForTelegram(renderMarkdownForTelegram(text8), TELEGRAM_MESSAGE_LIMIT, "MarkdownV2");
+    const renderPlainText = (text8) => truncateForTelegram(this.resolveTelegramFallbackText(text8, markdownToPlainText(text8)), TELEGRAM_MESSAGE_LIMIT, "plain");
+    const sendDraft = async (text8, useMarkdown) => {
+      if (!draftStreamingEnabled || text8 === lastDraftText) {
+        return;
+      }
+      try {
+        if (useMarkdown) {
+          await this.telegramFetch("sendMessageDraft", {
+            chat_id: parsedThread.chatId,
+            message_thread_id: parsedThread.messageThreadId,
+            draft_id: draftId,
+            text: text8,
+            parse_mode: toBotApiParseMode("MarkdownV2")
+          });
+        } else {
+          await this.telegramFetch("sendMessageDraft", {
+            chat_id: parsedThread.chatId,
+            message_thread_id: parsedThread.messageThreadId,
+            draft_id: draftId,
+            text: text8
+          });
+        }
+        lastDraftText = text8;
+        lastFlushAt = Date.now();
+      } catch (error) {
+        if (useMarkdown && this.isTelegramMarkdownParseError(error)) {
+          streamUsesMarkdown = false;
+          const plainDraftText = renderPlainText(accumulated);
+          try {
+            await this.telegramFetch("sendMessageDraft", {
+              chat_id: parsedThread.chatId,
+              message_thread_id: parsedThread.messageThreadId,
+              draft_id: draftId,
+              text: plainDraftText
+            });
+            lastDraftText = plainDraftText;
+            lastFlushAt = Date.now();
+          } catch (retryError) {
+            draftStreamingEnabled = false;
+            this.logger.warn("Telegram draft streaming update failed", {
+              error: String(retryError),
+              threadId
+            });
+          }
+          return;
+        }
+        draftStreamingEnabled = false;
+        this.logger.warn("Telegram draft streaming update failed", {
+          error: String(error),
+          threadId
+        });
+      }
+    };
+    const flushDraft = async () => {
+      if (!draftStreamingEnabled) {
+        return;
+      }
+      const draftText = streamUsesMarkdown ? renderMarkdownText(renderer.render()) : renderPlainText(accumulated);
+      await sendDraft(draftText, streamUsesMarkdown);
+    };
+    await sendDraft("", false);
+    for await (const chunk of textStream) {
+      let text8 = null;
+      if (typeof chunk === "string") {
+        text8 = chunk;
+      } else if (chunk.type === "markdown_text") {
+        text8 = chunk.text;
+      }
+      if (text8 === null) {
+        continue;
+      }
+      accumulated += text8;
+      renderer.push(text8);
+      if (Date.now() - lastFlushAt >= updateIntervalMs) {
+        await flushDraft();
+      }
+    }
+    await flushDraft();
+    if (!accumulated.trim()) {
+      throw new ValidationError("telegram", "Telegram streaming requires text content");
+    }
+    const finalPostable = streamUsesMarkdown ? { markdown: accumulated } : this.resolveTelegramFallbackText(accumulated, markdownToPlainText(accumulated));
+    return this.postMessage(threadId, finalPostable);
+  }
+  async fetchMessages(threadId, options = {}) {
+    const messages2 = [...this.messageCache.get(threadId) ?? []].sort((a, b3) => this.compareMessages(a, b3));
+    return this.paginateMessages(messages2, options);
+  }
+  async fetchChannelMessages(channelId, options = {}) {
+    const byId = /* @__PURE__ */ new Map;
+    for (const [threadId, messages2] of this.messageCache.entries()) {
+      let decoded;
+      try {
+        decoded = this.decodeThreadId(threadId);
+      } catch {
+        continue;
+      }
+      if (decoded.chatId !== channelId) {
+        continue;
+      }
+      for (const message of messages2) {
+        byId.set(message.id, message);
+      }
+    }
+    const allMessages = [...byId.values()].sort((a, b3) => this.compareMessages(a, b3));
+    return this.paginateMessages(allMessages, options);
+  }
+  async fetchMessage(_threadId, messageId) {
+    return this.findCachedMessage(messageId) ?? null;
+  }
+  async fetchThread(threadId) {
+    const parsedThread = this.resolveThreadId(threadId);
+    const chat = await this.telegramFetch("getChat", {
+      chat_id: parsedThread.chatId
+    });
+    return {
+      id: this.encodeThreadId(parsedThread),
+      channelId: String(chat.id),
+      channelName: this.chatDisplayName(chat),
+      isDM: chat.type === "private",
+      metadata: {
+        chat,
+        messageThreadId: parsedThread.messageThreadId
+      }
+    };
+  }
+  async fetchChannelInfo(channelId) {
+    const chat = await this.telegramFetch("getChat", {
+      chat_id: channelId
+    });
+    let memberCount;
+    try {
+      memberCount = await this.telegramFetch("getChatMemberCount", {
+        chat_id: channelId
+      });
+    } catch {
+      memberCount = undefined;
+    }
+    return {
+      id: String(chat.id),
+      name: this.chatDisplayName(chat),
+      isDM: chat.type === "private",
+      memberCount,
+      metadata: {
+        chat
+      }
+    };
+  }
+  channelIdFromThreadId(threadId) {
+    const { chatId } = this.resolveThreadId(threadId);
+    return `telegram:${chatId}`;
+  }
+  async openDM(userId) {
+    return this.encodeThreadId({ chatId: userId });
+  }
+  isDM(threadId) {
+    const { chatId } = this.resolveThreadId(threadId);
+    return !chatId.startsWith("-");
+  }
+  encodeThreadId(platformData) {
+    if (typeof platformData.messageThreadId === "number") {
+      return `telegram:${platformData.chatId}:${platformData.messageThreadId}`;
+    }
+    return `telegram:${platformData.chatId}`;
+  }
+  decodeThreadId(threadId) {
+    const parts = threadId.split(":");
+    if (parts[0] !== "telegram" || parts.length < 2 || parts.length > 3) {
+      throw new ValidationError("telegram", `Invalid Telegram thread ID: ${threadId}`);
+    }
+    const chatId = parts[1];
+    if (!chatId) {
+      throw new ValidationError("telegram", `Invalid Telegram thread ID: ${threadId}`);
+    }
+    const messageThreadPart = parts[2];
+    if (!messageThreadPart) {
+      return { chatId };
+    }
+    const messageThreadId = Number.parseInt(messageThreadPart, 10);
+    if (!Number.isFinite(messageThreadId)) {
+      throw new ValidationError("telegram", `Invalid Telegram thread topic ID in thread ID: ${threadId}`);
+    }
+    return {
+      chatId,
+      messageThreadId
+    };
+  }
+  parseMessage(raw) {
+    const threadId = this.encodeThreadId({
+      chatId: String(raw.chat.id),
+      messageThreadId: raw.message_thread_id
+    });
+    const message = this.parseTelegramMessage(raw, threadId);
+    this.cacheMessage(message);
+    return message;
+  }
+  renderFormatted(content3) {
+    return this.formatConverter.fromAst(content3);
+  }
+  parseTelegramMessage(raw, threadId) {
+    const plainText = raw.text ?? raw.caption ?? "";
+    const entities = raw.entities ?? raw.caption_entities ?? [];
+    const text8 = applyTelegramEntities(plainText, entities);
+    let author;
+    if (raw.from) {
+      author = this.toAuthor(raw.from);
+    } else if (raw.sender_chat) {
+      author = this.toReactionActorAuthor(raw.sender_chat);
+    } else {
+      const fallbackName = this.chatDisplayName(raw.chat) ?? String(raw.chat.id);
+      author = {
+        userId: String(raw.chat.id),
+        userName: fallbackName,
+        fullName: fallbackName,
+        isBot: "unknown",
+        isMe: false
+      };
+    }
+    const message = new Message({
+      id: this.encodeMessageId(String(raw.chat.id), raw.message_id),
+      threadId,
+      text: text8,
+      formatted: this.formatConverter.toAst(text8),
+      raw,
+      author,
+      metadata: {
+        dateSent: new Date(raw.date * 1000),
+        edited: raw.edit_date !== undefined,
+        editedAt: raw.edit_date !== undefined ? new Date(raw.edit_date * 1000) : undefined
+      },
+      attachments: this.extractAttachments(raw),
+      isMention: this.isBotMentioned(raw, plainText)
+    });
+    return message;
+  }
+  extractAttachments(raw) {
+    const attachments = [];
+    const photo = raw.photo?.at(-1);
+    if (photo) {
+      attachments.push(this.createAttachment("image", photo.file_id, {
+        size: photo.file_size,
+        width: photo.width,
+        height: photo.height
+      }));
+    }
+    if (raw.video) {
+      attachments.push(this.createAttachment("video", raw.video.file_id, {
+        size: raw.video.file_size,
+        width: raw.video.width,
+        height: raw.video.height,
+        name: raw.video.file_name,
+        mimeType: raw.video.mime_type
+      }));
+    }
+    if (raw.audio) {
+      attachments.push(this.createAttachment("audio", raw.audio.file_id, {
+        size: raw.audio.file_size,
+        name: raw.audio.file_name,
+        mimeType: raw.audio.mime_type
+      }));
+    }
+    if (raw.voice) {
+      attachments.push(this.createAttachment("audio", raw.voice.file_id, {
+        size: raw.voice.file_size,
+        mimeType: raw.voice.mime_type
+      }));
+    }
+    if (raw.document) {
+      attachments.push(this.createAttachment("file", raw.document.file_id, {
+        size: raw.document.file_size,
+        name: raw.document.file_name,
+        mimeType: raw.document.mime_type
+      }));
+    }
+    if (raw.video_note) {
+      attachments.push(this.createAttachment("video", raw.video_note.file_id, {
+        size: raw.video_note.file_size,
+        width: raw.video_note.length,
+        height: raw.video_note.length
+      }));
+    }
+    return attachments;
+  }
+  createAttachment(type, fileId, metadata) {
+    return {
+      type,
+      size: metadata?.size,
+      width: metadata?.width,
+      height: metadata?.height,
+      name: metadata?.name,
+      mimeType: metadata?.mimeType,
+      fetchMetadata: { fileId },
+      fetchData: async () => this.downloadFile(fileId)
+    };
+  }
+  rehydrateAttachment(attachment) {
+    const fileId = attachment.fetchMetadata?.fileId;
+    if (!fileId) {
+      return attachment;
+    }
+    return {
+      ...attachment,
+      fetchData: async () => this.downloadFile(fileId)
+    };
+  }
+  async downloadFile(fileId) {
+    const file = await this.telegramFetch("getFile", {
+      file_id: fileId
+    });
+    if (!file.file_path) {
+      throw new ResourceNotFoundError("telegram", "file", fileId);
+    }
+    const fileUrl = `${this.apiBaseUrl}/file/bot${this.botToken}/${file.file_path}`;
+    let response;
+    try {
+      response = await fetch(fileUrl);
+    } catch (error) {
+      throw new NetworkError("telegram", `Failed to download Telegram file ${fileId}`, error instanceof Error ? error : undefined);
+    }
+    if (!response.ok) {
+      throw new NetworkError("telegram", `Failed to download Telegram file ${fileId}: ${response.status}`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+  async sendDocument(thread, file, text8, plainText, replyMarkup, parseMode = "plain") {
+    const buffer2 = await this.toTelegramBuffer(file.data);
+    return this.withTelegramMarkdownFallback(parseMode, (resolvedParseMode, resolvedText) => this.telegramFetch("sendDocument", this.createTelegramDocumentFormData(thread, file, buffer2, resolvedText, replyMarkup, resolvedParseMode)), {
+      initialText: text8,
+      fallbackText: plainText,
+      method: "sendDocument",
+      threadId: this.encodeThreadId(thread)
+    });
+  }
+  createTelegramDocumentFormData(thread, file, buffer2, text8, replyMarkup, parseMode = "plain") {
+    const formData = new FormData;
+    formData.append("chat_id", thread.chatId);
+    if (typeof thread.messageThreadId === "number") {
+      formData.append("message_thread_id", String(thread.messageThreadId));
+    }
+    if (text8.trim()) {
+      formData.append("caption", truncateForTelegram(text8, TELEGRAM_CAPTION_LIMIT, parseMode));
+      const botApiParseMode = toBotApiParseMode(parseMode);
+      if (botApiParseMode) {
+        formData.append("parse_mode", botApiParseMode);
+      }
+    }
+    const blob = new Blob([new Uint8Array(buffer2)], {
+      type: file.mimeType ?? "application/octet-stream"
+    });
+    formData.append("document", blob, file.filename);
+    if (replyMarkup) {
+      formData.append("reply_markup", JSON.stringify(replyMarkup));
+    }
+    return formData;
+  }
+  async sendAttachment(thread, attachment, text8, plainText, replyMarkup, parseMode = "plain") {
+    const upload = ATTACHMENT_UPLOADS[attachment.type];
+    const data = attachment.data ?? (attachment.fetchData ? await attachment.fetchData() : undefined);
+    if (!(data || attachment.url)) {
+      throw new ValidationError("telegram", `Attachment data or URL required for ${attachment.type}`);
+    }
+    const buffer2 = data ? await this.toTelegramBuffer(data) : undefined;
+    return this.withTelegramMarkdownFallback(parseMode, (resolvedParseMode, resolvedText) => {
+      if (!buffer2) {
+        const payload = {
+          chat_id: thread.chatId,
+          [upload.field]: attachment.url
+        };
+        if (typeof thread.messageThreadId === "number") {
+          payload.message_thread_id = thread.messageThreadId;
+        }
+        if (resolvedText.trim()) {
+          payload.caption = truncateForTelegram(resolvedText, TELEGRAM_CAPTION_LIMIT, resolvedParseMode);
+          const botApiParseMode = toBotApiParseMode(resolvedParseMode);
+          if (botApiParseMode) {
+            payload.parse_mode = botApiParseMode;
+          }
+        }
+        if (attachment.type === "video") {
+          if (Number.isInteger(attachment.width)) {
+            payload.width = attachment.width;
+          }
+          if (Number.isInteger(attachment.height)) {
+            payload.height = attachment.height;
+          }
+        }
+        if (replyMarkup) {
+          payload.reply_markup = replyMarkup;
+        }
+        return this.telegramFetch(upload.method, payload);
+      }
+      const formData = new FormData;
+      formData.append("chat_id", thread.chatId);
+      if (typeof thread.messageThreadId === "number") {
+        formData.append("message_thread_id", String(thread.messageThreadId));
+      }
+      if (resolvedText.trim()) {
+        formData.append("caption", truncateForTelegram(resolvedText, TELEGRAM_CAPTION_LIMIT, resolvedParseMode));
+        const botApiParseMode = toBotApiParseMode(resolvedParseMode);
+        if (botApiParseMode) {
+          formData.append("parse_mode", botApiParseMode);
+        }
+      }
+      if (attachment.type === "video") {
+        if (Number.isInteger(attachment.width)) {
+          formData.append("width", String(attachment.width));
+        }
+        if (Number.isInteger(attachment.height)) {
+          formData.append("height", String(attachment.height));
+        }
+      }
+      const blob = new Blob([new Uint8Array(buffer2)], {
+        type: attachment.mimeType ?? "application/octet-stream"
+      });
+      formData.append(upload.field, blob, attachment.name ?? "attachment");
+      if (replyMarkup) {
+        formData.append("reply_markup", JSON.stringify(replyMarkup));
+      }
+      return this.telegramFetch(upload.method, formData);
+    }, {
+      initialText: text8,
+      fallbackText: plainText,
+      method: upload.method,
+      threadId: this.encodeThreadId(thread)
+    });
+  }
+  async toTelegramBuffer(data) {
+    if (Buffer.isBuffer(data)) {
+      return data;
+    }
+    if (data instanceof ArrayBuffer) {
+      return Buffer.from(data);
+    }
+    if (data instanceof Blob) {
+      return Buffer.from(await data.arrayBuffer());
+    }
+    throw new ValidationError("telegram", "Unsupported file data type");
+  }
+  paginateMessages(messages2, options) {
+    const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+    const direction = options.direction ?? "backward";
+    if (messages2.length === 0) {
+      return { messages: [] };
+    }
+    const messageIndexById = new Map(messages2.map((message, index2) => [message.id, index2]));
+    if (direction === "backward") {
+      const end2 = options.cursor && messageIndexById.has(options.cursor) ? messageIndexById.get(options.cursor) ?? messages2.length : messages2.length;
+      const start2 = Math.max(0, end2 - limit);
+      const page2 = messages2.slice(start2, end2);
+      return {
+        messages: page2,
+        nextCursor: start2 > 0 ? page2[0]?.id : undefined
+      };
+    }
+    const start = options.cursor && messageIndexById.has(options.cursor) ? (messageIndexById.get(options.cursor) ?? -1) + 1 : 0;
+    const end = Math.min(messages2.length, start + limit);
+    const page = messages2.slice(start, end);
+    return {
+      messages: page,
+      nextCursor: end < messages2.length ? page.at(-1)?.id : undefined
+    };
+  }
+  cacheMessage(message) {
+    const existing = this.messageCache.get(message.threadId) ?? [];
+    const index2 = existing.findIndex((item) => item.id === message.id);
+    if (index2 >= 0) {
+      existing[index2] = message;
+    } else {
+      existing.push(message);
+    }
+    existing.sort((a, b3) => this.compareMessages(a, b3));
+    this.messageCache.set(message.threadId, existing);
+  }
+  findCachedMessage(messageId) {
+    for (const messages2 of this.messageCache.values()) {
+      const found = messages2.find((message) => message.id === messageId);
+      if (found) {
+        return found;
+      }
+    }
+    return;
+  }
+  deleteCachedMessage(messageId) {
+    for (const [threadId, messages2] of this.messageCache.entries()) {
+      const filtered = messages2.filter((message) => message.id !== messageId);
+      if (filtered.length === 0) {
+        this.messageCache.delete(threadId);
+      } else if (filtered.length !== messages2.length) {
+        this.messageCache.set(threadId, filtered);
+      }
+    }
+  }
+  compareMessages(a, b3) {
+    const timeDiff = a.metadata.dateSent.getTime() - b3.metadata.dateSent.getTime();
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return this.messageSequence(a.id) - this.messageSequence(b3.id);
+  }
+  messageSequence(messageId) {
+    const match = messageId.match(MESSAGE_SEQUENCE_PATTERN);
+    return match ? Number.parseInt(match[1], 10) : 0;
+  }
+  createDraftId() {
+    this.nextDraftId = this.nextDraftId >= 2147483647 ? 1 : this.nextDraftId + 1;
+    return this.nextDraftId;
+  }
+  resolveThreadId(value) {
+    if (value.startsWith("telegram:")) {
+      return this.decodeThreadId(value);
+    }
+    return { chatId: value };
+  }
+  encodeMessageId(chatId, messageId) {
+    return `${chatId}:${messageId}`;
+  }
+  decodeCompositeMessageId(messageId, expectedChatId) {
+    const compositeMatch = messageId.match(MESSAGE_ID_PATTERN);
+    if (compositeMatch) {
+      const [, chatId, rawMessageId] = compositeMatch;
+      const parsedMessageId2 = Number.parseInt(rawMessageId, 10);
+      if (expectedChatId && chatId !== expectedChatId) {
+        throw new ValidationError("telegram", `Message ID chat mismatch: expected ${expectedChatId}, got ${chatId}`);
+      }
+      return {
+        chatId,
+        messageId: parsedMessageId2,
+        compositeId: `${chatId}:${parsedMessageId2}`
+      };
+    }
+    if (!expectedChatId) {
+      throw new ValidationError("telegram", `Telegram message ID must be in <chatId>:<messageId> format, got: ${messageId}`);
+    }
+    const parsedMessageId = Number.parseInt(messageId, 10);
+    if (!Number.isFinite(parsedMessageId)) {
+      throw new ValidationError("telegram", `Invalid Telegram message ID: ${messageId}`);
+    }
+    return {
+      chatId: expectedChatId,
+      messageId: parsedMessageId,
+      compositeId: `${expectedChatId}:${parsedMessageId}`
+    };
+  }
+  toAuthor(user) {
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+    return {
+      userId: String(user.id),
+      userName: user.username ?? user.first_name ?? String(user.id),
+      fullName: fullName || user.username || String(user.id),
+      isBot: user.is_bot,
+      isMe: String(user.id) === this._botUserId
+    };
+  }
+  toReactionActorAuthor(chat) {
+    const name = this.chatDisplayName(chat) ?? String(chat.id);
+    return {
+      userId: `chat:${chat.id}`,
+      userName: name,
+      fullName: name,
+      isBot: "unknown",
+      isMe: false
+    };
+  }
+  chatDisplayName(chat) {
+    if (chat.title) {
+      return chat.title;
+    }
+    const privateName = [chat.first_name, chat.last_name].filter(Boolean).join(" ").trim();
+    if (privateName) {
+      return privateName;
+    }
+    return chat.username;
+  }
+  isBotMentioned(message, text8) {
+    if (!text8) {
+      return false;
+    }
+    const username = this._userName;
+    const entities = message.entities ?? message.caption_entities ?? [];
+    for (const entity2 of entities) {
+      if (entity2.type === "mention") {
+        const mentionText = this.entityText(text8, entity2);
+        if (mentionText.toLowerCase() === `@${username.toLowerCase()}`) {
+          return true;
+        }
+      }
+      if (entity2.type === "text_mention" && entity2.user && this._botUserId && String(entity2.user.id) === this._botUserId) {
+        return true;
+      }
+      if (entity2.type === "bot_command") {
+        const commandText = this.entityText(text8, entity2);
+        if (commandText.toLowerCase().endsWith(`@${username.toLowerCase()}`)) {
+          return true;
+        }
+      }
+    }
+    const mentionRegex = new RegExp(`@${this.escapeRegex(username)}\\b`, "i");
+    return mentionRegex.test(text8);
+  }
+  entityText(text8, entity2) {
+    return text8.slice(entity2.offset, entity2.offset + entity2.length);
+  }
+  escapeRegex(input) {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  normalizeUserName(value) {
+    if (typeof value !== "string") {
+      return "bot";
+    }
+    return value.replace(LEADING_AT_PATTERN, "").trim() || "bot";
+  }
+  resolveParseMode(message, card) {
+    if (card) {
+      return "MarkdownV2";
+    }
+    if (typeof message === "string") {
+      return "plain";
+    }
+    if (typeof message === "object" && message !== null && "raw" in message) {
+      return "plain";
+    }
+    return "MarkdownV2";
+  }
+  renderPlainTextMessage(message, card) {
+    if (card) {
+      return cardToFallbackText2(card);
+    }
+    if (typeof message === "string") {
+      return message;
+    }
+    if ("raw" in message) {
+      return message.raw;
+    }
+    if ("markdown" in message) {
+      return this.resolveTelegramFallbackText(message.markdown, markdownToPlainText(message.markdown));
+    }
+    if ("ast" in message) {
+      return toPlainText(message.ast);
+    }
+    return this.formatConverter.renderPostable(message);
+  }
+  resolveTelegramFallbackText(originalText, fallbackText) {
+    return fallbackText.trim() ? fallbackText : originalText;
+  }
+  toTelegramReaction(emoji2) {
+    if (typeof emoji2 !== "string") {
+      return {
+        type: "emoji",
+        emoji: defaultEmojiResolver.toGChat(emoji2.name)
+      };
+    }
+    if (emoji2.startsWith("custom:")) {
+      return {
+        type: "custom_emoji",
+        custom_emoji_id: emoji2.slice("custom:".length)
+      };
+    }
+    const placeholderMatch = emoji2.match(EMOJI_PLACEHOLDER_PATTERN);
+    if (placeholderMatch) {
+      return {
+        type: "emoji",
+        emoji: defaultEmojiResolver.toGChat(placeholderMatch[1])
+      };
+    }
+    if (EMOJI_NAME_PATTERN.test(emoji2)) {
+      return {
+        type: "emoji",
+        emoji: defaultEmojiResolver.toGChat(emoji2.toLowerCase())
+      };
+    }
+    return {
+      type: "emoji",
+      emoji: emoji2
+    };
+  }
+  reactionKey(reaction) {
+    if (reaction.type === "emoji") {
+      return reaction.emoji;
+    }
+    return `custom:${reaction.custom_emoji_id}`;
+  }
+  reactionToEmojiValue(reaction) {
+    if (reaction.type === "emoji") {
+      return defaultEmojiResolver.fromGChat(reaction.emoji);
+    }
+    return getEmoji(`custom:${reaction.custom_emoji_id}`);
+  }
+  async pollingLoop(config) {
+    let offset;
+    let consecutiveFailures = 0;
+    const MAX_BACKOFF_MS = 30000;
+    while (this.pollingActive) {
+      this.pollingAbortController = new AbortController;
+      try {
+        const updates = await this.telegramFetch("getUpdates", {
+          allowed_updates: config.allowedUpdates,
+          limit: config.limit,
+          offset,
+          timeout: config.timeout
+        }, { signal: this.pollingAbortController.signal });
+        consecutiveFailures = 0;
+        for (const update2 of updates) {
+          offset = update2.update_id + 1;
+          try {
+            this.processUpdate(update2);
+          } catch (error) {
+            this.logger.warn("Failed to process Telegram polled update", {
+              error: String(error),
+              updateId: update2.update_id
+            });
+          }
+        }
+      } catch (error) {
+        if (this.isAbortError(error)) {
+          return;
+        }
+        consecutiveFailures++;
+        const backoffMs = Math.min(config.retryDelayMs * 2 ** (consecutiveFailures - 1), MAX_BACKOFF_MS);
+        this.logger.warn("Telegram polling request failed", {
+          error: String(error),
+          retryDelayMs: backoffMs,
+          consecutiveFailures
+        });
+        if (!this.pollingActive) {
+          return;
+        }
+        await this.sleep(backoffMs);
+      } finally {
+        this.pollingAbortController = null;
+      }
+    }
+  }
+  resolvePollingConfig(override) {
+    const baseConfig = this.longPolling ?? {};
+    const merged = {
+      ...baseConfig,
+      ...override
+    };
+    return {
+      allowedUpdates: merged.allowedUpdates && merged.allowedUpdates.length > 0 ? [...merged.allowedUpdates] : undefined,
+      deleteWebhook: merged.deleteWebhook ?? true,
+      dropPendingUpdates: merged.dropPendingUpdates ?? false,
+      limit: this.clampInteger(merged.limit, TELEGRAM_DEFAULT_POLLING_LIMIT, TELEGRAM_MIN_POLLING_LIMIT, TELEGRAM_MAX_POLLING_LIMIT),
+      retryDelayMs: this.clampInteger(merged.retryDelayMs, TELEGRAM_DEFAULT_POLLING_RETRY_DELAY_MS, 0, Number.MAX_SAFE_INTEGER),
+      timeout: this.clampInteger(merged.timeout, TELEGRAM_DEFAULT_POLLING_TIMEOUT_SECONDS, TELEGRAM_MIN_POLLING_TIMEOUT_SECONDS, TELEGRAM_MAX_POLLING_TIMEOUT_SECONDS)
+    };
+  }
+  clampInteger(value, fallback, min, max) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return fallback;
+    }
+    const parsed = Math.trunc(value);
+    return Math.max(min, Math.min(max, parsed));
+  }
+  isAbortError(error) {
+    return error instanceof Error && error.name === "AbortError";
+  }
+  async sleep(delayMs) {
+    if (delayMs <= 0) {
+      return;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, delayMs);
+    });
+  }
+  async telegramFetch(method, payload, request) {
+    const url2 = `${this.apiBaseUrl}/bot${this.botToken}/${method}`;
+    let response;
+    try {
+      response = await fetch(url2, {
+        method: "POST",
+        headers: payload instanceof FormData ? undefined : {
+          "Content-Type": "application/json"
+        },
+        body: payload instanceof FormData ? payload : JSON.stringify(payload ?? {}),
+        signal: request?.signal
+      });
+    } catch (error) {
+      if (this.isAbortError(error)) {
+        throw error;
+      }
+      throw new NetworkError("telegram", `Network error calling Telegram ${method}`, error instanceof Error ? error : undefined);
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new NetworkError("telegram", `Failed to parse Telegram API response for ${method}`);
+    }
+    if (!(response.ok && data.ok)) {
+      this.throwTelegramApiError(method, response.status, data);
+    }
+    if (typeof data.result === "undefined") {
+      throw new NetworkError("telegram", `Telegram API ${method} returned no result`);
+    }
+    return data.result;
+  }
+  throwTelegramApiError(method, status, data) {
+    const errorCode = data.error_code ?? status;
+    const description = data.description ?? `Telegram API ${method} failed`;
+    if (errorCode === 429) {
+      throw new AdapterRateLimitError("telegram", data.parameters?.retry_after);
+    }
+    if (errorCode === 401) {
+      throw new AuthenticationError("telegram", description);
+    }
+    if (errorCode === 403) {
+      throw new PermissionError("telegram", method);
+    }
+    if (errorCode === 404) {
+      throw new ResourceNotFoundError("telegram", method);
+    }
+    if (errorCode >= 400 && errorCode < 500) {
+      throw new ValidationError("telegram", description);
+    }
+    throw new NetworkError("telegram", `${description} (status ${status}, error ${errorCode})`);
+  }
+  async withTelegramMarkdownFallback(parseMode, operation, context) {
+    try {
+      return await operation(parseMode, context.initialText);
+    } catch (error) {
+      if (parseMode !== "MarkdownV2" || !this.isTelegramMarkdownParseError(error)) {
+        throw error;
+      }
+      this.logger.warn("Telegram markdown parse failed; retrying without parse mode", {
+        error: String(error),
+        ...context
+      });
+      return operation("plain", this.resolveTelegramFallbackText(context.initialText, context.fallbackText));
+    }
+  }
+  isTelegramMarkdownParseError(error) {
+    return error instanceof ValidationError && error.adapter === "telegram" && TELEGRAM_MARKDOWN_PARSE_ERROR_PATTERN.test(error.message);
+  }
+};
+var init_dist6 = __esm(() => {
+  init_dist5();
+  init_dist4();
+  init_dist5();
+  init_dist4();
+  init_dist4();
+  MARKDOWNV2_SPECIAL_CHARS = /([_*[\]()~`>#+\-=|{}.!\\])/g;
+  CODE_BLOCK_SPECIAL_CHARS = /([`\\])/g;
+  LINK_URL_SPECIAL_CHARS = /([)\\])/g;
+  MARKDOWN_V2_ENTITY_MARKERS = ["*", "_", "~", "`"];
+  TelegramFormatConverter = class extends BaseFormatConverter {
+    fromAst(ast) {
+      const transformed = walkAst(structuredClone(ast), (node2) => {
+        if (isTableNode(node2)) {
+          return {
+            type: "code",
+            value: tableToAscii(node2),
+            lang: undefined
+          };
+        }
+        return node2;
+      });
+      return renderMarkdownV2(transformed).trim();
+    }
+    toAst(text8) {
+      return parseMarkdown(text8);
+    }
+    renderPostable(message) {
+      if (typeof message === "string") {
+        return message;
+      }
+      if ("raw" in message) {
+        return message.raw;
+      }
+      if ("markdown" in message) {
+        return this.fromMarkdown(message.markdown);
+      }
+      if ("ast" in message) {
+        return this.fromAst(message.ast);
+      }
+      return super.renderPostable(message);
+    }
+  };
+  MESSAGE_ID_PATTERN = /^([^:]+):(\d+)$/;
+  MESSAGE_SEQUENCE_PATTERN = /:(\d+)$/;
+  ATTACHMENT_UPLOADS = {
+    audio: { field: "audio", method: "sendAudio" },
+    file: { field: "document", method: "sendDocument" },
+    image: { field: "photo", method: "sendPhoto" },
+    video: { field: "video", method: "sendVideo" }
+  };
+  LEADING_AT_PATTERN = /^@+/;
+  EMOJI_PLACEHOLDER_PATTERN = /^\{\{emoji:([a-z0-9_]+)\}\}$/i;
+  EMOJI_NAME_PATTERN = /^[a-z0-9_+-]+$/i;
+  TELEGRAM_MARKDOWN_PARSE_ERROR_PATTERN = /can't parse (?:caption )?entities/i;
+});
+
+// node_modules/postgres-array/index.js
+var require_postgres_array = __commonJS((exports) => {
+  exports.parse = function(source, transform) {
+    return new ArrayParser(source, transform).parse();
+  };
+
+  class ArrayParser {
+    constructor(source, transform) {
+      this.source = source;
+      this.transform = transform || identity;
+      this.position = 0;
+      this.entries = [];
+      this.recorded = [];
+      this.dimension = 0;
+    }
+    isEof() {
+      return this.position >= this.source.length;
+    }
+    nextCharacter() {
+      var character = this.source[this.position++];
+      if (character === "\\") {
+        return {
+          value: this.source[this.position++],
+          escaped: true
+        };
+      }
+      return {
+        value: character,
+        escaped: false
+      };
+    }
+    record(character) {
+      this.recorded.push(character);
+    }
+    newEntry(includeEmpty) {
+      var entry;
+      if (this.recorded.length > 0 || includeEmpty) {
+        entry = this.recorded.join("");
+        if (entry === "NULL" && !includeEmpty) {
+          entry = null;
+        }
+        if (entry !== null)
+          entry = this.transform(entry);
+        this.entries.push(entry);
+        this.recorded = [];
+      }
+    }
+    consumeDimensions() {
+      if (this.source[0] === "[") {
+        while (!this.isEof()) {
+          var char3 = this.nextCharacter();
+          if (char3.value === "=")
+            break;
+        }
+      }
+    }
+    parse(nested) {
+      var character, parser, quote;
+      this.consumeDimensions();
+      while (!this.isEof()) {
+        character = this.nextCharacter();
+        if (character.value === "{" && !quote) {
+          this.dimension++;
+          if (this.dimension > 1) {
+            parser = new ArrayParser(this.source.substr(this.position - 1), this.transform);
+            this.entries.push(parser.parse(true));
+            this.position += parser.position - 2;
+          }
+        } else if (character.value === "}" && !quote) {
+          this.dimension--;
+          if (!this.dimension) {
+            this.newEntry();
+            if (nested)
+              return this.entries;
+          }
+        } else if (character.value === '"' && !character.escaped) {
+          if (quote)
+            this.newEntry(true);
+          quote = !quote;
+        } else if (character.value === "," && !quote) {
+          this.newEntry();
+        } else {
+          this.record(character.value);
+        }
+      }
+      if (this.dimension !== 0) {
+        throw new Error("array dimension not balanced");
+      }
+      return this.entries;
+    }
+  }
+  function identity(value) {
+    return value;
+  }
+});
+
+// node_modules/pg-types/lib/arrayParser.js
+var require_arrayParser = __commonJS((exports, module) => {
+  var array2 = require_postgres_array();
+  module.exports = {
+    create: function(source, transform) {
+      return {
+        parse: function() {
+          return array2.parse(source, transform);
+        }
+      };
+    }
+  };
+});
+
+// node_modules/postgres-date/index.js
+var require_postgres_date = __commonJS((exports, module) => {
+  var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
+  var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
+  var TIME_ZONE = /([Z+-])(\d{2})?:?(\d{2})?:?(\d{2})?/;
+  var INFINITY = /^-?infinity$/;
+  module.exports = function parseDate(isoDate) {
+    if (INFINITY.test(isoDate)) {
+      return Number(isoDate.replace("i", "I"));
+    }
+    var matches = DATE_TIME.exec(isoDate);
+    if (!matches) {
+      return getDate(isoDate) || null;
+    }
+    var isBC = !!matches[8];
+    var year = parseInt(matches[1], 10);
+    if (isBC) {
+      year = bcYearToNegativeYear(year);
+    }
+    var month = parseInt(matches[2], 10) - 1;
+    var day = matches[3];
+    var hour = parseInt(matches[4], 10);
+    var minute = parseInt(matches[5], 10);
+    var second = parseInt(matches[6], 10);
+    var ms = matches[7];
+    ms = ms ? 1000 * parseFloat(ms) : 0;
+    var date3;
+    var offset = timeZoneOffset(isoDate);
+    if (offset != null) {
+      date3 = new Date(Date.UTC(year, month, day, hour, minute, second, ms));
+      if (is0To99(year)) {
+        date3.setUTCFullYear(year);
+      }
+      if (offset !== 0) {
+        date3.setTime(date3.getTime() - offset);
+      }
+    } else {
+      date3 = new Date(year, month, day, hour, minute, second, ms);
+      if (is0To99(year)) {
+        date3.setFullYear(year);
+      }
+    }
+    return date3;
+  };
+  function getDate(isoDate) {
+    var matches = DATE.exec(isoDate);
+    if (!matches) {
+      return;
+    }
+    var year = parseInt(matches[1], 10);
+    var isBC = !!matches[4];
+    if (isBC) {
+      year = bcYearToNegativeYear(year);
+    }
+    var month = parseInt(matches[2], 10) - 1;
+    var day = matches[3];
+    var date3 = new Date(year, month, day);
+    if (is0To99(year)) {
+      date3.setFullYear(year);
+    }
+    return date3;
+  }
+  function timeZoneOffset(isoDate) {
+    if (isoDate.endsWith("+00")) {
+      return 0;
+    }
+    var zone = TIME_ZONE.exec(isoDate.split(" ")[1]);
+    if (!zone)
+      return;
+    var type = zone[1];
+    if (type === "Z") {
+      return 0;
+    }
+    var sign = type === "-" ? -1 : 1;
+    var offset = parseInt(zone[2], 10) * 3600 + parseInt(zone[3] || 0, 10) * 60 + parseInt(zone[4] || 0, 10);
+    return offset * sign * 1000;
+  }
+  function bcYearToNegativeYear(year) {
+    return -(year - 1);
+  }
+  function is0To99(num) {
+    return num >= 0 && num < 100;
+  }
+});
+
+// node_modules/xtend/mutable.js
+var require_mutable = __commonJS((exports, module) => {
+  module.exports = extend2;
+  var hasOwnProperty2 = Object.prototype.hasOwnProperty;
+  function extend2(target) {
+    for (var i = 1;i < arguments.length; i++) {
+      var source = arguments[i];
+      for (var key in source) {
+        if (hasOwnProperty2.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  }
+});
+
+// node_modules/postgres-interval/index.js
+var require_postgres_interval = __commonJS((exports, module) => {
+  var extend2 = require_mutable();
+  module.exports = PostgresInterval;
+  function PostgresInterval(raw) {
+    if (!(this instanceof PostgresInterval)) {
+      return new PostgresInterval(raw);
+    }
+    extend2(this, parse3(raw));
+  }
+  var properties = ["seconds", "minutes", "hours", "days", "months", "years"];
+  PostgresInterval.prototype.toPostgres = function() {
+    var filtered = properties.filter(this.hasOwnProperty, this);
+    if (this.milliseconds && filtered.indexOf("seconds") < 0) {
+      filtered.push("seconds");
+    }
+    if (filtered.length === 0)
+      return "0";
+    return filtered.map(function(property) {
+      var value = this[property] || 0;
+      if (property === "seconds" && this.milliseconds) {
+        value = (value + this.milliseconds / 1000).toFixed(6).replace(/\.?0+$/, "");
+      }
+      return value + " " + property;
+    }, this).join(" ");
+  };
+  var propertiesISOEquivalent = {
+    years: "Y",
+    months: "M",
+    days: "D",
+    hours: "H",
+    minutes: "M",
+    seconds: "S"
+  };
+  var dateProperties = ["years", "months", "days"];
+  var timeProperties = ["hours", "minutes", "seconds"];
+  PostgresInterval.prototype.toISOString = PostgresInterval.prototype.toISO = function() {
+    var datePart = dateProperties.map(buildProperty, this).join("");
+    var timePart = timeProperties.map(buildProperty, this).join("");
+    return "P" + datePart + "T" + timePart;
+    function buildProperty(property) {
+      var value = this[property] || 0;
+      if (property === "seconds" && this.milliseconds) {
+        value = (value + this.milliseconds / 1000).toFixed(6).replace(/0+$/, "");
+      }
+      return value + propertiesISOEquivalent[property];
+    }
+  };
+  var NUMBER = "([+-]?\\d+)";
+  var YEAR = NUMBER + "\\s+years?";
+  var MONTH = NUMBER + "\\s+mons?";
+  var DAY = NUMBER + "\\s+days?";
+  var TIME = "([+-])?([\\d]*):(\\d\\d):(\\d\\d)\\.?(\\d{1,6})?";
+  var INTERVAL = new RegExp([YEAR, MONTH, DAY, TIME].map(function(regexString) {
+    return "(" + regexString + ")?";
+  }).join("\\s*"));
+  var positions = {
+    years: 2,
+    months: 4,
+    days: 6,
+    hours: 9,
+    minutes: 10,
+    seconds: 11,
+    milliseconds: 12
+  };
+  var negatives = ["hours", "minutes", "seconds", "milliseconds"];
+  function parseMilliseconds(fraction) {
+    var microseconds = fraction + "000000".slice(fraction.length);
+    return parseInt(microseconds, 10) / 1000;
+  }
+  function parse3(interval3) {
+    if (!interval3)
+      return {};
+    var matches = INTERVAL.exec(interval3);
+    var isNegative = matches[8] === "-";
+    return Object.keys(positions).reduce(function(parsed, property) {
+      var position2 = positions[property];
+      var value = matches[position2];
+      if (!value)
+        return parsed;
+      value = property === "milliseconds" ? parseMilliseconds(value) : parseInt(value, 10);
+      if (!value)
+        return parsed;
+      if (isNegative && ~negatives.indexOf(property)) {
+        value *= -1;
+      }
+      parsed[property] = value;
+      return parsed;
+    }, {});
+  }
+});
+
+// node_modules/postgres-bytea/index.js
+var require_postgres_bytea = __commonJS((exports, module) => {
+  var bufferFrom = Buffer.from || Buffer;
+  module.exports = function parseBytea(input) {
+    if (/^\\x/.test(input)) {
+      return bufferFrom(input.substr(2), "hex");
+    }
+    var output = "";
+    var i = 0;
+    while (i < input.length) {
+      if (input[i] !== "\\") {
+        output += input[i];
+        ++i;
+      } else {
+        if (/[0-7]{3}/.test(input.substr(i + 1, 3))) {
+          output += String.fromCharCode(parseInt(input.substr(i + 1, 3), 8));
+          i += 4;
+        } else {
+          var backslashes = 1;
+          while (i + backslashes < input.length && input[i + backslashes] === "\\") {
+            backslashes++;
+          }
+          for (var k2 = 0;k2 < Math.floor(backslashes / 2); ++k2) {
+            output += "\\";
+          }
+          i += Math.floor(backslashes / 2) * 2;
+        }
+      }
+    }
+    return bufferFrom(output, "binary");
+  };
+});
+
+// node_modules/pg-types/lib/textParsers.js
+var require_textParsers = __commonJS((exports, module) => {
+  var array2 = require_postgres_array();
+  var arrayParser3 = require_arrayParser();
+  var parseDate = require_postgres_date();
+  var parseInterval = require_postgres_interval();
+  var parseByteA = require_postgres_bytea();
+  function allowNull(fn2) {
+    return function nullAllowed(value) {
+      if (value === null)
+        return value;
+      return fn2(value);
+    };
+  }
+  function parseBool(value) {
+    if (value === null)
+      return value;
+    return value === "TRUE" || value === "t" || value === "true" || value === "y" || value === "yes" || value === "on" || value === "1";
+  }
+  function parseBoolArray(value) {
+    if (!value)
+      return null;
+    return array2.parse(value, parseBool);
+  }
+  function parseBaseTenInt(string3) {
+    return parseInt(string3, 10);
+  }
+  function parseIntegerArray(value) {
+    if (!value)
+      return null;
+    return array2.parse(value, allowNull(parseBaseTenInt));
+  }
+  function parseBigIntegerArray(value) {
+    if (!value)
+      return null;
+    return array2.parse(value, allowNull(function(entry) {
+      return parseBigInteger(entry).trim();
+    }));
+  }
+  var parsePointArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    var p2 = arrayParser3.create(value, function(entry) {
+      if (entry !== null) {
+        entry = parsePoint(entry);
+      }
+      return entry;
+    });
+    return p2.parse();
+  };
+  var parseFloatArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    var p2 = arrayParser3.create(value, function(entry) {
+      if (entry !== null) {
+        entry = parseFloat(entry);
+      }
+      return entry;
+    });
+    return p2.parse();
+  };
+  var parseStringArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    var p2 = arrayParser3.create(value);
+    return p2.parse();
+  };
+  var parseDateArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    var p2 = arrayParser3.create(value, function(entry) {
+      if (entry !== null) {
+        entry = parseDate(entry);
+      }
+      return entry;
+    });
+    return p2.parse();
+  };
+  var parseIntervalArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    var p2 = arrayParser3.create(value, function(entry) {
+      if (entry !== null) {
+        entry = parseInterval(entry);
+      }
+      return entry;
+    });
+    return p2.parse();
+  };
+  var parseByteAArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    return array2.parse(value, allowNull(parseByteA));
+  };
+  var parseInteger = function(value) {
+    return parseInt(value, 10);
+  };
+  var parseBigInteger = function(value) {
+    var valStr = String(value);
+    if (/^\d+$/.test(valStr)) {
+      return valStr;
+    }
+    return value;
+  };
+  var parseJsonArray = function(value) {
+    if (!value) {
+      return null;
+    }
+    return array2.parse(value, allowNull(JSON.parse));
+  };
+  var parsePoint = function(value) {
+    if (value[0] !== "(") {
+      return null;
+    }
+    value = value.substring(1, value.length - 1).split(",");
+    return {
+      x: parseFloat(value[0]),
+      y: parseFloat(value[1])
+    };
+  };
+  var parseCircle = function(value) {
+    if (value[0] !== "<" && value[1] !== "(") {
+      return null;
+    }
+    var point5 = "(";
+    var radius = "";
+    var pointParsed = false;
+    for (var i = 2;i < value.length - 1; i++) {
+      if (!pointParsed) {
+        point5 += value[i];
+      }
+      if (value[i] === ")") {
+        pointParsed = true;
+        continue;
+      } else if (!pointParsed) {
+        continue;
+      }
+      if (value[i] === ",") {
+        continue;
+      }
+      radius += value[i];
+    }
+    var result = parsePoint(point5);
+    result.radius = parseFloat(radius);
+    return result;
+  };
+  var init = function(register) {
+    register(20, parseBigInteger);
+    register(21, parseInteger);
+    register(23, parseInteger);
+    register(26, parseInteger);
+    register(700, parseFloat);
+    register(701, parseFloat);
+    register(16, parseBool);
+    register(1082, parseDate);
+    register(1114, parseDate);
+    register(1184, parseDate);
+    register(600, parsePoint);
+    register(651, parseStringArray);
+    register(718, parseCircle);
+    register(1000, parseBoolArray);
+    register(1001, parseByteAArray);
+    register(1005, parseIntegerArray);
+    register(1007, parseIntegerArray);
+    register(1028, parseIntegerArray);
+    register(1016, parseBigIntegerArray);
+    register(1017, parsePointArray);
+    register(1021, parseFloatArray);
+    register(1022, parseFloatArray);
+    register(1231, parseFloatArray);
+    register(1014, parseStringArray);
+    register(1015, parseStringArray);
+    register(1008, parseStringArray);
+    register(1009, parseStringArray);
+    register(1040, parseStringArray);
+    register(1041, parseStringArray);
+    register(1115, parseDateArray);
+    register(1182, parseDateArray);
+    register(1185, parseDateArray);
+    register(1186, parseInterval);
+    register(1187, parseIntervalArray);
+    register(17, parseByteA);
+    register(114, JSON.parse.bind(JSON));
+    register(3802, JSON.parse.bind(JSON));
+    register(199, parseJsonArray);
+    register(3807, parseJsonArray);
+    register(3907, parseStringArray);
+    register(2951, parseStringArray);
+    register(791, parseStringArray);
+    register(1183, parseStringArray);
+    register(1270, parseStringArray);
+  };
+  module.exports = {
+    init
+  };
+});
+
+// node_modules/pg-int8/index.js
+var require_pg_int8 = __commonJS((exports, module) => {
+  var BASE = 1e6;
+  function readInt8(buffer2) {
+    var high = buffer2.readInt32BE(0);
+    var low = buffer2.readUInt32BE(4);
+    var sign = "";
+    if (high < 0) {
+      high = ~high + (low === 0);
+      low = ~low + 1 >>> 0;
+      sign = "-";
+    }
+    var result = "";
+    var carry;
+    var t;
+    var digits;
+    var pad;
+    var l;
+    var i;
+    {
+      carry = high % BASE;
+      high = high / BASE >>> 0;
+      t = 4294967296 * carry + low;
+      low = t / BASE >>> 0;
+      digits = "" + (t - BASE * low);
+      if (low === 0 && high === 0) {
+        return sign + digits + result;
+      }
+      pad = "";
+      l = 6 - digits.length;
+      for (i = 0;i < l; i++) {
+        pad += "0";
+      }
+      result = pad + digits + result;
+    }
+    {
+      carry = high % BASE;
+      high = high / BASE >>> 0;
+      t = 4294967296 * carry + low;
+      low = t / BASE >>> 0;
+      digits = "" + (t - BASE * low);
+      if (low === 0 && high === 0) {
+        return sign + digits + result;
+      }
+      pad = "";
+      l = 6 - digits.length;
+      for (i = 0;i < l; i++) {
+        pad += "0";
+      }
+      result = pad + digits + result;
+    }
+    {
+      carry = high % BASE;
+      high = high / BASE >>> 0;
+      t = 4294967296 * carry + low;
+      low = t / BASE >>> 0;
+      digits = "" + (t - BASE * low);
+      if (low === 0 && high === 0) {
+        return sign + digits + result;
+      }
+      pad = "";
+      l = 6 - digits.length;
+      for (i = 0;i < l; i++) {
+        pad += "0";
+      }
+      result = pad + digits + result;
+    }
+    {
+      carry = high % BASE;
+      t = 4294967296 * carry + low;
+      digits = "" + t % BASE;
+      return sign + digits + result;
+    }
+  }
+  module.exports = readInt8;
+});
+
+// node_modules/pg-types/lib/binaryParsers.js
+var require_binaryParsers = __commonJS((exports, module) => {
+  var parseInt64 = require_pg_int8();
+  var parseBits = function(data, bits, offset, invert, callback) {
+    offset = offset || 0;
+    invert = invert || false;
+    callback = callback || function(lastValue, newValue, bits2) {
+      return lastValue * Math.pow(2, bits2) + newValue;
+    };
+    var offsetBytes = offset >> 3;
+    var inv = function(value) {
+      if (invert) {
+        return ~value & 255;
+      }
+      return value;
+    };
+    var mask = 255;
+    var firstBits = 8 - offset % 8;
+    if (bits < firstBits) {
+      mask = 255 << 8 - bits & 255;
+      firstBits = bits;
+    }
+    if (offset) {
+      mask = mask >> offset % 8;
+    }
+    var result = 0;
+    if (offset % 8 + bits >= 8) {
+      result = callback(0, inv(data[offsetBytes]) & mask, firstBits);
+    }
+    var bytes = bits + offset >> 3;
+    for (var i = offsetBytes + 1;i < bytes; i++) {
+      result = callback(result, inv(data[i]), 8);
+    }
+    var lastBits = (bits + offset) % 8;
+    if (lastBits > 0) {
+      result = callback(result, inv(data[bytes]) >> 8 - lastBits, lastBits);
+    }
+    return result;
+  };
+  var parseFloatFromBits = function(data, precisionBits, exponentBits) {
+    var bias = Math.pow(2, exponentBits - 1) - 1;
+    var sign = parseBits(data, 1);
+    var exponent = parseBits(data, exponentBits, 1);
+    if (exponent === 0) {
+      return 0;
+    }
+    var precisionBitsCounter = 1;
+    var parsePrecisionBits = function(lastValue, newValue, bits) {
+      if (lastValue === 0) {
+        lastValue = 1;
+      }
+      for (var i = 1;i <= bits; i++) {
+        precisionBitsCounter /= 2;
+        if ((newValue & 1 << bits - i) > 0) {
+          lastValue += precisionBitsCounter;
+        }
+      }
+      return lastValue;
+    };
+    var mantissa = parseBits(data, precisionBits, exponentBits + 1, false, parsePrecisionBits);
+    if (exponent == Math.pow(2, exponentBits + 1) - 1) {
+      if (mantissa === 0) {
+        return sign === 0 ? Infinity : -Infinity;
+      }
+      return NaN;
+    }
+    return (sign === 0 ? 1 : -1) * Math.pow(2, exponent - bias) * mantissa;
+  };
+  var parseInt16 = function(value) {
+    if (parseBits(value, 1) == 1) {
+      return -1 * (parseBits(value, 15, 1, true) + 1);
+    }
+    return parseBits(value, 15, 1);
+  };
+  var parseInt32 = function(value) {
+    if (parseBits(value, 1) == 1) {
+      return -1 * (parseBits(value, 31, 1, true) + 1);
+    }
+    return parseBits(value, 31, 1);
+  };
+  var parseFloat32 = function(value) {
+    return parseFloatFromBits(value, 23, 8);
+  };
+  var parseFloat64 = function(value) {
+    return parseFloatFromBits(value, 52, 11);
+  };
+  var parseNumeric = function(value) {
+    var sign = parseBits(value, 16, 32);
+    if (sign == 49152) {
+      return NaN;
+    }
+    var weight = Math.pow(1e4, parseBits(value, 16, 16));
+    var result = 0;
+    var digits = [];
+    var ndigits = parseBits(value, 16);
+    for (var i = 0;i < ndigits; i++) {
+      result += parseBits(value, 16, 64 + 16 * i) * weight;
+      weight /= 1e4;
+    }
+    var scale = Math.pow(10, parseBits(value, 16, 48));
+    return (sign === 0 ? 1 : -1) * Math.round(result * scale) / scale;
+  };
+  var parseDate = function(isUTC, value) {
+    var sign = parseBits(value, 1);
+    var rawValue = parseBits(value, 63, 1);
+    var result = new Date((sign === 0 ? 1 : -1) * rawValue / 1000 + 946684800000);
+    if (!isUTC) {
+      result.setTime(result.getTime() + result.getTimezoneOffset() * 60000);
+    }
+    result.usec = rawValue % 1000;
+    result.getMicroSeconds = function() {
+      return this.usec;
+    };
+    result.setMicroSeconds = function(value2) {
+      this.usec = value2;
+    };
+    result.getUTCMicroSeconds = function() {
+      return this.usec;
+    };
+    return result;
+  };
+  var parseArray = function(value) {
+    var dim = parseBits(value, 32);
+    var flags = parseBits(value, 32, 32);
+    var elementType = parseBits(value, 32, 64);
+    var offset = 96;
+    var dims = [];
+    for (var i = 0;i < dim; i++) {
+      dims[i] = parseBits(value, 32, offset);
+      offset += 32;
+      offset += 32;
+    }
+    var parseElement = function(elementType2) {
+      var length = parseBits(value, 32, offset);
+      offset += 32;
+      if (length == 4294967295) {
+        return null;
+      }
+      var result;
+      if (elementType2 == 23 || elementType2 == 20) {
+        result = parseBits(value, length * 8, offset);
+        offset += length * 8;
+        return result;
+      } else if (elementType2 == 25) {
+        result = value.toString(this.encoding, offset >> 3, (offset += length << 3) >> 3);
+        return result;
+      } else {
+        console.log("ERROR: ElementType not implemented: " + elementType2);
+      }
+    };
+    var parse3 = function(dimension, elementType2) {
+      var array2 = [];
+      var i2;
+      if (dimension.length > 1) {
+        var count2 = dimension.shift();
+        for (i2 = 0;i2 < count2; i2++) {
+          array2[i2] = parse3(dimension, elementType2);
+        }
+        dimension.unshift(count2);
+      } else {
+        for (i2 = 0;i2 < dimension[0]; i2++) {
+          array2[i2] = parseElement(elementType2);
+        }
+      }
+      return array2;
+    };
+    return parse3(dims, elementType);
+  };
+  var parseText = function(value) {
+    return value.toString("utf8");
+  };
+  var parseBool = function(value) {
+    if (value === null)
+      return null;
+    return parseBits(value, 8) > 0;
+  };
+  var init = function(register) {
+    register(20, parseInt64);
+    register(21, parseInt16);
+    register(23, parseInt32);
+    register(26, parseInt32);
+    register(1700, parseNumeric);
+    register(700, parseFloat32);
+    register(701, parseFloat64);
+    register(16, parseBool);
+    register(1114, parseDate.bind(null, false));
+    register(1184, parseDate.bind(null, true));
+    register(1000, parseArray);
+    register(1007, parseArray);
+    register(1016, parseArray);
+    register(1008, parseArray);
+    register(1009, parseArray);
+    register(25, parseText);
+  };
+  module.exports = {
+    init
+  };
+});
+
+// node_modules/pg-types/lib/builtins.js
+var require_builtins = __commonJS((exports, module) => {
+  module.exports = {
+    BOOL: 16,
+    BYTEA: 17,
+    CHAR: 18,
+    INT8: 20,
+    INT2: 21,
+    INT4: 23,
+    REGPROC: 24,
+    TEXT: 25,
+    OID: 26,
+    TID: 27,
+    XID: 28,
+    CID: 29,
+    JSON: 114,
+    XML: 142,
+    PG_NODE_TREE: 194,
+    SMGR: 210,
+    PATH: 602,
+    POLYGON: 604,
+    CIDR: 650,
+    FLOAT4: 700,
+    FLOAT8: 701,
+    ABSTIME: 702,
+    RELTIME: 703,
+    TINTERVAL: 704,
+    CIRCLE: 718,
+    MACADDR8: 774,
+    MONEY: 790,
+    MACADDR: 829,
+    INET: 869,
+    ACLITEM: 1033,
+    BPCHAR: 1042,
+    VARCHAR: 1043,
+    DATE: 1082,
+    TIME: 1083,
+    TIMESTAMP: 1114,
+    TIMESTAMPTZ: 1184,
+    INTERVAL: 1186,
+    TIMETZ: 1266,
+    BIT: 1560,
+    VARBIT: 1562,
+    NUMERIC: 1700,
+    REFCURSOR: 1790,
+    REGPROCEDURE: 2202,
+    REGOPER: 2203,
+    REGOPERATOR: 2204,
+    REGCLASS: 2205,
+    REGTYPE: 2206,
+    UUID: 2950,
+    TXID_SNAPSHOT: 2970,
+    PG_LSN: 3220,
+    PG_NDISTINCT: 3361,
+    PG_DEPENDENCIES: 3402,
+    TSVECTOR: 3614,
+    TSQUERY: 3615,
+    GTSVECTOR: 3642,
+    REGCONFIG: 3734,
+    REGDICTIONARY: 3769,
+    JSONB: 3802,
+    REGNAMESPACE: 4089,
+    REGROLE: 4096
+  };
+});
+
+// node_modules/pg-types/index.js
+var require_pg_types = __commonJS((exports) => {
+  var textParsers = require_textParsers();
+  var binaryParsers = require_binaryParsers();
+  var arrayParser3 = require_arrayParser();
+  var builtinTypes = require_builtins();
+  exports.getTypeParser = getTypeParser;
+  exports.setTypeParser = setTypeParser;
+  exports.arrayParser = arrayParser3;
+  exports.builtins = builtinTypes;
+  var typeParsers = {
+    text: {},
+    binary: {}
+  };
+  function noParse(val) {
+    return String(val);
+  }
+  function getTypeParser(oid, format) {
+    format = format || "text";
+    if (!typeParsers[format]) {
+      return noParse;
+    }
+    return typeParsers[format][oid] || noParse;
+  }
+  function setTypeParser(oid, format, parseFn) {
+    if (typeof format == "function") {
+      parseFn = format;
+      format = "text";
+    }
+    typeParsers[format][oid] = parseFn;
+  }
+  textParsers.init(function(oid, converter) {
+    typeParsers.text[oid] = converter;
+  });
+  binaryParsers.init(function(oid, converter) {
+    typeParsers.binary[oid] = converter;
+  });
+});
+
+// node_modules/pg/lib/defaults.js
+var require_defaults = __commonJS((exports, module) => {
+  var user;
+  try {
+    user = process.platform === "win32" ? process.env.USERNAME : process.env.USER;
+  } catch {}
+  module.exports = {
+    host: "localhost",
+    user,
+    database: undefined,
+    password: null,
+    connectionString: undefined,
+    port: 5432,
+    rows: 0,
+    binary: false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    client_encoding: "",
+    ssl: false,
+    application_name: undefined,
+    fallback_application_name: undefined,
+    options: undefined,
+    parseInputDatesAsUTC: false,
+    statement_timeout: false,
+    lock_timeout: false,
+    idle_in_transaction_session_timeout: false,
+    query_timeout: false,
+    connect_timeout: 0,
+    keepalives: 1,
+    keepalives_idle: 0
+  };
+  var pgTypes = require_pg_types();
+  var parseBigInteger = pgTypes.getTypeParser(20, "text");
+  var parseBigIntegerArray = pgTypes.getTypeParser(1016, "text");
+  module.exports.__defineSetter__("parseInt8", function(val) {
+    pgTypes.setTypeParser(20, "text", val ? pgTypes.getTypeParser(23, "text") : parseBigInteger);
+    pgTypes.setTypeParser(1016, "text", val ? pgTypes.getTypeParser(1007, "text") : parseBigIntegerArray);
+  });
+});
+
+// node_modules/pg/lib/utils.js
+var require_utils = __commonJS((exports, module) => {
+  var defaults = require_defaults();
+  var { isDate } = __require("util/types");
+  function escapeElement(elementRepresentation) {
+    const escaped = elementRepresentation.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+    return '"' + escaped + '"';
+  }
+  function arrayString(val) {
+    let result = "{";
+    for (let i = 0;i < val.length; i++) {
+      if (i > 0) {
+        result += ",";
+      }
+      let item = val[i];
+      if (item == null) {
+        result += "NULL";
+      } else if (Array.isArray(item)) {
+        result += arrayString(item);
+      } else if (ArrayBuffer.isView(item)) {
+        if (!(item instanceof Buffer)) {
+          item = Buffer.from(item.buffer, item.byteOffset, item.byteLength);
+        }
+        result += "\\\\x" + item.toString("hex");
+      } else {
+        result += escapeElement(prepareValue(item));
+      }
+    }
+    result += "}";
+    return result;
+  }
+  var prepareValue = function(val, seen) {
+    if (val == null) {
+      return null;
+    }
+    if (typeof val === "object") {
+      if (val instanceof Buffer) {
+        return val;
+      }
+      if (ArrayBuffer.isView(val)) {
+        return Buffer.from(val.buffer, val.byteOffset, val.byteLength);
+      }
+      if (isDate(val)) {
+        if (defaults.parseInputDatesAsUTC) {
+          return dateToStringUTC(val);
+        } else {
+          return dateToString(val);
+        }
+      }
+      if (Array.isArray(val)) {
+        return arrayString(val);
+      }
+      return prepareObject(val, seen);
+    }
+    return val.toString();
+  };
+  function prepareObject(val, seen) {
+    if (val && typeof val.toPostgres === "function") {
+      seen = seen || [];
+      if (seen.indexOf(val) !== -1) {
+        throw new Error('circular reference detected while preparing "' + val + '" for query');
+      }
+      seen.push(val);
+      return prepareValue(val.toPostgres(prepareValue), seen);
+    }
+    return JSON.stringify(val);
+  }
+  function dateToString(date3) {
+    let offset = -date3.getTimezoneOffset();
+    let year = date3.getFullYear();
+    const isBCYear = year < 1;
+    if (isBCYear)
+      year = Math.abs(year) + 1;
+    let ret = String(year).padStart(4, "0") + "-" + String(date3.getMonth() + 1).padStart(2, "0") + "-" + String(date3.getDate()).padStart(2, "0") + "T" + String(date3.getHours()).padStart(2, "0") + ":" + String(date3.getMinutes()).padStart(2, "0") + ":" + String(date3.getSeconds()).padStart(2, "0") + "." + String(date3.getMilliseconds()).padStart(3, "0");
+    if (offset < 0) {
+      ret += "-";
+      offset *= -1;
+    } else {
+      ret += "+";
+    }
+    ret += String(Math.floor(offset / 60)).padStart(2, "0") + ":" + String(offset % 60).padStart(2, "0");
+    if (isBCYear)
+      ret += " BC";
+    return ret;
+  }
+  function dateToStringUTC(date3) {
+    let year = date3.getUTCFullYear();
+    const isBCYear = year < 1;
+    if (isBCYear)
+      year = Math.abs(year) + 1;
+    let ret = String(year).padStart(4, "0") + "-" + String(date3.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date3.getUTCDate()).padStart(2, "0") + "T" + String(date3.getUTCHours()).padStart(2, "0") + ":" + String(date3.getUTCMinutes()).padStart(2, "0") + ":" + String(date3.getUTCSeconds()).padStart(2, "0") + "." + String(date3.getUTCMilliseconds()).padStart(3, "0");
+    ret += "+00:00";
+    if (isBCYear)
+      ret += " BC";
+    return ret;
+  }
+  function normalizeQueryConfig(config, values3, callback) {
+    config = typeof config === "string" ? { text: config } : config;
+    if (values3) {
+      if (typeof values3 === "function") {
+        config.callback = values3;
+      } else {
+        config.values = values3;
+      }
+    }
+    if (callback) {
+      config.callback = callback;
+    }
+    return config;
+  }
+  var escapeIdentifier2 = function(str) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  };
+  var escapeLiteral = function(str) {
+    let hasBackslash = false;
+    let escaped = "'";
+    if (str == null) {
+      return "''";
+    }
+    if (typeof str !== "string") {
+      return "''";
+    }
+    for (let i = 0;i < str.length; i++) {
+      const c2 = str[i];
+      if (c2 === "'") {
+        escaped += c2 + c2;
+      } else if (c2 === "\\") {
+        escaped += c2 + c2;
+        hasBackslash = true;
+      } else {
+        escaped += c2;
+      }
+    }
+    escaped += "'";
+    if (hasBackslash === true) {
+      escaped = " E" + escaped;
+    }
+    return escaped;
+  };
+  module.exports = {
+    prepareValue: function prepareValueWrapper(value) {
+      return prepareValue(value);
+    },
+    normalizeQueryConfig,
+    escapeIdentifier: escapeIdentifier2,
+    escapeLiteral
+  };
+});
+
+// node_modules/pg/lib/crypto/utils.js
+var require_utils2 = __commonJS((exports, module) => {
+  var nodeCrypto = __require("crypto");
+  module.exports = {
+    postgresMd5PasswordHash,
+    randomBytes,
+    deriveKey,
+    sha256: sha2562,
+    hashByName,
+    hmacSha256,
+    md5: md52
+  };
+  var webCrypto = nodeCrypto.webcrypto || globalThis.crypto;
+  var subtleCrypto = webCrypto.subtle;
+  var textEncoder = new TextEncoder;
+  function randomBytes(length) {
+    return webCrypto.getRandomValues(Buffer.alloc(length));
+  }
+  async function md52(string3) {
+    try {
+      return nodeCrypto.createHash("md5").update(string3, "utf-8").digest("hex");
+    } catch (e) {
+      const data = typeof string3 === "string" ? textEncoder.encode(string3) : string3;
+      const hash = await subtleCrypto.digest("MD5", data);
+      return Array.from(new Uint8Array(hash)).map((b3) => b3.toString(16).padStart(2, "0")).join("");
+    }
+  }
+  async function postgresMd5PasswordHash(user, password, salt) {
+    const inner = await md52(password + user);
+    const outer = await md52(Buffer.concat([Buffer.from(inner), salt]));
+    return "md5" + outer;
+  }
+  async function sha2562(text8) {
+    return await subtleCrypto.digest("SHA-256", text8);
+  }
+  async function hashByName(hashName, text8) {
+    return await subtleCrypto.digest(hashName, text8);
+  }
+  async function hmacSha256(keyBuffer, msg) {
+    const key = await subtleCrypto.importKey("raw", keyBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return await subtleCrypto.sign("HMAC", key, textEncoder.encode(msg));
+  }
+  async function deriveKey(password, salt, iterations) {
+    const key = await subtleCrypto.importKey("raw", textEncoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+    const params = { name: "PBKDF2", hash: "SHA-256", salt, iterations };
+    return await subtleCrypto.deriveBits(params, key, 32 * 8, ["deriveBits"]);
+  }
+});
+
+// node_modules/pg/lib/crypto/cert-signatures.js
+var require_cert_signatures = __commonJS((exports, module) => {
+  function x509Error(msg, cert) {
+    return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
+  }
+  function readASN1Length(data, index2) {
+    let length = data[index2++];
+    if (length < 128)
+      return { length, index: index2 };
+    const lengthBytes = length & 127;
+    if (lengthBytes > 4)
+      throw x509Error("bad length", data);
+    length = 0;
+    for (let i = 0;i < lengthBytes; i++) {
+      length = length << 8 | data[index2++];
+    }
+    return { length, index: index2 };
+  }
+  function readASN1OID(data, index2) {
+    if (data[index2++] !== 6)
+      throw x509Error("non-OID data", data);
+    const { length: OIDLength, index: indexAfterOIDLength } = readASN1Length(data, index2);
+    index2 = indexAfterOIDLength;
+    const lastIndex = index2 + OIDLength;
+    const byte1 = data[index2++];
+    let oid = (byte1 / 40 >> 0) + "." + byte1 % 40;
+    while (index2 < lastIndex) {
+      let value = 0;
+      while (index2 < lastIndex) {
+        const nextByte = data[index2++];
+        value = value << 7 | nextByte & 127;
+        if (nextByte < 128)
+          break;
+      }
+      oid += "." + value;
+    }
+    return { oid, index: index2 };
+  }
+  function expectASN1Seq(data, index2) {
+    if (data[index2++] !== 48)
+      throw x509Error("non-sequence data", data);
+    return readASN1Length(data, index2);
+  }
+  function signatureAlgorithmHashFromCertificate(data, index2) {
+    if (index2 === undefined)
+      index2 = 0;
+    index2 = expectASN1Seq(data, index2).index;
+    const { length: certInfoLength, index: indexAfterCertInfoLength } = expectASN1Seq(data, index2);
+    index2 = indexAfterCertInfoLength + certInfoLength;
+    index2 = expectASN1Seq(data, index2).index;
+    const { oid, index: indexAfterOID } = readASN1OID(data, index2);
+    switch (oid) {
+      case "1.2.840.113549.1.1.4":
+        return "MD5";
+      case "1.2.840.113549.1.1.5":
+        return "SHA-1";
+      case "1.2.840.113549.1.1.11":
+        return "SHA-256";
+      case "1.2.840.113549.1.1.12":
+        return "SHA-384";
+      case "1.2.840.113549.1.1.13":
+        return "SHA-512";
+      case "1.2.840.113549.1.1.14":
+        return "SHA-224";
+      case "1.2.840.113549.1.1.15":
+        return "SHA512-224";
+      case "1.2.840.113549.1.1.16":
+        return "SHA512-256";
+      case "1.2.840.10045.4.1":
+        return "SHA-1";
+      case "1.2.840.10045.4.3.1":
+        return "SHA-224";
+      case "1.2.840.10045.4.3.2":
+        return "SHA-256";
+      case "1.2.840.10045.4.3.3":
+        return "SHA-384";
+      case "1.2.840.10045.4.3.4":
+        return "SHA-512";
+      case "1.2.840.113549.1.1.10": {
+        index2 = indexAfterOID;
+        index2 = expectASN1Seq(data, index2).index;
+        if (data[index2++] !== 160)
+          throw x509Error("non-tag data", data);
+        index2 = readASN1Length(data, index2).index;
+        index2 = expectASN1Seq(data, index2).index;
+        const { oid: hashOID } = readASN1OID(data, index2);
+        switch (hashOID) {
+          case "1.2.840.113549.2.5":
+            return "MD5";
+          case "1.3.14.3.2.26":
+            return "SHA-1";
+          case "2.16.840.1.101.3.4.2.1":
+            return "SHA-256";
+          case "2.16.840.1.101.3.4.2.2":
+            return "SHA-384";
+          case "2.16.840.1.101.3.4.2.3":
+            return "SHA-512";
+        }
+        throw x509Error("unknown hash OID " + hashOID, data);
+      }
+      case "1.3.101.110":
+      case "1.3.101.112":
+        return "SHA-512";
+      case "1.3.101.111":
+      case "1.3.101.113":
+        throw x509Error("Ed448 certificate channel binding is not currently supported by Postgres");
+    }
+    throw x509Error("unknown OID " + oid, data);
+  }
+  module.exports = { signatureAlgorithmHashFromCertificate };
+});
+
+// node_modules/pg/lib/crypto/sasl.js
+var require_sasl = __commonJS((exports, module) => {
+  var crypto3 = require_utils2();
+  var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
+  function saslprep(password) {
+    const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
+    const mappedToNothing = /[\u00AD\u034F\u1806\u180B\u180C\u180D\u200C\u200D\u2060\uFE00-\uFE0F\uFEFF]/g;
+    return password.replace(nonAsciiSpace, " ").replace(mappedToNothing, "").normalize("NFKC");
+  }
+  var DEFAULT_MAX_SCRAM_ITERATIONS = 1e5;
+  function startSession(mechanisms, stream, scramMaxIterations = DEFAULT_MAX_SCRAM_ITERATIONS) {
+    const candidates = ["SCRAM-SHA-256"];
+    if (stream)
+      candidates.unshift("SCRAM-SHA-256-PLUS");
+    const mechanism = candidates.find((candidate) => mechanisms.includes(candidate));
+    if (!mechanism) {
+      throw new Error("SASL: Only mechanism(s) " + candidates.join(" and ") + " are supported");
+    }
+    if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
+      throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
+    }
+    const clientNonce = crypto3.randomBytes(18).toString("base64");
+    const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
+    return {
+      mechanism,
+      clientNonce,
+      response: gs2Header + ",,n=*,r=" + clientNonce,
+      message: "SASLInitialResponse",
+      scramMaxIterations
+    };
+  }
+  async function continueSession(session3, password, serverData, stream) {
+    if (session3.message !== "SASLInitialResponse") {
+      throw new Error("SASL: Last message was not SASLInitialResponse");
+    }
+    if (typeof password !== "string") {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string");
+    }
+    if (password === "") {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a non-empty string");
+    }
+    if (typeof serverData !== "string") {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: serverData must be a string");
+    }
+    const sv = parseServerFirstMessage(serverData);
+    if (!sv.nonce.startsWith(session3.clientNonce)) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: server nonce does not start with client nonce");
+    } else if (sv.nonce.length === session3.clientNonce.length) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: server nonce is too short");
+    }
+    const scramMaxIterations = typeof session3.scramMaxIterations === "number" ? session3.scramMaxIterations : DEFAULT_MAX_SCRAM_ITERATIONS;
+    if (scramMaxIterations !== 0 && sv.iteration > scramMaxIterations) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: iteration count " + sv.iteration + " exceeds scramMaxIterations of " + scramMaxIterations);
+    }
+    const clientFirstMessageBare = "n=*,r=" + session3.clientNonce;
+    const serverFirstMessage = "r=" + sv.nonce + ",s=" + sv.salt + ",i=" + sv.iteration;
+    let channelBinding = stream ? "eSws" : "biws";
+    if (session3.mechanism === "SCRAM-SHA-256-PLUS") {
+      const peerCert = stream.getPeerCertificate().raw;
+      let hashName = signatureAlgorithmHashFromCertificate(peerCert);
+      if (hashName === "MD5" || hashName === "SHA-1")
+        hashName = "SHA-256";
+      const certHash = await crypto3.hashByName(hashName, peerCert);
+      const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
+      channelBinding = bindingData.toString("base64");
+    }
+    const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
+    const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
+    const saltBytes = Buffer.from(sv.salt, "base64");
+    const saltedPassword = await crypto3.deriveKey(saslprep(password), saltBytes, sv.iteration);
+    const clientKey = await crypto3.hmacSha256(saltedPassword, "Client Key");
+    const storedKey = await crypto3.sha256(clientKey);
+    const clientSignature = await crypto3.hmacSha256(storedKey, authMessage);
+    const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
+    const serverKey = await crypto3.hmacSha256(saltedPassword, "Server Key");
+    const serverSignatureBytes = await crypto3.hmacSha256(serverKey, authMessage);
+    session3.message = "SASLResponse";
+    session3.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
+    session3.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
+  }
+  function finalizeSession(session3, serverData) {
+    if (session3.message !== "SASLResponse") {
+      throw new Error("SASL: Last message was not SASLResponse");
+    }
+    if (typeof serverData !== "string") {
+      throw new Error("SASL: SCRAM-SERVER-FINAL-MESSAGE: serverData must be a string");
+    }
+    const { serverSignature } = parseServerFinalMessage(serverData);
+    if (serverSignature !== session3.serverSignature) {
+      throw new Error("SASL: SCRAM-SERVER-FINAL-MESSAGE: server signature does not match");
+    }
+  }
+  function isPrintableChars(text8) {
+    if (typeof text8 !== "string") {
+      throw new TypeError("SASL: text must be a string");
+    }
+    return text8.split("").map((_, i) => text8.charCodeAt(i)).every((c2) => c2 >= 33 && c2 <= 43 || c2 >= 45 && c2 <= 126);
+  }
+  function isBase64(text8) {
+    return /^(?:[a-zA-Z0-9+/]{4})*(?:[a-zA-Z0-9+/]{2}==|[a-zA-Z0-9+/]{3}=)?$/.test(text8);
+  }
+  function parseAttributePairs(text8) {
+    if (typeof text8 !== "string") {
+      throw new TypeError("SASL: attribute pairs text must be a string");
+    }
+    return new Map(text8.split(",").map((attrValue) => {
+      if (!/^.=/.test(attrValue)) {
+        throw new Error("SASL: Invalid attribute pair entry");
+      }
+      const name = attrValue[0];
+      const value = attrValue.substring(2);
+      return [name, value];
+    }));
+  }
+  function parseServerFirstMessage(data) {
+    const attrPairs = parseAttributePairs(data);
+    const nonce = attrPairs.get("r");
+    if (!nonce) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: nonce missing");
+    } else if (!isPrintableChars(nonce)) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: nonce must only contain printable characters");
+    }
+    const salt = attrPairs.get("s");
+    if (!salt) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: salt missing");
+    } else if (!isBase64(salt)) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: salt must be base64");
+    }
+    const iterationText = attrPairs.get("i");
+    if (!iterationText) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: iteration missing");
+    } else if (!/^[1-9][0-9]*$/.test(iterationText)) {
+      throw new Error("SASL: SCRAM-SERVER-FIRST-MESSAGE: invalid iteration count");
+    }
+    const iteration = parseInt(iterationText, 10);
+    return {
+      nonce,
+      salt,
+      iteration
+    };
+  }
+  function parseServerFinalMessage(serverData) {
+    const attrPairs = parseAttributePairs(serverData);
+    const error = attrPairs.get("e");
+    const serverSignature = attrPairs.get("v");
+    if (error) {
+      throw new Error(`SASL: SCRAM-SERVER-FINAL-MESSAGE: server returned error: "${error}"`);
+    }
+    if (!serverSignature) {
+      throw new Error("SASL: SCRAM-SERVER-FINAL-MESSAGE: server signature is missing");
+    } else if (!isBase64(serverSignature)) {
+      throw new Error("SASL: SCRAM-SERVER-FINAL-MESSAGE: server signature must be base64");
+    }
+    return {
+      serverSignature
+    };
+  }
+  function xorBuffers(a, b3) {
+    if (!Buffer.isBuffer(a)) {
+      throw new TypeError("first argument must be a Buffer");
+    }
+    if (!Buffer.isBuffer(b3)) {
+      throw new TypeError("second argument must be a Buffer");
+    }
+    if (a.length !== b3.length) {
+      throw new Error("Buffer lengths must match");
+    }
+    if (a.length === 0) {
+      throw new Error("Buffers cannot be empty");
+    }
+    return Buffer.from(a.map((_, i) => a[i] ^ b3[i]));
+  }
+  module.exports = {
+    startSession,
+    continueSession,
+    finalizeSession,
+    DEFAULT_MAX_SCRAM_ITERATIONS
+  };
+});
+
+// node_modules/pg/lib/type-overrides.js
+var require_type_overrides = __commonJS((exports, module) => {
+  var types3 = require_pg_types();
+  function TypeOverrides(userTypes) {
+    this._types = userTypes || types3;
+    this.text = {};
+    this.binary = {};
+  }
+  TypeOverrides.prototype.getOverrides = function(format) {
+    switch (format) {
+      case "text":
+        return this.text;
+      case "binary":
+        return this.binary;
+      default:
+        return {};
+    }
+  };
+  TypeOverrides.prototype.setTypeParser = function(oid, format, parseFn) {
+    if (typeof format === "function") {
+      parseFn = format;
+      format = "text";
+    }
+    this.getOverrides(format)[oid] = parseFn;
+  };
+  TypeOverrides.prototype.getTypeParser = function(oid, format) {
+    format = format || "text";
+    return this.getOverrides(format)[oid] || this._types.getTypeParser(oid, format);
+  };
+  module.exports = TypeOverrides;
+});
+
+// node_modules/pg-connection-string/index.js
+var require_pg_connection_string = __commonJS((exports, module) => {
+  function parse3(str, options = {}) {
+    if (str.charAt(0) === "/") {
+      const config2 = str.split(" ");
+      return { host: config2[0], database: config2[1] };
+    }
+    const config = Object.create(null);
+    let result;
+    let dummyHost = false;
+    if (/ |%[^a-f0-9]|%[a-f0-9][^a-f0-9]/i.test(str)) {
+      str = encodeURI(str).replace(/%25(\d\d)/g, "%$1");
+    }
+    try {
+      try {
+        result = new URL(str, "postgres://base");
+      } catch (e) {
+        result = new URL(str.replace("@/", "@___DUMMY___/"), "postgres://base");
+        dummyHost = true;
+      }
+    } catch (err) {
+      err.input && (err.input = "*****REDACTED*****");
+      throw err;
+    }
+    for (const entry of result.searchParams.entries()) {
+      config[entry[0]] = entry[1];
+    }
+    config.user = config.user || decodeURIComponent(result.username);
+    config.password = config.password || decodeURIComponent(result.password);
+    if (result.protocol == "socket:") {
+      config.host = decodeURI(result.pathname);
+      config.database = result.searchParams.get("db");
+      config.client_encoding = result.searchParams.get("encoding");
+      return config;
+    }
+    const hostname = dummyHost ? "" : result.hostname;
+    if (!config.host) {
+      config.host = decodeURIComponent(hostname);
+    } else if (hostname && /^%2f/i.test(hostname)) {
+      result.pathname = hostname + result.pathname;
+    }
+    if (!config.port) {
+      config.port = result.port;
+    }
+    const pathname = result.pathname.slice(1) || null;
+    config.database = pathname ? decodeURI(pathname) : null;
+    if (config.ssl === "true" || config.ssl === "1") {
+      config.ssl = true;
+    }
+    if (config.ssl === "0") {
+      config.ssl = false;
+    }
+    if (config.sslcert || config.sslkey || config.sslrootcert || config.sslmode) {
+      config.ssl = {};
+    }
+    const fs2 = config.sslcert || config.sslkey || config.sslrootcert ? __require("fs") : null;
+    if (config.sslcert) {
+      config.ssl.cert = fs2.readFileSync(config.sslcert).toString();
+    }
+    if (config.sslkey) {
+      config.ssl.key = fs2.readFileSync(config.sslkey).toString();
+    }
+    if (config.sslrootcert) {
+      config.ssl.ca = fs2.readFileSync(config.sslrootcert).toString();
+    }
+    if (options.useLibpqCompat && config.uselibpqcompat) {
+      throw new Error("Both useLibpqCompat and uselibpqcompat are set. Please use only one of them.");
+    }
+    if (config.uselibpqcompat === "true" || options.useLibpqCompat) {
+      switch (config.sslmode) {
+        case "disable": {
+          config.ssl = false;
+          break;
+        }
+        case "prefer": {
+          config.ssl.rejectUnauthorized = false;
+          break;
+        }
+        case "require": {
+          if (config.sslrootcert) {
+            config.ssl.checkServerIdentity = function() {};
+          } else {
+            config.ssl.rejectUnauthorized = false;
+          }
+          break;
+        }
+        case "verify-ca": {
+          if (!config.ssl.ca) {
+            throw new Error("SECURITY WARNING: Using sslmode=verify-ca requires specifying a CA with sslrootcert. If a public CA is used, verify-ca allows connections to a server that somebody else may have registered with the CA, making you vulnerable to Man-in-the-Middle attacks. Either specify a custom CA certificate with sslrootcert parameter or use sslmode=verify-full for proper security.");
+          }
+          config.ssl.checkServerIdentity = function() {};
+          break;
+        }
+        case "verify-full": {
+          break;
+        }
+      }
+    } else {
+      switch (config.sslmode) {
+        case "disable": {
+          config.ssl = false;
+          break;
+        }
+        case "prefer":
+        case "require":
+        case "verify-ca":
+        case "verify-full": {
+          if (config.sslmode !== "verify-full") {
+            deprecatedSslModeWarning(config.sslmode);
+          }
+          break;
+        }
+        case "no-verify": {
+          config.ssl.rejectUnauthorized = false;
+          break;
+        }
+      }
+    }
+    return config;
+  }
+  function toConnectionOptions(sslConfig) {
+    const connectionOptions = Object.entries(sslConfig).reduce((c2, [key, value]) => {
+      if (value !== undefined && value !== null) {
+        c2[key] = value;
+      }
+      return c2;
+    }, Object.create(null));
+    return connectionOptions;
+  }
+  function toClientConfig(config) {
+    const poolConfig = Object.entries(config).reduce((c2, [key, value]) => {
+      if (key === "ssl") {
+        const sslConfig = value;
+        if (typeof sslConfig === "boolean") {
+          c2[key] = sslConfig;
+        }
+        if (typeof sslConfig === "object") {
+          c2[key] = toConnectionOptions(sslConfig);
+        }
+      } else if (value !== undefined && value !== null) {
+        if (key === "port") {
+          if (value !== "") {
+            const v2 = parseInt(value, 10);
+            if (isNaN(v2)) {
+              throw new Error(`Invalid ${key}: ${value}`);
+            }
+            c2[key] = v2;
+          }
+        } else {
+          c2[key] = value;
+        }
+      }
+      return c2;
+    }, Object.create(null));
+    return poolConfig;
+  }
+  function parseIntoClientConfig(str) {
+    return toClientConfig(parse3(str));
+  }
+  function deprecatedSslModeWarning(sslmode) {
+    if (!deprecatedSslModeWarning.warned && typeof process !== "undefined" && process.emitWarning) {
+      deprecatedSslModeWarning.warned = true;
+      process.emitWarning(`SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=${sslmode}'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.`);
+    }
+  }
+  module.exports = parse3;
+  parse3.parse = parse3;
+  parse3.toClientConfig = toClientConfig;
+  parse3.parseIntoClientConfig = parseIntoClientConfig;
+});
+
+// node_modules/pg/lib/connection-parameters.js
+var require_connection_parameters = __commonJS((exports, module) => {
+  var dns = __require("dns");
+  var defaults = require_defaults();
+  var parse3 = require_pg_connection_string().parse;
+  var val = function(key, config, envVar) {
+    if (config[key]) {
+      return config[key];
+    }
+    if (envVar === undefined) {
+      envVar = process.env["PG" + key.toUpperCase()];
+    } else if (envVar === false) {} else {
+      envVar = process.env[envVar];
+    }
+    return envVar || defaults[key];
+  };
+  var readSSLConfigFromEnvironment = function() {
+    switch (process.env.PGSSLMODE) {
+      case "disable":
+        return false;
+      case "prefer":
+      case "require":
+      case "verify-ca":
+      case "verify-full":
+        return true;
+      case "no-verify":
+        return { rejectUnauthorized: false };
+    }
+    return defaults.ssl;
+  };
+  var quoteParamValue = function(value) {
+    return "'" + ("" + value).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+  };
+  var add = function(params, config, paramName) {
+    const value = config[paramName];
+    if (value !== undefined && value !== null) {
+      params.push(paramName + "=" + quoteParamValue(value));
+    }
+  };
+
+  class ConnectionParameters {
+    constructor(config) {
+      config = typeof config === "string" ? parse3(config) : config || {};
+      if (config.connectionString) {
+        config = Object.assign({}, config, parse3(config.connectionString));
+      }
+      this.user = val("user", config);
+      this.database = val("database", config);
+      if (this.database === undefined) {
+        this.database = this.user;
+      }
+      this.port = parseInt(val("port", config), 10);
+      this.host = val("host", config);
+      Object.defineProperty(this, "password", {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: val("password", config)
+      });
+      this.binary = val("binary", config);
+      this.options = val("options", config);
+      this.ssl = typeof config.ssl === "undefined" ? readSSLConfigFromEnvironment() : config.ssl;
+      if (typeof this.ssl === "string") {
+        if (this.ssl === "true") {
+          this.ssl = true;
+        }
+      }
+      if (this.ssl === "no-verify") {
+        this.ssl = { rejectUnauthorized: false };
+      }
+      if (this.ssl && this.ssl.key) {
+        Object.defineProperty(this.ssl, "key", {
+          enumerable: false
+        });
+      }
+      this.client_encoding = val("client_encoding", config);
+      this.replication = val("replication", config);
+      this.isDomainSocket = !(this.host || "").indexOf("/");
+      this.application_name = val("application_name", config, "PGAPPNAME");
+      this.fallback_application_name = val("fallback_application_name", config, false);
+      this.statement_timeout = val("statement_timeout", config, false);
+      this.lock_timeout = val("lock_timeout", config, false);
+      this.idle_in_transaction_session_timeout = val("idle_in_transaction_session_timeout", config, false);
+      this.query_timeout = val("query_timeout", config, false);
+      if (config.connectionTimeoutMillis === undefined) {
+        this.connect_timeout = process.env.PGCONNECT_TIMEOUT || 0;
+      } else {
+        this.connect_timeout = Math.floor(config.connectionTimeoutMillis / 1000);
+      }
+      if (config.keepAlive === false) {
+        this.keepalives = 0;
+      } else if (config.keepAlive === true) {
+        this.keepalives = 1;
+      }
+      if (typeof config.keepAliveInitialDelayMillis === "number") {
+        this.keepalives_idle = Math.floor(config.keepAliveInitialDelayMillis / 1000);
+      }
+    }
+    getLibpqConnectionString(cb) {
+      const params = [];
+      add(params, this, "user");
+      add(params, this, "password");
+      add(params, this, "port");
+      add(params, this, "application_name");
+      add(params, this, "fallback_application_name");
+      add(params, this, "connect_timeout");
+      add(params, this, "options");
+      const ssl = typeof this.ssl === "object" ? this.ssl : this.ssl ? { sslmode: this.ssl } : {};
+      add(params, ssl, "sslmode");
+      add(params, ssl, "sslca");
+      add(params, ssl, "sslkey");
+      add(params, ssl, "sslcert");
+      add(params, ssl, "sslrootcert");
+      if (this.database) {
+        params.push("dbname=" + quoteParamValue(this.database));
+      }
+      if (this.replication) {
+        params.push("replication=" + quoteParamValue(this.replication));
+      }
+      if (this.host) {
+        params.push("host=" + quoteParamValue(this.host));
+      }
+      if (this.isDomainSocket) {
+        return cb(null, params.join(" "));
+      }
+      if (this.client_encoding) {
+        params.push("client_encoding=" + quoteParamValue(this.client_encoding));
+      }
+      dns.lookup(this.host, function(err, address) {
+        if (err)
+          return cb(err, null);
+        params.push("hostaddr=" + quoteParamValue(address));
+        return cb(null, params.join(" "));
+      });
+    }
+  }
+  module.exports = ConnectionParameters;
+});
+
+// node_modules/pg/lib/result.js
+var require_result = __commonJS((exports, module) => {
+  var types3 = require_pg_types();
+  var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
+
+  class Result2 {
+    constructor(rowMode, types4) {
+      this.command = null;
+      this.rowCount = null;
+      this.oid = null;
+      this.rows = [];
+      this.fields = [];
+      this._parsers = undefined;
+      this._types = types4;
+      this.RowCtor = null;
+      this.rowAsArray = rowMode === "array";
+      if (this.rowAsArray) {
+        this.parseRow = this._parseRowAsArray;
+      }
+      this._prebuiltEmptyResultObject = null;
+    }
+    addCommandComplete(msg) {
+      let match;
+      if (msg.text) {
+        match = matchRegexp.exec(msg.text);
+      } else {
+        match = matchRegexp.exec(msg.command);
+      }
+      if (match) {
+        this.command = match[1];
+        if (match[3]) {
+          this.oid = parseInt(match[2], 10);
+          this.rowCount = parseInt(match[3], 10);
+        } else if (match[2]) {
+          this.rowCount = parseInt(match[2], 10);
+        }
+      }
+    }
+    _parseRowAsArray(rowData) {
+      const row = new Array(rowData.length);
+      for (let i = 0, len = rowData.length;i < len; i++) {
+        const rawValue = rowData[i];
+        if (rawValue !== null) {
+          row[i] = this._parsers[i](rawValue);
+        } else {
+          row[i] = null;
+        }
+      }
+      return row;
+    }
+    parseRow(rowData) {
+      const row = { ...this._prebuiltEmptyResultObject };
+      for (let i = 0, len = rowData.length;i < len; i++) {
+        const rawValue = rowData[i];
+        const field = this.fields[i].name;
+        if (rawValue !== null) {
+          const v2 = this.fields[i].format === "binary" ? Buffer.from(rawValue) : rawValue;
+          row[field] = this._parsers[i](v2);
+        } else {
+          row[field] = null;
+        }
+      }
+      return row;
+    }
+    addRow(row) {
+      this.rows.push(row);
+    }
+    addFields(fieldDescriptions) {
+      this.fields = fieldDescriptions;
+      if (this.fields.length) {
+        this._parsers = new Array(fieldDescriptions.length);
+      }
+      const row = Object.create(null);
+      for (let i = 0;i < fieldDescriptions.length; i++) {
+        const desc2 = fieldDescriptions[i];
+        row[desc2.name] = null;
+        if (this._types) {
+          this._parsers[i] = this._types.getTypeParser(desc2.dataTypeID, desc2.format || "text");
+        } else {
+          this._parsers[i] = types3.getTypeParser(desc2.dataTypeID, desc2.format || "text");
+        }
+      }
+      this._prebuiltEmptyResultObject = { ...row };
+    }
+  }
+  module.exports = Result2;
+});
+
+// node_modules/pg/lib/query.js
+var require_query = __commonJS((exports, module) => {
+  var { EventEmitter } = __require("events");
+  var Result2 = require_result();
+  var utils4 = require_utils();
+
+  class Query2 extends EventEmitter {
+    constructor(config, values3, callback) {
+      super();
+      config = utils4.normalizeQueryConfig(config, values3, callback);
+      this.text = config.text;
+      this.values = config.values;
+      this.rows = config.rows;
+      this.types = config.types;
+      this.name = config.name;
+      this.queryMode = config.queryMode;
+      this.binary = config.binary;
+      this.portal = config.portal || "";
+      this.callback = config.callback;
+      this._rowMode = config.rowMode;
+      if (process.domain && config.callback) {
+        this.callback = process.domain.bind(config.callback);
+      }
+      this._result = new Result2(this._rowMode, this.types);
+      this._results = this._result;
+      this._canceledDueToError = false;
+    }
+    requiresPreparation() {
+      if (this.queryMode === "extended") {
+        return true;
+      }
+      if (this.name) {
+        return true;
+      }
+      if (this.rows) {
+        return true;
+      }
+      if (!this.text) {
+        return false;
+      }
+      if (!this.values) {
+        return false;
+      }
+      return this.values.length > 0;
+    }
+    _checkForMultirow() {
+      if (this._result.command) {
+        if (!Array.isArray(this._results)) {
+          this._results = [this._result];
+        }
+        this._result = new Result2(this._rowMode, this._result._types);
+        this._results.push(this._result);
+      }
+    }
+    handleRowDescription(msg) {
+      this._checkForMultirow();
+      this._result.addFields(msg.fields);
+      this._accumulateRows = this.callback || !this.listeners("row").length;
+    }
+    handleDataRow(msg) {
+      let row;
+      if (this._canceledDueToError) {
+        return;
+      }
+      try {
+        row = this._result.parseRow(msg.fields);
+      } catch (err) {
+        this._canceledDueToError = err;
+        return;
+      }
+      this.emit("row", row, this._result);
+      if (this._accumulateRows) {
+        this._result.addRow(row);
+      }
+    }
+    handleCommandComplete(msg, connection2) {
+      this._checkForMultirow();
+      this._result.addCommandComplete(msg);
+      if (this.rows) {
+        connection2.sync();
+      }
+    }
+    handleEmptyQuery(connection2) {
+      if (this.rows) {
+        connection2.sync();
+      }
+    }
+    handleError(err, connection2) {
+      if (this._canceledDueToError) {
+        err = this._canceledDueToError;
+        this._canceledDueToError = false;
+      }
+      if (this.callback) {
+        return this.callback(err);
+      }
+      this.emit("error", err);
+    }
+    handleReadyForQuery(con) {
+      if (this._canceledDueToError) {
+        return this.handleError(this._canceledDueToError, con);
+      }
+      if (this.callback) {
+        try {
+          this.callback(null, this._results);
+        } catch (err) {
+          process.nextTick(() => {
+            throw err;
+          });
+        }
+      }
+      this.emit("end", this._results);
+    }
+    submit(connection2) {
+      if (typeof this.text !== "string" && typeof this.name !== "string") {
+        return new Error("A query must have either text or a name. Supplying neither is unsupported.");
+      }
+      const previous3 = connection2.parsedStatements[this.name];
+      if (this.text && previous3 && this.text !== previous3) {
+        return new Error(`Prepared statements must be unique - '${this.name}' was used for a different statement`);
+      }
+      if (this.values && !Array.isArray(this.values)) {
+        return new Error("Query values must be an array");
+      }
+      if (this.requiresPreparation()) {
+        connection2.stream.cork && connection2.stream.cork();
+        try {
+          this.prepare(connection2);
+        } finally {
+          connection2.stream.uncork && connection2.stream.uncork();
+        }
+      } else {
+        connection2.query(this.text);
+      }
+      return null;
+    }
+    hasBeenParsed(connection2) {
+      return this.name && connection2.parsedStatements[this.name];
+    }
+    handlePortalSuspended(connection2) {
+      this._getRows(connection2, this.rows);
+    }
+    _getRows(connection2, rows) {
+      connection2.execute({
+        portal: this.portal,
+        rows
+      });
+      if (!rows) {
+        connection2.sync();
+      } else {
+        connection2.flush();
+      }
+    }
+    prepare(connection2) {
+      if (!this.hasBeenParsed(connection2)) {
+        connection2.parse({
+          text: this.text,
+          name: this.name,
+          types: this.types
+        });
+      }
+      try {
+        connection2.bind({
+          portal: this.portal,
+          statement: this.name,
+          values: this.values,
+          binary: this.binary,
+          valueMapper: utils4.prepareValue
+        });
+      } catch (err) {
+        this.handleError(err, connection2);
+        return;
+      }
+      connection2.describe({
+        type: "P",
+        name: this.portal || ""
+      });
+      this._getRows(connection2, this.rows);
+    }
+    handleCopyInResponse(connection2) {
+      connection2.sendCopyFail("No source stream defined");
+    }
+    handleCopyData(msg, connection2) {}
+  }
+  module.exports = Query2;
+});
+
+// node_modules/pg-protocol/dist/messages.js
+var require_messages = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = undefined;
+  exports.parseComplete = {
+    name: "parseComplete",
+    length: 5
+  };
+  exports.bindComplete = {
+    name: "bindComplete",
+    length: 5
+  };
+  exports.closeComplete = {
+    name: "closeComplete",
+    length: 5
+  };
+  exports.noData = {
+    name: "noData",
+    length: 5
+  };
+  exports.portalSuspended = {
+    name: "portalSuspended",
+    length: 5
+  };
+  exports.replicationStart = {
+    name: "replicationStart",
+    length: 4
+  };
+  exports.emptyQuery = {
+    name: "emptyQuery",
+    length: 4
+  };
+  exports.copyDone = {
+    name: "copyDone",
+    length: 4
+  };
+
+  class DatabaseError extends Error {
+    constructor(message, length, name) {
+      super(message);
+      this.length = length;
+      this.name = name;
+    }
+  }
+  exports.DatabaseError = DatabaseError;
+
+  class CopyDataMessage {
+    constructor(length, chunk) {
+      this.length = length;
+      this.chunk = chunk;
+      this.name = "copyData";
+    }
+  }
+  exports.CopyDataMessage = CopyDataMessage;
+
+  class CopyResponse {
+    constructor(length, name, binary, columnCount) {
+      this.length = length;
+      this.name = name;
+      this.binary = binary;
+      this.columnTypes = new Array(columnCount);
+    }
+  }
+  exports.CopyResponse = CopyResponse;
+
+  class Field2 {
+    constructor(name, tableID, columnID, dataTypeID, dataTypeSize, dataTypeModifier, format) {
+      this.name = name;
+      this.tableID = tableID;
+      this.columnID = columnID;
+      this.dataTypeID = dataTypeID;
+      this.dataTypeSize = dataTypeSize;
+      this.dataTypeModifier = dataTypeModifier;
+      this.format = format;
+    }
+  }
+  exports.Field = Field2;
+
+  class RowDescriptionMessage {
+    constructor(length, fieldCount) {
+      this.length = length;
+      this.fieldCount = fieldCount;
+      this.name = "rowDescription";
+      this.fields = new Array(this.fieldCount);
+    }
+  }
+  exports.RowDescriptionMessage = RowDescriptionMessage;
+
+  class ParameterDescriptionMessage {
+    constructor(length, parameterCount) {
+      this.length = length;
+      this.parameterCount = parameterCount;
+      this.name = "parameterDescription";
+      this.dataTypeIDs = new Array(this.parameterCount);
+    }
+  }
+  exports.ParameterDescriptionMessage = ParameterDescriptionMessage;
+
+  class ParameterStatusMessage {
+    constructor(length, parameterName, parameterValue) {
+      this.length = length;
+      this.parameterName = parameterName;
+      this.parameterValue = parameterValue;
+      this.name = "parameterStatus";
+    }
+  }
+  exports.ParameterStatusMessage = ParameterStatusMessage;
+
+  class AuthenticationMD5Password {
+    constructor(length, salt) {
+      this.length = length;
+      this.salt = salt;
+      this.name = "authenticationMD5Password";
+    }
+  }
+  exports.AuthenticationMD5Password = AuthenticationMD5Password;
+
+  class BackendKeyDataMessage {
+    constructor(length, processID, secretKey) {
+      this.length = length;
+      this.processID = processID;
+      this.secretKey = secretKey;
+      this.name = "backendKeyData";
+    }
+  }
+  exports.BackendKeyDataMessage = BackendKeyDataMessage;
+
+  class NotificationResponseMessage {
+    constructor(length, processId, channel, payload) {
+      this.length = length;
+      this.processId = processId;
+      this.channel = channel;
+      this.payload = payload;
+      this.name = "notification";
+    }
+  }
+  exports.NotificationResponseMessage = NotificationResponseMessage;
+
+  class ReadyForQueryMessage {
+    constructor(length, status) {
+      this.length = length;
+      this.status = status;
+      this.name = "readyForQuery";
+    }
+  }
+  exports.ReadyForQueryMessage = ReadyForQueryMessage;
+
+  class CommandCompleteMessage {
+    constructor(length, text8) {
+      this.length = length;
+      this.text = text8;
+      this.name = "commandComplete";
+    }
+  }
+  exports.CommandCompleteMessage = CommandCompleteMessage;
+
+  class DataRowMessage {
+    constructor(length, fields) {
+      this.length = length;
+      this.fields = fields;
+      this.name = "dataRow";
+      this.fieldCount = fields.length;
+    }
+  }
+  exports.DataRowMessage = DataRowMessage;
+
+  class NoticeMessage {
+    constructor(length, message) {
+      this.length = length;
+      this.message = message;
+      this.name = "notice";
+    }
+  }
+  exports.NoticeMessage = NoticeMessage;
+});
+
+// node_modules/pg-protocol/dist/buffer-writer.js
+var require_buffer_writer = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Writer = undefined;
+
+  class Writer {
+    constructor(size2 = 256) {
+      this.size = size2;
+      this.offset = 5;
+      this.headerPosition = 0;
+      this.buffer = Buffer.allocUnsafe(size2);
+    }
+    ensure(size2) {
+      const remaining = this.buffer.length - this.offset;
+      if (remaining < size2) {
+        const oldBuffer = this.buffer;
+        const newSize = oldBuffer.length + (oldBuffer.length >> 1) + size2;
+        this.buffer = Buffer.allocUnsafe(newSize);
+        oldBuffer.copy(this.buffer);
+      }
+    }
+    addInt32(num) {
+      this.ensure(4);
+      this.buffer[this.offset++] = num >>> 24 & 255;
+      this.buffer[this.offset++] = num >>> 16 & 255;
+      this.buffer[this.offset++] = num >>> 8 & 255;
+      this.buffer[this.offset++] = num >>> 0 & 255;
+      return this;
+    }
+    addInt16(num) {
+      this.ensure(2);
+      this.buffer[this.offset++] = num >>> 8 & 255;
+      this.buffer[this.offset++] = num >>> 0 & 255;
+      return this;
+    }
+    addCString(string3) {
+      if (!string3) {
+        this.ensure(1);
+      } else {
+        const len = Buffer.byteLength(string3);
+        this.ensure(len + 1);
+        this.buffer.write(string3, this.offset, "utf-8");
+        this.offset += len;
+      }
+      this.buffer[this.offset++] = 0;
+      return this;
+    }
+    addString(string3 = "") {
+      const len = Buffer.byteLength(string3);
+      this.ensure(len);
+      this.buffer.write(string3, this.offset);
+      this.offset += len;
+      return this;
+    }
+    add(otherBuffer) {
+      this.ensure(otherBuffer.length);
+      otherBuffer.copy(this.buffer, this.offset);
+      this.offset += otherBuffer.length;
+      return this;
+    }
+    join(code3) {
+      if (code3) {
+        this.buffer[this.headerPosition] = code3;
+        const length = this.offset - (this.headerPosition + 1);
+        this.buffer.writeInt32BE(length, this.headerPosition + 1);
+      }
+      return this.buffer.slice(code3 ? 0 : 5, this.offset);
+    }
+    flush(code3) {
+      const result = this.join(code3);
+      this.offset = 5;
+      this.headerPosition = 0;
+      this.buffer = Buffer.allocUnsafe(this.size);
+      return result;
+    }
+  }
+  exports.Writer = Writer;
+});
+
+// node_modules/pg-protocol/dist/serializer.js
+var require_serializer = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.serialize = undefined;
+  var buffer_writer_1 = require_buffer_writer();
+  var writer = new buffer_writer_1.Writer;
+  var startup = (opts) => {
+    writer.addInt16(3).addInt16(0);
+    for (const key of Object.keys(opts)) {
+      writer.addCString(key).addCString(opts[key]);
+    }
+    writer.addCString("client_encoding").addCString("UTF8");
+    const bodyBuffer = writer.addCString("").flush();
+    const length = bodyBuffer.length + 4;
+    return new buffer_writer_1.Writer().addInt32(length).add(bodyBuffer).flush();
+  };
+  var requestSsl = () => {
+    const response = Buffer.allocUnsafe(8);
+    response.writeInt32BE(8, 0);
+    response.writeInt32BE(80877103, 4);
+    return response;
+  };
+  var password = (password2) => {
+    return writer.addCString(password2).flush(112);
+  };
+  var sendSASLInitialResponseMessage = function(mechanism, initialResponse) {
+    writer.addCString(mechanism).addInt32(Buffer.byteLength(initialResponse)).addString(initialResponse);
+    return writer.flush(112);
+  };
+  var sendSCRAMClientFinalMessage = function(additionalData) {
+    return writer.addString(additionalData).flush(112);
+  };
+  var query = (text8) => {
+    return writer.addCString(text8).flush(81);
+  };
+  var emptyArray = [];
+  var parse3 = (query2) => {
+    const name = query2.name || "";
+    if (name.length > 63) {
+      console.error("Warning! Postgres only supports 63 characters for query names.");
+      console.error("You supplied %s (%s)", name, name.length);
+      console.error("This can cause conflicts and silent errors executing queries");
+    }
+    const types3 = query2.types || emptyArray;
+    const len = types3.length;
+    const buffer2 = writer.addCString(name).addCString(query2.text).addInt16(len);
+    for (let i = 0;i < len; i++) {
+      buffer2.addInt32(types3[i]);
+    }
+    return writer.flush(80);
+  };
+  var paramWriter = new buffer_writer_1.Writer;
+  var writeValues = function(values3, valueMapper) {
+    for (let i = 0;i < values3.length; i++) {
+      const mappedVal = valueMapper ? valueMapper(values3[i], i) : values3[i];
+      if (mappedVal == null) {
+        writer.addInt16(0);
+        paramWriter.addInt32(-1);
+      } else if (mappedVal instanceof Buffer) {
+        writer.addInt16(1);
+        paramWriter.addInt32(mappedVal.length);
+        paramWriter.add(mappedVal);
+      } else {
+        writer.addInt16(0);
+        paramWriter.addInt32(Buffer.byteLength(mappedVal));
+        paramWriter.addString(mappedVal);
+      }
+    }
+  };
+  var bind = (config = {}) => {
+    const portal = config.portal || "";
+    const statement = config.statement || "";
+    const binary = config.binary || false;
+    const values3 = config.values || emptyArray;
+    const len = values3.length;
+    writer.addCString(portal).addCString(statement);
+    writer.addInt16(len);
+    writeValues(values3, config.valueMapper);
+    writer.addInt16(len);
+    writer.add(paramWriter.flush());
+    writer.addInt16(1);
+    writer.addInt16(binary ? 1 : 0);
+    return writer.flush(66);
+  };
+  var emptyExecute = Buffer.from([69, 0, 0, 0, 9, 0, 0, 0, 0, 0]);
+  var execute = (config) => {
+    if (!config || !config.portal && !config.rows) {
+      return emptyExecute;
+    }
+    const portal = config.portal || "";
+    const rows = config.rows || 0;
+    const portalLength = Buffer.byteLength(portal);
+    const len = 4 + portalLength + 1 + 4;
+    const buff = Buffer.allocUnsafe(1 + len);
+    buff[0] = 69;
+    buff.writeInt32BE(len, 1);
+    buff.write(portal, 5, "utf-8");
+    buff[portalLength + 5] = 0;
+    buff.writeUInt32BE(rows, buff.length - 4);
+    return buff;
+  };
+  var cancel = (processID, secretKey) => {
+    const buffer2 = Buffer.allocUnsafe(16);
+    buffer2.writeInt32BE(16, 0);
+    buffer2.writeInt16BE(1234, 4);
+    buffer2.writeInt16BE(5678, 6);
+    buffer2.writeInt32BE(processID, 8);
+    buffer2.writeInt32BE(secretKey, 12);
+    return buffer2;
+  };
+  var cstringMessage = (code3, string3) => {
+    const stringLen = Buffer.byteLength(string3);
+    const len = 4 + stringLen + 1;
+    const buffer2 = Buffer.allocUnsafe(1 + len);
+    buffer2[0] = code3;
+    buffer2.writeInt32BE(len, 1);
+    buffer2.write(string3, 5, "utf-8");
+    buffer2[len] = 0;
+    return buffer2;
+  };
+  var emptyDescribePortal = writer.addCString("P").flush(68);
+  var emptyDescribeStatement = writer.addCString("S").flush(68);
+  var describe = (msg) => {
+    return msg.name ? cstringMessage(68, `${msg.type}${msg.name || ""}`) : msg.type === "P" ? emptyDescribePortal : emptyDescribeStatement;
+  };
+  var close = (msg) => {
+    const text8 = `${msg.type}${msg.name || ""}`;
+    return cstringMessage(67, text8);
+  };
+  var copyData = (chunk) => {
+    return writer.add(chunk).flush(100);
+  };
+  var copyFail = (message) => {
+    return cstringMessage(102, message);
+  };
+  var codeOnlyBuffer = (code3) => Buffer.from([code3, 0, 0, 0, 4]);
+  var flushBuffer = codeOnlyBuffer(72);
+  var syncBuffer = codeOnlyBuffer(83);
+  var endBuffer = codeOnlyBuffer(88);
+  var copyDoneBuffer = codeOnlyBuffer(99);
+  var serialize2 = {
+    startup,
+    password,
+    requestSsl,
+    sendSASLInitialResponseMessage,
+    sendSCRAMClientFinalMessage,
+    query,
+    parse: parse3,
+    bind,
+    execute,
+    describe,
+    close,
+    flush: () => flushBuffer,
+    sync: () => syncBuffer,
+    end: () => endBuffer,
+    copyData,
+    copyDone: () => copyDoneBuffer,
+    copyFail,
+    cancel
+  };
+  exports.serialize = serialize2;
+});
+
+// node_modules/pg-protocol/dist/buffer-reader.js
+var require_buffer_reader = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.BufferReader = undefined;
+
+  class BufferReader {
+    constructor(offset = 0) {
+      this.offset = offset;
+      this.buffer = Buffer.allocUnsafe(0);
+      this.encoding = "utf-8";
+    }
+    setBuffer(offset, buffer2) {
+      this.offset = offset;
+      this.buffer = buffer2;
+    }
+    int16() {
+      const result = this.buffer.readInt16BE(this.offset);
+      this.offset += 2;
+      return result;
+    }
+    byte() {
+      const result = this.buffer[this.offset];
+      this.offset++;
+      return result;
+    }
+    int32() {
+      const result = this.buffer.readInt32BE(this.offset);
+      this.offset += 4;
+      return result;
+    }
+    uint32() {
+      const result = this.buffer.readUInt32BE(this.offset);
+      this.offset += 4;
+      return result;
+    }
+    string(length) {
+      const result = this.buffer.toString(this.encoding, this.offset, this.offset + length);
+      this.offset += length;
+      return result;
+    }
+    cstring() {
+      const start = this.offset;
+      let end = start;
+      while (this.buffer[end++] !== 0) {}
+      this.offset = end;
+      return this.buffer.toString(this.encoding, start, end - 1);
+    }
+    bytes(length) {
+      const result = this.buffer.slice(this.offset, this.offset + length);
+      this.offset += length;
+      return result;
+    }
+  }
+  exports.BufferReader = BufferReader;
+});
+
+// node_modules/pg-protocol/dist/parser.js
+var require_parser = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Parser = undefined;
+  var messages_1 = require_messages();
+  var buffer_reader_1 = require_buffer_reader();
+  var CODE_LENGTH = 1;
+  var LEN_LENGTH = 4;
+  var HEADER_LENGTH = CODE_LENGTH + LEN_LENGTH;
+  var LATEINIT_LENGTH = -1;
+  var emptyBuffer = Buffer.allocUnsafe(0);
+
+  class Parser {
+    constructor(opts) {
+      this.buffer = emptyBuffer;
+      this.bufferLength = 0;
+      this.bufferOffset = 0;
+      this.reader = new buffer_reader_1.BufferReader;
+      if ((opts === null || opts === undefined ? undefined : opts.mode) === "binary") {
+        throw new Error("Binary mode not supported yet");
+      }
+      this.mode = (opts === null || opts === undefined ? undefined : opts.mode) || "text";
+    }
+    parse(buffer2, callback) {
+      this.mergeBuffer(buffer2);
+      const bufferFullLength = this.bufferOffset + this.bufferLength;
+      let offset = this.bufferOffset;
+      while (offset + HEADER_LENGTH <= bufferFullLength) {
+        const code3 = this.buffer[offset];
+        const length = this.buffer.readUInt32BE(offset + CODE_LENGTH);
+        const fullMessageLength = CODE_LENGTH + length;
+        if (fullMessageLength + offset <= bufferFullLength) {
+          const message = this.handlePacket(offset + HEADER_LENGTH, code3, length, this.buffer);
+          callback(message);
+          offset += fullMessageLength;
+        } else {
+          break;
+        }
+      }
+      if (offset === bufferFullLength) {
+        this.buffer = emptyBuffer;
+        this.bufferLength = 0;
+        this.bufferOffset = 0;
+      } else {
+        this.bufferLength = bufferFullLength - offset;
+        this.bufferOffset = offset;
+      }
+    }
+    mergeBuffer(buffer2) {
+      if (this.bufferLength > 0) {
+        const newLength = this.bufferLength + buffer2.byteLength;
+        const newFullLength = newLength + this.bufferOffset;
+        if (newFullLength > this.buffer.byteLength) {
+          let newBuffer;
+          if (newLength <= this.buffer.byteLength && this.bufferOffset >= this.bufferLength) {
+            newBuffer = this.buffer;
+          } else {
+            let newBufferLength = this.buffer.byteLength * 2;
+            while (newLength >= newBufferLength) {
+              newBufferLength *= 2;
+            }
+            newBuffer = Buffer.allocUnsafe(newBufferLength);
+          }
+          this.buffer.copy(newBuffer, 0, this.bufferOffset, this.bufferOffset + this.bufferLength);
+          this.buffer = newBuffer;
+          this.bufferOffset = 0;
+        }
+        buffer2.copy(this.buffer, this.bufferOffset + this.bufferLength);
+        this.bufferLength = newLength;
+      } else {
+        this.buffer = buffer2;
+        this.bufferOffset = 0;
+        this.bufferLength = buffer2.byteLength;
+      }
+    }
+    handlePacket(offset, code3, length, bytes) {
+      const { reader } = this;
+      reader.setBuffer(offset, bytes);
+      let message;
+      switch (code3) {
+        case 50:
+          message = messages_1.bindComplete;
+          break;
+        case 49:
+          message = messages_1.parseComplete;
+          break;
+        case 51:
+          message = messages_1.closeComplete;
+          break;
+        case 110:
+          message = messages_1.noData;
+          break;
+        case 115:
+          message = messages_1.portalSuspended;
+          break;
+        case 99:
+          message = messages_1.copyDone;
+          break;
+        case 87:
+          message = messages_1.replicationStart;
+          break;
+        case 73:
+          message = messages_1.emptyQuery;
+          break;
+        case 68:
+          message = parseDataRowMessage(reader);
+          break;
+        case 67:
+          message = parseCommandCompleteMessage(reader);
+          break;
+        case 90:
+          message = parseReadyForQueryMessage(reader);
+          break;
+        case 65:
+          message = parseNotificationMessage(reader);
+          break;
+        case 82:
+          message = parseAuthenticationResponse(reader, length);
+          break;
+        case 83:
+          message = parseParameterStatusMessage(reader);
+          break;
+        case 75:
+          message = parseBackendKeyData(reader);
+          break;
+        case 69:
+          message = parseErrorMessage(reader, "error");
+          break;
+        case 78:
+          message = parseErrorMessage(reader, "notice");
+          break;
+        case 84:
+          message = parseRowDescriptionMessage(reader);
+          break;
+        case 116:
+          message = parseParameterDescriptionMessage(reader);
+          break;
+        case 71:
+          message = parseCopyInMessage(reader);
+          break;
+        case 72:
+          message = parseCopyOutMessage(reader);
+          break;
+        case 100:
+          message = parseCopyData(reader, length);
+          break;
+        default:
+          return new messages_1.DatabaseError("received invalid response: " + code3.toString(16), length, "error");
+      }
+      reader.setBuffer(0, emptyBuffer);
+      message.length = length;
+      return message;
+    }
+  }
+  exports.Parser = Parser;
+  var parseReadyForQueryMessage = (reader) => {
+    const status = reader.string(1);
+    return new messages_1.ReadyForQueryMessage(LATEINIT_LENGTH, status);
+  };
+  var parseCommandCompleteMessage = (reader) => {
+    const text8 = reader.cstring();
+    return new messages_1.CommandCompleteMessage(LATEINIT_LENGTH, text8);
+  };
+  var parseCopyData = (reader, length) => {
+    const chunk = reader.bytes(length - 4);
+    return new messages_1.CopyDataMessage(LATEINIT_LENGTH, chunk);
+  };
+  var parseCopyInMessage = (reader) => parseCopyMessage(reader, "copyInResponse");
+  var parseCopyOutMessage = (reader) => parseCopyMessage(reader, "copyOutResponse");
+  var parseCopyMessage = (reader, messageName) => {
+    const isBinary = reader.byte() !== 0;
+    const columnCount = reader.int16();
+    const message = new messages_1.CopyResponse(LATEINIT_LENGTH, messageName, isBinary, columnCount);
+    for (let i = 0;i < columnCount; i++) {
+      message.columnTypes[i] = reader.int16();
+    }
+    return message;
+  };
+  var parseNotificationMessage = (reader) => {
+    const processId = reader.int32();
+    const channel = reader.cstring();
+    const payload = reader.cstring();
+    return new messages_1.NotificationResponseMessage(LATEINIT_LENGTH, processId, channel, payload);
+  };
+  var parseRowDescriptionMessage = (reader) => {
+    const fieldCount = reader.int16();
+    const message = new messages_1.RowDescriptionMessage(LATEINIT_LENGTH, fieldCount);
+    for (let i = 0;i < fieldCount; i++) {
+      message.fields[i] = parseField(reader);
+    }
+    return message;
+  };
+  var parseField = (reader) => {
+    const name = reader.cstring();
+    const tableID = reader.uint32();
+    const columnID = reader.int16();
+    const dataTypeID = reader.uint32();
+    const dataTypeSize = reader.int16();
+    const dataTypeModifier = reader.int32();
+    const mode = reader.int16() === 0 ? "text" : "binary";
+    return new messages_1.Field(name, tableID, columnID, dataTypeID, dataTypeSize, dataTypeModifier, mode);
+  };
+  var parseParameterDescriptionMessage = (reader) => {
+    const parameterCount = reader.int16();
+    const message = new messages_1.ParameterDescriptionMessage(LATEINIT_LENGTH, parameterCount);
+    for (let i = 0;i < parameterCount; i++) {
+      message.dataTypeIDs[i] = reader.int32();
+    }
+    return message;
+  };
+  var parseDataRowMessage = (reader) => {
+    const fieldCount = reader.int16();
+    const fields = new Array(fieldCount);
+    for (let i = 0;i < fieldCount; i++) {
+      const len = reader.int32();
+      fields[i] = len === -1 ? null : reader.string(len);
+    }
+    return new messages_1.DataRowMessage(LATEINIT_LENGTH, fields);
+  };
+  var parseParameterStatusMessage = (reader) => {
+    const name = reader.cstring();
+    const value = reader.cstring();
+    return new messages_1.ParameterStatusMessage(LATEINIT_LENGTH, name, value);
+  };
+  var parseBackendKeyData = (reader) => {
+    const processID = reader.int32();
+    const secretKey = reader.int32();
+    return new messages_1.BackendKeyDataMessage(LATEINIT_LENGTH, processID, secretKey);
+  };
+  var parseAuthenticationResponse = (reader, length) => {
+    const code3 = reader.int32();
+    const message = {
+      name: "authenticationOk",
+      length
+    };
+    switch (code3) {
+      case 0:
+        break;
+      case 3:
+        if (message.length === 8) {
+          message.name = "authenticationCleartextPassword";
+        }
+        break;
+      case 5:
+        if (message.length === 12) {
+          message.name = "authenticationMD5Password";
+          const salt = reader.bytes(4);
+          return new messages_1.AuthenticationMD5Password(LATEINIT_LENGTH, salt);
+        }
+        break;
+      case 10:
+        {
+          message.name = "authenticationSASL";
+          message.mechanisms = [];
+          let mechanism;
+          do {
+            mechanism = reader.cstring();
+            if (mechanism) {
+              message.mechanisms.push(mechanism);
+            }
+          } while (mechanism);
+        }
+        break;
+      case 11:
+        message.name = "authenticationSASLContinue";
+        message.data = reader.string(length - 8);
+        break;
+      case 12:
+        message.name = "authenticationSASLFinal";
+        message.data = reader.string(length - 8);
+        break;
+      default:
+        throw new Error("Unknown authenticationOk message type " + code3);
+    }
+    return message;
+  };
+  var parseErrorMessage = (reader, name) => {
+    const fields = {};
+    let fieldType = reader.string(1);
+    while (fieldType !== "\x00") {
+      fields[fieldType] = reader.cstring();
+      fieldType = reader.string(1);
+    }
+    const messageValue = fields.M;
+    const message = name === "notice" ? new messages_1.NoticeMessage(LATEINIT_LENGTH, messageValue) : new messages_1.DatabaseError(messageValue, LATEINIT_LENGTH, name);
+    message.severity = fields.S;
+    message.code = fields.C;
+    message.detail = fields.D;
+    message.hint = fields.H;
+    message.position = fields.P;
+    message.internalPosition = fields.p;
+    message.internalQuery = fields.q;
+    message.where = fields.W;
+    message.schema = fields.s;
+    message.table = fields.t;
+    message.column = fields.c;
+    message.dataType = fields.d;
+    message.constraint = fields.n;
+    message.file = fields.F;
+    message.line = fields.L;
+    message.routine = fields.R;
+    return message;
+  };
+});
+
+// node_modules/pg-protocol/dist/index.js
+var require_dist = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DatabaseError = exports.serialize = exports.parse = undefined;
+  var messages_1 = require_messages();
+  Object.defineProperty(exports, "DatabaseError", { enumerable: true, get: function() {
+    return messages_1.DatabaseError;
+  } });
+  var serializer_1 = require_serializer();
+  Object.defineProperty(exports, "serialize", { enumerable: true, get: function() {
+    return serializer_1.serialize;
+  } });
+  var parser_1 = require_parser();
+  function parse3(stream, callback) {
+    const parser = new parser_1.Parser;
+    stream.on("data", (buffer2) => parser.parse(buffer2, callback));
+    return new Promise((resolve) => stream.on("end", () => resolve()));
+  }
+  exports.parse = parse3;
+});
+
+// node_modules/pg-cloudflare/dist/empty.js
+var require_empty = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.default = {};
+});
+
+// node_modules/pg/lib/stream.js
+var require_stream = __commonJS((exports, module) => {
+  var { getStream, getSecureStream } = getStreamFuncs();
+  module.exports = {
+    getStream,
+    getSecureStream
+  };
+  function getNodejsStreamFuncs() {
+    function getStream2(ssl) {
+      const net2 = __require("net");
+      return new net2.Socket;
+    }
+    function getSecureStream2(options) {
+      const tls2 = __require("tls");
+      return tls2.connect(options);
+    }
+    return {
+      getStream: getStream2,
+      getSecureStream: getSecureStream2
+    };
+  }
+  function getCloudflareStreamFuncs() {
+    function getStream2(ssl) {
+      const { CloudflareSocket } = require_empty();
+      return new CloudflareSocket(ssl);
+    }
+    function getSecureStream2(options) {
+      options.socket.startTls(options);
+      return options.socket;
+    }
+    return {
+      getStream: getStream2,
+      getSecureStream: getSecureStream2
+    };
+  }
+  function isCloudflareRuntime() {
+    if (typeof navigator === "object" && navigator !== null && typeof navigator.userAgent === "string") {
+      return navigator.userAgent === "Cloudflare-Workers";
+    }
+    if (typeof Response === "function") {
+      const resp = new Response(null, { cf: { thing: true } });
+      if (typeof resp.cf === "object" && resp.cf !== null && resp.cf.thing) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function getStreamFuncs() {
+    if (isCloudflareRuntime()) {
+      return getCloudflareStreamFuncs();
+    }
+    return getNodejsStreamFuncs();
+  }
+});
+
+// node_modules/pg/lib/connection.js
+var require_connection = __commonJS((exports, module) => {
+  var EventEmitter = __require("events").EventEmitter;
+  var { parse: parse3, serialize: serialize2 } = require_dist();
+  var { getStream, getSecureStream } = require_stream();
+  var flushBuffer = serialize2.flush();
+  var syncBuffer = serialize2.sync();
+  var endBuffer = serialize2.end();
+
+  class Connection2 extends EventEmitter {
+    constructor(config) {
+      super();
+      config = config || {};
+      this.stream = config.stream || getStream(config.ssl);
+      if (typeof this.stream === "function") {
+        this.stream = this.stream(config);
+      }
+      this._keepAlive = config.keepAlive;
+      this._keepAliveInitialDelayMillis = config.keepAliveInitialDelayMillis;
+      this.parsedStatements = {};
+      this.ssl = config.ssl || false;
+      this._ending = false;
+      this._emitMessage = false;
+      const self2 = this;
+      this.on("newListener", function(eventName) {
+        if (eventName === "message") {
+          self2._emitMessage = true;
+        }
+      });
+    }
+    connect(port, host) {
+      const self2 = this;
+      this._connecting = true;
+      this.stream.setNoDelay(true);
+      this.stream.connect(port, host);
+      this.stream.once("connect", function() {
+        if (self2._keepAlive) {
+          self2.stream.setKeepAlive(true, self2._keepAliveInitialDelayMillis);
+        }
+        self2.emit("connect");
+      });
+      const reportStreamError = function(error) {
+        if (self2._ending && (error.code === "ECONNRESET" || error.code === "EPIPE")) {
+          return;
+        }
+        self2.emit("error", error);
+      };
+      this.stream.on("error", reportStreamError);
+      this.stream.on("close", function() {
+        self2.emit("end");
+      });
+      if (!this.ssl) {
+        return this.attachListeners(this.stream);
+      }
+      this.stream.once("data", function(buffer2) {
+        const responseCode = buffer2.toString("utf8");
+        switch (responseCode) {
+          case "S":
+            break;
+          case "N":
+            self2.stream.end();
+            return self2.emit("error", new Error("The server does not support SSL connections"));
+          default:
+            self2.stream.end();
+            return self2.emit("error", new Error("There was an error establishing an SSL connection"));
+        }
+        const options = {
+          socket: self2.stream
+        };
+        if (self2.ssl !== true) {
+          Object.assign(options, self2.ssl);
+          if ("key" in self2.ssl) {
+            options.key = self2.ssl.key;
+          }
+        }
+        const net2 = __require("net");
+        if (net2.isIP && net2.isIP(host) === 0) {
+          options.servername = host;
+        }
+        try {
+          self2.stream = getSecureStream(options);
+        } catch (err) {
+          return self2.emit("error", err);
+        }
+        self2.attachListeners(self2.stream);
+        self2.stream.on("error", reportStreamError);
+        self2.emit("sslconnect");
+      });
+    }
+    attachListeners(stream) {
+      parse3(stream, (msg) => {
+        const eventName = msg.name === "error" ? "errorMessage" : msg.name;
+        if (this._emitMessage) {
+          this.emit("message", msg);
+        }
+        this.emit(eventName, msg);
+      });
+    }
+    requestSsl() {
+      this.stream.write(serialize2.requestSsl());
+    }
+    startup(config) {
+      this.stream.write(serialize2.startup(config));
+    }
+    cancel(processID, secretKey) {
+      this._send(serialize2.cancel(processID, secretKey));
+    }
+    password(password) {
+      this._send(serialize2.password(password));
+    }
+    sendSASLInitialResponseMessage(mechanism, initialResponse) {
+      this._send(serialize2.sendSASLInitialResponseMessage(mechanism, initialResponse));
+    }
+    sendSCRAMClientFinalMessage(additionalData) {
+      this._send(serialize2.sendSCRAMClientFinalMessage(additionalData));
+    }
+    _send(buffer2) {
+      if (!this.stream.writable) {
+        return false;
+      }
+      return this.stream.write(buffer2);
+    }
+    query(text8) {
+      this._send(serialize2.query(text8));
+    }
+    parse(query) {
+      this._send(serialize2.parse(query));
+    }
+    bind(config) {
+      this._send(serialize2.bind(config));
+    }
+    execute(config) {
+      this._send(serialize2.execute(config));
+    }
+    flush() {
+      if (this.stream.writable) {
+        this.stream.write(flushBuffer);
+      }
+    }
+    sync() {
+      this._ending = true;
+      this._send(syncBuffer);
+    }
+    ref() {
+      this.stream.ref();
+    }
+    unref() {
+      this.stream.unref();
+    }
+    end() {
+      this._ending = true;
+      if (!this._connecting || !this.stream.writable) {
+        this.stream.end();
+        return;
+      }
+      return this.stream.write(endBuffer, () => {
+        this.stream.end();
+      });
+    }
+    close(msg) {
+      this._send(serialize2.close(msg));
+    }
+    describe(msg) {
+      this._send(serialize2.describe(msg));
+    }
+    sendCopyFromChunk(chunk) {
+      this._send(serialize2.copyData(chunk));
+    }
+    endCopyFrom() {
+      this._send(serialize2.copyDone());
+    }
+    sendCopyFail(msg) {
+      this._send(serialize2.copyFail(msg));
+    }
+  }
+  module.exports = Connection2;
+});
+
+// node_modules/split2/index.js
+var require_split2 = __commonJS((exports, module) => {
+  var { Transform } = __require("stream");
+  var { StringDecoder } = __require("string_decoder");
+  var kLast = Symbol("last");
+  var kDecoder = Symbol("decoder");
+  function transform(chunk, enc, cb) {
+    let list4;
+    if (this.overflow) {
+      const buf = this[kDecoder].write(chunk);
+      list4 = buf.split(this.matcher);
+      if (list4.length === 1)
+        return cb();
+      list4.shift();
+      this.overflow = false;
+    } else {
+      this[kLast] += this[kDecoder].write(chunk);
+      list4 = this[kLast].split(this.matcher);
+    }
+    this[kLast] = list4.pop();
+    for (let i = 0;i < list4.length; i++) {
+      try {
+        push2(this, this.mapper(list4[i]));
+      } catch (error) {
+        return cb(error);
+      }
+    }
+    this.overflow = this[kLast].length > this.maxLength;
+    if (this.overflow && !this.skipOverflow) {
+      cb(new Error("maximum buffer reached"));
+      return;
+    }
+    cb();
+  }
+  function flush(cb) {
+    this[kLast] += this[kDecoder].end();
+    if (this[kLast]) {
+      try {
+        push2(this, this.mapper(this[kLast]));
+      } catch (error) {
+        return cb(error);
+      }
+    }
+    cb();
+  }
+  function push2(self2, val) {
+    if (val !== undefined) {
+      self2.push(val);
+    }
+  }
+  function noop3(incoming) {
+    return incoming;
+  }
+  function split(matcher, mapper, options) {
+    matcher = matcher || /\r?\n/;
+    mapper = mapper || noop3;
+    options = options || {};
+    switch (arguments.length) {
+      case 1:
+        if (typeof matcher === "function") {
+          mapper = matcher;
+          matcher = /\r?\n/;
+        } else if (typeof matcher === "object" && !(matcher instanceof RegExp) && !matcher[Symbol.split]) {
+          options = matcher;
+          matcher = /\r?\n/;
+        }
+        break;
+      case 2:
+        if (typeof matcher === "function") {
+          options = mapper;
+          mapper = matcher;
+          matcher = /\r?\n/;
+        } else if (typeof mapper === "object") {
+          options = mapper;
+          mapper = noop3;
+        }
+    }
+    options = Object.assign({}, options);
+    options.autoDestroy = true;
+    options.transform = transform;
+    options.flush = flush;
+    options.readableObjectMode = true;
+    const stream = new Transform(options);
+    stream[kLast] = "";
+    stream[kDecoder] = new StringDecoder("utf8");
+    stream.matcher = matcher;
+    stream.mapper = mapper;
+    stream.maxLength = options.maxLength;
+    stream.skipOverflow = options.skipOverflow || false;
+    stream.overflow = false;
+    stream._destroy = function(err, cb) {
+      this._writableState.errorEmitted = false;
+      cb(err);
+    };
+    return stream;
+  }
+  module.exports = split;
+});
+
+// node_modules/pgpass/lib/helper.js
+var require_helper = __commonJS((exports, module) => {
+  var path2 = __require("path");
+  var Stream3 = __require("stream").Stream;
+  var split = require_split2();
+  var util = __require("util");
+  var defaultPort = 5432;
+  var isWin = process.platform === "win32";
+  var warnStream = process.stderr;
+  var S_IRWXG = 56;
+  var S_IRWXO = 7;
+  var S_IFMT = 61440;
+  var S_IFREG = 32768;
+  function isRegFile(mode) {
+    return (mode & S_IFMT) == S_IFREG;
+  }
+  var fieldNames = ["host", "port", "database", "user", "password"];
+  var nrOfFields = fieldNames.length;
+  var passKey = fieldNames[nrOfFields - 1];
+  function warn() {
+    var isWritable = warnStream instanceof Stream3 && warnStream.writable === true;
+    if (isWritable) {
+      var args = Array.prototype.slice.call(arguments).concat(`
+`);
+      warnStream.write(util.format.apply(util, args));
+    }
+  }
+  Object.defineProperty(exports, "isWin", {
+    get: function() {
+      return isWin;
+    },
+    set: function(val) {
+      isWin = val;
+    }
+  });
+  exports.warnTo = function(stream) {
+    var old = warnStream;
+    warnStream = stream;
+    return old;
+  };
+  exports.getFileName = function(rawEnv) {
+    var env = rawEnv || process.env;
+    var file = env.PGPASSFILE || (isWin ? path2.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path2.join(env.HOME || "./", ".pgpass"));
+    return file;
+  };
+  exports.usePgPass = function(stats, fname) {
+    if (Object.prototype.hasOwnProperty.call(process.env, "PGPASSWORD")) {
+      return false;
+    }
+    if (isWin) {
+      return true;
+    }
+    fname = fname || "<unkn>";
+    if (!isRegFile(stats.mode)) {
+      warn('WARNING: password file "%s" is not a plain file', fname);
+      return false;
+    }
+    if (stats.mode & (S_IRWXG | S_IRWXO)) {
+      warn('WARNING: password file "%s" has group or world access; permissions should be u=rw (0600) or less', fname);
+      return false;
+    }
+    return true;
+  };
+  var matcher = exports.match = function(connInfo, entry) {
+    return fieldNames.slice(0, -1).reduce(function(prev, field, idx) {
+      if (idx == 1) {
+        if (Number(connInfo[field] || defaultPort) === Number(entry[field])) {
+          return prev && true;
+        }
+      }
+      return prev && (entry[field] === "*" || entry[field] === connInfo[field]);
+    }, true);
+  };
+  exports.getPassword = function(connInfo, stream, cb) {
+    var pass;
+    var lineStream = stream.pipe(split());
+    function onLine(line3) {
+      var entry = parseLine(line3);
+      if (entry && isValidEntry(entry) && matcher(connInfo, entry)) {
+        pass = entry[passKey];
+        lineStream.end();
+      }
+    }
+    var onEnd = function() {
+      stream.destroy();
+      cb(pass);
+    };
+    var onErr = function(err) {
+      stream.destroy();
+      warn("WARNING: error on reading file: %s", err);
+      cb(undefined);
+    };
+    stream.on("error", onErr);
+    lineStream.on("data", onLine).on("end", onEnd).on("error", onErr);
+  };
+  var parseLine = exports.parseLine = function(line3) {
+    if (line3.length < 11 || line3.match(/^\s+#/)) {
+      return null;
+    }
+    var curChar = "";
+    var prevChar = "";
+    var fieldIdx = 0;
+    var startIdx = 0;
+    var endIdx = 0;
+    var obj = {};
+    var isLastField = false;
+    var addToObj = function(idx, i0, i1) {
+      var field = line3.substring(i0, i1);
+      if (!Object.hasOwnProperty.call(process.env, "PGPASS_NO_DEESCAPE")) {
+        field = field.replace(/\\([:\\])/g, "$1");
+      }
+      obj[fieldNames[idx]] = field;
+    };
+    for (var i = 0;i < line3.length - 1; i += 1) {
+      curChar = line3.charAt(i + 1);
+      prevChar = line3.charAt(i);
+      isLastField = fieldIdx == nrOfFields - 1;
+      if (isLastField) {
+        addToObj(fieldIdx, startIdx);
+        break;
+      }
+      if (i >= 0 && curChar == ":" && prevChar !== "\\") {
+        addToObj(fieldIdx, startIdx, i + 1);
+        startIdx = i + 2;
+        fieldIdx += 1;
+      }
+    }
+    obj = Object.keys(obj).length === nrOfFields ? obj : null;
+    return obj;
+  };
+  var isValidEntry = exports.isValidEntry = function(entry) {
+    var rules = {
+      0: function(x2) {
+        return x2.length > 0;
+      },
+      1: function(x2) {
+        if (x2 === "*") {
+          return true;
+        }
+        x2 = Number(x2);
+        return isFinite(x2) && x2 > 0 && x2 < 9007199254740992 && Math.floor(x2) === x2;
+      },
+      2: function(x2) {
+        return x2.length > 0;
+      },
+      3: function(x2) {
+        return x2.length > 0;
+      },
+      4: function(x2) {
+        return x2.length > 0;
+      }
+    };
+    for (var idx = 0;idx < fieldNames.length; idx += 1) {
+      var rule = rules[idx];
+      var value = entry[fieldNames[idx]] || "";
+      var res = rule(value);
+      if (!res) {
+        return false;
+      }
+    }
+    return true;
+  };
+});
+
+// node_modules/pgpass/lib/index.js
+var require_lib = __commonJS((exports, module) => {
+  var path2 = __require("path");
+  var fs2 = __require("fs");
+  var helper = require_helper();
+  module.exports = function(connInfo, cb) {
+    var file = helper.getFileName();
+    fs2.stat(file, function(err, stat) {
+      if (err || !helper.usePgPass(stat, file)) {
+        return cb(undefined);
+      }
+      var st = fs2.createReadStream(file);
+      helper.getPassword(connInfo, st, cb);
+    });
+  };
+  module.exports.warnTo = helper.warnTo;
+});
+
+// node_modules/pg/lib/client.js
+var require_client = __commonJS((exports, module) => {
+  var EventEmitter = __require("events").EventEmitter;
+  var utils4 = require_utils();
+  var nodeUtils = __require("util");
+  var sasl = require_sasl();
+  var TypeOverrides = require_type_overrides();
+  var ConnectionParameters = require_connection_parameters();
+  var Query2 = require_query();
+  var defaults = require_defaults();
+  var Connection2 = require_connection();
+  var crypto3 = require_utils2();
+  var activeQueryDeprecationNotice = nodeUtils.deprecate(() => {}, "Client.activeQuery is deprecated and will be removed in pg@9.0");
+  var queryQueueDeprecationNotice = nodeUtils.deprecate(() => {}, "Client.queryQueue is deprecated and will be removed in pg@9.0.");
+  var pgPassDeprecationNotice = nodeUtils.deprecate(() => {}, "pgpass support is deprecated and will be removed in pg@9.0. " + "You can provide an async function as the password property to the Client/Pool constructor that returns a password instead. Within this function you can call the pgpass module in your own code.");
+  var byoPromiseDeprecationNotice = nodeUtils.deprecate(() => {}, "Passing a custom Promise implementation to the Client/Pool constructor is deprecated and will be removed in pg@9.0.");
+  var queryQueueLengthDeprecationNotice = nodeUtils.deprecate(() => {}, "Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.");
+  function coerceNumberOrDefault(value, defaultValue) {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : defaultValue;
+    }
+    if (typeof value === "string" && value.trim() !== "") {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : defaultValue;
+    }
+    return defaultValue;
+  }
+
+  class Client extends EventEmitter {
+    constructor(config) {
+      super();
+      this.connectionParameters = new ConnectionParameters(config);
+      this.user = this.connectionParameters.user;
+      this.database = this.connectionParameters.database;
+      this.port = this.connectionParameters.port;
+      this.host = this.connectionParameters.host;
+      Object.defineProperty(this, "password", {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: this.connectionParameters.password
+      });
+      this.replication = this.connectionParameters.replication;
+      const c2 = config || {};
+      if (c2.Promise) {
+        byoPromiseDeprecationNotice();
+      }
+      this._Promise = c2.Promise || global.Promise;
+      this._types = new TypeOverrides(c2.types);
+      this._ending = false;
+      this._ended = false;
+      this._connecting = false;
+      this._connected = false;
+      this._connectionError = false;
+      this._queryable = true;
+      this._activeQuery = null;
+      this._txStatus = null;
+      this.enableChannelBinding = Boolean(c2.enableChannelBinding);
+      this.scramMaxIterations = coerceNumberOrDefault(c2.scramMaxIterations, sasl.DEFAULT_MAX_SCRAM_ITERATIONS);
+      this.connection = c2.connection || new Connection2({
+        stream: c2.stream,
+        ssl: this.connectionParameters.ssl,
+        keepAlive: c2.keepAlive || false,
+        keepAliveInitialDelayMillis: c2.keepAliveInitialDelayMillis || 0,
+        encoding: this.connectionParameters.client_encoding || "utf8"
+      });
+      this._queryQueue = [];
+      this.binary = c2.binary || defaults.binary;
+      this.processID = null;
+      this.secretKey = null;
+      this.ssl = this.connectionParameters.ssl || false;
+      if (this.ssl && this.ssl.key) {
+        Object.defineProperty(this.ssl, "key", {
+          enumerable: false
+        });
+      }
+      this._connectionTimeoutMillis = c2.connectionTimeoutMillis || 0;
+    }
+    get activeQuery() {
+      activeQueryDeprecationNotice();
+      return this._activeQuery;
+    }
+    set activeQuery(val) {
+      activeQueryDeprecationNotice();
+      this._activeQuery = val;
+    }
+    _getActiveQuery() {
+      return this._activeQuery;
+    }
+    _errorAllQueries(err) {
+      const enqueueError = (query) => {
+        process.nextTick(() => {
+          query.handleError(err, this.connection);
+        });
+      };
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery) {
+        enqueueError(activeQuery);
+        this._activeQuery = null;
+      }
+      this._queryQueue.forEach(enqueueError);
+      this._queryQueue.length = 0;
+    }
+    _connect(callback) {
+      const self2 = this;
+      const con = this.connection;
+      this._connectionCallback = callback;
+      if (this._connecting || this._connected) {
+        const err = new Error("Client has already been connected. You cannot reuse a client.");
+        process.nextTick(() => {
+          callback(err);
+        });
+        return;
+      }
+      this._connecting = true;
+      if (this._connectionTimeoutMillis > 0) {
+        this.connectionTimeoutHandle = setTimeout(() => {
+          con._ending = true;
+          con.stream.destroy(new Error("timeout expired"));
+        }, this._connectionTimeoutMillis);
+        if (this.connectionTimeoutHandle.unref) {
+          this.connectionTimeoutHandle.unref();
+        }
+      }
+      if (this.host && this.host.indexOf("/") === 0) {
+        con.connect(this.host + "/.s.PGSQL." + this.port);
+      } else {
+        con.connect(this.port, this.host);
+      }
+      con.on("connect", function() {
+        if (self2.ssl) {
+          con.requestSsl();
+        } else {
+          con.startup(self2.getStartupConf());
+        }
+      });
+      con.on("sslconnect", function() {
+        con.startup(self2.getStartupConf());
+      });
+      this._attachListeners(con);
+      con.once("end", () => {
+        const error = this._ending ? new Error("Connection terminated") : new Error("Connection terminated unexpectedly");
+        clearTimeout(this.connectionTimeoutHandle);
+        this._errorAllQueries(error);
+        this._ended = true;
+        if (!this._ending) {
+          if (this._connecting && !this._connectionError) {
+            if (this._connectionCallback) {
+              this._connectionCallback(error);
+            } else {
+              this._handleErrorEvent(error);
+            }
+          } else if (!this._connectionError) {
+            this._handleErrorEvent(error);
+          }
+        }
+        process.nextTick(() => {
+          this.emit("end");
+        });
+      });
+    }
+    connect(callback) {
+      if (callback) {
+        this._connect(callback);
+        return;
+      }
+      return new this._Promise((resolve, reject) => {
+        this._connect((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(this);
+          }
+        });
+      });
+    }
+    _attachListeners(con) {
+      con.on("authenticationCleartextPassword", this._handleAuthCleartextPassword.bind(this));
+      con.on("authenticationMD5Password", this._handleAuthMD5Password.bind(this));
+      con.on("authenticationSASL", this._handleAuthSASL.bind(this));
+      con.on("authenticationSASLContinue", this._handleAuthSASLContinue.bind(this));
+      con.on("authenticationSASLFinal", this._handleAuthSASLFinal.bind(this));
+      con.on("backendKeyData", this._handleBackendKeyData.bind(this));
+      con.on("error", this._handleErrorEvent.bind(this));
+      con.on("errorMessage", this._handleErrorMessage.bind(this));
+      con.on("readyForQuery", this._handleReadyForQuery.bind(this));
+      con.on("notice", this._handleNotice.bind(this));
+      con.on("rowDescription", this._handleRowDescription.bind(this));
+      con.on("dataRow", this._handleDataRow.bind(this));
+      con.on("portalSuspended", this._handlePortalSuspended.bind(this));
+      con.on("emptyQuery", this._handleEmptyQuery.bind(this));
+      con.on("commandComplete", this._handleCommandComplete.bind(this));
+      con.on("parseComplete", this._handleParseComplete.bind(this));
+      con.on("copyInResponse", this._handleCopyInResponse.bind(this));
+      con.on("copyData", this._handleCopyData.bind(this));
+      con.on("notification", this._handleNotification.bind(this));
+    }
+    _getPassword(cb) {
+      const con = this.connection;
+      if (typeof this.password === "function") {
+        this._Promise.resolve().then(() => this.password(this.connectionParameters)).then((pass) => {
+          if (pass !== undefined) {
+            if (typeof pass !== "string") {
+              con.emit("error", new TypeError("Password must be a string"));
+              return;
+            }
+            this.connectionParameters.password = this.password = pass;
+          } else {
+            this.connectionParameters.password = this.password = null;
+          }
+          cb();
+        }).catch((err) => {
+          con.emit("error", err);
+        });
+      } else if (this.password !== null) {
+        cb();
+      } else {
+        try {
+          const pgPass = require_lib();
+          pgPass(this.connectionParameters, (pass) => {
+            if (pass !== undefined) {
+              pgPassDeprecationNotice();
+              this.connectionParameters.password = this.password = pass;
+            }
+            cb();
+          });
+        } catch (e) {
+          this.emit("error", e);
+        }
+      }
+    }
+    _handleAuthCleartextPassword(msg) {
+      this._getPassword(() => {
+        this.connection.password(this.password);
+      });
+    }
+    _handleAuthMD5Password(msg) {
+      this._getPassword(async () => {
+        try {
+          const hashedPassword = await crypto3.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+          this.connection.password(hashedPassword);
+        } catch (e) {
+          this.emit("error", e);
+        }
+      });
+    }
+    _handleAuthSASL(msg) {
+      this._getPassword(() => {
+        try {
+          this.saslSession = sasl.startSession(msg.mechanisms, this.enableChannelBinding && this.connection.stream, this.scramMaxIterations);
+          this.connection.sendSASLInitialResponseMessage(this.saslSession.mechanism, this.saslSession.response);
+        } catch (err) {
+          this.connection.emit("error", err);
+        }
+      });
+    }
+    async _handleAuthSASLContinue(msg) {
+      try {
+        await sasl.continueSession(this.saslSession, this.password, msg.data, this.enableChannelBinding && this.connection.stream);
+        this.connection.sendSCRAMClientFinalMessage(this.saslSession.response);
+      } catch (err) {
+        this.connection.emit("error", err);
+      }
+    }
+    _handleAuthSASLFinal(msg) {
+      try {
+        sasl.finalizeSession(this.saslSession, msg.data);
+        this.saslSession = null;
+      } catch (err) {
+        this.connection.emit("error", err);
+      }
+    }
+    _handleBackendKeyData(msg) {
+      this.processID = msg.processID;
+      this.secretKey = msg.secretKey;
+    }
+    _handleReadyForQuery(msg) {
+      if (this._connecting) {
+        this._connecting = false;
+        this._connected = true;
+        clearTimeout(this.connectionTimeoutHandle);
+        if (this._connectionCallback) {
+          this._connectionCallback(null, this);
+          this._connectionCallback = null;
+        }
+        this.emit("connect");
+      }
+      const activeQuery = this._getActiveQuery();
+      this._activeQuery = null;
+      this._txStatus = msg?.status ?? null;
+      this.readyForQuery = true;
+      if (activeQuery) {
+        activeQuery.handleReadyForQuery(this.connection);
+      }
+      this._pulseQueryQueue();
+    }
+    _handleErrorWhileConnecting(err) {
+      if (this._connectionError) {
+        return;
+      }
+      this._connectionError = true;
+      clearTimeout(this.connectionTimeoutHandle);
+      if (this._connectionCallback) {
+        return this._connectionCallback(err);
+      }
+      this.emit("error", err);
+    }
+    _handleErrorEvent(err) {
+      if (this._connecting) {
+        return this._handleErrorWhileConnecting(err);
+      }
+      this._queryable = false;
+      this._errorAllQueries(err);
+      this.emit("error", err);
+    }
+    _handleErrorMessage(msg) {
+      if (this._connecting) {
+        return this._handleErrorWhileConnecting(msg);
+      }
+      const activeQuery = this._getActiveQuery();
+      if (!activeQuery) {
+        this._handleErrorEvent(msg);
+        return;
+      }
+      this._activeQuery = null;
+      activeQuery.handleError(msg, this.connection);
+    }
+    _handleRowDescription(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected rowDescription message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleRowDescription(msg);
+    }
+    _handleDataRow(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected dataRow message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleDataRow(msg);
+    }
+    _handlePortalSuspended(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected portalSuspended message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handlePortalSuspended(this.connection);
+    }
+    _handleEmptyQuery(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected emptyQuery message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleEmptyQuery(this.connection);
+    }
+    _handleCommandComplete(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected commandComplete message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleCommandComplete(msg, this.connection);
+    }
+    _handleParseComplete() {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected parseComplete message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      if (activeQuery.name) {
+        this.connection.parsedStatements[activeQuery.name] = activeQuery.text;
+      }
+    }
+    _handleCopyInResponse(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected copyInResponse message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleCopyInResponse(this.connection);
+    }
+    _handleCopyData(msg) {
+      const activeQuery = this._getActiveQuery();
+      if (activeQuery == null) {
+        const error = new Error("Received unexpected copyData message from backend.");
+        this._handleErrorEvent(error);
+        return;
+      }
+      activeQuery.handleCopyData(msg, this.connection);
+    }
+    _handleNotification(msg) {
+      this.emit("notification", msg);
+    }
+    _handleNotice(msg) {
+      this.emit("notice", msg);
+    }
+    getStartupConf() {
+      const params = this.connectionParameters;
+      const data = {
+        user: params.user,
+        database: params.database
+      };
+      const appName = params.application_name || params.fallback_application_name;
+      if (appName) {
+        data.application_name = appName;
+      }
+      if (params.replication) {
+        data.replication = "" + params.replication;
+      }
+      if (params.statement_timeout) {
+        data.statement_timeout = String(parseInt(params.statement_timeout, 10));
+      }
+      if (params.lock_timeout) {
+        data.lock_timeout = String(parseInt(params.lock_timeout, 10));
+      }
+      if (params.idle_in_transaction_session_timeout) {
+        data.idle_in_transaction_session_timeout = String(parseInt(params.idle_in_transaction_session_timeout, 10));
+      }
+      if (params.options) {
+        data.options = params.options;
+      }
+      return data;
+    }
+    cancel(client, query) {
+      if (client.activeQuery === query) {
+        const con = this.connection;
+        if (this.host && this.host.indexOf("/") === 0) {
+          con.connect(this.host + "/.s.PGSQL." + this.port);
+        } else {
+          con.connect(this.port, this.host);
+        }
+        con.on("connect", function() {
+          con.cancel(client.processID, client.secretKey);
+        });
+      } else if (client._queryQueue.indexOf(query) !== -1) {
+        client._queryQueue.splice(client._queryQueue.indexOf(query), 1);
+      }
+    }
+    setTypeParser(oid, format, parseFn) {
+      return this._types.setTypeParser(oid, format, parseFn);
+    }
+    getTypeParser(oid, format) {
+      return this._types.getTypeParser(oid, format);
+    }
+    escapeIdentifier(str) {
+      return utils4.escapeIdentifier(str);
+    }
+    escapeLiteral(str) {
+      return utils4.escapeLiteral(str);
+    }
+    _pulseQueryQueue() {
+      if (this.readyForQuery === true) {
+        this._activeQuery = this._queryQueue.shift();
+        const activeQuery = this._getActiveQuery();
+        if (activeQuery) {
+          this.readyForQuery = false;
+          this.hasExecuted = true;
+          const queryError = activeQuery.submit(this.connection);
+          if (queryError) {
+            process.nextTick(() => {
+              activeQuery.handleError(queryError, this.connection);
+              this.readyForQuery = true;
+              this._pulseQueryQueue();
+            });
+          }
+        } else if (this.hasExecuted) {
+          this._activeQuery = null;
+          this.emit("drain");
+        }
+      }
+    }
+    query(config, values3, callback) {
+      let query;
+      let result;
+      if (config == null) {
+        throw new TypeError("Client was passed a null or undefined query");
+      }
+      if (typeof config.submit === "function") {
+        result = query = config;
+        if (!query.callback) {
+          if (typeof values3 === "function") {
+            query.callback = values3;
+          } else if (callback) {
+            query.callback = callback;
+          }
+        }
+      } else {
+        query = new Query2(config, values3, callback);
+        if (!query.callback) {
+          result = new this._Promise((resolve, reject) => {
+            query.callback = (err, res) => err ? reject(err) : resolve(res);
+          }).catch((err) => {
+            Error.captureStackTrace(err);
+            throw err;
+          });
+        } else if (typeof query.callback !== "function") {
+          throw new TypeError("callback is not a function");
+        }
+      }
+      const readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
+      if (readTimeout) {
+        const queryCallback = query.callback || (() => {});
+        const readTimeoutTimer = setTimeout(() => {
+          const error = new Error("Query read timeout");
+          process.nextTick(() => {
+            query.handleError(error, this.connection);
+          });
+          queryCallback(error);
+          query.callback = () => {};
+          const index2 = this._queryQueue.indexOf(query);
+          if (index2 > -1) {
+            this._queryQueue.splice(index2, 1);
+          }
+          this._pulseQueryQueue();
+        }, readTimeout);
+        query.callback = (err, res) => {
+          clearTimeout(readTimeoutTimer);
+          queryCallback(err, res);
+        };
+      }
+      if (this.binary && !query.binary) {
+        query.binary = true;
+      }
+      if (query._result && !query._result._types) {
+        query._result._types = this._types;
+      }
+      if (!this._queryable) {
+        process.nextTick(() => {
+          query.handleError(new Error("Client has encountered a connection error and is not queryable"), this.connection);
+        });
+        return result;
+      }
+      if (this._ending) {
+        process.nextTick(() => {
+          query.handleError(new Error("Client was closed and is not queryable"), this.connection);
+        });
+        return result;
+      }
+      if (this._queryQueue.length > 0) {
+        queryQueueLengthDeprecationNotice();
+      }
+      this._queryQueue.push(query);
+      this._pulseQueryQueue();
+      return result;
+    }
+    ref() {
+      this.connection.ref();
+    }
+    unref() {
+      this.connection.unref();
+    }
+    getTransactionStatus() {
+      return this._txStatus;
+    }
+    end(cb) {
+      this._ending = true;
+      if (!this.connection._connecting || this._ended) {
+        if (cb) {
+          cb();
+          return;
+        } else {
+          return this._Promise.resolve();
+        }
+      }
+      if (this._getActiveQuery() || !this._queryable) {
+        this.connection.stream.destroy();
+      } else {
+        this.connection.end();
+      }
+      if (cb) {
+        this.connection.once("end", cb);
+      } else {
+        return new this._Promise((resolve) => {
+          this.connection.once("end", resolve);
+        });
+      }
+    }
+    get queryQueue() {
+      queryQueueDeprecationNotice();
+      return this._queryQueue;
+    }
+  }
+  Client.Query = Query2;
+  module.exports = Client;
+});
+
+// node_modules/pg-pool/index.js
+var require_pg_pool = __commonJS((exports, module) => {
+  var EventEmitter = __require("events").EventEmitter;
+  var NOOP = function() {};
+  var removeWhere = (list4, predicate) => {
+    const i = list4.findIndex(predicate);
+    return i === -1 ? undefined : list4.splice(i, 1)[0];
+  };
+
+  class IdleItem {
+    constructor(client, idleListener, timeoutId) {
+      this.client = client;
+      this.idleListener = idleListener;
+      this.timeoutId = timeoutId;
+    }
+  }
+
+  class PendingItem {
+    constructor(callback) {
+      this.callback = callback;
+    }
+  }
+  function throwOnDoubleRelease() {
+    throw new Error("Release called on client which has already been released to the pool.");
+  }
+  function promisify(Promise2, callback) {
+    if (callback) {
+      return { callback, result: undefined };
+    }
+    let rej;
+    let res;
+    const cb = function(err, client) {
+      err ? rej(err) : res(client);
+    };
+    const result = new Promise2(function(resolve, reject) {
+      res = resolve;
+      rej = reject;
+    }).catch((err) => {
+      Error.captureStackTrace(err);
+      throw err;
+    });
+    return { callback: cb, result };
+  }
+  function makeIdleListener(pool, client) {
+    return function idleListener(err) {
+      err.client = client;
+      client.removeListener("error", idleListener);
+      client.on("error", () => {
+        pool.log("additional client error after disconnection due to error", err);
+      });
+      pool._remove(client);
+      pool.emit("error", err, client);
+    };
+  }
+
+  class Pool extends EventEmitter {
+    constructor(options, Client) {
+      super();
+      this.options = Object.assign({}, options);
+      if (options != null && "password" in options) {
+        Object.defineProperty(this.options, "password", {
+          configurable: true,
+          enumerable: false,
+          writable: true,
+          value: options.password
+        });
+      }
+      if (options != null && options.ssl && options.ssl.key) {
+        Object.defineProperty(this.options.ssl, "key", {
+          enumerable: false
+        });
+      }
+      this.options.max = this.options.max || this.options.poolSize || 10;
+      this.options.min = this.options.min || 0;
+      this.options.maxUses = this.options.maxUses || Infinity;
+      this.options.allowExitOnIdle = this.options.allowExitOnIdle || false;
+      this.options.maxLifetimeSeconds = this.options.maxLifetimeSeconds || 0;
+      this.log = this.options.log || function() {};
+      this.Client = this.options.Client || Client || require_lib2().Client;
+      this.Promise = this.options.Promise || global.Promise;
+      if (typeof this.options.idleTimeoutMillis === "undefined") {
+        this.options.idleTimeoutMillis = 1e4;
+      }
+      this._clients = [];
+      this._idle = [];
+      this._expired = new WeakSet;
+      this._pendingQueue = [];
+      this._endCallback = undefined;
+      this.ending = false;
+      this.ended = false;
+    }
+    _promiseTry(f2) {
+      const Promise2 = this.Promise;
+      if (typeof Promise2.try === "function") {
+        return Promise2.try(f2);
+      }
+      return new Promise2((resolve) => resolve(f2()));
+    }
+    _isFull() {
+      return this._clients.length >= this.options.max;
+    }
+    _isAboveMin() {
+      return this._clients.length > this.options.min;
+    }
+    _pulseQueue() {
+      this.log("pulse queue");
+      if (this.ended) {
+        this.log("pulse queue ended");
+        return;
+      }
+      if (this.ending) {
+        this.log("pulse queue on ending");
+        if (this._idle.length) {
+          this._idle.slice().map((item) => {
+            this._remove(item.client);
+          });
+        }
+        if (!this._clients.length) {
+          this.ended = true;
+          this._endCallback();
+        }
+        return;
+      }
+      if (!this._pendingQueue.length) {
+        this.log("no queued requests");
+        return;
+      }
+      if (!this._idle.length && this._isFull()) {
+        return;
+      }
+      const pendingItem = this._pendingQueue.shift();
+      if (this._idle.length) {
+        const idleItem = this._idle.pop();
+        clearTimeout(idleItem.timeoutId);
+        const client = idleItem.client;
+        client.ref && client.ref();
+        const idleListener = idleItem.idleListener;
+        return this._acquireClient(client, pendingItem, idleListener, false);
+      }
+      if (!this._isFull()) {
+        return this.newClient(pendingItem);
+      }
+      throw new Error("unexpected condition");
+    }
+    _remove(client, callback) {
+      const removed = removeWhere(this._idle, (item) => item.client === client);
+      if (removed !== undefined) {
+        clearTimeout(removed.timeoutId);
+      }
+      this._clients = this._clients.filter((c2) => c2 !== client);
+      const context = this;
+      client.end(() => {
+        context.emit("remove", client);
+        if (typeof callback === "function") {
+          callback();
+        }
+      });
+    }
+    connect(cb) {
+      if (this.ending) {
+        const err = new Error("Cannot use a pool after calling end on the pool");
+        return cb ? cb(err) : this.Promise.reject(err);
+      }
+      const response = promisify(this.Promise, cb);
+      const result = response.result;
+      if (this._isFull() || this._idle.length) {
+        if (this._idle.length) {
+          process.nextTick(() => this._pulseQueue());
+        }
+        if (!this.options.connectionTimeoutMillis) {
+          this._pendingQueue.push(new PendingItem(response.callback));
+          return result;
+        }
+        const queueCallback = (err, res, done) => {
+          clearTimeout(tid);
+          response.callback(err, res, done);
+        };
+        const pendingItem = new PendingItem(queueCallback);
+        const tid = setTimeout(() => {
+          removeWhere(this._pendingQueue, (i) => i.callback === queueCallback);
+          pendingItem.timedOut = true;
+          response.callback(new Error("timeout exceeded when trying to connect"));
+        }, this.options.connectionTimeoutMillis);
+        if (tid.unref) {
+          tid.unref();
+        }
+        this._pendingQueue.push(pendingItem);
+        return result;
+      }
+      this.newClient(new PendingItem(response.callback));
+      return result;
+    }
+    newClient(pendingItem) {
+      const client = new this.Client(this.options);
+      this._clients.push(client);
+      const idleListener = makeIdleListener(this, client);
+      this.log("checking client timeout");
+      let tid;
+      let timeoutHit = false;
+      if (this.options.connectionTimeoutMillis) {
+        tid = setTimeout(() => {
+          if (client.connection) {
+            this.log("ending client due to timeout");
+            timeoutHit = true;
+            client.connection.stream.destroy();
+          } else if (!client.isConnected()) {
+            this.log("ending client due to timeout");
+            timeoutHit = true;
+            client.end();
+          }
+        }, this.options.connectionTimeoutMillis);
+      }
+      this.log("connecting new client");
+      client.connect((err) => {
+        if (tid) {
+          clearTimeout(tid);
+        }
+        client.on("error", idleListener);
+        if (err) {
+          this.log("client failed to connect", err);
+          this._clients = this._clients.filter((c2) => c2 !== client);
+          if (timeoutHit) {
+            err = new Error("Connection terminated due to connection timeout", { cause: err });
+          }
+          this._pulseQueue();
+          if (!pendingItem.timedOut) {
+            pendingItem.callback(err, undefined, NOOP);
+          }
+        } else {
+          this.log("new client connected");
+          if (this.options.onConnect) {
+            this._promiseTry(() => this.options.onConnect(client)).then(() => {
+              this._afterConnect(client, pendingItem, idleListener);
+            }, (hookErr) => {
+              this._clients = this._clients.filter((c2) => c2 !== client);
+              client.end(() => {
+                this._pulseQueue();
+                if (!pendingItem.timedOut) {
+                  pendingItem.callback(hookErr, undefined, NOOP);
+                }
+              });
+            });
+            return;
+          }
+          return this._afterConnect(client, pendingItem, idleListener);
+        }
+      });
+    }
+    _afterConnect(client, pendingItem, idleListener) {
+      if (this.options.maxLifetimeSeconds !== 0) {
+        const maxLifetimeTimeout = setTimeout(() => {
+          this.log("ending client due to expired lifetime");
+          this._expired.add(client);
+          const idleIndex = this._idle.findIndex((idleItem) => idleItem.client === client);
+          if (idleIndex !== -1) {
+            this._acquireClient(client, new PendingItem((err, client2, clientRelease) => clientRelease()), idleListener, false);
+          }
+        }, this.options.maxLifetimeSeconds * 1000);
+        maxLifetimeTimeout.unref();
+        client.once("end", () => clearTimeout(maxLifetimeTimeout));
+      }
+      return this._acquireClient(client, pendingItem, idleListener, true);
+    }
+    _acquireClient(client, pendingItem, idleListener, isNew) {
+      if (isNew) {
+        this.emit("connect", client);
+      }
+      this.emit("acquire", client);
+      client.release = this._releaseOnce(client, idleListener);
+      client.removeListener("error", idleListener);
+      if (!pendingItem.timedOut) {
+        if (isNew && this.options.verify) {
+          this.options.verify(client, (err) => {
+            if (err) {
+              client.release(err);
+              return pendingItem.callback(err, undefined, NOOP);
+            }
+            pendingItem.callback(undefined, client, client.release);
+          });
+        } else {
+          pendingItem.callback(undefined, client, client.release);
+        }
+      } else {
+        if (isNew && this.options.verify) {
+          this.options.verify(client, client.release);
+        } else {
+          client.release();
+        }
+      }
+    }
+    _releaseOnce(client, idleListener) {
+      let released = false;
+      return (err) => {
+        if (released) {
+          throwOnDoubleRelease();
+        }
+        released = true;
+        this._release(client, idleListener, err);
+      };
+    }
+    _release(client, idleListener, err) {
+      client.on("error", idleListener);
+      client._poolUseCount = (client._poolUseCount || 0) + 1;
+      this.emit("release", err, client);
+      if (err || this.ending || !client._queryable || client._ending || client._poolUseCount >= this.options.maxUses) {
+        if (client._poolUseCount >= this.options.maxUses) {
+          this.log("remove expended client");
+        }
+        return this._remove(client, this._pulseQueue.bind(this));
+      }
+      const isExpired = this._expired.has(client);
+      if (isExpired) {
+        this.log("remove expired client");
+        this._expired.delete(client);
+        return this._remove(client, this._pulseQueue.bind(this));
+      }
+      let tid;
+      if (this.options.idleTimeoutMillis && this._isAboveMin()) {
+        tid = setTimeout(() => {
+          if (this._isAboveMin()) {
+            this.log("remove idle client");
+            this._remove(client, this._pulseQueue.bind(this));
+          }
+        }, this.options.idleTimeoutMillis);
+        if (this.options.allowExitOnIdle) {
+          tid.unref();
+        }
+      }
+      if (this.options.allowExitOnIdle) {
+        client.unref();
+      }
+      this._idle.push(new IdleItem(client, idleListener, tid));
+      this._pulseQueue();
+    }
+    query(text8, values3, cb) {
+      if (typeof text8 === "function") {
+        const response2 = promisify(this.Promise, text8);
+        setImmediate(function() {
+          return response2.callback(new Error("Passing a function as the first parameter to pool.query is not supported"));
+        });
+        return response2.result;
+      }
+      if (typeof values3 === "function") {
+        cb = values3;
+        values3 = undefined;
+      }
+      const response = promisify(this.Promise, cb);
+      cb = response.callback;
+      this.connect((err, client) => {
+        if (err) {
+          return cb(err);
+        }
+        let clientReleased = false;
+        const onError = (err2) => {
+          if (clientReleased) {
+            return;
+          }
+          clientReleased = true;
+          client.release(err2);
+          cb(err2);
+        };
+        client.once("error", onError);
+        this.log("dispatching query");
+        try {
+          client.query(text8, values3, (err2, res) => {
+            this.log("query dispatched");
+            client.removeListener("error", onError);
+            if (clientReleased) {
+              return;
+            }
+            clientReleased = true;
+            client.release(err2);
+            if (err2) {
+              return cb(err2);
+            }
+            return cb(undefined, res);
+          });
+        } catch (err2) {
+          client.release(err2);
+          return cb(err2);
+        }
+      });
+      return response.result;
+    }
+    end(cb) {
+      this.log("ending");
+      if (this.ending) {
+        const err = new Error("Called end on pool more than once");
+        return cb ? cb(err) : this.Promise.reject(err);
+      }
+      this.ending = true;
+      const promised = promisify(this.Promise, cb);
+      this._endCallback = promised.callback;
+      this._pulseQueue();
+      return promised.result;
+    }
+    get waitingCount() {
+      return this._pendingQueue.length;
+    }
+    get idleCount() {
+      return this._idle.length;
+    }
+    get expiredCount() {
+      return this._clients.reduce((acc, client) => acc + (this._expired.has(client) ? 1 : 0), 0);
+    }
+    get totalCount() {
+      return this._clients.length;
+    }
+  }
+  module.exports = Pool;
+});
+
+// node_modules/pg/lib/native/query.js
+var require_query2 = __commonJS((exports, module) => {
+  var EventEmitter = __require("events").EventEmitter;
+  var util = __require("util");
+  var utils4 = require_utils();
+  var NativeQuery = module.exports = function(config, values3, callback) {
+    EventEmitter.call(this);
+    config = utils4.normalizeQueryConfig(config, values3, callback);
+    this.text = config.text;
+    this.values = config.values;
+    this.name = config.name;
+    this.queryMode = config.queryMode;
+    this.callback = config.callback;
+    this.state = "new";
+    this._arrayMode = config.rowMode === "array";
+    this._emitRowEvents = false;
+    this.on("newListener", function(event) {
+      if (event === "row")
+        this._emitRowEvents = true;
+    }.bind(this));
+  };
+  util.inherits(NativeQuery, EventEmitter);
+  var errorFieldMap = {
+    sqlState: "code",
+    statementPosition: "position",
+    messagePrimary: "message",
+    context: "where",
+    schemaName: "schema",
+    tableName: "table",
+    columnName: "column",
+    dataTypeName: "dataType",
+    constraintName: "constraint",
+    sourceFile: "file",
+    sourceLine: "line",
+    sourceFunction: "routine"
+  };
+  NativeQuery.prototype.handleError = function(err) {
+    const fields = this.native.pq.resultErrorFields();
+    if (fields) {
+      for (const key in fields) {
+        const normalizedFieldName = errorFieldMap[key] || key;
+        err[normalizedFieldName] = fields[key];
+      }
+    }
+    if (this.callback) {
+      this.callback(err);
+    } else {
+      this.emit("error", err);
+    }
+    this.state = "error";
+  };
+  NativeQuery.prototype.then = function(onSuccess, onFailure) {
+    return this._getPromise().then(onSuccess, onFailure);
+  };
+  NativeQuery.prototype.catch = function(callback) {
+    return this._getPromise().catch(callback);
+  };
+  NativeQuery.prototype._getPromise = function() {
+    if (this._promise)
+      return this._promise;
+    this._promise = new Promise(function(resolve, reject) {
+      this._once("end", resolve);
+      this._once("error", reject);
+    }.bind(this));
+    return this._promise;
+  };
+  NativeQuery.prototype.submit = function(client) {
+    this.state = "running";
+    const self2 = this;
+    this.native = client.native;
+    client.native.arrayMode = this._arrayMode;
+    let after = function(err, rows, results) {
+      client.native.arrayMode = false;
+      setImmediate(function() {
+        self2.emit("_done");
+      });
+      if (err) {
+        return self2.handleError(err);
+      }
+      if (self2._emitRowEvents) {
+        if (results.length > 1) {
+          rows.forEach((rowOfRows, i) => {
+            rowOfRows.forEach((row) => {
+              self2.emit("row", row, results[i]);
+            });
+          });
+        } else {
+          rows.forEach(function(row) {
+            self2.emit("row", row, results);
+          });
+        }
+      }
+      self2.state = "end";
+      self2.emit("end", results);
+      if (self2.callback) {
+        self2.callback(null, results);
+      }
+    };
+    if (process.domain) {
+      after = process.domain.bind(after);
+    }
+    if (this.name) {
+      if (this.name.length > 63) {
+        console.error("Warning! Postgres only supports 63 characters for query names.");
+        console.error("You supplied %s (%s)", this.name, this.name.length);
+        console.error("This can cause conflicts and silent errors executing queries");
+      }
+      const values3 = (this.values || []).map(utils4.prepareValue);
+      if (client.namedQueries[this.name]) {
+        if (this.text && client.namedQueries[this.name] !== this.text) {
+          const err = new Error(`Prepared statements must be unique - '${this.name}' was used for a different statement`);
+          return after(err);
+        }
+        return client.native.execute(this.name, values3, after);
+      }
+      return client.native.prepare(this.name, this.text, values3.length, function(err) {
+        if (err)
+          return after(err);
+        client.namedQueries[self2.name] = self2.text;
+        return self2.native.execute(self2.name, values3, after);
+      });
+    } else if (this.values) {
+      if (!Array.isArray(this.values)) {
+        const err = new Error("Query values must be an array");
+        return after(err);
+      }
+      const vals = this.values.map(utils4.prepareValue);
+      client.native.query(this.text, vals, after);
+    } else if (this.queryMode === "extended") {
+      client.native.query(this.text, [], after);
+    } else {
+      client.native.query(this.text, after);
+    }
+  };
+});
+
+// node_modules/pg/lib/native/client.js
+var require_client2 = __commonJS((exports, module) => {
+  var nodeUtils = __require("util");
+  var Native;
+  try {
+    Native = __require("pg-native");
+  } catch (e) {
+    throw e;
+  }
+  var TypeOverrides = require_type_overrides();
+  var EventEmitter = __require("events").EventEmitter;
+  var util = __require("util");
+  var ConnectionParameters = require_connection_parameters();
+  var NativeQuery = require_query2();
+  var queryQueueLengthDeprecationNotice = nodeUtils.deprecate(() => {}, "Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.");
+  var Client = module.exports = function(config) {
+    EventEmitter.call(this);
+    config = config || {};
+    this._Promise = config.Promise || global.Promise;
+    this._types = new TypeOverrides(config.types);
+    this.native = new Native({
+      types: this._types
+    });
+    this._queryQueue = [];
+    this._ending = false;
+    this._connecting = false;
+    this._connected = false;
+    this._queryable = true;
+    const cp = this.connectionParameters = new ConnectionParameters(config);
+    if (config.nativeConnectionString)
+      cp.nativeConnectionString = config.nativeConnectionString;
+    this.user = cp.user;
+    Object.defineProperty(this, "password", {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: cp.password
+    });
+    this.database = cp.database;
+    this.host = cp.host;
+    this.port = cp.port;
+    this.namedQueries = {};
+  };
+  Client.Query = NativeQuery;
+  util.inherits(Client, EventEmitter);
+  Client.prototype._errorAllQueries = function(err) {
+    const enqueueError = (query) => {
+      process.nextTick(() => {
+        query.native = this.native;
+        query.handleError(err);
+      });
+    };
+    if (this._hasActiveQuery()) {
+      enqueueError(this._activeQuery);
+      this._activeQuery = null;
+    }
+    this._queryQueue.forEach(enqueueError);
+    this._queryQueue.length = 0;
+  };
+  Client.prototype._connect = function(cb) {
+    const self2 = this;
+    if (this._connecting) {
+      process.nextTick(() => cb(new Error("Client has already been connected. You cannot reuse a client.")));
+      return;
+    }
+    this._connecting = true;
+    this.connectionParameters.getLibpqConnectionString(function(err, conString) {
+      if (self2.connectionParameters.nativeConnectionString)
+        conString = self2.connectionParameters.nativeConnectionString;
+      if (err)
+        return cb(err);
+      self2.native.connect(conString, function(err2) {
+        if (err2) {
+          self2.native.end();
+          return cb(err2);
+        }
+        self2._connected = true;
+        self2.native.on("error", function(err3) {
+          self2._queryable = false;
+          self2._errorAllQueries(err3);
+          self2.emit("error", err3);
+        });
+        self2.native.on("notification", function(msg) {
+          self2.emit("notification", {
+            channel: msg.relname,
+            payload: msg.extra
+          });
+        });
+        self2.emit("connect");
+        self2._pulseQueryQueue(true);
+        cb(null, this);
+      });
+    });
+  };
+  Client.prototype.connect = function(callback) {
+    if (callback) {
+      this._connect(callback);
+      return;
+    }
+    return new this._Promise((resolve, reject) => {
+      this._connect((error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(this);
+        }
+      });
+    });
+  };
+  Client.prototype.query = function(config, values3, callback) {
+    let query;
+    let result;
+    let readTimeout;
+    let readTimeoutTimer;
+    let queryCallback;
+    if (config === null || config === undefined) {
+      throw new TypeError("Client was passed a null or undefined query");
+    } else if (typeof config.submit === "function") {
+      readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
+      result = query = config;
+      if (typeof values3 === "function") {
+        config.callback = values3;
+      }
+    } else {
+      readTimeout = config.query_timeout || this.connectionParameters.query_timeout;
+      query = new NativeQuery(config, values3, callback);
+      if (!query.callback) {
+        let resolveOut, rejectOut;
+        result = new this._Promise((resolve, reject) => {
+          resolveOut = resolve;
+          rejectOut = reject;
+        }).catch((err) => {
+          Error.captureStackTrace(err);
+          throw err;
+        });
+        query.callback = (err, res) => err ? rejectOut(err) : resolveOut(res);
+      }
+    }
+    if (readTimeout) {
+      queryCallback = query.callback || (() => {});
+      readTimeoutTimer = setTimeout(() => {
+        const error = new Error("Query read timeout");
+        process.nextTick(() => {
+          query.handleError(error, this.connection);
+        });
+        queryCallback(error);
+        query.callback = () => {};
+        const index2 = this._queryQueue.indexOf(query);
+        if (index2 > -1) {
+          this._queryQueue.splice(index2, 1);
+        }
+        this._pulseQueryQueue();
+      }, readTimeout);
+      query.callback = (err, res) => {
+        clearTimeout(readTimeoutTimer);
+        queryCallback(err, res);
+      };
+    }
+    if (!this._queryable) {
+      query.native = this.native;
+      process.nextTick(() => {
+        query.handleError(new Error("Client has encountered a connection error and is not queryable"));
+      });
+      return result;
+    }
+    if (this._ending) {
+      query.native = this.native;
+      process.nextTick(() => {
+        query.handleError(new Error("Client was closed and is not queryable"));
+      });
+      return result;
+    }
+    if (this._queryQueue.length > 0) {
+      queryQueueLengthDeprecationNotice();
+    }
+    this._queryQueue.push(query);
+    this._pulseQueryQueue();
+    return result;
+  };
+  Client.prototype.end = function(cb) {
+    const self2 = this;
+    this._ending = true;
+    if (this._connecting && !this._connected) {
+      this.once("connect", () => {
+        this.end(() => {});
+      });
+    }
+    let result;
+    if (!cb) {
+      result = new this._Promise(function(resolve, reject) {
+        cb = (err) => err ? reject(err) : resolve();
+      });
+    }
+    this.native.end(function() {
+      self2._connected = false;
+      self2._errorAllQueries(new Error("Connection terminated"));
+      process.nextTick(() => {
+        self2.emit("end");
+        if (cb)
+          cb();
+      });
+    });
+    return result;
+  };
+  Client.prototype._hasActiveQuery = function() {
+    return this._activeQuery && this._activeQuery.state !== "error" && this._activeQuery.state !== "end";
+  };
+  Client.prototype._pulseQueryQueue = function(initialConnection) {
+    if (!this._connected) {
+      return;
+    }
+    if (this._hasActiveQuery()) {
+      return;
+    }
+    const query = this._queryQueue.shift();
+    if (!query) {
+      if (!initialConnection) {
+        this.emit("drain");
+      }
+      return;
+    }
+    this._activeQuery = query;
+    query.submit(this);
+    const self2 = this;
+    query.once("_done", function() {
+      self2._pulseQueryQueue();
+    });
+  };
+  Client.prototype.cancel = function(query) {
+    if (this._activeQuery === query) {
+      this.native.cancel(function() {});
+    } else if (this._queryQueue.indexOf(query) !== -1) {
+      this._queryQueue.splice(this._queryQueue.indexOf(query), 1);
+    }
+  };
+  Client.prototype.ref = function() {};
+  Client.prototype.unref = function() {};
+  Client.prototype.setTypeParser = function(oid, format, parseFn) {
+    return this._types.setTypeParser(oid, format, parseFn);
+  };
+  Client.prototype.getTypeParser = function(oid, format) {
+    return this._types.getTypeParser(oid, format);
+  };
+  Client.prototype.isConnected = function() {
+    return this._connected;
+  };
+  Client.prototype.getTransactionStatus = function() {
+    return this.native.getTransactionStatus();
+  };
+});
+
+// node_modules/pg/lib/index.js
+var require_lib2 = __commonJS((exports, module) => {
+  var Client = require_client();
+  var defaults = require_defaults();
+  var Connection2 = require_connection();
+  var Result2 = require_result();
+  var utils4 = require_utils();
+  var Pool = require_pg_pool();
+  var TypeOverrides = require_type_overrides();
+  var { DatabaseError } = require_dist();
+  var { escapeIdentifier: escapeIdentifier2, escapeLiteral } = require_utils();
+  var poolFactory = (Client2) => {
+    return class BoundPool extends Pool {
+      constructor(options) {
+        super(options, Client2);
+      }
+    };
+  };
+  var PG = function(clientConstructor2) {
+    this.defaults = defaults;
+    this.Client = clientConstructor2;
+    this.Query = this.Client.Query;
+    this.Pool = poolFactory(this.Client);
+    this._pools = [];
+    this.Connection = Connection2;
+    this.types = require_pg_types();
+    this.DatabaseError = DatabaseError;
+    this.TypeOverrides = TypeOverrides;
+    this.escapeIdentifier = escapeIdentifier2;
+    this.escapeLiteral = escapeLiteral;
+    this.Result = Result2;
+    this.utils = utils4;
+  };
+  var clientConstructor = Client;
+  var forceNative = false;
+  try {
+    forceNative = !!process.env.NODE_PG_FORCE_NATIVE;
+  } catch {}
+  if (forceNative) {
+    clientConstructor = require_client2();
+  }
+  module.exports = new PG(clientConstructor);
+  Object.defineProperty(module.exports, "native", {
+    configurable: true,
+    enumerable: false,
+    get() {
+      let native = null;
+      try {
+        native = new PG(require_client2());
+      } catch (err) {
+        if (err.code !== "MODULE_NOT_FOUND") {
+          throw err;
+        }
+      }
+      Object.defineProperty(module.exports, "native", {
+        value: native
+      });
+      return native;
+    }
+  });
+});
+
+// node_modules/pg/esm/index.mjs
+var import_lib23, Client, Pool, Connection2, types3, Query2, DatabaseError, escapeIdentifier2, escapeLiteral, Result2, TypeOverrides, defaults, esm_default;
+var init_esm = __esm(() => {
+  import_lib23 = __toESM(require_lib2(), 1);
+  Client = import_lib23.default.Client;
+  Pool = import_lib23.default.Pool;
+  Connection2 = import_lib23.default.Connection;
+  types3 = import_lib23.default.types;
+  Query2 = import_lib23.default.Query;
+  DatabaseError = import_lib23.default.DatabaseError;
+  escapeIdentifier2 = import_lib23.default.escapeIdentifier;
+  escapeLiteral = import_lib23.default.escapeLiteral;
+  Result2 = import_lib23.default.Result;
+  TypeOverrides = import_lib23.default.TypeOverrides;
+  defaults = import_lib23.default.defaults;
+  esm_default = import_lib23.default;
+});
+
+// node_modules/@chat-adapter/state-pg/dist/index.js
+function generateToken2() {
+  return `pg_${crypto.randomUUID()}`;
+}
+function createPostgresState(options = {}) {
+  if ("client" in options && options.client) {
+    return new PostgresStateAdapter(options);
+  }
+  const urlOptions = options;
+  const url2 = urlOptions.url || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!url2) {
+    throw new Error("Postgres url is required. Set POSTGRES_URL or DATABASE_URL, or provide it in options.");
+  }
+  return new PostgresStateAdapter({
+    url: url2,
+    keyPrefix: options.keyPrefix,
+    logger: options.logger
+  });
+}
+var PostgresStateAdapter = class {
+  pool;
+  keyPrefix;
+  logger;
+  ownsClient;
+  connected = false;
+  connectPromise = null;
+  constructor(options) {
+    if ("client" in options && options.client) {
+      this.pool = options.client;
+      this.ownsClient = false;
+    } else {
+      const url2 = options.url;
+      if (!url2) {
+        throw new Error("Postgres url is required. Set POSTGRES_URL or DATABASE_URL, or provide it in options.");
+      }
+      this.pool = new esm_default.Pool({ connectionString: url2 });
+      this.ownsClient = true;
+    }
+    this.keyPrefix = options.keyPrefix || "chat-sdk";
+    this.logger = options.logger ?? new ConsoleLogger("info").child("postgres");
+  }
+  async connect() {
+    if (this.connected) {
+      return;
+    }
+    if (!this.connectPromise) {
+      this.connectPromise = (async () => {
+        try {
+          await this.pool.query("SELECT 1");
+          await this.ensureSchema();
+          this.connected = true;
+        } catch (error) {
+          this.connectPromise = null;
+          this.logger.error("Postgres connect failed", { error });
+          throw error;
+        }
+      })();
+    }
+    await this.connectPromise;
+  }
+  async disconnect() {
+    if (!this.connected) {
+      return;
+    }
+    if (this.ownsClient) {
+      await this.pool.end();
+    }
+    this.connected = false;
+    this.connectPromise = null;
+  }
+  async subscribe(threadId) {
+    this.ensureConnected();
+    await this.pool.query(`INSERT INTO chat_state_subscriptions (key_prefix, thread_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`, [this.keyPrefix, threadId]);
+  }
+  async unsubscribe(threadId) {
+    this.ensureConnected();
+    await this.pool.query(`DELETE FROM chat_state_subscriptions
+       WHERE key_prefix = $1 AND thread_id = $2`, [this.keyPrefix, threadId]);
+  }
+  async isSubscribed(threadId) {
+    this.ensureConnected();
+    const result = await this.pool.query(`SELECT 1 FROM chat_state_subscriptions
+       WHERE key_prefix = $1 AND thread_id = $2
+       LIMIT 1`, [this.keyPrefix, threadId]);
+    return result.rows.length > 0;
+  }
+  async acquireLock(threadId, ttlMs) {
+    this.ensureConnected();
+    const token = generateToken2();
+    const expiresAt = new Date(Date.now() + ttlMs);
+    const result = await this.pool.query(`INSERT INTO chat_state_locks (key_prefix, thread_id, token, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (key_prefix, thread_id) DO UPDATE
+         SET token = EXCLUDED.token,
+             expires_at = EXCLUDED.expires_at,
+             updated_at = now()
+         WHERE chat_state_locks.expires_at <= now()
+       RETURNING thread_id, token, expires_at`, [this.keyPrefix, threadId, token, expiresAt]);
+    if (result.rows.length === 0) {
+      return null;
+    }
+    return {
+      threadId: result.rows[0].thread_id,
+      token: result.rows[0].token,
+      expiresAt: result.rows[0].expires_at.getTime()
+    };
+  }
+  async forceReleaseLock(threadId) {
+    this.ensureConnected();
+    await this.pool.query(`DELETE FROM chat_state_locks
+       WHERE key_prefix = $1 AND thread_id = $2`, [this.keyPrefix, threadId]);
+  }
+  async releaseLock(lock) {
+    this.ensureConnected();
+    await this.pool.query(`DELETE FROM chat_state_locks
+       WHERE key_prefix = $1 AND thread_id = $2 AND token = $3`, [this.keyPrefix, lock.threadId, lock.token]);
+  }
+  async extendLock(lock, ttlMs) {
+    this.ensureConnected();
+    const result = await this.pool.query(`UPDATE chat_state_locks
+       SET expires_at = now() + $1 * interval '1 millisecond',
+           updated_at = now()
+       WHERE key_prefix = $2
+         AND thread_id = $3
+         AND token = $4
+         AND expires_at > now()
+       RETURNING thread_id`, [ttlMs, this.keyPrefix, lock.threadId, lock.token]);
+    return result.rows.length > 0;
+  }
+  async get(key) {
+    this.ensureConnected();
+    const result = await this.pool.query(`SELECT value FROM chat_state_cache
+       WHERE key_prefix = $1 AND cache_key = $2
+         AND (expires_at IS NULL OR expires_at > now())
+       LIMIT 1`, [this.keyPrefix, key]);
+    if (result.rows.length === 0) {
+      await this.pool.query(`DELETE FROM chat_state_cache
+         WHERE key_prefix = $1 AND cache_key = $2
+           AND expires_at <= now()`, [this.keyPrefix, key]);
+      return null;
+    }
+    try {
+      return JSON.parse(result.rows[0].value);
+    } catch {
+      return result.rows[0].value;
+    }
+  }
+  async set(key, value, ttlMs) {
+    this.ensureConnected();
+    const serialized = JSON.stringify(value);
+    const expiresAt = ttlMs ? new Date(Date.now() + ttlMs) : null;
+    await this.pool.query(`INSERT INTO chat_state_cache (key_prefix, cache_key, value, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (key_prefix, cache_key) DO UPDATE
+         SET value = EXCLUDED.value,
+             expires_at = EXCLUDED.expires_at,
+             updated_at = now()`, [this.keyPrefix, key, serialized, expiresAt]);
+  }
+  async setIfNotExists(key, value, ttlMs) {
+    this.ensureConnected();
+    const serialized = JSON.stringify(value);
+    const expiresAt = ttlMs ? new Date(Date.now() + ttlMs) : null;
+    const result = await this.pool.query(`INSERT INTO chat_state_cache (key_prefix, cache_key, value, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (key_prefix, cache_key) DO NOTHING
+       RETURNING cache_key`, [this.keyPrefix, key, serialized, expiresAt]);
+    return result.rows.length > 0;
+  }
+  async delete(key) {
+    this.ensureConnected();
+    await this.pool.query(`DELETE FROM chat_state_cache
+       WHERE key_prefix = $1 AND cache_key = $2`, [this.keyPrefix, key]);
+  }
+  async appendToList(key, value, options) {
+    this.ensureConnected();
+    const serialized = JSON.stringify(value);
+    const expiresAt = options?.ttlMs ? new Date(Date.now() + options.ttlMs) : null;
+    await this.pool.query(`INSERT INTO chat_state_lists (key_prefix, list_key, value, expires_at)
+       VALUES ($1, $2, $3, $4)`, [this.keyPrefix, key, serialized, expiresAt]);
+    if (options?.maxLength) {
+      await this.pool.query(`DELETE FROM chat_state_lists
+         WHERE key_prefix = $1 AND list_key = $2 AND seq IN (
+           SELECT seq FROM chat_state_lists
+           WHERE key_prefix = $1 AND list_key = $2
+           ORDER BY seq ASC
+           OFFSET 0
+           LIMIT GREATEST(
+             (SELECT count(*) FROM chat_state_lists WHERE key_prefix = $1 AND list_key = $2) - $3,
+             0
+           )
+         )`, [this.keyPrefix, key, options.maxLength]);
+    }
+    if (expiresAt) {
+      await this.pool.query(`UPDATE chat_state_lists
+         SET expires_at = $3
+         WHERE key_prefix = $1 AND list_key = $2`, [this.keyPrefix, key, expiresAt]);
+    }
+  }
+  async getList(key) {
+    this.ensureConnected();
+    const result = await this.pool.query(`SELECT value FROM chat_state_lists
+       WHERE key_prefix = $1 AND list_key = $2
+         AND (expires_at IS NULL OR expires_at > now())
+       ORDER BY seq ASC`, [this.keyPrefix, key]);
+    return result.rows.map((row) => JSON.parse(row.value));
+  }
+  async enqueue(threadId, entry, maxSize) {
+    this.ensureConnected();
+    const serialized = JSON.stringify(entry);
+    const expiresAt = new Date(entry.expiresAt);
+    await this.pool.query(`DELETE FROM chat_state_queues
+       WHERE key_prefix = $1 AND thread_id = $2 AND expires_at <= now()`, [this.keyPrefix, threadId]);
+    await this.pool.query(`INSERT INTO chat_state_queues (key_prefix, thread_id, value, expires_at)
+       VALUES ($1, $2, $3, $4)`, [this.keyPrefix, threadId, serialized, expiresAt]);
+    if (maxSize > 0) {
+      await this.pool.query(`DELETE FROM chat_state_queues
+         WHERE key_prefix = $1 AND thread_id = $2 AND seq IN (
+           SELECT seq FROM chat_state_queues
+           WHERE key_prefix = $1 AND thread_id = $2
+             AND expires_at > now()
+           ORDER BY seq ASC
+           OFFSET 0
+           LIMIT GREATEST(
+             (SELECT count(*) FROM chat_state_queues
+              WHERE key_prefix = $1 AND thread_id = $2 AND expires_at > now()) - $3,
+             0
+           )
+         )`, [this.keyPrefix, threadId, maxSize]);
+    }
+    const result = await this.pool.query(`SELECT count(*) as depth FROM chat_state_queues
+       WHERE key_prefix = $1 AND thread_id = $2 AND expires_at > now()`, [this.keyPrefix, threadId]);
+    return Number.parseInt(result.rows[0].depth, 10);
+  }
+  async dequeue(threadId) {
+    this.ensureConnected();
+    await this.pool.query(`DELETE FROM chat_state_queues
+       WHERE key_prefix = $1 AND thread_id = $2 AND expires_at <= now()`, [this.keyPrefix, threadId]);
+    const result = await this.pool.query(`DELETE FROM chat_state_queues
+       WHERE key_prefix = $1 AND thread_id = $2
+         AND seq = (
+           SELECT seq FROM chat_state_queues
+           WHERE key_prefix = $1 AND thread_id = $2
+             AND expires_at > now()
+           ORDER BY seq ASC
+           LIMIT 1
+         )
+       RETURNING value`, [this.keyPrefix, threadId]);
+    if (result.rows.length === 0) {
+      return null;
+    }
+    return JSON.parse(result.rows[0].value);
+  }
+  async queueDepth(threadId) {
+    this.ensureConnected();
+    const result = await this.pool.query(`SELECT count(*) as depth FROM chat_state_queues
+       WHERE key_prefix = $1 AND thread_id = $2 AND expires_at > now()`, [this.keyPrefix, threadId]);
+    return Number.parseInt(result.rows[0].depth, 10);
+  }
+  getClient() {
+    return this.pool;
+  }
+  async ensureSchema() {
+    await this.pool.query(`CREATE TABLE IF NOT EXISTS chat_state_subscriptions (
+        key_prefix text NOT NULL,
+        thread_id text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (key_prefix, thread_id)
+      )`);
+    await this.pool.query(`CREATE TABLE IF NOT EXISTS chat_state_locks (
+        key_prefix text NOT NULL,
+        thread_id text NOT NULL,
+        token text NOT NULL,
+        expires_at timestamptz NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (key_prefix, thread_id)
+      )`);
+    await this.pool.query(`CREATE TABLE IF NOT EXISTS chat_state_cache (
+        key_prefix text NOT NULL,
+        cache_key text NOT NULL,
+        value text NOT NULL,
+        expires_at timestamptz,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (key_prefix, cache_key)
+      )`);
+    await this.pool.query(`CREATE INDEX IF NOT EXISTS chat_state_locks_expires_idx
+       ON chat_state_locks (expires_at)`);
+    await this.pool.query(`CREATE INDEX IF NOT EXISTS chat_state_cache_expires_idx
+       ON chat_state_cache (expires_at)`);
+    await this.pool.query(`CREATE TABLE IF NOT EXISTS chat_state_lists (
+        key_prefix text NOT NULL,
+        list_key text NOT NULL,
+        seq bigserial NOT NULL,
+        value text NOT NULL,
+        expires_at timestamptz,
+        PRIMARY KEY (key_prefix, list_key, seq)
+      )`);
+    await this.pool.query(`CREATE INDEX IF NOT EXISTS chat_state_lists_expires_idx
+       ON chat_state_lists (expires_at)`);
+    await this.pool.query(`CREATE TABLE IF NOT EXISTS chat_state_queues (
+        key_prefix text NOT NULL,
+        thread_id text NOT NULL,
+        seq bigserial NOT NULL,
+        value text NOT NULL,
+        expires_at timestamptz NOT NULL,
+        PRIMARY KEY (key_prefix, thread_id, seq)
+      )`);
+    await this.pool.query(`CREATE INDEX IF NOT EXISTS chat_state_queues_expires_idx
+       ON chat_state_queues (expires_at)`);
+  }
+  ensureConnected() {
+    if (!this.connected) {
+      throw new Error("PostgresStateAdapter is not connected. Call connect() first.");
+    }
+  }
+};
+var init_dist7 = __esm(() => {
+  init_dist4();
+  init_esm();
+});
+
+// src/bot/commands/help.ts
+var help;
+var init_help = __esm(() => {
+  help = {
+    name: "help",
+    description: "List available commands",
+    usage: "/help",
+    handler: async ({ thread }) => {
+      const { commands } = await Promise.resolve().then(() => (init_commands(), exports_commands));
+      const lines = commands.map((c2) => `${c2.usage} — ${c2.description}`);
+      await thread.post(["Commands:", "", ...lines].join(`
+`));
+    }
+  };
+});
+
+// src/utils/format.ts
+function formatEastern(date3) {
+  return date3.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+function displayName(u2) {
+  const full = [u2.firstName, u2.lastName].filter(Boolean).join(" ");
+  if (full)
+    return full;
+  if (u2.username)
+    return `@${u2.username}`;
+  return "Anonymous";
+}
+function formatDollars(cents) {
+  const figure = (cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  });
+  return `$${figure}`;
+}
+
+// src/bot/commands/leaderboard.ts
+var MEDALS, leaderboard;
+var init_leaderboard = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  MEDALS = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"];
+  leaderboard = {
+    name: "leaderboard",
+    description: "Rank all players by current balance",
+    usage: "/leaderboard",
+    handler: async ({ thread }) => {
+      const balance = sum(ledger.amountCents);
+      const rows = await db2.select({
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        balanceCents: balance
+      }).from(ledger).innerJoin(users, eq(users.id, ledger.userId)).groupBy(users.id).orderBy(desc(balance));
+      if (rows.length === 0) {
+        await thread.post("No players yet — type /start to open an account.");
+        return;
+      }
+      const lines = rows.map((row, i) => {
+        const rank = MEDALS[i] ?? `${i + 1}.`;
+        return `${rank} ${displayName(row)} — ${formatDollars(Number(row.balanceCents ?? 0))}`;
+      });
+      await thread.post(["\uD83C\uDFC6 Leaderboard", "", ...lines].join(`
+`));
+    }
+  };
+});
+
+// src/bot/identity.ts
+function telegramProfile(message) {
+  const from = message.raw?.from;
+  return {
+    telegramId: message.author.userId,
+    username: from?.username ?? null,
+    firstName: from?.first_name ?? null,
+    lastName: from?.last_name ?? null,
+    languageCode: from?.language_code ?? null
+  };
+}
+function telegramProfileFromAction(event) {
+  const from = event.raw?.from;
+  return {
+    telegramId: event.user.userId,
+    username: from?.username ?? null,
+    firstName: from?.first_name ?? null,
+    lastName: from?.last_name ?? null,
+    languageCode: from?.language_code ?? null
+  };
+}
+
+// src/kalshi/series.ts
+function seriesTitle(seriesTicker) {
+  const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.title;
+  if (known)
+    return known;
+  const stripped = seriesTicker.replace(/^KX/, "");
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+}
+function seriesRank(seriesTicker) {
+  const index2 = TRACKED_SERIES.findIndex((s) => s.ticker === seriesTicker);
+  return index2 === -1 ? TRACKED_SERIES.length : index2;
+}
+var TRACKED_SERIES;
+var init_series = __esm(() => {
+  TRACKED_SERIES = [
+    { ticker: "KXWCGAME", title: "⚽️ World Cup 2026 Games" },
+    { ticker: "KXNBAGAME", title: "\uD83C\uDFC0 NBA Finals 2026" }
+  ];
+});
+
+// src/bot/commands/bet.ts
+function seriesHeaderRow(seriesTicker) {
+  return {
+    type: "actions",
+    children: [
+      {
+        type: "button",
+        id: NOOP_ACTION,
+        label: `— ${seriesTitle(seriesTicker)} —`
+      }
+    ]
+  };
+}
+async function getBetState(thread) {
+  return await thread.state;
+}
+async function getPendingPick(thread, userId) {
+  return (await getBetState(thread))?.pendingPicks?.[userId] ?? null;
+}
+async function setPendingPick(thread, userId, pick) {
+  const state = await getBetState(thread);
+  await thread.setState({
+    pendingPicks: { ...state?.pendingPicks, [userId]: pick }
+  });
+}
+async function clearPendingPick(thread, userId) {
+  const state = await getBetState(thread);
+  if (!state?.pendingPicks?.[userId])
+    return;
+  const { [userId]: _, ...rest } = state.pendingPicks;
+  await thread.setState({ pendingPicks: rest });
+}
+async function setMenu(thread, userId, messageId) {
+  const state = await getBetState(thread);
+  await thread.setState({
+    menus: { ...state?.menus, [userId]: messageId }
+  });
+}
+function menuOwner(state, messageId) {
+  for (const [userId, id] of Object.entries(state?.menus ?? {})) {
+    if (id === messageId)
+      return userId;
+  }
+  return null;
+}
+function menuHandle(thread, messageId) {
+  return thread.createSentMessageFromMessage({ id: messageId });
+}
+function kickoffLabel(startsAt) {
+  return startsAt ? formatEastern(startsAt) : "TBD";
+}
+async function upcomingEvents() {
+  const now = new Date;
+  const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
+  return db2.selectDistinct({
+    eventTicker: events.eventTicker,
+    seriesTicker: events.seriesTicker,
+    title: events.title,
+    startsAt: events.startsAt
+  }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(and(inArray(events.gameStatus, ["not_started", "scheduled"]), gt(events.startsAt, now), lte(events.startsAt, horizon))).orderBy(asc(events.startsAt), asc(events.eventTicker));
+}
+function groupBySeries(rows) {
+  const bySeries = new Map;
+  for (const row of rows) {
+    const group = bySeries.get(row.seriesTicker);
+    if (group)
+      group.push(row);
+    else
+      bySeries.set(row.seriesTicker, [row]);
+  }
+  return [...bySeries.entries()].map(([seriesTicker, events2]) => ({ seriesTicker, events: events2 })).sort((a, b3) => seriesRank(a.seriesTicker) - seriesRank(b3.seriesTicker));
+}
+async function eventsCard(ownerName) {
+  const rows = await upcomingEvents();
+  if (rows.length === 0)
+    return null;
+  return {
+    type: "card",
+    children: [
+      {
+        type: "text",
+        content: `${ownerName}, select an event and place your bet`,
+        style: "bold"
+      },
+      ...groupBySeries(rows).flatMap((group) => [
+        seriesHeaderRow(group.seriesTicker),
+        ...group.events.map((e) => ({
+          type: "actions",
+          children: [
+            {
+              type: "button",
+              id: PICK_EVENT_ACTION,
+              label: `${e.title} — ${kickoffLabel(e.startsAt)}`,
+              value: e.eventTicker
+            }
+          ]
+        }))
+      ])
+    ]
+  };
+}
+async function outcomesCard(eventTicker, ownerName) {
+  const outcomes = await db2.select({
+    ticker: markets.ticker,
+    outcome: markets.outcome,
+    yesAsk: markets.yesAsk,
+    title: events.title,
+    startsAt: events.startsAt
+  }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(eq(markets.eventTicker, eventTicker)).orderBy(asc(markets.ticker));
+  if (outcomes.length === 0)
+    return null;
+  const { title, startsAt } = outcomes[0];
+  return {
+    type: "card",
+    children: [
+      { type: "text", content: `${ownerName}: ${title} — ${kickoffLabel(startsAt)}`, style: "bold" },
+      ...outcomes.map((m2) => ({
+        type: "actions",
+        children: [
+          {
+            type: "button",
+            id: PICK_OUTCOME_ACTION,
+            label: `${m2.outcome} @ ${m2.yesAsk ?? "—"}¢`,
+            value: m2.ticker
+          }
+        ]
+      })),
+      {
+        type: "actions",
+        children: [
+          { type: "button", id: BACK_TO_EVENTS_ACTION, label: "← All events" }
+        ]
+      }
+    ]
+  };
+}
+function presetLabel(shares, priceCents) {
+  const count2 = `${shares.toLocaleString("en-US")} shares`;
+  return priceCents == null ? count2 : `${count2} — ${formatDollars(shares * priceCents)}`;
+}
+function amountTitle(pick, userName, balance) {
+  return {
+    type: "text",
+    content: `${userName} (balance: ${formatDollars(balance)}): how much on ${pick.outcome}?`,
+    style: "bold"
+  };
+}
+function noteLine(note) {
+  return note ? [{ type: "text", content: note }] : [];
+}
+function priceExplainer(pick) {
+  if (pick.priceCents == null)
+    return [];
+  const price = pick.priceCents;
+  return [
+    {
+      type: "text",
+      content: `${pick.outcome} @ ${price}¢ — your stake buys ${pick.outcome} shares at ` + `${formatDollars(price)} each; every share pays ${formatDollars(100)} if ${pick.outcome} wins.`
+    },
+    {
+      type: "text",
+      content: `Example: 100 shares costs ${formatDollars(price * 100)} and pays ${formatDollars(1e4)} ` + `on a win (≈${price}% chance).`
+    }
+  ];
+}
+function amountPickerCard(pick, userName, balance, note) {
+  const amountButton = (label, spec) => ({
+    type: "button",
+    id: PICK_AMOUNT_ACTION,
+    label,
+    value: `${pick.ticker}|${spec}`
+  });
+  return {
+    type: "card",
+    children: [
+      ...noteLine(note),
+      amountTitle(pick, userName, balance),
+      ...priceExplainer(pick),
+      ...PRESET_SHARES.map((shares) => ({
+        type: "actions",
+        children: [amountButton(presetLabel(shares, pick.priceCents), `${shares}s`)]
+      })),
+      {
+        type: "actions",
+        children: [amountButton("Custom amount…", "custom")]
+      },
+      {
+        type: "actions",
+        children: [
+          {
+            type: "button",
+            id: PICK_EVENT_ACTION,
+            label: "← Outcomes",
+            value: pick.eventTicker
+          }
+        ]
+      }
+    ]
+  };
+}
+function customAmountCard(pick, userName, balance, note) {
+  return {
+    type: "card",
+    children: [
+      ...noteLine(note),
+      amountTitle(pick, userName, balance),
+      ...priceExplainer(pick),
+      { type: "text", content: `Reply with a dollar amount, e.g. 50 — or "cancel".` },
+      {
+        type: "actions",
+        children: [
+          {
+            type: "button",
+            id: PICK_OUTCOME_ACTION,
+            label: "← Amounts",
+            value: pick.ticker
+          }
+        ]
+      }
+    ]
+  };
+}
+function betCelebration(userName, outcome, contracts, price, cost) {
+  return [
+    `\uD83C\uDF86\uD83C\uDF87✨ BET PLACED ✨\uD83C\uDF87\uD83C\uDF86`,
+    `\uD83C\uDF89 ${userName} bought ${contracts.toLocaleString("en-US")} ${outcome} shares @ ${price}¢ for ${formatDollars(cost)}`,
+    `\uD83D\uDCB0 Pays ${formatDollars(contracts * 100)} if ${outcome} wins \uD83C\uDFC6`
+  ].join(`
+`);
+}
+function isNotModified(err) {
+  return String(err).includes("not modified");
+}
+async function showView(event, card) {
+  if (!event.thread)
+    return;
+  try {
+    await menuHandle(event.thread, event.messageId).edit({ card, fallbackText: MENU_FALLBACK });
+  } catch (err) {
+    if (isNotModified(err))
+      return;
+    const sent = await event.thread.post({ card, fallbackText: MENU_FALLBACK });
+    await setMenu(event.thread, event.user.userId, sent.id);
+  }
+}
+async function editMenu(thread, menuMessageId, card) {
+  try {
+    await menuHandle(thread, menuMessageId).edit({ card, fallbackText: MENU_FALLBACK });
+    return true;
+  } catch (err) {
+    return isNotModified(err);
+  }
+}
+async function claimMenu(event) {
+  if (!event.thread)
+    return false;
+  const owner = menuOwner(await getBetState(event.thread), event.messageId);
+  if (owner === event.user.userId)
+    return true;
+  if (owner == null) {
+    await setMenu(event.thread, event.user.userId, event.messageId);
+    return true;
+  }
+  await event.thread.post(`${event.user.fullName}: that menu belongs to someone else — type /bet to get your own.`);
+  return false;
+}
+async function handlePickEvent(event) {
+  if (!event.value)
+    return;
+  if (!await claimMenu(event))
+    return;
+  const card = await outcomesCard(event.value, event.user.fullName);
+  if (!card) {
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
+    return;
+  }
+  await showView(event, card);
+}
+async function handleBackToEvents(event) {
+  if (!await claimMenu(event))
+    return;
+  await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
+}
+async function loadPick(ticker, menuMessageId) {
+  const [market] = await db2.select({
+    outcome: markets.outcome,
+    eventTicker: markets.eventTicker,
+    yesAsk: markets.yesAsk
+  }).from(markets).where(eq(markets.ticker, ticker)).limit(1);
+  if (!market)
+    return null;
+  return {
+    ticker,
+    outcome: market.outcome,
+    eventTicker: market.eventTicker,
+    priceCents: market.yesAsk,
+    menuMessageId
+  };
+}
+async function handlePickOutcome(event) {
+  const ticker = event.value;
+  if (!ticker)
+    return;
+  if (!await claimMenu(event))
+    return;
+  const pick = await loadPick(ticker, event.messageId);
+  if (!pick) {
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
+    return;
+  }
+  const userId = await findUser(telegramProfileFromAction(event));
+  if (userId == null) {
+    await event.thread?.post(`${event.user.fullName}: ${REGISTER_PROMPT}`);
+    return;
+  }
+  if (event.thread)
+    await setPendingPick(event.thread, event.user.userId, pick);
+  const balance = await balanceCents(userId);
+  await showView(event, amountPickerCard(pick, event.user.fullName, balance));
+}
+async function handlePickAmount(event) {
+  const [ticker, spec] = (event.value ?? "").split("|");
+  if (!ticker || !spec)
+    return;
+  if (!await claimMenu(event))
+    return;
+  const pick = await loadPick(ticker, event.messageId);
+  if (!pick) {
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
+    return;
+  }
+  const userName = event.user.fullName;
+  const profile = telegramProfileFromAction(event);
+  const userId = await findUser(profile);
+  if (userId == null) {
+    await event.thread?.post(`${userName}: ${REGISTER_PROMPT}`);
+    return;
+  }
+  const balance = await balanceCents(userId);
+  if (spec === "custom") {
+    if (event.thread)
+      await setPendingPick(event.thread, event.user.userId, pick);
+    await showView(event, customAmountCard(pick, userName, balance));
+    return;
+  }
+  let stakeCents;
+  if (spec.endsWith("s")) {
+    const shares = Number(spec.slice(0, -1));
+    stakeCents = Number.isInteger(shares) && pick.priceCents != null ? shares * pick.priceCents : Number.NaN;
+  } else {
+    stakeCents = Number(spec);
+  }
+  if (!Number.isInteger(stakeCents) || stakeCents <= 0) {
+    const note = spec.endsWith("s") ? `No live price for ${pick.outcome} right now — try again after the next sync.` : `That amount didn't parse.`;
+    await showView(event, amountPickerCard(pick, userName, balance, note));
+    return;
+  }
+  if (stakeCents > balance) {
+    await showView(event, amountPickerCard(pick, userName, balance, `Not enough funds — your balance is ${formatDollars(balance)}.`));
+    return;
+  }
+  try {
+    const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
+    if (event.thread)
+      await clearPendingPick(event.thread, event.user.userId);
+    await showView(event, await eventsCard(userName) ?? emptyCard());
+    await event.thread?.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+  } catch (err) {
+    await showView(event, amountPickerCard(pick, userName, balance, `Couldn't place that bet: ${err instanceof Error ? err.message : err}`));
+  }
+}
+async function handleBetReply(thread, message) {
+  const pick = await getPendingPick(thread, message.author.userId);
+  if (!pick)
+    return false;
+  const userName = message.author.fullName;
+  const text8 = message.text?.trim() ?? "";
+  const backToEvents = async () => {
+    const card = await eventsCard(userName) ?? emptyCard();
+    if (!await editMenu(thread, pick.menuMessageId, card)) {
+      const sent = await thread.post({ card, fallbackText: MENU_FALLBACK });
+      await setMenu(thread, message.author.userId, sent.id);
+    }
+  };
+  if (/^cancel$/i.test(text8)) {
+    await clearPendingPick(thread, message.author.userId);
+    await backToEvents();
+    return true;
+  }
+  const profile = telegramProfile(message);
+  const userId = await findUser(profile);
+  if (userId == null) {
+    await clearPendingPick(thread, message.author.userId);
+    await thread.post(`${userName}: ${REGISTER_PROMPT}`);
+    return true;
+  }
+  const balance = await balanceCents(userId);
+  const reprompt = async (note) => {
+    if (!await editMenu(thread, pick.menuMessageId, customAmountCard(pick, userName, balance, note))) {
+      await thread.post(note);
+    }
+  };
+  const dollars = Number(text8.replace(/^\$/, ""));
+  if (!Number.isFinite(dollars) || dollars <= 0) {
+    await reprompt(`That's not a positive dollar amount.`);
+    return true;
+  }
+  const stakeCents = Math.round(dollars * 100);
+  if (stakeCents > balance) {
+    await reprompt(`Not enough funds — your balance is ${formatDollars(balance)}.`);
+    return true;
+  }
+  try {
+    const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
+    await clearPendingPick(thread, message.author.userId);
+    await backToEvents();
+    await thread.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+  } catch (err) {
+    await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);
+  }
+  return true;
+}
+function emptyCard() {
+  return {
+    type: "card",
+    children: [{ type: "text", content: "No markets available — run a sync first." }]
+  };
+}
+var PICK_EVENT_ACTION = "pick_event", PICK_OUTCOME_ACTION = "pick_outcome", PICK_AMOUNT_ACTION = "pick_amount", BACK_TO_EVENTS_ACTION = "back_events", NOOP_ACTION = "noop", PRESET_SHARES, MENU_FALLBACK = "Betting menu (buttons not supported here).", bet;
+var init_bet = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_house();
+  init_series();
+  init_sync();
+  PRESET_SHARES = [1000, 5000, 7500, 1e4];
+  bet = {
+    name: "bet",
+    description: "Browse events and place a bet",
+    usage: "/bet",
+    handler: async ({ thread, message }) => {
+      const card = await eventsCard(message.author.fullName);
+      if (!card) {
+        await thread.post("No markets in the database yet — run a sync first.");
+        return;
+      }
+      const userId = message.author.userId;
+      const previousId = (await getBetState(thread))?.menus?.[userId];
+      if (previousId) {
+        await menuHandle(thread, previousId).delete().catch(() => {});
+      }
+      await clearPendingPick(thread, userId);
+      const sent = await thread.post({ card, fallbackText: MENU_FALLBACK });
+      await setMenu(thread, userId, sent.id);
+    }
+  };
+});
+
+// src/bot/commands/bets.ts
+function betCountLabel(n) {
+  return n === 1 ? "1 bet" : `${n} bets`;
+}
+async function openBetCounts() {
+  const rows = await db2.select({ eventTicker: markets.eventTicker, betCount: count(bets.id) }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).where(eq(bets.status, "open")).groupBy(markets.eventTicker);
+  return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
+}
+async function betsEventsCard() {
+  const rows = await upcomingEvents();
+  if (rows.length === 0)
+    return null;
+  const counts = await openBetCounts();
+  return {
+    type: "card",
+    children: [
+      { type: "text", content: "Open bets by event", style: "bold" },
+      ...groupBySeries(rows).flatMap((group) => [
+        seriesHeaderRow(group.seriesTicker),
+        ...group.events.map((e) => ({
+          type: "actions",
+          children: [
+            {
+              type: "button",
+              id: BETS_PICK_EVENT_ACTION,
+              label: `${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
+              value: e.eventTicker
+            }
+          ]
+        }))
+      ])
+    ]
+  };
+}
+async function eventBetsCard(eventTicker) {
+  const [event] = await db2.select({ title: events.title, startsAt: events.startsAt }).from(events).where(eq(events.eventTicker, eventTicker)).limit(1);
+  if (!event)
+    return null;
+  const rows = await db2.select({
+    outcome: markets.outcome,
+    side: bets.side,
+    contracts: bets.contracts,
+    priceCents: bets.priceCents,
+    costCents: bets.costCents,
+    username: users.username,
+    firstName: users.firstName,
+    lastName: users.lastName
+  }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).innerJoin(users, eq(users.id, bets.userId)).where(and(eq(markets.eventTicker, eventTicker), eq(bets.status, "open"))).orderBy(asc(bets.id));
+  const header = `${event.title} — ${kickoffLabel(event.startsAt)} — ` + `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
+  const lines = rows.length === 0 ? [{ type: "text", content: "No open bets yet — type /bet to place the first one." }] : rows.map((bet2, i) => ({
+    type: "text",
+    content: `${i + 1}. ${displayName(bet2)} — ${bet2.outcome} ${bet2.side.toUpperCase()}, ` + `${bet2.contracts.toLocaleString("en-US")} shares @ ${bet2.priceCents}¢ ` + `(cost ${formatDollars(bet2.costCents)}, pays ${formatDollars(bet2.contracts * 100)})`
+  }));
+  return {
+    type: "card",
+    children: [
+      { type: "text", content: header, style: "bold" },
+      ...lines,
+      {
+        type: "actions",
+        children: [{ type: "button", id: BETS_BACK_ACTION, label: "← All events" }]
+      }
+    ]
+  };
+}
+async function showBetsView(event, card) {
+  if (!event.thread)
+    return;
+  try {
+    await menuHandle(event.thread, event.messageId).edit({ card, fallbackText: BETS_FALLBACK });
+  } catch (err) {
+    if (isNotModified(err))
+      return;
+    await event.thread.post({ card, fallbackText: BETS_FALLBACK });
+  }
+}
+async function handleBetsPickEvent(event) {
+  if (!event.value)
+    return;
+  const card = await eventBetsCard(event.value) ?? await betsEventsCard();
+  if (card)
+    await showBetsView(event, card);
+}
+async function handleBetsBack(event) {
+  const card = await betsEventsCard();
+  if (card)
+    await showBetsView(event, card);
+}
+var BETS_PICK_EVENT_ACTION = "bets_event", BETS_BACK_ACTION = "bets_back", BETS_FALLBACK = "Open bets (buttons not supported here).", bets2;
+var init_bets = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_bet();
+  bets2 = {
+    name: "bets",
+    description: "See everyone's open bets by event",
+    usage: "/bets",
+    handler: async ({ thread }) => {
+      const card = await betsEventsCard();
+      if (!card) {
+        await thread.post("No markets in the database yet — run a sync first.");
+        return;
+      }
+      await thread.post({ card, fallbackText: BETS_FALLBACK });
+    }
+  };
+});
+
+// src/bot/commands/me.ts
+var me;
+var init_me = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_house();
+  me = {
+    name: "me",
+    description: "Show your balance and open bets",
+    usage: "/me",
+    handler: async ({ thread, message }) => {
+      const userId = await findUser(telegramProfile(message));
+      if (userId == null) {
+        await thread.post(REGISTER_PROMPT);
+        return;
+      }
+      const open = await db2.select({
+        id: bets.id,
+        outcome: markets.outcome,
+        side: bets.side,
+        contracts: bets.contracts,
+        priceCents: bets.priceCents,
+        costCents: bets.costCents,
+        startsAt: events.startsAt
+      }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(and(eq(bets.userId, userId), eq(bets.status, "open"))).orderBy(asc(events.startsAt), asc(bets.id));
+      const atRiskCents = open.reduce((total, bet2) => total + bet2.costCents, 0);
+      const lines = [
+        `${message.author.fullName}`,
+        `Balance: ${formatDollars(await balanceCents(userId))}`,
+        `At risk in open bets: ${formatDollars(atRiskCents)}`
+      ];
+      if (open.length === 0) {
+        lines.push("", "No open bets. Type /bet to place one.");
+      } else {
+        lines.push("", "Open bets, kicking off soonest first:");
+        for (const bet2 of open) {
+          lines.push(`#${bet2.id} ${bet2.outcome} ${bet2.side.toUpperCase()} — ${bet2.contracts} @ ${bet2.priceCents}¢ → ${formatDollars(bet2.contracts * 100)} · ${bet2.startsAt ? formatEastern(bet2.startsAt) : "kickoff TBD"}`);
+        }
+      }
+      await thread.post(lines.join(`
+`));
+    }
+  };
+});
+
+// src/bot/commands/start.ts
+function randomWelcomeGif() {
+  return WELCOME_GIFS[Math.floor(Math.random() * WELCOME_GIFS.length)];
+}
+var WELCOME_GIFS, start;
+var init_start = __esm(() => {
+  init_house();
+  WELCOME_GIFS = [
+    "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif",
+    "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif",
+    "https://media.giphy.com/media/ASd0Ukj0y3qMM/giphy.gif",
+    "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif"
+  ];
+  start = {
+    name: "start",
+    description: "Collect your bankroll and start betting",
+    usage: "/start",
+    handler: async ({ thread, message }) => {
+      const { userId, created } = await registerUser(telegramProfile(message));
+      const balance = formatDollars(await balanceCents(userId));
+      if (!created) {
+        await thread.post([
+          `Welcome back, ${message.author.fullName}! Your balance is ${balance}.`,
+          "Place a bet with /bet and check your account with /me.",
+          "Type /help to see everything I can do."
+        ].join(`
+`));
+        return;
+      }
+      await thread.post(randomWelcomeGif());
+      await thread.post([
+        `\uD83C\uDF89 Welcome aboard, ${message.author.fullName}!`,
+        "",
+        `Your account is live with a ${balance} bankroll — now go make some money \uD83D\uDCB0, playa!`,
+        "",
+        "Type /bet to place your first bet, and check /me any time."
+      ].join(`
+`));
+    }
+  };
+});
+
+// src/bot/commands/index.ts
+var exports_commands = {};
+__export(exports_commands, {
+  dispatchCommand: () => dispatchCommand,
+  commands: () => commands
+});
+async function dispatchCommand(thread, message) {
+  const match = COMMAND_RE.exec(message.text?.trim() ?? "");
+  if (!match)
+    return false;
+  const [, name, rest = ""] = match;
+  const command = byName.get(name.toLowerCase());
+  if (!command) {
+    await thread.post(`Unknown command /${name}. Try /help.`);
+    return true;
+  }
+  const args = rest.trim() === "" ? [] : rest.trim().split(/\s+/);
+  await command.handler({ thread, message, args });
+  return true;
+}
+var commands, byName, COMMAND_RE;
+var init_commands = __esm(() => {
+  init_help();
+  init_leaderboard();
+  init_bet();
+  init_bets();
+  init_me();
+  init_start();
+  commands = [start, help, bet, bets2, me, leaderboard];
+  byName = new Map(commands.map((c2) => [c2.name, c2]));
+  COMMAND_RE = /^\/([a-z0-9_]+)(?:@\S+)?(?:\s+([\s\S]*))?$/i;
+});
+
+// src/bot/index.ts
+var telegram, state, bot;
+var init_bot = __esm(() => {
+  init_dist4();
+  init_dist6();
+  init_dist7();
+  init_commands();
+  init_bet();
+  init_bets();
+  telegram = createTelegramAdapter({
+    mode: "auto"
+  });
+  state = createPostgresState();
+  bot = new Chat({
+    userName: process.env.TELEGRAM_BOT_USERNAME ?? "bot",
+    adapters: { telegram },
+    state
+  });
+  bot.onNewMention(async (thread, message) => {
+    await thread.subscribe();
+    if (await dispatchCommand(thread, message))
+      return;
+    await thread.post(`Hi ${message.author.fullName}! I'm now listening to this group. Try /help.`);
+  });
+  bot.onDirectMessage(async (thread, message) => {
+    await thread.subscribe();
+    if (await dispatchCommand(thread, message))
+      return;
+    if (await handleBetReply(thread, message))
+      return;
+    await thread.post("Hello! I respond to slash commands — try /help.");
+  });
+  bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
+  bot.onAction(PICK_OUTCOME_ACTION, handlePickOutcome);
+  bot.onAction(PICK_AMOUNT_ACTION, handlePickAmount);
+  bot.onAction(BACK_TO_EVENTS_ACTION, handleBackToEvents);
+  bot.onAction(NOOP_ACTION, async () => {});
+  bot.onAction(BETS_PICK_EVENT_ACTION, handleBetsPickEvent);
+  bot.onAction(BETS_BACK_ACTION, handleBetsBack);
+  bot.onNewMessage(/^\//, async (thread, message) => {
+    await thread.subscribe();
+    await dispatchCommand(thread, message);
+  });
+  bot.onSubscribedMessage(async (thread, message) => {
+    if (await dispatchCommand(thread, message))
+      return;
+    await handleBetReply(thread, message);
+  });
+});
+
+// src/utils/announce.ts
+function pickRandom(pool) {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+async function groupThreadIds() {
+  const rows = await sql4`
+    SELECT DISTINCT thread_id FROM chat_state_subscriptions
+    WHERE thread_id LIKE 'telegram:-%'
+  `;
+  return rows.map((r) => r.thread_id);
+}
+async function announceSettlements(settlements, voidedBets) {
+  const settled = settlements.flatMap((s) => s.bets);
+  if (settled.length === 0 && voidedBets === 0)
+    return 0;
+  const threadIds = await groupThreadIds();
+  if (threadIds.length === 0)
+    return 0;
+  await state.connect();
+  const { winnerLines, loserLines } = await buildLines(settlements);
+  const posts = [];
+  if (winnerLines.length) {
+    posts.push("\uD83C\uDFC6\uD83E\uDD47 WINNER'S CIRCLE \uD83E\uDD47\uD83C\uDFC6", pickRandom(VICTORY_GIFS), winnerLines.join(`
+`));
+  }
+  if (loserLines.length) {
+    posts.push("\uD83D\uDC80\uD83E\uDD21 LOSER'S CIRCLE \uD83E\uDD21\uD83D\uDC80", pickRandom(SHAME_GIFS), loserLines.join(`
+`));
+  }
+  if (voidedBets > 0) {
+    posts.push(`♻️ ${voidedBets} bet${voidedBets === 1 ? "" : "s"} voided and refunded.`);
+  }
+  let posted = 0;
+  for (const threadId of threadIds) {
+    try {
+      const thread = bot.thread(threadId);
+      for (const post of posts)
+        await thread.post(post);
+      posted++;
+    } catch (error) {
+      console.error(`settlement announcement failed for ${threadId}:`, error);
+    }
+  }
+  return posted;
+}
+async function buildLines(settlements) {
+  const tickers = settlements.map((s) => s.marketTicker);
+  const context = tickers.length ? await db2.select({ ticker: markets.ticker, outcome: markets.outcome, title: events.title }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(inArray(markets.ticker, tickers)) : [];
+  const marketInfo = new Map(context.map((c2) => [c2.ticker, c2]));
+  const userIds = [...new Set(settlements.flatMap((s) => s.bets.map((b3) => b3.userId)))];
+  const userRows = userIds.length ? await db2.select().from(users).where(inArray(users.id, userIds)) : [];
+  const userById = new Map(userRows.map((u2) => [u2.id, u2]));
+  const winnerLines = [];
+  const loserLines = [];
+  for (const settlement of settlements) {
+    for (const bet2 of settlement.bets) {
+      const user = userById.get(bet2.userId);
+      const name = user ? displayName(user) : "A mystery bettor";
+      const info = marketInfo.get(settlement.marketTicker);
+      const pick = info ? `${bet2.side === "yes" ? "on" : "against"} ${info.outcome} (${info.title})` : `on ${settlement.marketTicker}`;
+      if (bet2.won) {
+        const payout = bet2.contracts * 100;
+        winnerLines.push(`• ${name} ${pickRandom(VICTORY_PHRASES)} — bet ${formatDollars(bet2.costCents)} ${pick} → paid ${formatDollars(payout)} (+${formatDollars(payout - bet2.costCents)})`);
+      } else {
+        loserLines.push(`• ${name} ${pickRandom(SHAME_PHRASES)} — bet ${formatDollars(bet2.costCents)} ${pick} → up in smoke \uD83D\uDCA8`);
+      }
+    }
+  }
+  return { winnerLines, loserLines };
+}
+var VICTORY_GIFS, SHAME_GIFS, VICTORY_PHRASES, SHAME_PHRASES;
+var init_announce = __esm(() => {
+  init_drizzle_orm();
+  init_bot();
+  init_db2();
+  init_schema2();
+  VICTORY_GIFS = [
+    "https://media.giphy.com/media/LdOyjZ7io5Msw/giphy.gif",
+    "https://media.giphy.com/media/LCdPNT81vlv3y/giphy.gif",
+    "https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif",
+    "https://media.giphy.com/media/JltOMwYmi0VrO/giphy.gif",
+    "https://media.giphy.com/media/TdfyKrN7HGTIY/giphy.gif"
+  ];
+  SHAME_GIFS = [
+    "https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif",
+    "https://media.giphy.com/media/kKdgdeuO2M08M/giphy.gif",
+    "https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif",
+    "https://media.giphy.com/media/ISOckXUybVfQ4/giphy.gif"
+  ];
+  VICTORY_PHRASES = [
+    "took home the victory",
+    "cashed a fat ticket",
+    "beat the house like a drum",
+    "called it like a prophet",
+    "is eating GOOD tonight",
+    "just printed money"
+  ];
+  SHAME_PHRASES = [
+    "shit the bed",
+    "fumbled the bag",
+    "made a generous donation to the house",
+    "got absolutely cooked",
+    "lit cash on fire",
+    "never stood a chance"
+  ];
 });
 
 // node_modules/delayed-stream/lib/delayed_stream.js
@@ -16724,7 +42161,7 @@ var require_mime_types = __commonJS((exports) => {
   exports.charset = charset;
   exports.charsets = { lookup: charset };
   exports.contentType = contentType;
-  exports.extension = extension;
+  exports.extension = extension2;
   exports.extensions = Object.create(null);
   exports.lookup = lookup;
   exports.types = Object.create(null);
@@ -16758,7 +42195,7 @@ var require_mime_types = __commonJS((exports) => {
     }
     return mime;
   }
-  function extension(type) {
+  function extension2(type) {
     if (!type || typeof type !== "string") {
       return false;
     }
@@ -16769,17 +42206,17 @@ var require_mime_types = __commonJS((exports) => {
     }
     return exts[0];
   }
-  function lookup(path) {
-    if (!path || typeof path !== "string") {
+  function lookup(path2) {
+    if (!path2 || typeof path2 !== "string") {
       return false;
     }
-    var extension2 = extname("x." + path).toLowerCase().substr(1);
-    if (!extension2) {
+    var extension3 = extname("x." + path2).toLowerCase().substr(1);
+    if (!extension3) {
       return false;
     }
-    return exports.types[extension2] || false;
+    return exports.types[extension3] || false;
   }
-  function populateMaps(extensions, types2) {
+  function populateMaps(extensions, types4) {
     var preference = ["nginx", "apache", undefined, "iana"];
     Object.keys(db3).forEach(function forEachMimeType(type) {
       var mime = db3[type];
@@ -16789,15 +42226,15 @@ var require_mime_types = __commonJS((exports) => {
       }
       extensions[type] = exts;
       for (var i = 0;i < exts.length; i++) {
-        var extension2 = exts[i];
-        if (types2[extension2]) {
-          var from = preference.indexOf(db3[types2[extension2]].source);
+        var extension3 = exts[i];
+        if (types4[extension3]) {
+          var from = preference.indexOf(db3[types4[extension3]].source);
           var to = preference.indexOf(mime.source);
-          if (types2[extension2] !== "application/octet-stream" && (from > to || from === to && types2[extension2].substr(0, 12) === "application/")) {
+          if (types4[extension3] !== "application/octet-stream" && (from > to || from === to && types4[extension3].substr(0, 12) === "application/")) {
             continue;
           }
         }
-        types2[extension2] = type;
+        types4[extension3] = type;
       }
     });
   }
@@ -16806,12 +42243,12 @@ var require_mime_types = __commonJS((exports) => {
 // node_modules/asynckit/lib/defer.js
 var require_defer = __commonJS((exports, module) => {
   module.exports = defer;
-  function defer(fn) {
+  function defer(fn2) {
     var nextTick = typeof setImmediate == "function" ? setImmediate : typeof process == "object" && typeof process.nextTick == "function" ? process.nextTick : null;
     if (nextTick) {
-      nextTick(fn);
+      nextTick(fn2);
     } else {
-      setTimeout(fn, 0);
+      setTimeout(fn2, 0);
     }
   }
 });
@@ -16840,9 +42277,9 @@ var require_async = __commonJS((exports, module) => {
 // node_modules/asynckit/lib/abort.js
 var require_abort = __commonJS((exports, module) => {
   module.exports = abort;
-  function abort(state) {
-    Object.keys(state.jobs).forEach(clean.bind(state));
-    state.jobs = {};
+  function abort(state2) {
+    Object.keys(state2.jobs).forEach(clean.bind(state2));
+    state2.jobs = {};
   }
   function clean(key) {
     if (typeof this.jobs[key] == "function") {
@@ -16856,19 +42293,19 @@ var require_iterate = __commonJS((exports, module) => {
   var async = require_async();
   var abort = require_abort();
   module.exports = iterate;
-  function iterate(list, iterator, state, callback) {
-    var key = state["keyedList"] ? state["keyedList"][state.index] : state.index;
-    state.jobs[key] = runJob(iterator, key, list[key], function(error, output) {
-      if (!(key in state.jobs)) {
+  function iterate(list4, iterator, state2, callback) {
+    var key = state2["keyedList"] ? state2["keyedList"][state2.index] : state2.index;
+    state2.jobs[key] = runJob(iterator, key, list4[key], function(error, output) {
+      if (!(key in state2.jobs)) {
         return;
       }
-      delete state.jobs[key];
+      delete state2.jobs[key];
       if (error) {
-        abort(state);
+        abort(state2);
       } else {
-        state.results[key] = output;
+        state2.results[key] = output;
       }
-      callback(error, state.results);
+      callback(error, state2.results);
     });
   }
   function runJob(iterator, key, item, callback) {
@@ -16884,18 +42321,18 @@ var require_iterate = __commonJS((exports, module) => {
 
 // node_modules/asynckit/lib/state.js
 var require_state = __commonJS((exports, module) => {
-  module.exports = state;
-  function state(list, sortMethod) {
-    var isNamedList = !Array.isArray(list), initState = {
+  module.exports = state2;
+  function state2(list4, sortMethod) {
+    var isNamedList = !Array.isArray(list4), initState = {
       index: 0,
-      keyedList: isNamedList || sortMethod ? Object.keys(list) : null,
+      keyedList: isNamedList || sortMethod ? Object.keys(list4) : null,
       jobs: {},
       results: isNamedList ? {} : [],
-      size: isNamedList ? Object.keys(list).length : list.length
+      size: isNamedList ? Object.keys(list4).length : list4.length
     };
     if (sortMethod) {
-      initState.keyedList.sort(isNamedList ? sortMethod : function(a, b2) {
-        return sortMethod(list[a], list[b2]);
+      initState.keyedList.sort(isNamedList ? sortMethod : function(a, b3) {
+        return sortMethod(list4[a], list4[b3]);
       });
     }
     return initState;
@@ -16923,22 +42360,22 @@ var require_parallel = __commonJS((exports, module) => {
   var initState = require_state();
   var terminator = require_terminator();
   module.exports = parallel;
-  function parallel(list, iterator, callback) {
-    var state = initState(list);
-    while (state.index < (state["keyedList"] || list).length) {
-      iterate(list, iterator, state, function(error, result) {
+  function parallel(list4, iterator, callback) {
+    var state2 = initState(list4);
+    while (state2.index < (state2["keyedList"] || list4).length) {
+      iterate(list4, iterator, state2, function(error, result) {
         if (error) {
           callback(error, result);
           return;
         }
-        if (Object.keys(state.jobs).length === 0) {
-          callback(null, state.results);
+        if (Object.keys(state2.jobs).length === 0) {
+          callback(null, state2.results);
           return;
         }
       });
-      state.index++;
+      state2.index++;
     }
-    return terminator.bind(state, callback);
+    return terminator.bind(state2, callback);
   }
 });
 
@@ -16950,27 +42387,27 @@ var require_serialOrdered = __commonJS((exports, module) => {
   module.exports = serialOrdered;
   module.exports.ascending = ascending;
   module.exports.descending = descending;
-  function serialOrdered(list, iterator, sortMethod, callback) {
-    var state = initState(list, sortMethod);
-    iterate(list, iterator, state, function iteratorHandler(error, result) {
+  function serialOrdered(list4, iterator, sortMethod, callback) {
+    var state2 = initState(list4, sortMethod);
+    iterate(list4, iterator, state2, function iteratorHandler(error, result) {
       if (error) {
         callback(error, result);
         return;
       }
-      state.index++;
-      if (state.index < (state["keyedList"] || list).length) {
-        iterate(list, iterator, state, iteratorHandler);
+      state2.index++;
+      if (state2.index < (state2["keyedList"] || list4).length) {
+        iterate(list4, iterator, state2, iteratorHandler);
         return;
       }
-      callback(null, state.results);
+      callback(null, state2.results);
     });
-    return terminator.bind(state, callback);
+    return terminator.bind(state2, callback);
   }
-  function ascending(a, b2) {
-    return a < b2 ? -1 : a > b2 ? 1 : 0;
+  function ascending(a, b3) {
+    return a < b3 ? -1 : a > b3 ? 1 : 0;
   }
-  function descending(a, b2) {
-    return -1 * ascending(a, b2);
+  function descending(a, b3) {
+    return -1 * ascending(a, b3);
   }
 });
 
@@ -16978,8 +42415,8 @@ var require_serialOrdered = __commonJS((exports, module) => {
 var require_serial = __commonJS((exports, module) => {
   var serialOrdered = require_serialOrdered();
   module.exports = serial3;
-  function serial3(list, iterator, callback) {
-    return serialOrdered(list, iterator, null, callback);
+  function serial3(list4, iterator, callback) {
+    return serialOrdered(list4, iterator, null, callback);
   }
 });
 
@@ -17198,20 +42635,20 @@ var require_implementation = __commonJS((exports, module) => {
   var toStr = Object.prototype.toString;
   var max = Math.max;
   var funcType = "[object Function]";
-  var concatty = function concatty2(a, b2) {
+  var concatty = function concatty2(a, b3) {
     var arr = [];
     for (var i = 0;i < a.length; i += 1) {
       arr[i] = a[i];
     }
-    for (var j = 0;j < b2.length; j += 1) {
-      arr[j + a.length] = b2[j];
+    for (var j2 = 0;j2 < b3.length; j2 += 1) {
+      arr[j2 + a.length] = b3[j2];
     }
     return arr;
   };
   var slicy = function slicy2(arrLike, offset) {
     var arr = [];
-    for (var i = offset || 0, j = 0;i < arrLike.length; i += 1, j += 1) {
-      arr[j] = arrLike[i];
+    for (var i = offset || 0, j2 = 0;i < arrLike.length; i += 1, j2 += 1) {
+      arr[j2] = arrLike[i];
     }
     return arr;
   };
@@ -17327,15 +42764,15 @@ var require_get_proto = __commonJS((exports, module) => {
   var reflectGetProto = require_Reflect_getPrototypeOf();
   var originalGetProto = require_Object_getPrototypeOf();
   var getDunderProto = require_get();
-  module.exports = reflectGetProto ? function getProto(O) {
-    return reflectGetProto(O);
-  } : originalGetProto ? function getProto(O) {
-    if (!O || typeof O !== "object" && typeof O !== "function") {
+  module.exports = reflectGetProto ? function getProto(O2) {
+    return reflectGetProto(O2);
+  } : originalGetProto ? function getProto(O2) {
+    if (!O2 || typeof O2 !== "object" && typeof O2 !== "function") {
       throw new TypeError("getProto: not an object");
     }
-    return originalGetProto(O);
-  } : getDunderProto ? function getProto(O) {
-    return getDunderProto(O);
+    return originalGetProto(O2);
+  } : getDunderProto ? function getProto(O2) {
+    return getDunderProto(O2);
   } : null;
 });
 
@@ -17497,9 +42934,9 @@ var require_get_intrinsic = __commonJS((exports, module) => {
     } else if (name === "%AsyncGeneratorFunction%") {
       value = getEvalledConstructor("async function* () {}");
     } else if (name === "%AsyncGenerator%") {
-      var fn = doEval2("%AsyncGeneratorFunction%");
-      if (fn) {
-        value = fn.prototype;
+      var fn2 = doEval2("%AsyncGeneratorFunction%");
+      if (fn2) {
+        value = fn2.prototype;
       }
     } else if (name === "%AsyncIteratorPrototype%") {
       var gen = doEval2("%AsyncGenerator%");
@@ -17573,16 +43010,16 @@ var require_get_intrinsic = __commonJS((exports, module) => {
   var $exec = bind.call($call, RegExp.prototype.exec);
   var rePropName = /[^%.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|%$))/g;
   var reEscapeChar = /\\(\\)?/g;
-  var stringToPath = function stringToPath2(string) {
-    var first = $strSlice(string, 0, 1);
-    var last = $strSlice(string, -1);
+  var stringToPath = function stringToPath2(string3) {
+    var first = $strSlice(string3, 0, 1);
+    var last = $strSlice(string3, -1);
     if (first === "%" && last !== "%") {
       throw new $SyntaxError("invalid intrinsic syntax, expected closing `%`");
     } else if (last === "%" && first !== "%") {
       throw new $SyntaxError("invalid intrinsic syntax, expected opening `%`");
     }
     var result = [];
-    $replace(string, rePropName, function(match, number, quote, subString) {
+    $replace(string3, rePropName, function(match, number, quote, subString) {
       result[result.length] = quote ? $replace(subString, reEscapeChar, "$1") : number || match;
     });
     return result;
@@ -17724,7 +43161,7 @@ var require_populate = __commonJS((exports, module) => {
 var require_form_data = __commonJS((exports, module) => {
   var CombinedStream = require_combined_stream();
   var util = __require("util");
-  var path = __require("path");
+  var path2 = __require("path");
   var http = __require("http");
   var https = __require("https");
   var parseUrl2 = __require("url").parse;
@@ -17851,11 +43288,11 @@ var require_form_data = __commonJS((exports, module) => {
   FormData2.prototype._getContentDisposition = function(value, options) {
     var filename;
     if (typeof options.filepath === "string") {
-      filename = path.normalize(options.filepath).replace(/\\/g, "/");
+      filename = path2.normalize(options.filepath).replace(/\\/g, "/");
     } else if (options.filename || value && (value.name || value.path)) {
-      filename = path.basename(options.filename || value && (value.name || value.path));
+      filename = path2.basename(options.filename || value && (value.name || value.path));
     } else if (value && value.readable && hasOwn(value, "httpVersion")) {
-      filename = path.basename(value.client._httpMessage.path || "");
+      filename = path2.basename(value.client._httpMessage.path || "");
     }
     if (filename) {
       return 'filename="' + filename + '"';
@@ -17963,12 +43400,12 @@ var require_form_data = __commonJS((exports, module) => {
       process.nextTick(cb.bind(this, null, knownLength));
       return;
     }
-    asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function(err, values2) {
+    asynckit.parallel(this._valuesToMeasure, this._lengthRetriever, function(err, values3) {
       if (err) {
         cb(err);
         return;
       }
-      values2.forEach(function(length) {
+      values3.forEach(function(length) {
         knownLength += length;
       });
       cb(null, knownLength);
@@ -17977,7 +43414,7 @@ var require_form_data = __commonJS((exports, module) => {
   FormData2.prototype.submit = function(params, cb) {
     var request;
     var options;
-    var defaults = { method: "post" };
+    var defaults2 = { method: "post" };
     if (typeof params === "string") {
       params = parseUrl2(params);
       options = populate({
@@ -17985,9 +43422,9 @@ var require_form_data = __commonJS((exports, module) => {
         path: params.pathname,
         host: params.hostname,
         protocol: params.protocol
-      }, defaults);
+      }, defaults2);
     } else {
-      options = populate(params, defaults);
+      options = populate(params, defaults2);
       if (!options.port) {
         options.port = options.protocol === "https:" ? 443 : 80;
       }
@@ -18035,638 +43472,13 @@ var require_form_data = __commonJS((exports, module) => {
   module.exports = FormData2;
 });
 
-// node_modules/ms/index.js
-var require_ms = __commonJS((exports, module) => {
-  var s = 1000;
-  var m = s * 60;
-  var h = m * 60;
-  var d = h * 24;
-  var w = d * 7;
-  var y = d * 365.25;
-  module.exports = function(val, options) {
-    options = options || {};
-    var type = typeof val;
-    if (type === "string" && val.length > 0) {
-      return parse2(val);
-    } else if (type === "number" && isFinite(val)) {
-      return options.long ? fmtLong(val) : fmtShort(val);
-    }
-    throw new Error("val is not a non-empty string or a valid number. val=" + JSON.stringify(val));
-  };
-  function parse2(str) {
-    str = String(str);
-    if (str.length > 100) {
-      return;
-    }
-    var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(str);
-    if (!match) {
-      return;
-    }
-    var n = parseFloat(match[1]);
-    var type = (match[2] || "ms").toLowerCase();
-    switch (type) {
-      case "years":
-      case "year":
-      case "yrs":
-      case "yr":
-      case "y":
-        return n * y;
-      case "weeks":
-      case "week":
-      case "w":
-        return n * w;
-      case "days":
-      case "day":
-      case "d":
-        return n * d;
-      case "hours":
-      case "hour":
-      case "hrs":
-      case "hr":
-      case "h":
-        return n * h;
-      case "minutes":
-      case "minute":
-      case "mins":
-      case "min":
-      case "m":
-        return n * m;
-      case "seconds":
-      case "second":
-      case "secs":
-      case "sec":
-      case "s":
-        return n * s;
-      case "milliseconds":
-      case "millisecond":
-      case "msecs":
-      case "msec":
-      case "ms":
-        return n;
-      default:
-        return;
-    }
-  }
-  function fmtShort(ms) {
-    var msAbs = Math.abs(ms);
-    if (msAbs >= d) {
-      return Math.round(ms / d) + "d";
-    }
-    if (msAbs >= h) {
-      return Math.round(ms / h) + "h";
-    }
-    if (msAbs >= m) {
-      return Math.round(ms / m) + "m";
-    }
-    if (msAbs >= s) {
-      return Math.round(ms / s) + "s";
-    }
-    return ms + "ms";
-  }
-  function fmtLong(ms) {
-    var msAbs = Math.abs(ms);
-    if (msAbs >= d) {
-      return plural(ms, msAbs, d, "day");
-    }
-    if (msAbs >= h) {
-      return plural(ms, msAbs, h, "hour");
-    }
-    if (msAbs >= m) {
-      return plural(ms, msAbs, m, "minute");
-    }
-    if (msAbs >= s) {
-      return plural(ms, msAbs, s, "second");
-    }
-    return ms + " ms";
-  }
-  function plural(ms, msAbs, n, name) {
-    var isPlural = msAbs >= n * 1.5;
-    return Math.round(ms / n) + " " + name + (isPlural ? "s" : "");
-  }
-});
-
-// node_modules/debug/src/common.js
-var require_common = __commonJS((exports, module) => {
-  function setup(env) {
-    createDebug.debug = createDebug;
-    createDebug.default = createDebug;
-    createDebug.coerce = coerce;
-    createDebug.disable = disable;
-    createDebug.enable = enable;
-    createDebug.enabled = enabled;
-    createDebug.humanize = require_ms();
-    createDebug.destroy = destroy;
-    Object.keys(env).forEach((key) => {
-      createDebug[key] = env[key];
-    });
-    createDebug.names = [];
-    createDebug.skips = [];
-    createDebug.formatters = {};
-    function selectColor(namespace) {
-      let hash = 0;
-      for (let i = 0;i < namespace.length; i++) {
-        hash = (hash << 5) - hash + namespace.charCodeAt(i);
-        hash |= 0;
-      }
-      return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
-    }
-    createDebug.selectColor = selectColor;
-    function createDebug(namespace) {
-      let prevTime;
-      let enableOverride = null;
-      let namespacesCache;
-      let enabledCache;
-      function debug(...args) {
-        if (!debug.enabled) {
-          return;
-        }
-        const self2 = debug;
-        const curr = Number(new Date);
-        const ms = curr - (prevTime || curr);
-        self2.diff = ms;
-        self2.prev = prevTime;
-        self2.curr = curr;
-        prevTime = curr;
-        args[0] = createDebug.coerce(args[0]);
-        if (typeof args[0] !== "string") {
-          args.unshift("%O");
-        }
-        let index = 0;
-        args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
-          if (match === "%%") {
-            return "%";
-          }
-          index++;
-          const formatter = createDebug.formatters[format];
-          if (typeof formatter === "function") {
-            const val = args[index];
-            match = formatter.call(self2, val);
-            args.splice(index, 1);
-            index--;
-          }
-          return match;
-        });
-        createDebug.formatArgs.call(self2, args);
-        const logFn = self2.log || createDebug.log;
-        logFn.apply(self2, args);
-      }
-      debug.namespace = namespace;
-      debug.useColors = createDebug.useColors();
-      debug.color = createDebug.selectColor(namespace);
-      debug.extend = extend;
-      debug.destroy = createDebug.destroy;
-      Object.defineProperty(debug, "enabled", {
-        enumerable: true,
-        configurable: false,
-        get: () => {
-          if (enableOverride !== null) {
-            return enableOverride;
-          }
-          if (namespacesCache !== createDebug.namespaces) {
-            namespacesCache = createDebug.namespaces;
-            enabledCache = createDebug.enabled(namespace);
-          }
-          return enabledCache;
-        },
-        set: (v) => {
-          enableOverride = v;
-        }
-      });
-      if (typeof createDebug.init === "function") {
-        createDebug.init(debug);
-      }
-      return debug;
-    }
-    function extend(namespace, delimiter) {
-      const newDebug = createDebug(this.namespace + (typeof delimiter === "undefined" ? ":" : delimiter) + namespace);
-      newDebug.log = this.log;
-      return newDebug;
-    }
-    function enable(namespaces) {
-      createDebug.save(namespaces);
-      createDebug.namespaces = namespaces;
-      createDebug.names = [];
-      createDebug.skips = [];
-      const split = (typeof namespaces === "string" ? namespaces : "").trim().replace(/\s+/g, ",").split(",").filter(Boolean);
-      for (const ns of split) {
-        if (ns[0] === "-") {
-          createDebug.skips.push(ns.slice(1));
-        } else {
-          createDebug.names.push(ns);
-        }
-      }
-    }
-    function matchesTemplate(search, template) {
-      let searchIndex = 0;
-      let templateIndex = 0;
-      let starIndex = -1;
-      let matchIndex = 0;
-      while (searchIndex < search.length) {
-        if (templateIndex < template.length && (template[templateIndex] === search[searchIndex] || template[templateIndex] === "*")) {
-          if (template[templateIndex] === "*") {
-            starIndex = templateIndex;
-            matchIndex = searchIndex;
-            templateIndex++;
-          } else {
-            searchIndex++;
-            templateIndex++;
-          }
-        } else if (starIndex !== -1) {
-          templateIndex = starIndex + 1;
-          matchIndex++;
-          searchIndex = matchIndex;
-        } else {
-          return false;
-        }
-      }
-      while (templateIndex < template.length && template[templateIndex] === "*") {
-        templateIndex++;
-      }
-      return templateIndex === template.length;
-    }
-    function disable() {
-      const namespaces = [
-        ...createDebug.names,
-        ...createDebug.skips.map((namespace) => "-" + namespace)
-      ].join(",");
-      createDebug.enable("");
-      return namespaces;
-    }
-    function enabled(name) {
-      for (const skip of createDebug.skips) {
-        if (matchesTemplate(name, skip)) {
-          return false;
-        }
-      }
-      for (const ns of createDebug.names) {
-        if (matchesTemplate(name, ns)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    function coerce(val) {
-      if (val instanceof Error) {
-        return val.stack || val.message;
-      }
-      return val;
-    }
-    function destroy() {
-      console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
-    }
-    createDebug.enable(createDebug.load());
-    return createDebug;
-  }
-  module.exports = setup;
-});
-
-// node_modules/debug/src/browser.js
-var require_browser = __commonJS((exports, module) => {
-  exports.formatArgs = formatArgs;
-  exports.save = save;
-  exports.load = load;
-  exports.useColors = useColors;
-  exports.storage = localstorage();
-  exports.destroy = (() => {
-    let warned = false;
-    return () => {
-      if (!warned) {
-        warned = true;
-        console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
-      }
-    };
-  })();
-  exports.colors = [
-    "#0000CC",
-    "#0000FF",
-    "#0033CC",
-    "#0033FF",
-    "#0066CC",
-    "#0066FF",
-    "#0099CC",
-    "#0099FF",
-    "#00CC00",
-    "#00CC33",
-    "#00CC66",
-    "#00CC99",
-    "#00CCCC",
-    "#00CCFF",
-    "#3300CC",
-    "#3300FF",
-    "#3333CC",
-    "#3333FF",
-    "#3366CC",
-    "#3366FF",
-    "#3399CC",
-    "#3399FF",
-    "#33CC00",
-    "#33CC33",
-    "#33CC66",
-    "#33CC99",
-    "#33CCCC",
-    "#33CCFF",
-    "#6600CC",
-    "#6600FF",
-    "#6633CC",
-    "#6633FF",
-    "#66CC00",
-    "#66CC33",
-    "#9900CC",
-    "#9900FF",
-    "#9933CC",
-    "#9933FF",
-    "#99CC00",
-    "#99CC33",
-    "#CC0000",
-    "#CC0033",
-    "#CC0066",
-    "#CC0099",
-    "#CC00CC",
-    "#CC00FF",
-    "#CC3300",
-    "#CC3333",
-    "#CC3366",
-    "#CC3399",
-    "#CC33CC",
-    "#CC33FF",
-    "#CC6600",
-    "#CC6633",
-    "#CC9900",
-    "#CC9933",
-    "#CCCC00",
-    "#CCCC33",
-    "#FF0000",
-    "#FF0033",
-    "#FF0066",
-    "#FF0099",
-    "#FF00CC",
-    "#FF00FF",
-    "#FF3300",
-    "#FF3333",
-    "#FF3366",
-    "#FF3399",
-    "#FF33CC",
-    "#FF33FF",
-    "#FF6600",
-    "#FF6633",
-    "#FF9900",
-    "#FF9933",
-    "#FFCC00",
-    "#FFCC33"
-  ];
-  function useColors() {
-    if (typeof window !== "undefined" && window.process && (window.process.type === "renderer" || window.process.__nwjs)) {
-      return true;
-    }
-    if (typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
-      return false;
-    }
-    let m;
-    return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || typeof navigator !== "undefined" && navigator.userAgent && (m = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/)) && parseInt(m[1], 10) >= 31 || typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
-  }
-  function formatArgs(args) {
-    args[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args[0] + (this.useColors ? "%c " : " ") + "+" + module.exports.humanize(this.diff);
-    if (!this.useColors) {
-      return;
-    }
-    const c = "color: " + this.color;
-    args.splice(1, 0, c, "color: inherit");
-    let index = 0;
-    let lastC = 0;
-    args[0].replace(/%[a-zA-Z%]/g, (match) => {
-      if (match === "%%") {
-        return;
-      }
-      index++;
-      if (match === "%c") {
-        lastC = index;
-      }
-    });
-    args.splice(lastC, 0, c);
-  }
-  exports.log = console.debug || console.log || (() => {});
-  function save(namespaces) {
-    try {
-      if (namespaces) {
-        exports.storage.setItem("debug", namespaces);
-      } else {
-        exports.storage.removeItem("debug");
-      }
-    } catch (error) {}
-  }
-  function load() {
-    let r;
-    try {
-      r = exports.storage.getItem("debug") || exports.storage.getItem("DEBUG");
-    } catch (error) {}
-    if (!r && typeof process !== "undefined" && "env" in process) {
-      r = process.env.DEBUG;
-    }
-    return r;
-  }
-  function localstorage() {
-    try {
-      return localStorage;
-    } catch (error) {}
-  }
-  module.exports = require_common()(exports);
-  var { formatters } = module.exports;
-  formatters.j = function(v) {
-    try {
-      return JSON.stringify(v);
-    } catch (error) {
-      return "[UnexpectedJSONParseError]: " + error.message;
-    }
-  };
-});
-
-// node_modules/debug/src/node.js
-var require_node = __commonJS((exports, module) => {
-  var tty = __require("tty");
-  var util = __require("util");
-  exports.init = init;
-  exports.log = log;
-  exports.formatArgs = formatArgs;
-  exports.save = save;
-  exports.load = load;
-  exports.useColors = useColors;
-  exports.destroy = util.deprecate(() => {}, "Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
-  exports.colors = [6, 2, 3, 4, 5, 1];
-  try {
-    const supportsColor = (()=>{throw new Error("Cannot require module "+"supports-color");})();
-    if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
-      exports.colors = [
-        20,
-        21,
-        26,
-        27,
-        32,
-        33,
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        56,
-        57,
-        62,
-        63,
-        68,
-        69,
-        74,
-        75,
-        76,
-        77,
-        78,
-        79,
-        80,
-        81,
-        92,
-        93,
-        98,
-        99,
-        112,
-        113,
-        128,
-        129,
-        134,
-        135,
-        148,
-        149,
-        160,
-        161,
-        162,
-        163,
-        164,
-        165,
-        166,
-        167,
-        168,
-        169,
-        170,
-        171,
-        172,
-        173,
-        178,
-        179,
-        184,
-        185,
-        196,
-        197,
-        198,
-        199,
-        200,
-        201,
-        202,
-        203,
-        204,
-        205,
-        206,
-        207,
-        208,
-        209,
-        214,
-        215,
-        220,
-        221
-      ];
-    }
-  } catch (error) {}
-  exports.inspectOpts = Object.keys(process.env).filter((key) => {
-    return /^debug_/i.test(key);
-  }).reduce((obj, key) => {
-    const prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
-      return k.toUpperCase();
-    });
-    let val = process.env[key];
-    if (/^(yes|on|true|enabled)$/i.test(val)) {
-      val = true;
-    } else if (/^(no|off|false|disabled)$/i.test(val)) {
-      val = false;
-    } else if (val === "null") {
-      val = null;
-    } else {
-      val = Number(val);
-    }
-    obj[prop] = val;
-    return obj;
-  }, {});
-  function useColors() {
-    return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(process.stderr.fd);
-  }
-  function formatArgs(args) {
-    const { namespace: name, useColors: useColors2 } = this;
-    if (useColors2) {
-      const c = this.color;
-      const colorCode = "\x1B[3" + (c < 8 ? c : "8;5;" + c);
-      const prefix = `  ${colorCode};1m${name} \x1B[0m`;
-      args[0] = prefix + args[0].split(`
-`).join(`
-` + prefix);
-      args.push(colorCode + "m+" + module.exports.humanize(this.diff) + "\x1B[0m");
-    } else {
-      args[0] = getDate() + name + " " + args[0];
-    }
-  }
-  function getDate() {
-    if (exports.inspectOpts.hideDate) {
-      return "";
-    }
-    return new Date().toISOString() + " ";
-  }
-  function log(...args) {
-    return process.stderr.write(util.formatWithOptions(exports.inspectOpts, ...args) + `
-`);
-  }
-  function save(namespaces) {
-    if (namespaces) {
-      process.env.DEBUG = namespaces;
-    } else {
-      delete process.env.DEBUG;
-    }
-  }
-  function load() {
-    return process.env.DEBUG;
-  }
-  function init(debug) {
-    debug.inspectOpts = {};
-    const keys = Object.keys(exports.inspectOpts);
-    for (let i = 0;i < keys.length; i++) {
-      debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
-    }
-  }
-  module.exports = require_common()(exports);
-  var { formatters } = module.exports;
-  formatters.o = function(v) {
-    this.inspectOpts.colors = this.useColors;
-    return util.inspect(v, this.inspectOpts).split(`
-`).map((str) => str.trim()).join(" ");
-  };
-  formatters.O = function(v) {
-    this.inspectOpts.colors = this.useColors;
-    return util.inspect(v, this.inspectOpts);
-  };
-});
-
-// node_modules/debug/src/index.js
-var require_src = __commonJS((exports, module) => {
-  if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
-    module.exports = require_browser();
-  } else {
-    module.exports = require_node();
-  }
-});
-
 // node_modules/agent-base/dist/src/promisify.js
 var require_promisify = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  function promisify(fn) {
+  function promisify(fn2) {
     return function(req, opts) {
       return new Promise((resolve, reject) => {
-        fn.call(this, req, opts, (err, rtn) => {
+        fn2.call(this, req, opts, (err, rtn) => {
           if (err) {
             reject(err);
           } else {
@@ -18687,9 +43499,9 @@ var require_src2 = __commonJS((exports, module) => {
   var events_1 = __require("events");
   var debug_1 = __importDefault(require_src());
   var promisify_1 = __importDefault(require_promisify());
-  var debug = debug_1.default("agent-base");
-  function isAgent(v) {
-    return Boolean(v) && typeof v.addRequest === "function";
+  var debug2 = debug_1.default("agent-base");
+  function isAgent(v2) {
+    return Boolean(v2) && typeof v2.addRequest === "function";
   }
   function isSecureEndpoint() {
     const { stack } = new Error;
@@ -18730,8 +43542,8 @@ var require_src2 = __commonJS((exports, module) => {
         }
         return isSecureEndpoint() ? 443 : 80;
       }
-      set defaultPort(v) {
-        this.explicitDefaultPort = v;
+      set defaultPort(v2) {
+        this.explicitDefaultPort = v2;
       }
       get protocol() {
         if (typeof this.explicitProtocol === "string") {
@@ -18739,10 +43551,10 @@ var require_src2 = __commonJS((exports, module) => {
         }
         return isSecureEndpoint() ? "https:" : "http:";
       }
-      set protocol(v) {
-        this.explicitProtocol = v;
+      set protocol(v2) {
+        this.explicitProtocol = v2;
       }
-      callback(req, opts, fn) {
+      callback(req, opts, fn2) {
         throw new Error('"agent-base" has no default implementation, you must subclass and override `callback()`');
       }
       addRequest(req, _opts) {
@@ -18802,7 +43614,7 @@ var require_src2 = __commonJS((exports, module) => {
             timeoutId = null;
           }
           if (isAgent(socket)) {
-            debug("Callback returned another Agent instance %o", socket.constructor.name);
+            debug2("Callback returned another Agent instance %o", socket.constructor.name);
             socket.addRequest(req, opts);
             return;
           }
@@ -18822,7 +43634,7 @@ var require_src2 = __commonJS((exports, module) => {
         }
         if (!this.promisifiedCallback) {
           if (this.callback.length >= 3) {
-            debug("Converting legacy callback function to promise");
+            debug2("Converting legacy callback function to promise");
             this.promisifiedCallback = promisify_1.default(this.callback);
           } else {
             this.promisifiedCallback = this.callback;
@@ -18835,18 +43647,18 @@ var require_src2 = __commonJS((exports, module) => {
           opts.port = Number(opts.port);
         }
         try {
-          debug("Resolving socket for %o request: %o", opts.protocol, `${req.method} ${req.path}`);
+          debug2("Resolving socket for %o request: %o", opts.protocol, `${req.method} ${req.path}`);
           Promise.resolve(this.promisifiedCallback(req, opts)).then(onsocket, callbackError);
         } catch (err) {
           Promise.reject(err).catch(callbackError);
         }
       }
       freeSocket(socket, opts) {
-        debug("Freeing socket %o %o", socket.constructor.name, opts);
+        debug2("Freeing socket %o %o", socket.constructor.name, opts);
         socket.destroy();
       }
       destroy() {
-        debug("Destroying agent %o", this.constructor.name);
+        debug2("Destroying agent %o", this.constructor.name);
       }
     }
     createAgent2.Agent = Agent;
@@ -18862,15 +43674,15 @@ var require_parse_proxy_response = __commonJS((exports) => {
   };
   Object.defineProperty(exports, "__esModule", { value: true });
   var debug_1 = __importDefault(require_src());
-  var debug = debug_1.default("https-proxy-agent:parse-proxy-response");
+  var debug2 = debug_1.default("https-proxy-agent:parse-proxy-response");
   function parseProxyResponse(socket) {
     return new Promise((resolve, reject) => {
       let buffersLength = 0;
       const buffers = [];
       function read() {
-        const b2 = socket.read();
-        if (b2)
-          ondata(b2);
+        const b3 = socket.read();
+        if (b3)
+          ondata(b3);
         else
           socket.once("readable", read);
       }
@@ -18881,32 +43693,32 @@ var require_parse_proxy_response = __commonJS((exports) => {
         socket.removeListener("readable", read);
       }
       function onclose(err) {
-        debug("onclose had error %o", err);
+        debug2("onclose had error %o", err);
       }
       function onend() {
-        debug("onend");
+        debug2("onend");
       }
       function onerror(err) {
         cleanup();
-        debug("onerror %o", err);
+        debug2("onerror %o", err);
         reject(err);
       }
-      function ondata(b2) {
-        buffers.push(b2);
-        buffersLength += b2.length;
+      function ondata(b3) {
+        buffers.push(b3);
+        buffersLength += b3.length;
         const buffered = Buffer.concat(buffers, buffersLength);
         const endOfHeaders = buffered.indexOf(`\r
 \r
 `);
         if (endOfHeaders === -1) {
-          debug("have not received end of HTTP headers yet...");
+          debug2("have not received end of HTTP headers yet...");
           read();
           return;
         }
         const firstLine = buffered.toString("ascii", 0, buffered.indexOf(`\r
 `));
         const statusCode = +firstLine.split(" ")[1];
-        debug("got proxy server response: %o", firstLine);
+        debug2("got proxy server response: %o", firstLine);
         resolve({
           statusCode,
           buffered
@@ -18961,7 +43773,7 @@ var require_agent = __commonJS((exports) => {
   var debug_1 = __importDefault(require_src());
   var agent_base_1 = require_src2();
   var parse_proxy_response_1 = __importDefault(require_parse_proxy_response());
-  var debug = debug_1.default("https-proxy-agent:agent");
+  var debug2 = debug_1.default("https-proxy-agent:agent");
 
   class HttpsProxyAgent extends agent_base_1.Agent {
     constructor(_opts) {
@@ -18974,7 +43786,7 @@ var require_agent = __commonJS((exports) => {
       if (!opts) {
         throw new Error("an HTTP(S) proxy server `host` and `port` must be specified!");
       }
-      debug("creating new HttpsProxyAgent instance: %o", opts);
+      debug2("creating new HttpsProxyAgent instance: %o", opts);
       super(opts);
       const proxy = Object.assign({}, opts);
       this.secureProxy = opts.secureProxy || isHTTPS(proxy.protocol);
@@ -18999,10 +43811,10 @@ var require_agent = __commonJS((exports) => {
         const { proxy, secureProxy } = this;
         let socket;
         if (secureProxy) {
-          debug("Creating `tls.Socket`: %o", proxy);
+          debug2("Creating `tls.Socket`: %o", proxy);
           socket = tls_1.default.connect(proxy);
         } else {
-          debug("Creating `net.Socket`: %o", proxy);
+          debug2("Creating `net.Socket`: %o", proxy);
           socket = net_1.default.connect(proxy);
         }
         const headers = Object.assign({}, proxy.headers);
@@ -19029,7 +43841,7 @@ var require_agent = __commonJS((exports) => {
         if (statusCode === 200) {
           req.once("socket", resume);
           if (opts.secureEndpoint) {
-            debug("Upgrading socket connection to TLS");
+            debug2("Upgrading socket connection to TLS");
             const servername = opts.servername || opts.host;
             return tls_1.default.connect(Object.assign(Object.assign({}, omit(opts, "host", "hostname", "path", "port")), {
               socket,
@@ -19042,7 +43854,7 @@ var require_agent = __commonJS((exports) => {
         const fakeSocket = new net_1.default.Socket({ writable: false });
         fakeSocket.readable = true;
         req.once("socket", (s) => {
-          debug("replaying proxy buffer for failed request");
+          debug2("replaying proxy buffer for failed request");
           assert_1.default(s.listenerCount("data") > 0);
           s.push(buffered);
           s.push(null);
@@ -19074,7 +43886,7 @@ var require_agent = __commonJS((exports) => {
 });
 
 // node_modules/https-proxy-agent/dist/index.js
-var require_dist = __commonJS((exports, module) => {
+var require_dist2 = __commonJS((exports, module) => {
   var __importDefault = exports && exports.__importDefault || function(mod) {
     return mod && mod.__esModule ? mod : { default: mod };
   };
@@ -19091,17 +43903,17 @@ var require_dist = __commonJS((exports, module) => {
 
 // node_modules/follow-redirects/debug.js
 var require_debug = __commonJS((exports, module) => {
-  var debug;
+  var debug2;
   module.exports = function() {
-    if (!debug) {
+    if (!debug2) {
       try {
-        debug = require_src()("follow-redirects");
+        debug2 = require_src()("follow-redirects");
       } catch (error) {}
-      if (typeof debug !== "function") {
-        debug = function() {};
+      if (typeof debug2 !== "function") {
+        debug2 = function() {};
       }
     }
-    debug.apply(null, arguments);
+    debug2.apply(null, arguments);
   };
 });
 
@@ -19112,8 +43924,8 @@ var require_follow_redirects = __commonJS((exports, module) => {
   var http = __require("http");
   var https = __require("https");
   var Writable = __require("stream").Writable;
-  var assert = __require("assert");
-  var debug = require_debug();
+  var assert2 = __require("assert");
+  var debug2 = require_debug();
   (function detectUnsupportedEnvironment() {
     var looksLikeNode = typeof process !== "undefined";
     var looksLikeBrowser = typeof window !== "undefined" && typeof document !== "undefined";
@@ -19124,7 +43936,7 @@ var require_follow_redirects = __commonJS((exports, module) => {
   })();
   var useNativeURL = false;
   try {
-    assert(new URL2(""));
+    assert2(new URL2(""));
   } catch (error) {
     useNativeURL = error.code === "ERR_INVALID_URL";
   }
@@ -19303,8 +44115,8 @@ var require_follow_redirects = __commonJS((exports, module) => {
     "setNoDelay",
     "setSocketKeepAlive"
   ].forEach(function(method) {
-    RedirectableRequest.prototype[method] = function(a, b2) {
-      return this._currentRequest[method](a, b2);
+    RedirectableRequest.prototype[method] = function(a, b3) {
+      return this._currentRequest[method](a, b3);
     };
   });
   ["aborted", "connection", "socket"].forEach(function(property) {
@@ -19413,7 +44225,7 @@ var require_follow_redirects = __commonJS((exports, module) => {
     var currentHost = currentHostHeader || currentUrlParts.host;
     var currentUrl = /^\w+:/.test(location) ? this._currentUrl : url2.format(Object.assign(currentUrlParts, { host: currentHost }));
     var redirectUrl = resolveUrl(location, currentUrl);
-    debug("redirecting to", redirectUrl.href);
+    debug2("redirecting to", redirectUrl.href);
     this._isRedirect = true;
     spreadUrlObject(redirectUrl, this._options);
     if (redirectUrl.protocol !== currentUrlParts.protocol && redirectUrl.protocol !== "https:" || redirectUrl.host !== currentHost && !isSubdomain(redirectUrl.host, currentHost)) {
@@ -19434,7 +44246,7 @@ var require_follow_redirects = __commonJS((exports, module) => {
     }
     this._performRequest();
   };
-  function wrap(protocols) {
+  function wrap2(protocols) {
     var exports2 = {
       maxRedirects: 21,
       maxBodyLength: 10 * 1024 * 1024
@@ -19466,8 +44278,8 @@ var require_follow_redirects = __commonJS((exports, module) => {
         if (!isString(options.host) && !isString(options.hostname)) {
           options.hostname = "::1";
         }
-        assert.equal(options.protocol, protocol, "protocol mismatch");
-        debug("options", options);
+        assert2.equal(options.protocol, protocol, "protocol mismatch");
+        debug2("options", options);
         return new RedirectableRequest(options, callback);
       }
       function get(input, options, callback) {
@@ -19531,13 +44343,13 @@ var require_follow_redirects = __commonJS((exports, module) => {
     }
     return lastValue === null || typeof lastValue === "undefined" ? undefined : String(lastValue).trim();
   }
-  function createErrorType(code, message, baseClass) {
+  function createErrorType(code3, message, baseClass) {
     function CustomError(properties) {
       if (isFunction(Error.captureStackTrace)) {
         Error.captureStackTrace(this, this.constructor);
       }
       Object.assign(this, properties || {});
-      this.code = code;
+      this.code = code3;
       this.message = this.cause ? message + ": " + this.cause.message : message;
     }
     CustomError.prototype = new (baseClass || Error);
@@ -19547,7 +44359,7 @@ var require_follow_redirects = __commonJS((exports, module) => {
         enumerable: false
       },
       name: {
-        value: "Error [" + code + "]",
+        value: "Error [" + code3 + "]",
         enumerable: false
       }
     });
@@ -19560,10 +44372,10 @@ var require_follow_redirects = __commonJS((exports, module) => {
     request.on("error", noop3);
     request.destroy(error);
   }
-  function isSubdomain(subdomain, domain) {
-    assert(isString(subdomain) && isString(domain));
-    var dot = subdomain.length - domain.length - 1;
-    return dot > 0 && subdomain[dot] === "." && subdomain.endsWith(domain);
+  function isSubdomain(subdomain, domain2) {
+    assert2(isString(subdomain) && isString(domain2));
+    var dot = subdomain.length - domain2.length - 1;
+    return dot > 0 && subdomain[dot] === "." && subdomain.endsWith(domain2);
   }
   function isArray(value) {
     return value instanceof Array;
@@ -19583,8 +44395,8 @@ var require_follow_redirects = __commonJS((exports, module) => {
   function escapeRegex(regex) {
     return regex.replace(/[\]\\/()*+?.$]/g, "\\$&");
   }
-  module.exports = wrap({ http, https });
-  module.exports.wrap = wrap;
+  module.exports = wrap2({ http, https });
+  module.exports.wrap = wrap2;
 });
 
 // node_modules/axios/dist/node/axios.cjs
@@ -19593,23 +44405,23 @@ var require_axios = __commonJS((exports, module) => {
   var FormData$1 = require_form_data();
   var crypto3 = __require("crypto");
   var url2 = __require("url");
-  var HttpsProxyAgent = require_dist();
+  var HttpsProxyAgent = require_dist2();
   var http = __require("http");
   var https = __require("https");
   var http2 = __require("http2");
   var util = __require("util");
-  var path = __require("path");
+  var path2 = __require("path");
   var followRedirects = require_follow_redirects();
   var zlib = __require("zlib");
   var stream = __require("stream");
   var events2 = __require("events");
-  function bind(fn, thisArg) {
-    return function wrap() {
-      return fn.apply(thisArg, arguments);
+  function bind(fn2, thisArg) {
+    return function wrap2() {
+      return fn2.apply(thisArg, arguments);
     };
   }
   var {
-    toString
+    toString: toString2
   } = Object.prototype;
   var {
     getPrototypeOf
@@ -19619,7 +44431,7 @@ var require_axios = __commonJS((exports, module) => {
     toStringTag
   } = Symbol;
   var kindOf = ((cache2) => (thing) => {
-    const str = toString.call(thing);
+    const str = toString2.call(thing);
     return cache2[str] || (cache2[str] = str.slice(8, -1).toLowerCase());
   })(Object.create(null));
   var kindOfTest = (type) => {
@@ -19649,7 +44461,7 @@ var require_axios = __commonJS((exports, module) => {
   var isNumber = typeOfTest("number");
   var isObject = (thing) => thing !== null && typeof thing === "object";
   var isBoolean = (thing) => thing === true || thing === false;
-  var isPlainObject = (val) => {
+  var isPlainObject2 = (val) => {
     if (kindOf(val) !== "object") {
       return false;
     }
@@ -19686,8 +44498,8 @@ var require_axios = __commonJS((exports, module) => {
       return global;
     return {};
   }
-  var G = getGlobal();
-  var FormDataCtor = typeof G.FormData !== "undefined" ? G.FormData : undefined;
+  var G2 = getGlobal();
+  var FormDataCtor = typeof G2.FormData !== "undefined" ? G2.FormData : undefined;
   var isFormData = (thing) => {
     if (!thing)
       return false;
@@ -19706,7 +44518,7 @@ var require_axios = __commonJS((exports, module) => {
   var trim = (str) => {
     return str.trim ? str.trim() : str.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, "");
   };
-  function forEach(obj, fn, {
+  function forEach(obj, fn2, {
     allOwnKeys = false
   } = {}) {
     if (obj === null || typeof obj === "undefined") {
@@ -19719,7 +44531,7 @@ var require_axios = __commonJS((exports, module) => {
     }
     if (isArray(obj)) {
       for (i = 0, l = obj.length;i < l; i++) {
-        fn.call(null, obj[i], i, obj);
+        fn2.call(null, obj[i], i, obj);
       }
     } else {
       if (isBuffer(obj)) {
@@ -19730,7 +44542,7 @@ var require_axios = __commonJS((exports, module) => {
       let key;
       for (i = 0;i < len; i++) {
         key = keys[i];
-        fn.call(null, obj[key], key, obj);
+        fn2.call(null, obj[key], key, obj);
       }
     }
   }
@@ -19767,10 +44579,10 @@ var require_axios = __commonJS((exports, module) => {
         return;
       }
       const targetKey = caseless && typeof key === "string" && findKey(result, key) || key;
-      const existing = hasOwnProperty(result, targetKey) ? result[targetKey] : undefined;
-      if (isPlainObject(existing) && isPlainObject(val)) {
+      const existing = hasOwnProperty2(result, targetKey) ? result[targetKey] : undefined;
+      if (isPlainObject2(existing) && isPlainObject2(val)) {
         result[targetKey] = merge(existing, val);
-      } else if (isPlainObject(val)) {
+      } else if (isPlainObject2(val)) {
         result[targetKey] = merge({}, val);
       } else if (isArray(val)) {
         result[targetKey] = val.slice();
@@ -19788,8 +44600,8 @@ var require_axios = __commonJS((exports, module) => {
         continue;
       }
       const symbols = Object.getOwnPropertySymbols(source);
-      for (let j = 0;j < symbols.length; j++) {
-        const symbol = symbols[j];
+      for (let j2 = 0;j2 < symbols.length; j2++) {
+        const symbol = symbols[j2];
         if (propertyIsEnumerable.call(source, symbol)) {
           assignValue(source[symbol], symbol);
         }
@@ -19797,10 +44609,10 @@ var require_axios = __commonJS((exports, module) => {
     }
     return result;
   }
-  var extend = (a, b2, thisArg, {
+  var extend2 = (a, b3, thisArg, {
     allOwnKeys
   } = {}) => {
-    forEach(b2, (val, key) => {
+    forEach(b3, (val, key) => {
       if (thisArg && isFunction$1(val)) {
         Object.defineProperty(a, key, {
           __proto__: null,
@@ -19823,11 +44635,11 @@ var require_axios = __commonJS((exports, module) => {
     });
     return a;
   };
-  var stripBOM = (content) => {
-    if (content.charCodeAt(0) === 65279) {
-      content = content.slice(1);
+  var stripBOM = (content3) => {
+    if (content3.charCodeAt(0) === 65279) {
+      content3 = content3.slice(1);
     }
-    return content;
+    return content3;
   };
   var inherits = (constructor, superConstructor, props, descriptors) => {
     constructor.prototype = Object.create(superConstructor.prototype, descriptors);
@@ -19866,14 +44678,14 @@ var require_axios = __commonJS((exports, module) => {
     } while (sourceObj && (!filter || filter(sourceObj, destObj)) && sourceObj !== Object.prototype);
     return destObj;
   };
-  var endsWith = (str, searchString, position) => {
+  var endsWith = (str, searchString, position2) => {
     str = String(str);
-    if (position === undefined || position > str.length) {
-      position = str.length;
+    if (position2 === undefined || position2 > str.length) {
+      position2 = str.length;
     }
-    position -= searchString.length;
-    const lastIndex = str.indexOf(searchString, position);
-    return lastIndex !== -1 && lastIndex === position;
+    position2 -= searchString.length;
+    const lastIndex = str.indexOf(searchString, position2);
+    return lastIndex !== -1 && lastIndex === position2;
   };
   var toArray = (thing) => {
     if (!thing)
@@ -19894,13 +44706,13 @@ var require_axios = __commonJS((exports, module) => {
       return TypedArray && thing instanceof TypedArray;
     };
   })(typeof Uint8Array !== "undefined" && getPrototypeOf(Uint8Array));
-  var forEachEntry = (obj, fn) => {
+  var forEachEntry = (obj, fn2) => {
     const generator = obj && obj[iterator];
     const _iterator = generator.call(obj);
     let result;
     while ((result = _iterator.next()) && !result.done) {
       const pair = result.value;
-      fn.call(obj, pair[0], pair[1]);
+      fn2.call(obj, pair[0], pair[1]);
     }
   };
   var matchAll = (regExp, str) => {
@@ -19913,13 +44725,13 @@ var require_axios = __commonJS((exports, module) => {
   };
   var isHTMLForm = kindOfTest("HTMLFormElement");
   var toCamelCase2 = (str) => {
-    return str.toLowerCase().replace(/[-_\s]([a-z\d])(\w*)/g, function replacer(m, p1, p2) {
+    return str.toLowerCase().replace(/[-_\s]([a-z\d])(\w*)/g, function replacer(m2, p1, p2) {
       return p1.toUpperCase() + p2;
     });
   };
-  var hasOwnProperty = (({
-    hasOwnProperty: hasOwnProperty2
-  }) => (obj, prop) => hasOwnProperty2.call(obj, prop))(Object.prototype);
+  var hasOwnProperty2 = (({
+    hasOwnProperty: hasOwnProperty3
+  }) => (obj, prop) => hasOwnProperty3.call(obj, prop))(Object.prototype);
   var {
     propertyIsEnumerable
   } = Object.prototype;
@@ -19974,7 +44786,7 @@ var require_axios = __commonJS((exports, module) => {
   }
   var toJSONObject = (obj) => {
     const visited = new WeakSet;
-    const visit = (source) => {
+    const visit2 = (source) => {
       if (isObject(source)) {
         if (visited.has(source)) {
           return;
@@ -19986,7 +44798,7 @@ var require_axios = __commonJS((exports, module) => {
           visited.add(source);
           const target = isArray(source) ? [] : {};
           forEach(source, (value, key) => {
-            const reducedValue = visit(value);
+            const reducedValue = visit2(value);
             !isUndefined(reducedValue) && (target[key] = reducedValue);
           });
           visited.delete(source);
@@ -19995,7 +44807,7 @@ var require_axios = __commonJS((exports, module) => {
       }
       return source;
     };
-    return visit(obj);
+    return visit2(obj);
   };
   var isAsyncFn = kindOfTest("AsyncFunction");
   var isThenable = (thing) => thing && (isObject(thing) || isFunction$1(thing)) && isFunction$1(thing.then) && isFunction$1(thing.catch);
@@ -20030,7 +44842,7 @@ var require_axios = __commonJS((exports, module) => {
     isNumber,
     isBoolean,
     isObject,
-    isPlainObject,
+    isPlainObject: isPlainObject2,
     isEmptyObject,
     isReadableStream,
     isRequest,
@@ -20050,7 +44862,7 @@ var require_axios = __commonJS((exports, module) => {
     isFileList,
     forEach,
     merge,
-    extend,
+    extend: extend2,
     trim,
     stripBOM,
     inherits,
@@ -20062,8 +44874,8 @@ var require_axios = __commonJS((exports, module) => {
     forEachEntry,
     matchAll,
     isHTMLForm,
-    hasOwnProperty,
-    hasOwnProp: hasOwnProperty,
+    hasOwnProperty: hasOwnProperty2,
+    hasOwnProp: hasOwnProperty2,
     reduceDescriptors,
     freezeMethods,
     toObjectSet,
@@ -20108,23 +44920,23 @@ var require_axios = __commonJS((exports, module) => {
     return parsed;
   };
   function trimSPorHTAB(str) {
-    let start = 0;
+    let start2 = 0;
     let end = str.length;
-    while (start < end) {
-      const code = str.charCodeAt(start);
-      if (code !== 9 && code !== 32) {
+    while (start2 < end) {
+      const code3 = str.charCodeAt(start2);
+      if (code3 !== 9 && code3 !== 32) {
         break;
       }
-      start += 1;
+      start2 += 1;
     }
-    while (end > start) {
-      const code = str.charCodeAt(end - 1);
-      if (code !== 9 && code !== 32) {
+    while (end > start2) {
+      const code3 = str.charCodeAt(end - 1);
+      if (code3 !== 9 && code3 !== 32) {
         break;
       }
       end -= 1;
     }
-    return start === 0 && end === str.length ? str : str.slice(start, end);
+    return start2 === 0 && end === str.length ? str : str.slice(start2, end);
   }
   var INVALID_UNICODE_HEADER_VALUE_CHARS = new RegExp("[\\u0000-\\u0008\\u000a-\\u001f\\u007f]+", "g");
   var INVALID_BYTE_STRING_HEADER_VALUE_CHARS = new RegExp("[^\\u0009\\u0020-\\u007e\\u0080-\\u00ff]+", "g");
@@ -20180,7 +44992,7 @@ var require_axios = __commonJS((exports, module) => {
     }
   }
   function formatHeader(header) {
-    return header.trim().toLowerCase().replace(/([a-z\d])(\w*)/g, (w, char3, str) => {
+    return header.trim().toLowerCase().replace(/([a-z\d])(\w*)/g, (w2, char3, str) => {
       return char3.toUpperCase() + str;
     });
   }
@@ -20390,9 +45202,9 @@ var require_axios = __commonJS((exports, module) => {
     return false;
   }
   function redactConfig(config, redactKeys) {
-    const lowerKeys = new Set(redactKeys.map((k) => String(k).toLowerCase()));
+    const lowerKeys = new Set(redactKeys.map((k2) => String(k2).toLowerCase()));
     const seen = [];
-    const visit = (source) => {
+    const visit2 = (source) => {
       if (source === null || typeof source !== "object")
         return source;
       if (utils$1.isBuffer(source))
@@ -20406,8 +45218,8 @@ var require_axios = __commonJS((exports, module) => {
       let result;
       if (utils$1.isArray(source)) {
         result = [];
-        source.forEach((v, i) => {
-          const reducedValue = visit(v);
+        source.forEach((v2, i) => {
+          const reducedValue = visit2(v2);
           if (!utils$1.isUndefined(reducedValue)) {
             result[i] = reducedValue;
           }
@@ -20419,7 +45231,7 @@ var require_axios = __commonJS((exports, module) => {
         }
         result = Object.create(null);
         for (const [key, value] of Object.entries(source)) {
-          const reducedValue = lowerKeys.has(key.toLowerCase()) ? REDACTED : visit(value);
+          const reducedValue = lowerKeys.has(key.toLowerCase()) ? REDACTED : visit2(value);
           if (!utils$1.isUndefined(reducedValue)) {
             result[key] = reducedValue;
           }
@@ -20428,12 +45240,12 @@ var require_axios = __commonJS((exports, module) => {
       seen.pop();
       return result;
     };
-    return visit(config);
+    return visit2(config);
   }
 
   class AxiosError extends Error {
-    static from(error, code, config, request, response, customProps) {
-      const axiosError = new AxiosError(error.message, code || error.code, config, request, response);
+    static from(error, code3, config, request, response, customProps) {
+      const axiosError = new AxiosError(error.message, code3 || error.code, config, request, response);
       axiosError.cause = error;
       axiosError.name = error.name;
       if (error.status != null && axiosError.status == null) {
@@ -20442,7 +45254,7 @@ var require_axios = __commonJS((exports, module) => {
       customProps && Object.assign(axiosError, customProps);
       return axiosError;
     }
-    constructor(message, code, config, request, response) {
+    constructor(message, code3, config, request, response) {
       super(message);
       Object.defineProperty(this, "message", {
         __proto__: null,
@@ -20453,7 +45265,7 @@ var require_axios = __commonJS((exports, module) => {
       });
       this.name = "AxiosError";
       this.isAxiosError = true;
-      code && (this.code = code);
+      code3 && (this.code = code3);
       config && (this.config = config);
       request && (this.request = request);
       if (response) {
@@ -20500,10 +45312,10 @@ var require_axios = __commonJS((exports, module) => {
   function removeBrackets(key) {
     return utils$1.endsWith(key, "[]") ? key.slice(0, -2) : key;
   }
-  function renderKey(path2, key, dots) {
-    if (!path2)
+  function renderKey(path3, key, dots) {
+    if (!path3)
       return key;
-    return path2.concat(key).map(function each(token, i) {
+    return path3.concat(key).map(function each(token, i) {
       token = removeBrackets(token);
       return !dots && i ? "[" + token + "]" : token;
     }).join(dots ? "." : "");
@@ -20553,20 +45365,20 @@ var require_axios = __commonJS((exports, module) => {
       }
       return value;
     }
-    function defaultVisitor(value, key, path2) {
+    function defaultVisitor(value, key, path3) {
       let arr = value;
       if (utils$1.isReactNative(formData) && utils$1.isReactNativeBlob(value)) {
-        formData.append(renderKey(path2, key, dots), convertValue(value));
+        formData.append(renderKey(path3, key, dots), convertValue(value));
         return false;
       }
-      if (value && !path2 && typeof value === "object") {
+      if (value && !path3 && typeof value === "object") {
         if (utils$1.endsWith(key, "{}")) {
           key = metaTokens ? key : key.slice(0, -2);
           value = JSON.stringify(value);
         } else if (utils$1.isArray(value) && isFlatArray(value) || (utils$1.isFileList(value) || utils$1.endsWith(key, "[]")) && (arr = utils$1.toArray(value))) {
           key = removeBrackets(key);
-          arr.forEach(function each(el, index) {
-            !(utils$1.isUndefined(el) || el === null) && formData.append(indexes2 === true ? renderKey([key], index, dots) : indexes2 === null ? key : key + "[]", convertValue(el));
+          arr.forEach(function each(el, index2) {
+            !(utils$1.isUndefined(el) || el === null) && formData.append(indexes2 === true ? renderKey([key], index2, dots) : indexes2 === null ? key : key + "[]", convertValue(el));
           });
           return false;
         }
@@ -20574,7 +45386,7 @@ var require_axios = __commonJS((exports, module) => {
       if (isVisitable(value)) {
         return true;
       }
-      formData.append(renderKey(path2, key, dots), convertValue(value));
+      formData.append(renderKey(path3, key, dots), convertValue(value));
       return false;
     }
     const stack = [];
@@ -20583,20 +45395,20 @@ var require_axios = __commonJS((exports, module) => {
       convertValue,
       isVisitable
     });
-    function build(value, path2, depth = 0) {
+    function build(value, path3, depth = 0) {
       if (utils$1.isUndefined(value))
         return;
       if (depth > maxDepth) {
         throw new AxiosError("Object is too deeply nested (" + depth + " levels). Max depth: " + maxDepth, AxiosError.ERR_FORM_DATA_DEPTH_EXCEEDED);
       }
       if (stack.indexOf(value) !== -1) {
-        throw new Error("Circular reference detected in " + path2.join("."));
+        throw new Error("Circular reference detected in " + path3.join("."));
       }
       stack.push(value);
       utils$1.forEach(value, function each(el, key) {
-        const result = !(utils$1.isUndefined(el) || el === null) && visitor.call(formData, el, utils$1.isString(key) ? key.trim() : key, path2, exposedHelpers);
+        const result = !(utils$1.isUndefined(el) || el === null) && visitor.call(formData, el, utils$1.isString(key) ? key.trim() : key, path3, exposedHelpers);
         if (result === true) {
-          build(el, path2 ? path2.concat(key) : [key], depth + 1);
+          build(el, path3 ? path3.concat(key) : [key], depth + 1);
         }
       });
       stack.pop();
@@ -20628,7 +45440,7 @@ var require_axios = __commonJS((exports, module) => {
   prototype.append = function append(name, value) {
     this._pairs.push([name, value]);
   };
-  prototype.toString = function toString2(encoder) {
+  prototype.toString = function toString3(encoder) {
     const _encode = encoder ? function(value) {
       return encoder.call(this, value, encode$1);
     } : encode$1;
@@ -20687,10 +45499,10 @@ var require_axios = __commonJS((exports, module) => {
         this.handlers = [];
       }
     }
-    forEach(fn) {
-      utils$1.forEach(this.handlers, function forEachHandler(h) {
-        if (h !== null) {
-          fn(h);
+    forEach(fn2) {
+      utils$1.forEach(this.handlers, function forEachHandler(h2) {
+        if (h2 !== null) {
+          fn2(h2);
         }
       });
     }
@@ -20754,7 +45566,7 @@ var require_axios = __commonJS((exports, module) => {
   };
   function toURLEncodedForm(data, options) {
     return toFormData(data, new platform.classes.URLSearchParams, {
-      visitor: function(value, key, path2, helpers) {
+      visitor: function(value, key, path3, helpers) {
         if (platform.isNode && utils$1.isBuffer(value)) {
           this.append(key, value.toString("base64"));
           return false;
@@ -20782,12 +45594,12 @@ var require_axios = __commonJS((exports, module) => {
     return obj;
   }
   function formDataToJSON(formData) {
-    function buildPath(path2, value, target, index) {
-      let name = path2[index++];
+    function buildPath(path3, value, target, index2) {
+      let name = path3[index2++];
       if (name === "__proto__")
         return true;
       const isNumericKey = Number.isFinite(+name);
-      const isLast = index >= path2.length;
+      const isLast = index2 >= path3.length;
       name = !name && utils$1.isArray(target) ? target.length : name;
       if (isLast) {
         if (utils$1.hasOwnProp(target, name)) {
@@ -20800,7 +45612,7 @@ var require_axios = __commonJS((exports, module) => {
       if (!utils$1.hasOwnProp(target, name) || !utils$1.isObject(target[name])) {
         target[name] = [];
       }
-      const result = buildPath(path2, value, target[name], index);
+      const result = buildPath(path3, value, target[name], index2);
       if (result && utils$1.isArray(target[name])) {
         target[name] = arrayToObject(target[name]);
       }
@@ -20815,7 +45627,7 @@ var require_axios = __commonJS((exports, module) => {
     }
     return null;
   }
-  var own = (obj, key) => obj != null && utils$1.hasOwnProp(obj, key) ? obj[key] : undefined;
+  var own6 = (obj, key) => obj != null && utils$1.hasOwnProp(obj, key) ? obj[key] : undefined;
   function stringifySafely(rawValue, parser, encoder) {
     if (utils$1.isString(rawValue)) {
       try {
@@ -20829,7 +45641,7 @@ var require_axios = __commonJS((exports, module) => {
     }
     return (encoder || JSON.stringify)(rawValue);
   }
-  var defaults = {
+  var defaults2 = {
     transitional: transitionalDefaults,
     adapter: ["xhr", "http", "fetch"],
     transformRequest: [function transformRequest(data, headers) {
@@ -20855,12 +45667,12 @@ var require_axios = __commonJS((exports, module) => {
       }
       let isFileList2;
       if (isObjectPayload) {
-        const formSerializer = own(this, "formSerializer");
+        const formSerializer = own6(this, "formSerializer");
         if (contentType.indexOf("application/x-www-form-urlencoded") > -1) {
           return toURLEncodedForm(data, formSerializer).toString();
         }
         if ((isFileList2 = utils$1.isFileList(data)) || contentType.indexOf("multipart/form-data") > -1) {
-          const env = own(this, "env");
+          const env = own6(this, "env");
           const _FormData = env && env.FormData;
           return toFormData(isFileList2 ? {
             "files[]": data
@@ -20874,9 +45686,9 @@ var require_axios = __commonJS((exports, module) => {
       return data;
     }],
     transformResponse: [function transformResponse(data) {
-      const transitional = own(this, "transitional") || defaults.transitional;
+      const transitional = own6(this, "transitional") || defaults2.transitional;
       const forcedJSONParsing = transitional && transitional.forcedJSONParsing;
-      const responseType = own(this, "responseType");
+      const responseType = own6(this, "responseType");
       const JSONRequested = responseType === "json";
       if (utils$1.isResponse(data) || utils$1.isReadableStream(data)) {
         return data;
@@ -20885,11 +45697,11 @@ var require_axios = __commonJS((exports, module) => {
         const silentJSONParsing = transitional && transitional.silentJSONParsing;
         const strictJSONParsing = !silentJSONParsing && JSONRequested;
         try {
-          return JSON.parse(data, own(this, "parseReviver"));
+          return JSON.parse(data, own6(this, "parseReviver"));
         } catch (e) {
           if (strictJSONParsing) {
             if (e.name === "SyntaxError") {
-              throw AxiosError.from(e, AxiosError.ERR_BAD_RESPONSE, this, null, own(this, "response"));
+              throw AxiosError.from(e, AxiosError.ERR_BAD_RESPONSE, this, null, own6(this, "response"));
             }
             throw e;
           }
@@ -20917,15 +45729,15 @@ var require_axios = __commonJS((exports, module) => {
     }
   };
   utils$1.forEach(["delete", "get", "head", "post", "put", "patch", "query"], (method) => {
-    defaults.headers[method] = {};
+    defaults2.headers[method] = {};
   });
   function transformData(fns, response) {
-    const config = this || defaults;
+    const config = this || defaults2;
     const context = response || config;
     const headers = AxiosHeaders.from(context.headers);
     let data = context.data;
-    utils$1.forEach(fns, function transform(fn) {
-      data = fn.call(config, data, headers.normalize(), response ? response.status : undefined);
+    utils$1.forEach(fns, function transform(fn2) {
+      data = fn2.call(config, data, headers.normalize(), response ? response.status : undefined);
     });
     headers.normalize();
     return data;
@@ -21375,17 +46187,17 @@ var require_axios = __commonJS((exports, module) => {
       return session3;
     }
   }
-  var callbackify = (fn, reducer) => {
-    return utils$1.isAsyncFn(fn) ? function(...args) {
+  var callbackify = (fn2, reducer) => {
+    return utils$1.isAsyncFn(fn2) ? function(...args) {
       const cb = args.pop();
-      fn.apply(this, args).then((value) => {
+      fn2.apply(this, args).then((value) => {
         try {
           reducer ? cb(null, ...reducer(value)) : cb(null, value);
         } catch (err) {
           cb(err);
         }
       }, cb);
-    } : fn;
+    } : fn2;
   };
   var LOOPBACK_HOSTNAMES = new Set(["localhost"]);
   var isIPv4Loopback = (host) => {
@@ -21394,7 +46206,7 @@ var require_axios = __commonJS((exports, module) => {
       return false;
     if (parts[0] !== "127")
       return false;
-    return parts.every((p) => /^\d+$/.test(p) && Number(p) >= 0 && Number(p) <= 255);
+    return parts.every((p2) => /^\d+$/.test(p2) && Number(p2) >= 0 && Number(p2) <= 255);
   };
   var isIPv6Loopback = (host) => {
     if (host === "::1")
@@ -21525,7 +46337,7 @@ var require_axios = __commonJS((exports, module) => {
     let tail = 0;
     let firstSampleTS;
     min = min !== undefined ? min : 1000;
-    return function push(chunkLength) {
+    return function push2(chunkLength) {
       const now = Date.now();
       const startedAt = timestamps[tail];
       if (!firstSampleTS) {
@@ -21550,7 +46362,7 @@ var require_axios = __commonJS((exports, module) => {
       return passed ? Math.round(bytesCount * 1000 / passed) : undefined;
     };
   }
-  function throttle(fn, freq) {
+  function throttle(fn2, freq) {
     let timestamp3 = 0;
     let threshold = 1000 / freq;
     let lastArgs;
@@ -21562,7 +46374,7 @@ var require_axios = __commonJS((exports, module) => {
         clearTimeout(timer2);
         timer2 = null;
       }
-      fn(...args);
+      fn2(...args);
     };
     const throttled = (...args) => {
       const now = Date.now();
@@ -21617,7 +46429,7 @@ var require_axios = __commonJS((exports, module) => {
       loaded
     }), throttled[1]];
   };
-  var asyncDecorator = (fn) => (...args) => utils$1.asap(() => fn(...args));
+  var asyncDecorator = (fn2) => (...args) => utils$1.asap(() => fn2(...args));
   function estimateDataURLDecodedBytes(url3) {
     if (!url3 || typeof url3 !== "string")
       return 0;
@@ -21635,8 +46447,8 @@ var require_axios = __commonJS((exports, module) => {
       for (let i = 0;i < len; i++) {
         if (body.charCodeAt(i) === 37 && i + 2 < len) {
           const a = body.charCodeAt(i + 1);
-          const b2 = body.charCodeAt(i + 2);
-          const isHex = (a >= 48 && a <= 57 || a >= 65 && a <= 70 || a >= 97 && a <= 102) && (b2 >= 48 && b2 <= 57 || b2 >= 65 && b2 <= 70 || b2 >= 97 && b2 <= 102);
+          const b3 = body.charCodeAt(i + 2);
+          const isHex = (a >= 48 && a <= 57 || a >= 65 && a <= 70 || a >= 97 && a <= 102) && (b3 >= 48 && b3 <= 57 || b3 >= 65 && b3 <= 70 || b3 >= 97 && b3 <= 102);
           if (isHex) {
             effectiveLen -= 2;
             i += 2;
@@ -21645,7 +46457,7 @@ var require_axios = __commonJS((exports, module) => {
       }
       let pad = 0;
       let idx = len - 1;
-      const tailIsPct3D = (j) => j >= 2 && body.charCodeAt(j - 2) === 37 && body.charCodeAt(j - 1) === 51 && (body.charCodeAt(j) === 68 || body.charCodeAt(j) === 100);
+      const tailIsPct3D = (j2) => j2 >= 2 && body.charCodeAt(j2 - 2) === 37 && body.charCodeAt(j2 - 1) === 51 && (body.charCodeAt(j2) === 68 || body.charCodeAt(j2) === 100);
       if (idx >= 0) {
         if (body.charCodeAt(idx) === 61) {
           pad++;
@@ -21671,12 +46483,12 @@ var require_axios = __commonJS((exports, module) => {
     }
     let bytes = 0;
     for (let i = 0, len = body.length;i < len; i++) {
-      const c = body.charCodeAt(i);
-      if (c < 128) {
+      const c2 = body.charCodeAt(i);
+      if (c2 < 128) {
         bytes += 1;
-      } else if (c < 2048) {
+      } else if (c2 < 2048) {
         bytes += 2;
-      } else if (c >= 55296 && c <= 56319 && i + 1 < len) {
+      } else if (c2 >= 55296 && c2 <= 56319 && i + 1 < len) {
         const next = body.charCodeAt(i + 1);
         if (next >= 56320 && next <= 57343) {
           bytes += 4;
@@ -21955,17 +46767,17 @@ var require_axios = __commonJS((exports, module) => {
   };
   var httpAdapter = isHttpAdapterSupported && function httpAdapter2(config) {
     return wrapAsync(async function dispatchHttpRequest(resolve, reject, onDone) {
-      const own2 = (key) => utils$1.hasOwnProp(config, key) ? config[key] : undefined;
-      const transitional = own2("transitional") || transitionalDefaults;
-      let data = own2("data");
-      let lookup = own2("lookup");
-      let family = own2("family");
-      let httpVersion = own2("httpVersion");
+      const own7 = (key) => utils$1.hasOwnProp(config, key) ? config[key] : undefined;
+      const transitional = own7("transitional") || transitionalDefaults;
+      let data = own7("data");
+      let lookup = own7("lookup");
+      let family = own7("family");
+      let httpVersion = own7("httpVersion");
       if (httpVersion === undefined)
         httpVersion = 1;
-      let http2Options = own2("http2Options");
-      const responseType = own2("responseType");
-      const responseEncoding = own2("responseEncoding");
+      let http2Options = own7("http2Options");
+      const responseType = own7("responseType");
+      const responseEncoding = own7("responseEncoding");
       const method = config.method.toUpperCase();
       let isDone;
       let rejected = false;
@@ -22111,7 +46923,7 @@ var require_axios = __commonJS((exports, module) => {
           boundary: userBoundary && userBoundary[1] || undefined
         });
       } else if (utils$1.isFormData(data) && utils$1.isFunction(data.getHeaders) && data.getHeaders !== Object.prototype.getHeaders) {
-        setFormDataHeaders$1(headers, data.getHeaders(), own2("formDataHeaderPolicy"));
+        setFormDataHeaders$1(headers, data.getHeaders(), own7("formDataHeaderPolicy"));
         if (!headers.hasContentLength()) {
           try {
             const knownLength = await util.promisify(data.getLength).call(data);
@@ -22156,7 +46968,7 @@ var require_axios = __commonJS((exports, module) => {
         onUploadProgress && data.on("progress", flushOnFinish(data, progressEventDecorator(contentLength, progressEventReducer(asyncDecorator(onUploadProgress), false, 3))));
       }
       let auth = undefined;
-      const configAuth = own2("auth");
+      const configAuth = own7("auth");
       if (configAuth) {
         const username = configAuth.username || "";
         const password = configAuth.password || "";
@@ -22195,16 +47007,16 @@ var require_axios = __commonJS((exports, module) => {
         http2Options
       });
       !utils$1.isUndefined(lookup) && (options.lookup = lookup);
-      const socketPath = own2("socketPath");
+      const socketPath = own7("socketPath");
       if (socketPath) {
         if (typeof socketPath !== "string") {
           return reject(new AxiosError("socketPath must be a string", AxiosError.ERR_BAD_OPTION_VALUE, config));
         }
-        const allowedSocketPaths = own2("allowedSocketPaths");
+        const allowedSocketPaths = own7("allowedSocketPaths");
         if (allowedSocketPaths != null) {
           const allowed = Array.isArray(allowedSocketPaths) ? allowedSocketPaths : [allowedSocketPaths];
-          const resolvedSocket = path.resolve(socketPath);
-          const isAllowed = allowed.some((entry) => typeof entry === "string" && path.resolve(entry) === resolvedSocket);
+          const resolvedSocket = path2.resolve(socketPath);
+          const isAllowed = allowed.some((entry) => typeof entry === "string" && path2.resolve(entry) === resolvedSocket);
           if (!isAllowed) {
             return reject(new AxiosError(`socketPath "${socketPath}" is not permitted by allowedSocketPaths`, AxiosError.ERR_BAD_OPTION_VALUE, config));
           }
@@ -22224,7 +47036,7 @@ var require_axios = __commonJS((exports, module) => {
       if (isHttp2) {
         transport = http2Transport;
       } else {
-        const configTransport = own2("transport");
+        const configTransport = own7("transport");
         if (configTransport) {
           transport = configTransport;
         } else if (config.maxRedirects === 0) {
@@ -22234,7 +47046,7 @@ var require_axios = __commonJS((exports, module) => {
           if (config.maxRedirects) {
             options.maxRedirects = config.maxRedirects;
           }
-          const configBeforeRedirect = own2("beforeRedirect");
+          const configBeforeRedirect = own7("beforeRedirect");
           if (configBeforeRedirect) {
             options.beforeRedirects.config = configBeforeRedirect;
           }
@@ -22257,7 +47069,7 @@ var require_axios = __commonJS((exports, module) => {
       } else {
         options.maxBodyLength = Infinity;
       }
-      options.insecureHTTPParser = Boolean(own2("insecureHTTPParser"));
+      options.insecureHTTPParser = Boolean(own7("insecureHTTPParser"));
       req = transport.request(options, function handleResponse(res) {
         clearConnectPhaseTimer();
         if (req.destroyed)
@@ -22477,18 +47289,18 @@ var require_axios = __commonJS((exports, module) => {
     return origin2.protocol === url3.protocol && origin2.host === url3.host && (isMSIE || origin2.port === url3.port);
   })(new URL(platform.origin), platform.navigator && /(msie|trident)/i.test(platform.navigator.userAgent)) : () => true;
   var cookies = platform.hasStandardBrowserEnv ? {
-    write(name, value, expires, path2, domain, secure, sameSite) {
+    write(name, value, expires, path3, domain2, secure, sameSite) {
       if (typeof document === "undefined")
         return;
       const cookie = [`${name}=${encodeURIComponent(value)}`];
       if (utils$1.isNumber(expires)) {
         cookie.push(`expires=${new Date(expires).toUTCString()}`);
       }
-      if (utils$1.isString(path2)) {
-        cookie.push(`path=${path2}`);
+      if (utils$1.isString(path3)) {
+        cookie.push(`path=${path3}`);
       }
-      if (utils$1.isString(domain)) {
-        cookie.push(`domain=${domain}`);
+      if (utils$1.isString(domain2)) {
+        cookie.push(`domain=${domain2}`);
       }
       if (secure === true) {
         cookie.push("secure");
@@ -22546,28 +47358,28 @@ var require_axios = __commonJS((exports, module) => {
       }
       return source;
     }
-    function mergeDeepProperties(a, b2, prop, caseless) {
-      if (!utils$1.isUndefined(b2)) {
-        return getMergedValue(a, b2, prop, caseless);
+    function mergeDeepProperties(a, b3, prop, caseless) {
+      if (!utils$1.isUndefined(b3)) {
+        return getMergedValue(a, b3, prop, caseless);
       } else if (!utils$1.isUndefined(a)) {
         return getMergedValue(undefined, a, prop, caseless);
       }
     }
-    function valueFromConfig2(a, b2) {
-      if (!utils$1.isUndefined(b2)) {
-        return getMergedValue(undefined, b2);
+    function valueFromConfig2(a, b3) {
+      if (!utils$1.isUndefined(b3)) {
+        return getMergedValue(undefined, b3);
       }
     }
-    function defaultToConfig2(a, b2) {
-      if (!utils$1.isUndefined(b2)) {
-        return getMergedValue(undefined, b2);
+    function defaultToConfig2(a, b3) {
+      if (!utils$1.isUndefined(b3)) {
+        return getMergedValue(undefined, b3);
       } else if (!utils$1.isUndefined(a)) {
         return getMergedValue(undefined, a);
       }
     }
-    function mergeDirectKeys(a, b2, prop) {
+    function mergeDirectKeys(a, b3, prop) {
       if (utils$1.hasOwnProp(config2, prop)) {
-        return getMergedValue(a, b2);
+        return getMergedValue(a, b3);
       } else if (utils$1.hasOwnProp(config1, prop)) {
         return getMergedValue(undefined, a);
       }
@@ -22602,7 +47414,7 @@ var require_axios = __commonJS((exports, module) => {
       allowedSocketPaths: defaultToConfig2,
       responseEncoding: defaultToConfig2,
       validateStatus: mergeDirectKeys,
-      headers: (a, b2, prop) => mergeDeepProperties(headersToObject(a), headersToObject(b2), prop, true)
+      headers: (a, b3, prop) => mergeDeepProperties(headersToObject(a), headersToObject(b3), prop, true)
     };
     utils$1.forEach(Object.keys({
       ...config1,
@@ -22612,8 +47424,8 @@ var require_axios = __commonJS((exports, module) => {
         return;
       const merge2 = utils$1.hasOwnProp(mergeMap, prop) ? mergeMap[prop] : mergeDeepProperties;
       const a = utils$1.hasOwnProp(config1, prop) ? config1[prop] : undefined;
-      const b2 = utils$1.hasOwnProp(config2, prop) ? config2[prop] : undefined;
-      const configValue = merge2(a, b2, prop);
+      const b3 = utils$1.hasOwnProp(config2, prop) ? config2[prop] : undefined;
+      const configValue = merge2(a, b3, prop);
       utils$1.isUndefined(configValue) && merge2 !== mergeDirectKeys || (config[prop] = configValue);
     });
     return config;
@@ -22633,18 +47445,18 @@ var require_axios = __commonJS((exports, module) => {
   var encodeUTF8$1 = (str) => encodeURIComponent(str).replace(/%([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
   function resolveConfig(config) {
     const newConfig = mergeConfig({}, config);
-    const own2 = (key) => utils$1.hasOwnProp(newConfig, key) ? newConfig[key] : undefined;
-    const data = own2("data");
-    let withXSRFToken = own2("withXSRFToken");
-    const xsrfHeaderName = own2("xsrfHeaderName");
-    const xsrfCookieName = own2("xsrfCookieName");
-    let headers = own2("headers");
-    const auth = own2("auth");
-    const baseURL = own2("baseURL");
-    const allowAbsoluteUrls = own2("allowAbsoluteUrls");
-    const url3 = own2("url");
+    const own7 = (key) => utils$1.hasOwnProp(newConfig, key) ? newConfig[key] : undefined;
+    const data = own7("data");
+    let withXSRFToken = own7("withXSRFToken");
+    const xsrfHeaderName = own7("xsrfHeaderName");
+    const xsrfCookieName = own7("xsrfCookieName");
+    let headers = own7("headers");
+    const auth = own7("auth");
+    const baseURL = own7("baseURL");
+    const allowAbsoluteUrls = own7("allowAbsoluteUrls");
+    const url3 = own7("url");
     newConfig.headers = headers = AxiosHeaders.from(headers);
-    newConfig.url = buildURL(buildFullPath(baseURL, url3, allowAbsoluteUrls), own2("params"), own2("paramsSerializer"));
+    newConfig.url = buildURL(buildFullPath(baseURL, url3, allowAbsoluteUrls), own7("params"), own7("paramsSerializer"));
     if (auth) {
       headers.set("Authorization", "Basic " + btoa((auth.username || "") + ":" + (auth.password ? encodeUTF8$1(auth.password) : "")));
     }
@@ -22652,7 +47464,7 @@ var require_axios = __commonJS((exports, module) => {
       if (platform.hasStandardBrowserEnv || platform.hasStandardBrowserWebWorkerEnv || utils$1.isReactNative(data)) {
         headers.setContentType(undefined);
       } else if (utils$1.isFunction(data.getHeaders)) {
-        setFormDataHeaders(headers, data.getHeaders(), own2("formDataHeaderPolicy"));
+        setFormDataHeaders(headers, data.getHeaders(), own7("formDataHeaderPolicy"));
       }
     }
     if (platform.hasStandardBrowserEnv) {
@@ -22931,9 +47743,9 @@ var require_axios = __commonJS((exports, module) => {
       return value;
     }
   };
-  var test = (fn, ...args) => {
+  var test = (fn2, ...args) => {
     try {
-      return !!fn(...args);
+      return !!fn2(...args);
     } catch (e) {
       return false;
     }
@@ -23049,7 +47861,7 @@ var require_axios = __commonJS((exports, module) => {
       } = resolveConfig(config);
       const hasMaxContentLength = utils$1.isNumber(maxContentLength) && maxContentLength > -1;
       const hasMaxBodyLength = utils$1.isNumber(maxBodyLength) && maxBodyLength > -1;
-      const own2 = (key) => utils$1.hasOwnProp(config, key) ? config[key] : undefined;
+      const own7 = (key) => utils$1.hasOwnProp(config, key) ? config[key] : undefined;
       let _fetch = envFetch || fetch;
       responseType = responseType ? (responseType + "").toLowerCase() : "text";
       let composedSignal = composeSignals([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
@@ -23060,7 +47872,7 @@ var require_axios = __commonJS((exports, module) => {
       let requestContentLength;
       try {
         let auth = undefined;
-        const configAuth = own2("auth");
+        const configAuth = own7("auth");
         if (configAuth) {
           const username = configAuth.username || "";
           const password = configAuth.password || "";
@@ -23222,12 +48034,12 @@ var require_axios = __commonJS((exports, module) => {
       Response: Response2
     } = env;
     const seeds = [Request, Response2, fetch2];
-    let len = seeds.length, i = len, seed, target, map = seedCache;
+    let len = seeds.length, i = len, seed, target, map4 = seedCache;
     while (i--) {
       seed = seeds[i];
-      target = map.get(seed);
-      target === undefined && map.set(seed, target = i ? new Map : factory(env));
-      map = target;
+      target = map4.get(seed);
+      target === undefined && map4.set(seed, target = i ? new Map : factory(env));
+      map4 = target;
     }
     return target;
   };
@@ -23239,15 +48051,15 @@ var require_axios = __commonJS((exports, module) => {
       get: getFetch
     }
   };
-  utils$1.forEach(knownAdapters, (fn, value) => {
-    if (fn) {
+  utils$1.forEach(knownAdapters, (fn2, value) => {
+    if (fn2) {
       try {
-        Object.defineProperty(fn, "name", {
+        Object.defineProperty(fn2, "name", {
           __proto__: null,
           value
         });
       } catch (e) {}
-      Object.defineProperty(fn, "adapterName", {
+      Object.defineProperty(fn2, "adapterName", {
         __proto__: null,
         value
       });
@@ -23279,7 +48091,7 @@ var require_axios = __commonJS((exports, module) => {
       rejectedReasons[id || "#" + i] = adapter;
     }
     if (!adapter) {
-      const reasons = Object.entries(rejectedReasons).map(([id, state]) => `adapter ${id} ` + (state === false ? "is not supported by the environment" : "is not available in the build"));
+      const reasons = Object.entries(rejectedReasons).map(([id, state2]) => `adapter ${id} ` + (state2 === false ? "is not supported by the environment" : "is not available in the build"));
       let s = length ? reasons.length > 1 ? `since :
 ` + reasons.map(renderReason).join(`
 `) : " " + renderReason(reasons[0]) : "as no adapter specified";
@@ -23306,7 +48118,7 @@ var require_axios = __commonJS((exports, module) => {
     if (["post", "put", "patch"].indexOf(config.method) !== -1) {
       config.headers.setContentType("application/x-www-form-urlencoded", false);
     }
-    const adapter = adapters.getAdapter(config.adapter || defaults.adapter, config);
+    const adapter = adapters.getAdapter(config.adapter || defaults2.adapter, config);
     return adapter(config).then(function onAdapterResolution(response) {
       throwIfCancellationRequested(config);
       config.response = response;
@@ -23631,9 +48443,9 @@ var require_axios = __commonJS((exports, module) => {
       if (!this._listeners) {
         return;
       }
-      const index = this._listeners.indexOf(listener);
-      if (index !== -1) {
-        this._listeners.splice(index, 1);
+      const index2 = this._listeners.indexOf(listener);
+      if (index2 !== -1) {
+        this._listeners.splice(index2, 1);
       }
     }
     toAbortSignal() {
@@ -23647,8 +48459,8 @@ var require_axios = __commonJS((exports, module) => {
     }
     static source() {
       let cancel;
-      const token = new CancelToken(function executor(c) {
-        cancel = c;
+      const token = new CancelToken(function executor(c2) {
+        cancel = c2;
       });
       return {
         token,
@@ -23657,7 +48469,7 @@ var require_axios = __commonJS((exports, module) => {
     }
   }
   function spread(callback) {
-    return function wrap(arr) {
+    return function wrap2(arr) {
       return callback.apply(null, arr);
     };
   }
@@ -23752,7 +48564,7 @@ var require_axios = __commonJS((exports, module) => {
     };
     return instance;
   }
-  var axios = createInstance(defaults);
+  var axios = createInstance(defaults2);
   axios.Axios = Axios;
   axios.CanceledError = CanceledError;
   axios.CancelToken = CancelToken;
@@ -23761,7 +48573,7 @@ var require_axios = __commonJS((exports, module) => {
   axios.toFormData = toFormData;
   axios.AxiosError = AxiosError;
   axios.Cancel = axios.CanceledError;
-  axios.all = function all(promises) {
+  axios.all = function all2(promises) {
     return Promise.all(promises);
   };
   axios.spread = spread;
@@ -23786,9 +48598,9 @@ var require_auth = __commonJS((exports) => {
       this.apiKey = apiKey;
       this.privateKeyPem = privateKeyPem;
     }
-    signPssText(text3) {
+    signPssText(text8) {
       const sign = crypto3.createSign("RSA-SHA256");
-      sign.update(text3);
+      sign.update(text8);
       sign.end();
       const signature = sign.sign({
         key: this.privateKeyPem,
@@ -23797,10 +48609,10 @@ var require_auth = __commonJS((exports) => {
       });
       return signature.toString("base64");
     }
-    generateAuthHeaders(method, path) {
+    generateAuthHeaders(method, path2) {
       const currentTimeMilliseconds = Date.now();
       const timestampStr = currentTimeMilliseconds.toString();
-      const msgString = timestampStr + method + path;
+      const msgString = timestampStr + method + path2;
       const sig = this.signPssText(msgString);
       return {
         "KALSHI-ACCESS-KEY": this.apiKey,
@@ -23841,9 +48653,9 @@ var require_base = __commonJS((exports) => {
       this.axios.interceptors.request.use((config) => {
         if (this.auth && config.url && config.method) {
           const url2 = new URL(config.url, this.basePath);
-          const path = url2.pathname;
+          const path2 = url2.pathname;
           const method = config.method.toUpperCase();
-          const authHeaders = this.auth.generateAuthHeaders(method, path);
+          const authHeaders = this.auth.generateAuthHeaders(method, path2);
           Object.assign(config.headers, authHeaders);
         }
         return config;
@@ -29212,25 +54024,25 @@ var require_structured_targets_api = __commonJS((exports) => {
 
 // node_modules/kalshi-typescript/dist/api.js
 var require_api = __commonJS((exports) => {
-  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    var desc2 = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
+  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    var desc2 = Object.getOwnPropertyDescriptor(m2, k2);
+    if (!desc2 || ("get" in desc2 ? !m2.__esModule : desc2.writable || desc2.configurable)) {
       desc2 = { enumerable: true, get: function() {
-        return m[k];
+        return m2[k2];
       } };
     }
-    Object.defineProperty(o, k2, desc2);
-  } : function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    o[k2] = m[k];
+    Object.defineProperty(o, k22, desc2);
+  } : function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    o[k22] = m2[k2];
   });
-  var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-    for (var p in m)
-      if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p))
-        __createBinding(exports2, m, p);
+  var __exportStar = exports && exports.__exportStar || function(m2, exports2) {
+    for (var p2 in m2)
+      if (p2 !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p2))
+        __createBinding(exports2, m2, p2);
   };
   Object.defineProperty(exports, "__esModule", { value: true });
   __exportStar(require_account_api(), exports);
@@ -30347,25 +55159,25 @@ var require_withdrawal = __commonJS((exports) => {
 
 // node_modules/kalshi-typescript/dist/models/index.js
 var require_models = __commonJS((exports) => {
-  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    var desc2 = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
+  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    var desc2 = Object.getOwnPropertyDescriptor(m2, k2);
+    if (!desc2 || ("get" in desc2 ? !m2.__esModule : desc2.writable || desc2.configurable)) {
       desc2 = { enumerable: true, get: function() {
-        return m[k];
+        return m2[k2];
       } };
     }
-    Object.defineProperty(o, k2, desc2);
-  } : function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    o[k2] = m[k];
+    Object.defineProperty(o, k22, desc2);
+  } : function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    o[k22] = m2[k2];
   });
-  var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-    for (var p in m)
-      if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p))
-        __createBinding(exports2, m, p);
+  var __exportStar = exports && exports.__exportStar || function(m2, exports2) {
+    for (var p2 in m2)
+      if (p2 !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p2))
+        __createBinding(exports2, m2, p2);
   };
   Object.defineProperty(exports, "__esModule", { value: true });
   __exportStar(require_accept_quote_request(), exports);
@@ -30543,26 +55355,26 @@ var require_models = __commonJS((exports) => {
 });
 
 // node_modules/kalshi-typescript/dist/index.js
-var require_dist2 = __commonJS((exports) => {
-  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    var desc2 = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc2 || ("get" in desc2 ? !m.__esModule : desc2.writable || desc2.configurable)) {
+var require_dist3 = __commonJS((exports) => {
+  var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    var desc2 = Object.getOwnPropertyDescriptor(m2, k2);
+    if (!desc2 || ("get" in desc2 ? !m2.__esModule : desc2.writable || desc2.configurable)) {
       desc2 = { enumerable: true, get: function() {
-        return m[k];
+        return m2[k2];
       } };
     }
-    Object.defineProperty(o, k2, desc2);
-  } : function(o, m, k, k2) {
-    if (k2 === undefined)
-      k2 = k;
-    o[k2] = m[k];
+    Object.defineProperty(o, k22, desc2);
+  } : function(o, m2, k2, k22) {
+    if (k22 === undefined)
+      k22 = k2;
+    o[k22] = m2[k2];
   });
-  var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-    for (var p in m)
-      if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p))
-        __createBinding(exports2, m, p);
+  var __exportStar = exports && exports.__exportStar || function(m2, exports2) {
+    for (var p2 in m2)
+      if (p2 !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p2))
+        __createBinding(exports2, m2, p2);
   };
   Object.defineProperty(exports, "__esModule", { value: true });
   __exportStar(require_api(), exports);
@@ -30573,7 +55385,7 @@ var require_dist2 = __commonJS((exports) => {
 // src/kalshi/client.ts
 var import_kalshi_typescript, eventsApi, marketApi;
 var init_client = __esm(() => {
-  import_kalshi_typescript = __toESM(require_dist2(), 1);
+  import_kalshi_typescript = __toESM(require_dist3(), 1);
   eventsApi = new import_kalshi_typescript.EventsApi;
   marketApi = new import_kalshi_typescript.MarketApi;
 });
@@ -30596,26 +55408,6 @@ var init_ingest = __esm(() => {
   init_client();
 });
 
-// src/kalshi/series.ts
-function seriesTitle(seriesTicker) {
-  const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.title;
-  if (known)
-    return known;
-  const stripped = seriesTicker.replace(/^KX/, "");
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
-}
-function seriesRank(seriesTicker) {
-  const index = TRACKED_SERIES.findIndex((s) => s.ticker === seriesTicker);
-  return index === -1 ? TRACKED_SERIES.length : index;
-}
-var TRACKED_SERIES;
-var init_series = __esm(() => {
-  TRACKED_SERIES = [
-    { ticker: "KXWCGAME", title: "⚽️ World Cup 2026 Games" },
-    { ticker: "KXNBAGAME", title: "\uD83C\uDFC0 NBA Finals 2026" }
-  ];
-});
-
 // src/utils/sync.ts
 async function sync(seriesTicker) {
   const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
@@ -30635,6 +55427,7 @@ async function sync(seriesTicker) {
   let skippedEvents = 0;
   let settledBets = 0;
   let voidedBets = 0;
+  const settlements = [];
   for (const event of kalshiEvents) {
     const milestone = milestoneByEvent.get(event.event_ticker);
     const startsAt = date3(milestone?.start_date);
@@ -30652,7 +55445,10 @@ async function sync(seriesTicker) {
       marketCount++;
       const result = market.result ?? "";
       if (result === "yes" || result === "no") {
-        settledBets += await settleMarketBets(market.ticker, result);
+        const settled = await settleMarketBets(market.ticker, result);
+        settledBets += settled.length;
+        if (settled.length)
+          settlements.push({ marketTicker: market.ticker, result, bets: settled });
       } else if (result === "void") {
         voidedBets += await voidMarketBets(market.ticker);
       }
@@ -30664,13 +55460,15 @@ async function sync(seriesTicker) {
     markets: marketCount,
     skippedEvents,
     settledBets,
-    voidedBets
+    voidedBets,
+    settlements
   };
 }
 async function settleOpenBetMarkets() {
   const openMarkets = await db2.selectDistinct({ ticker: bets.marketTicker }).from(bets).where(eq(bets.status, "open"));
   let settledBets = 0;
   let voidedBets = 0;
+  const settlements = [];
   const BATCH = 50;
   for (let i = 0;i < openMarkets.length; i += BATCH) {
     const tickers = openMarkets.slice(i, i + BATCH).map((r) => r.ticker);
@@ -30679,13 +55477,16 @@ async function settleOpenBetMarkets() {
       await updateMarketRow(market);
       const result = market.result ?? "";
       if (result === "yes" || result === "no") {
-        settledBets += await settleMarketBets(market.ticker, result);
+        const settled = await settleMarketBets(market.ticker, result);
+        settledBets += settled.length;
+        if (settled.length)
+          settlements.push({ marketTicker: market.ticker, result, bets: settled });
       } else if (result === "void") {
         voidedBets += await voidMarketBets(market.ticker);
       }
     }
   }
-  return { checkedMarkets: openMarkets.length, settledBets, voidedBets };
+  return { checkedMarkets: openMarkets.length, settledBets, voidedBets, settlements };
 }
 async function syncAll() {
   const series = [];
@@ -30693,11 +55494,21 @@ async function syncAll() {
     series.push(await sync(tracked.ticker));
   }
   const settlement = await settleOpenBetMarkets();
+  const settledBets = series.reduce((n, s) => n + s.settledBets, settlement.settledBets);
+  const voidedBets = series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets);
+  const settlements = [...series.flatMap((s) => s.settlements), ...settlement.settlements];
+  let announcedThreads = 0;
+  try {
+    announcedThreads = await announceSettlements(settlements, voidedBets);
+  } catch (error) {
+    console.error("settlement announcement failed:", error);
+  }
   return {
     series,
     checkedMarkets: settlement.checkedMarkets,
-    settledBets: series.reduce((n, s) => n + s.settledBets, settlement.settledBets),
-    voidedBets: series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets)
+    settledBets,
+    voidedBets,
+    announcedThreads
   };
 }
 function indexMilestones(milestones) {
@@ -30781,6 +55592,7 @@ var init_sync = __esm(() => {
   init_db2();
   init_schema2();
   init_house();
+  init_announce();
   init_ingest();
   init_client();
   init_series();

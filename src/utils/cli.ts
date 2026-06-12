@@ -14,6 +14,7 @@ import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
 import { settleOpenBetMarkets, sync, syncAll } from "./sync";
+import { state } from "../bot";
 
 const dollars = (c: number | null) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
 const [cmd, ...args] = Bun.argv.slice(2);
@@ -119,7 +120,7 @@ switch (cmd) {
 
   case "settle": {
     const settled = await settleMarketBets(args[0]!, args[1] as BetSide);
-    console.log(`settled ${settled} bets on ${args[0]} as ${args[1]}`);
+    console.log(`settled ${settled.length} bets on ${args[0]} as ${args[1]}`);
     break;
   }
 
@@ -128,4 +129,7 @@ switch (cmd) {
     process.exit(1);
 }
 
+// The announcer may have connected the bot's Postgres state pool — close
+// both pools or the process never exits. disconnect() no-ops if unused.
+await state.disconnect();
 await sql.end();

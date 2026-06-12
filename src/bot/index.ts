@@ -29,13 +29,17 @@ export const telegram = createTelegramAdapter({
   mode: "auto",
 });
 
+// Postgres-backed state (reads DATABASE_URL, creates its own tables):
+// subscriptions, /bet menu flow state, and webhook locks/dedupe must
+// survive across serverless invocations. Exported so non-webhook callers
+// (the settlement announcer) can connect it without bot.initialize(),
+// which would start a polling loop in local runs.
+export const state = createPostgresState();
+
 export const bot = new Chat({
   userName: process.env.TELEGRAM_BOT_USERNAME ?? "bot",
   adapters: { telegram },
-  // Postgres-backed state (reads DATABASE_URL, creates its own tables):
-  // subscriptions, /bet menu flow state, and webhook locks/dedupe must
-  // survive across serverless invocations.
-  state: createPostgresState(),
+  state,
 });
 
 // Bot @-mentioned in a group chat we aren't following yet.
