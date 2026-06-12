@@ -4,7 +4,7 @@ import { db } from "../../db";
 import { bets as betsTable, events, markets, users } from "../../db/schema";
 import { displayName, formatDollars } from "../../utils/format";
 import type { BotCommand } from "./types";
-import { isNotModified, kickoffLabel, menuHandle, seriesTitle, upcomingEvents } from "./bet";
+import { groupBySeries, isNotModified, kickoffLabel, menuHandle, seriesHeaderRow, upcomingEvents } from "./bet";
 
 // Action ids — the tapped event ticker travels in the button's value.
 // Registered via bot.onAction in src/bot/index.ts.
@@ -28,8 +28,9 @@ async function openBetCounts(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
 }
 
-// Same event list as /bet (shared via upcomingEvents), but each button
-// shows how many open bets ride on that event instead of the kickoff time.
+// Same event list as /bet (shared via upcomingEvents and groupBySeries),
+// but each button shows how many open bets ride on that event instead of
+// the kickoff time.
 async function betsEventsCard(): Promise<CardElement | null> {
   const rows = await upcomingEvents();
   if (rows.length === 0) return null;
@@ -38,22 +39,21 @@ async function betsEventsCard(): Promise<CardElement | null> {
   return {
     type: "card",
     children: [
-      {
-        type: "text",
-        content: `${seriesTitle(rows[0]!.seriesTicker)} — open bets by event`,
-        style: "bold",
-      },
-      ...rows.map((e) => ({
-        type: "actions" as const,
-        children: [
-          {
-            type: "button" as const,
-            id: BETS_PICK_EVENT_ACTION,
-            label: `${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
-            value: e.eventTicker,
-          },
-        ],
-      })),
+      { type: "text", content: "Open bets by event", style: "bold" },
+      ...groupBySeries(rows).flatMap((group) => [
+        seriesHeaderRow(group.seriesTicker),
+        ...group.events.map((e) => ({
+          type: "actions" as const,
+          children: [
+            {
+              type: "button" as const,
+              id: BETS_PICK_EVENT_ACTION,
+              label: `${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
+              value: e.eventTicker,
+            },
+          ],
+        })),
+      ]),
     ],
   };
 }

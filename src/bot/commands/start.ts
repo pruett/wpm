@@ -8,12 +8,9 @@ import type { BotCommand } from "./types";
 // One is picked at random per welcome.
 const WELCOME_GIFS = [
   "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif", // Gatsby Leo raising a glass
-  "https://media.giphy.com/media/OkJat1YNdoD3W/giphy.gif", // hand-lettered "Welcome"
   "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif", // Forrest Gump waving
   "https://media.giphy.com/media/ASd0Ukj0y3qMM/giphy.gif", // Ralph Wiggum waving hello
-  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", // The Office celebration dance
   "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif", // 90s kid thumbs-up at computer
-  "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif", // cat wiggle, ready to pounce
 ];
 
 function randomWelcomeGif(): string {

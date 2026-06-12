@@ -4,6 +4,7 @@ import { createPostgresState } from "@chat-adapter/state-pg";
 import { dispatchCommand } from "./commands";
 import {
   BACK_TO_EVENTS_ACTION,
+  NOOP_ACTION,
   PICK_AMOUNT_ACTION,
   PICK_EVENT_ACTION,
   PICK_OUTCOME_ACTION,
@@ -66,6 +67,8 @@ bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
 bot.onAction(PICK_OUTCOME_ACTION, handlePickOutcome);
 bot.onAction(PICK_AMOUNT_ACTION, handlePickAmount);
 bot.onAction(BACK_TO_EVENTS_ACTION, handleBackToEvents);
+// Series-header rows are labels, not controls — acknowledge and do nothing.
+bot.onAction(NOOP_ACTION, async () => {});
 
 // /bets is a shared read-only card: event list with open-bet counts that
 // drills into per-event bet lists. Anyone may navigate it.

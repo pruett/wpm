@@ -5467,6 +5467,9 @@ var init_relations = __esm(() => {
 });
 
 // node_modules/drizzle-orm/sql/functions/aggregate.js
+function count(expression) {
+  return sql`count(${expression || sql.raw("*")})`.mapWith(Number);
+}
 function sum(expression) {
   return sql`sum(${expression})`.mapWith(String);
 }

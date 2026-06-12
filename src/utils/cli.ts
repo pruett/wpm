@@ -1,7 +1,7 @@
 /**
  * Minimal CLI to exercise the house model end to end.
  *
- *   bun run cli sync [series]                          # mirror Kalshi → Postgres, settle results (the cron job)
+ *   bun run cli sync [series]                          # mirror tracked series (or just one) → Postgres, settle results (the cron job)
  *   bun run cli markets <event_ticker>                 # show an event's outcomes and prices
  *   bun run cli register <telegram_id>                 # create a user with the seed bankroll
  *   bun run cli bet <telegram_id> <market> <yes|no> <$>  # bet against the house
@@ -13,20 +13,31 @@ import { asc, eq } from "drizzle-orm";
 import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
-import { sync } from "./sync";
+import { settleOpenBetMarkets, sync, syncAll } from "./sync";
 
 const dollars = (c: number | null) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
 const [cmd, ...args] = Bun.argv.slice(2);
 
 switch (cmd) {
   case "sync": {
-    const series = args[0] ?? "KXWCGAME";
-    const stats = await sync(series);
-    console.log(
-      `synced ${stats.events} events / ${stats.markets} markets from ${series}` +
-        (stats.settledBets ? `, settled ${stats.settledBets} bets` : "") +
-        (stats.voidedBets ? `, voided ${stats.voidedBets} bets` : ""),
-    );
+    // No arg syncs every tracked series (what the cron does); an explicit
+    // series ticker syncs just that one. Both end with the settlement pass.
+    const { series, settledBets, voidedBets } = args[0]
+      ? await (async () => {
+          const stats = await sync(args[0]!);
+          const settlement = await settleOpenBetMarkets();
+          return {
+            series: [stats],
+            settledBets: stats.settledBets + settlement.settledBets,
+            voidedBets: stats.voidedBets + settlement.voidedBets,
+          };
+        })()
+      : await syncAll();
+    for (const s of series) {
+      console.log(`synced ${s.events} events / ${s.markets} markets from ${s.series}`);
+    }
+    if (settledBets) console.log(`settled ${settledBets} bets`);
+    if (voidedBets) console.log(`voided ${voidedBets} bets`);
     break;
   }
 

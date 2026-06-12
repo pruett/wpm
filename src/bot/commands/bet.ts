@@ -1,10 +1,11 @@
 import type { ActionEvent, CardElement, Message, SentMessage, Thread } from "chat";
-import { and, asc, eq, gt, lte } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { db } from "../../db";
 import { events, markets as marketsTable } from "../../db/schema";
 import { REGISTER_PROMPT, balanceCents, findUser, placeBet } from "../../utils/house";
 import { telegramProfile, telegramProfileFromAction } from "../identity";
 import { formatDollars, formatEastern } from "../../utils/format";
+import { seriesRank, seriesTitle } from "../../kalshi/series";
 import type { BotCommand } from "./types";
 
 // Action ids; the tapped event/market ticker travels in the button's value.
@@ -15,6 +16,24 @@ export const PICK_EVENT_ACTION = "pick_event";
 export const PICK_OUTCOME_ACTION = "pick_outcome";
 export const PICK_AMOUNT_ACTION = "pick_amount";
 export const BACK_TO_EVENTS_ACTION = "back_events";
+// Series-header rows in the keyboard — a tap does nothing. Telegram renders
+// all card text above the keyboard, so headers must be button rows to sit
+// between event buttons.
+export const NOOP_ACTION = "noop";
+
+/** Full-width label row used as a series header inside the keyboard. */
+export function seriesHeaderRow(seriesTicker: string) {
+  return {
+    type: "actions" as const,
+    children: [
+      {
+        type: "button" as const,
+        id: NOOP_ACTION,
+        label: `— ${seriesTitle(seriesTicker)} —`,
+      },
+    ],
+  };
+}
 
 // --- Menu + pick state (postgres-backed thread state, 30-day TTL) ---
 
@@ -91,20 +110,6 @@ export function menuHandle(thread: Thread<unknown>, messageId: string): SentMess
   return thread.createSentMessageFromMessage({ id: messageId } as unknown as Message);
 }
 
-// Kalshi series tickers → friendly titles for the menu header.
-const SERIES_TITLES: Record<string, string> = {
-  KXWCGAME: "⚽️ World Cup 2026 Games",
-};
-
-// Unknown series fall back to the raw ticker minus Kalshi's "KX" prefix,
-// title-cased — "KXNBASERIES" → "Nbaseries" beats showing nothing.
-export function seriesTitle(seriesTicker: string): string {
-  const known = SERIES_TITLES[seriesTicker];
-  if (known) return known;
-  const stripped = seriesTicker.replace(/^KX/, "");
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
-}
-
 export function kickoffLabel(startsAt: Date | null): string {
   return startsAt ? formatEastern(startsAt) : "TBD";
 }
@@ -137,7 +142,9 @@ export async function upcomingEvents(): Promise<UpcomingEvent[]> {
     .innerJoin(events, eq(events.eventTicker, marketsTable.eventTicker))
     .where(
       and(
-        eq(events.gameStatus, "not_started"),
+        // Pre-game milestone statuses differ by sport: soccer reports
+        // "not_started", basketball "scheduled".
+        inArray(events.gameStatus, ["not_started", "scheduled"]),
         gt(events.startsAt, now),
         lte(events.startsAt, horizon),
       ),
@@ -145,11 +152,33 @@ export async function upcomingEvents(): Promise<UpcomingEvent[]> {
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
+export interface SeriesGroup {
+  seriesTicker: string;
+  events: UpcomingEvent[];
+}
+
+/**
+ * Group upcoming events into one menu section per series, ordered the way
+ * the registry lists them. Events keep their soonest-first order within
+ * each section.
+ */
+export function groupBySeries(rows: UpcomingEvent[]): SeriesGroup[] {
+  const bySeries = new Map<string, UpcomingEvent[]>();
+  for (const row of rows) {
+    const group = bySeries.get(row.seriesTicker);
+    if (group) group.push(row);
+    else bySeries.set(row.seriesTicker, [row]);
+  }
+  return [...bySeries.entries()]
+    .map(([seriesTicker, events]) => ({ seriesTicker, events }))
+    .sort((a, b) => seriesRank(a.seriesTicker) - seriesRank(b.seriesTicker));
+}
+
 // --- Card builders (views of the menu) ---
 
-// Event list: one full-width button per row so titles don't get ellipsized.
-// The owner's name in the header marks whose menu this is — menus are
-// per-user.
+// Event list: a header per series, then one full-width button per event so
+// titles don't get ellipsized. The owner's name in the top line marks whose
+// menu this is — menus are per-user.
 async function eventsCard(ownerName: string): Promise<CardElement | null> {
   const rows = await upcomingEvents();
   if (rows.length === 0) return null;
@@ -159,20 +188,23 @@ async function eventsCard(ownerName: string): Promise<CardElement | null> {
     children: [
       {
         type: "text",
-        content: `${seriesTitle(rows[0]!.seriesTicker)} — ${ownerName}, select an event and place your bet`,
+        content: `${ownerName}, select an event and place your bet`,
         style: "bold",
       },
-      ...rows.map((e) => ({
-        type: "actions" as const,
-        children: [
-          {
-            type: "button" as const,
-            id: PICK_EVENT_ACTION,
-            label: `${e.title} — ${kickoffLabel(e.startsAt)}`,
-            value: e.eventTicker,
-          },
-        ],
-      })),
+      ...groupBySeries(rows).flatMap((group) => [
+        seriesHeaderRow(group.seriesTicker),
+        ...group.events.map((e) => ({
+          type: "actions" as const,
+          children: [
+            {
+              type: "button" as const,
+              id: PICK_EVENT_ACTION,
+              label: `${e.title} — ${kickoffLabel(e.startsAt)}`,
+              value: e.eventTicker,
+            },
+          ],
+        })),
+      ]),
     ],
   };
 }

@@ -46,6 +46,3312 @@ var __export = (target, all) => {
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
+// node_modules/drizzle-orm/entity.js
+function is(value, type) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  if (value instanceof type) {
+    return true;
+  }
+  if (!Object.prototype.hasOwnProperty.call(type, entityKind)) {
+    throw new Error(`Class "${type.name ?? "<unknown>"}" doesn't look like a Drizzle entity. If this is incorrect and the class is provided by Drizzle, please report this as a bug.`);
+  }
+  let cls = Object.getPrototypeOf(value).constructor;
+  if (cls) {
+    while (cls) {
+      if (entityKind in cls && cls[entityKind] === type[entityKind]) {
+        return true;
+      }
+      cls = Object.getPrototypeOf(cls);
+    }
+  }
+  return false;
+}
+var entityKind, hasOwnEntityKind;
+var init_entity = __esm(() => {
+  entityKind = Symbol.for("drizzle:entityKind");
+  hasOwnEntityKind = Symbol.for("drizzle:hasOwnEntityKind");
+});
+
+// node_modules/drizzle-orm/column.js
+var Column;
+var init_column = __esm(() => {
+  init_entity();
+  Column = class Column {
+    constructor(table, config) {
+      this.table = table;
+      this.config = config;
+      this.name = config.name;
+      this.keyAsName = config.keyAsName;
+      this.notNull = config.notNull;
+      this.default = config.default;
+      this.defaultFn = config.defaultFn;
+      this.onUpdateFn = config.onUpdateFn;
+      this.hasDefault = config.hasDefault;
+      this.primary = config.primaryKey;
+      this.isUnique = config.isUnique;
+      this.uniqueName = config.uniqueName;
+      this.uniqueType = config.uniqueType;
+      this.dataType = config.dataType;
+      this.columnType = config.columnType;
+      this.generated = config.generated;
+      this.generatedIdentity = config.generatedIdentity;
+    }
+    static [entityKind] = "Column";
+    name;
+    keyAsName;
+    primary;
+    notNull;
+    default;
+    defaultFn;
+    onUpdateFn;
+    hasDefault;
+    isUnique;
+    uniqueName;
+    uniqueType;
+    dataType;
+    columnType;
+    enumValues = undefined;
+    generated = undefined;
+    generatedIdentity = undefined;
+    config;
+    mapFromDriverValue(value) {
+      return value;
+    }
+    mapToDriverValue(value) {
+      return value;
+    }
+    shouldDisableInsert() {
+      return this.config.generated !== undefined && this.config.generated.type !== "byDefault";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/column-builder.js
+var ColumnBuilder;
+var init_column_builder = __esm(() => {
+  init_entity();
+  ColumnBuilder = class ColumnBuilder {
+    static [entityKind] = "ColumnBuilder";
+    config;
+    constructor(name, dataType, columnType) {
+      this.config = {
+        name,
+        keyAsName: name === "",
+        notNull: false,
+        default: undefined,
+        hasDefault: false,
+        primaryKey: false,
+        isUnique: false,
+        uniqueName: undefined,
+        uniqueType: undefined,
+        dataType,
+        columnType,
+        generated: undefined
+      };
+    }
+    $type() {
+      return this;
+    }
+    notNull() {
+      this.config.notNull = true;
+      return this;
+    }
+    default(value) {
+      this.config.default = value;
+      this.config.hasDefault = true;
+      return this;
+    }
+    $defaultFn(fn) {
+      this.config.defaultFn = fn;
+      this.config.hasDefault = true;
+      return this;
+    }
+    $default = this.$defaultFn;
+    $onUpdateFn(fn) {
+      this.config.onUpdateFn = fn;
+      this.config.hasDefault = true;
+      return this;
+    }
+    $onUpdate = this.$onUpdateFn;
+    primaryKey() {
+      this.config.primaryKey = true;
+      this.config.notNull = true;
+      return this;
+    }
+    setName(name) {
+      if (this.config.name !== "")
+        return;
+      this.config.name = name;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/table.utils.js
+var TableName;
+var init_table_utils = __esm(() => {
+  TableName = Symbol.for("drizzle:Name");
+});
+
+// node_modules/drizzle-orm/pg-core/foreign-keys.js
+var ForeignKeyBuilder, ForeignKey;
+var init_foreign_keys = __esm(() => {
+  init_entity();
+  init_table_utils();
+  ForeignKeyBuilder = class ForeignKeyBuilder {
+    static [entityKind] = "PgForeignKeyBuilder";
+    reference;
+    _onUpdate = "no action";
+    _onDelete = "no action";
+    constructor(config, actions) {
+      this.reference = () => {
+        const { name, columns, foreignColumns } = config();
+        return { name, columns, foreignTable: foreignColumns[0].table, foreignColumns };
+      };
+      if (actions) {
+        this._onUpdate = actions.onUpdate;
+        this._onDelete = actions.onDelete;
+      }
+    }
+    onUpdate(action) {
+      this._onUpdate = action === undefined ? "no action" : action;
+      return this;
+    }
+    onDelete(action) {
+      this._onDelete = action === undefined ? "no action" : action;
+      return this;
+    }
+    build(table) {
+      return new ForeignKey(table, this);
+    }
+  };
+  ForeignKey = class ForeignKey {
+    constructor(table, builder) {
+      this.table = table;
+      this.reference = builder.reference;
+      this.onUpdate = builder._onUpdate;
+      this.onDelete = builder._onDelete;
+    }
+    static [entityKind] = "PgForeignKey";
+    reference;
+    onUpdate;
+    onDelete;
+    getName() {
+      const { name, columns, foreignColumns } = this.reference();
+      const columnNames = columns.map((column) => column.name);
+      const foreignColumnNames = foreignColumns.map((column) => column.name);
+      const chunks = [
+        this.table[TableName],
+        ...columnNames,
+        foreignColumns[0].table[TableName],
+        ...foreignColumnNames
+      ];
+      return name ?? `${chunks.join("_")}_fk`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/tracing-utils.js
+function iife(fn, ...args) {
+  return fn(...args);
+}
+var init_tracing_utils = () => {};
+
+// node_modules/drizzle-orm/pg-core/unique-constraint.js
+function uniqueKeyName(table, columns) {
+  return `${table[TableName]}_${columns.join("_")}_unique`;
+}
+var init_unique_constraint = __esm(() => {
+  init_table_utils();
+});
+
+// node_modules/drizzle-orm/pg-core/utils/array.js
+function parsePgArrayValue(arrayString, startFrom, inQuotes) {
+  for (let i = startFrom;i < arrayString.length; i++) {
+    const char = arrayString[i];
+    if (char === "\\") {
+      i++;
+      continue;
+    }
+    if (char === '"') {
+      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i + 1];
+    }
+    if (inQuotes) {
+      continue;
+    }
+    if (char === "," || char === "}") {
+      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i];
+    }
+  }
+  return [arrayString.slice(startFrom).replace(/\\/g, ""), arrayString.length];
+}
+function parsePgNestedArray(arrayString, startFrom = 0) {
+  const result = [];
+  let i = startFrom;
+  let lastCharIsComma = false;
+  while (i < arrayString.length) {
+    const char = arrayString[i];
+    if (char === ",") {
+      if (lastCharIsComma || i === startFrom) {
+        result.push("");
+      }
+      lastCharIsComma = true;
+      i++;
+      continue;
+    }
+    lastCharIsComma = false;
+    if (char === "\\") {
+      i += 2;
+      continue;
+    }
+    if (char === '"') {
+      const [value2, startFrom2] = parsePgArrayValue(arrayString, i + 1, true);
+      result.push(value2);
+      i = startFrom2;
+      continue;
+    }
+    if (char === "}") {
+      return [result, i + 1];
+    }
+    if (char === "{") {
+      const [value2, startFrom2] = parsePgNestedArray(arrayString, i + 1);
+      result.push(value2);
+      i = startFrom2;
+      continue;
+    }
+    const [value, newStartFrom] = parsePgArrayValue(arrayString, i, false);
+    result.push(value);
+    i = newStartFrom;
+  }
+  return [result, i];
+}
+function parsePgArray(arrayString) {
+  const [result] = parsePgNestedArray(arrayString, 1);
+  return result;
+}
+function makePgArray(array) {
+  return `{${array.map((item) => {
+    if (Array.isArray(item)) {
+      return makePgArray(item);
+    }
+    if (typeof item === "string") {
+      return `"${item.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+    }
+    return `${item}`;
+  }).join(",")}}`;
+}
+var init_array = () => {};
+
+// node_modules/drizzle-orm/pg-core/columns/common.js
+var PgColumnBuilder, PgColumn, ExtraConfigColumn, PgArrayBuilder, PgArray;
+var init_common = __esm(() => {
+  init_column_builder();
+  init_column();
+  init_entity();
+  init_foreign_keys();
+  init_tracing_utils();
+  init_unique_constraint();
+  init_array();
+  PgColumnBuilder = class PgColumnBuilder extends ColumnBuilder {
+    foreignKeyConfigs = [];
+    static [entityKind] = "PgColumnBuilder";
+    array(size) {
+      return new PgArrayBuilder(this.config.name, this, size);
+    }
+    references(ref, actions = {}) {
+      this.foreignKeyConfigs.push({ ref, actions });
+      return this;
+    }
+    unique(name, config) {
+      this.config.isUnique = true;
+      this.config.uniqueName = name;
+      this.config.uniqueType = config?.nulls;
+      return this;
+    }
+    generatedAlwaysAs(as) {
+      this.config.generated = {
+        as,
+        type: "always",
+        mode: "stored"
+      };
+      return this;
+    }
+    buildForeignKeys(column, table) {
+      return this.foreignKeyConfigs.map(({ ref, actions }) => {
+        return iife((ref2, actions2) => {
+          const builder = new ForeignKeyBuilder(() => {
+            const foreignColumn = ref2();
+            return { columns: [column], foreignColumns: [foreignColumn] };
+          });
+          if (actions2.onUpdate) {
+            builder.onUpdate(actions2.onUpdate);
+          }
+          if (actions2.onDelete) {
+            builder.onDelete(actions2.onDelete);
+          }
+          return builder.build(table);
+        }, ref, actions);
+      });
+    }
+    buildExtraConfigColumn(table) {
+      return new ExtraConfigColumn(table, this.config);
+    }
+  };
+  PgColumn = class PgColumn extends Column {
+    constructor(table, config) {
+      if (!config.uniqueName) {
+        config.uniqueName = uniqueKeyName(table, [config.name]);
+      }
+      super(table, config);
+      this.table = table;
+    }
+    static [entityKind] = "PgColumn";
+  };
+  ExtraConfigColumn = class ExtraConfigColumn extends PgColumn {
+    static [entityKind] = "ExtraConfigColumn";
+    getSQLType() {
+      return this.getSQLType();
+    }
+    indexConfig = {
+      order: this.config.order ?? "asc",
+      nulls: this.config.nulls ?? "last",
+      opClass: this.config.opClass
+    };
+    defaultConfig = {
+      order: "asc",
+      nulls: "last",
+      opClass: undefined
+    };
+    asc() {
+      this.indexConfig.order = "asc";
+      return this;
+    }
+    desc() {
+      this.indexConfig.order = "desc";
+      return this;
+    }
+    nullsFirst() {
+      this.indexConfig.nulls = "first";
+      return this;
+    }
+    nullsLast() {
+      this.indexConfig.nulls = "last";
+      return this;
+    }
+    op(opClass) {
+      this.indexConfig.opClass = opClass;
+      return this;
+    }
+  };
+  PgArrayBuilder = class PgArrayBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgArrayBuilder";
+    constructor(name, baseBuilder, size) {
+      super(name, "array", "PgArray");
+      this.config.baseBuilder = baseBuilder;
+      this.config.size = size;
+    }
+    build(table) {
+      const baseColumn = this.config.baseBuilder.build(table);
+      return new PgArray(table, this.config, baseColumn);
+    }
+  };
+  PgArray = class PgArray extends PgColumn {
+    constructor(table, config, baseColumn, range) {
+      super(table, config);
+      this.baseColumn = baseColumn;
+      this.range = range;
+      this.size = config.size;
+    }
+    size;
+    static [entityKind] = "PgArray";
+    getSQLType() {
+      return `${this.baseColumn.getSQLType()}[${typeof this.size === "number" ? this.size : ""}]`;
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        value = parsePgArray(value);
+      }
+      return value.map((v) => this.baseColumn.mapFromDriverValue(v));
+    }
+    mapToDriverValue(value, isNestedArray = false) {
+      const a = value.map((v) => v === null ? null : is(this.baseColumn, PgArray) ? this.baseColumn.mapToDriverValue(v, true) : this.baseColumn.mapToDriverValue(v));
+      if (isNestedArray)
+        return a;
+      return makePgArray(a);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/enum.js
+function isPgEnum(obj) {
+  return !!obj && typeof obj === "function" && isPgEnumSym in obj && obj[isPgEnumSym] === true;
+}
+function pgEnum(enumName, input) {
+  return Array.isArray(input) ? pgEnumWithSchema(enumName, [...input], undefined) : pgEnumObjectWithSchema(enumName, input, undefined);
+}
+function pgEnumWithSchema(enumName, values, schema) {
+  const enumInstance = Object.assign((name) => new PgEnumColumnBuilder(name ?? "", enumInstance), {
+    enumName,
+    enumValues: values,
+    schema,
+    [isPgEnumSym]: true
+  });
+  return enumInstance;
+}
+function pgEnumObjectWithSchema(enumName, values, schema) {
+  const enumInstance = Object.assign((name) => new PgEnumObjectColumnBuilder(name ?? "", enumInstance), {
+    enumName,
+    enumValues: Object.values(values),
+    schema,
+    [isPgEnumSym]: true
+  });
+  return enumInstance;
+}
+var PgEnumObjectColumnBuilder, PgEnumObjectColumn, isPgEnumSym, PgEnumColumnBuilder, PgEnumColumn;
+var init_enum = __esm(() => {
+  init_entity();
+  init_common();
+  PgEnumObjectColumnBuilder = class PgEnumObjectColumnBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgEnumObjectColumnBuilder";
+    constructor(name, enumInstance) {
+      super(name, "string", "PgEnumObjectColumn");
+      this.config.enum = enumInstance;
+    }
+    build(table) {
+      return new PgEnumObjectColumn(table, this.config);
+    }
+  };
+  PgEnumObjectColumn = class PgEnumObjectColumn extends PgColumn {
+    static [entityKind] = "PgEnumObjectColumn";
+    enum;
+    enumValues = this.config.enum.enumValues;
+    constructor(table, config) {
+      super(table, config);
+      this.enum = config.enum;
+    }
+    getSQLType() {
+      return this.enum.enumName;
+    }
+  };
+  isPgEnumSym = Symbol.for("drizzle:isPgEnum");
+  PgEnumColumnBuilder = class PgEnumColumnBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgEnumColumnBuilder";
+    constructor(name, enumInstance) {
+      super(name, "string", "PgEnumColumn");
+      this.config.enum = enumInstance;
+    }
+    build(table) {
+      return new PgEnumColumn(table, this.config);
+    }
+  };
+  PgEnumColumn = class PgEnumColumn extends PgColumn {
+    static [entityKind] = "PgEnumColumn";
+    enum = this.config.enum;
+    enumValues = this.config.enum.enumValues;
+    constructor(table, config) {
+      super(table, config);
+      this.enum = config.enum;
+    }
+    getSQLType() {
+      return this.enum.enumName;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/subquery.js
+var Subquery, WithSubquery;
+var init_subquery = __esm(() => {
+  init_entity();
+  Subquery = class Subquery {
+    static [entityKind] = "Subquery";
+    constructor(sql, fields, alias, isWith = false, usedTables = []) {
+      this._ = {
+        brand: "Subquery",
+        sql,
+        selectedFields: fields,
+        alias,
+        isWith,
+        usedTables
+      };
+    }
+  };
+  WithSubquery = class WithSubquery extends Subquery {
+    static [entityKind] = "WithSubquery";
+  };
+});
+
+// node_modules/drizzle-orm/version.js
+var version = "0.45.2";
+var init_version = () => {};
+
+// node_modules/drizzle-orm/tracing.js
+var otel, rawTracer, tracer;
+var init_tracing = __esm(() => {
+  init_tracing_utils();
+  init_version();
+  tracer = {
+    startActiveSpan(name, fn) {
+      if (!otel) {
+        return fn();
+      }
+      if (!rawTracer) {
+        rawTracer = otel.trace.getTracer("drizzle-orm", version);
+      }
+      return iife((otel2, rawTracer2) => rawTracer2.startActiveSpan(name, (span) => {
+        try {
+          return fn(span);
+        } catch (e) {
+          span.setStatus({
+            code: otel2.SpanStatusCode.ERROR,
+            message: e instanceof Error ? e.message : "Unknown error"
+          });
+          throw e;
+        } finally {
+          span.end();
+        }
+      }), otel, rawTracer);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/view-common.js
+var ViewBaseConfig;
+var init_view_common = __esm(() => {
+  ViewBaseConfig = Symbol.for("drizzle:ViewBaseConfig");
+});
+
+// node_modules/drizzle-orm/table.js
+function getTableName(table) {
+  return table[TableName];
+}
+function getTableUniqueName(table) {
+  return `${table[Schema] ?? "public"}.${table[TableName]}`;
+}
+var Schema, Columns, ExtraConfigColumns, OriginalName, BaseName, IsAlias, ExtraConfigBuilder, IsDrizzleTable, Table;
+var init_table = __esm(() => {
+  init_entity();
+  init_table_utils();
+  Schema = Symbol.for("drizzle:Schema");
+  Columns = Symbol.for("drizzle:Columns");
+  ExtraConfigColumns = Symbol.for("drizzle:ExtraConfigColumns");
+  OriginalName = Symbol.for("drizzle:OriginalName");
+  BaseName = Symbol.for("drizzle:BaseName");
+  IsAlias = Symbol.for("drizzle:IsAlias");
+  ExtraConfigBuilder = Symbol.for("drizzle:ExtraConfigBuilder");
+  IsDrizzleTable = Symbol.for("drizzle:IsDrizzleTable");
+  Table = class Table {
+    static [entityKind] = "Table";
+    static Symbol = {
+      Name: TableName,
+      Schema,
+      OriginalName,
+      Columns,
+      ExtraConfigColumns,
+      BaseName,
+      IsAlias,
+      ExtraConfigBuilder
+    };
+    [TableName];
+    [OriginalName];
+    [Schema];
+    [Columns];
+    [ExtraConfigColumns];
+    [BaseName];
+    [IsAlias] = false;
+    [IsDrizzleTable] = true;
+    [ExtraConfigBuilder] = undefined;
+    constructor(name, schema, baseName) {
+      this[TableName] = this[OriginalName] = name;
+      this[Schema] = schema;
+      this[BaseName] = baseName;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/sql/sql.js
+function isSQLWrapper(value) {
+  return value !== null && value !== undefined && typeof value.getSQL === "function";
+}
+function mergeQueries(queries) {
+  const result = { sql: "", params: [] };
+  for (const query of queries) {
+    result.sql += query.sql;
+    result.params.push(...query.params);
+    if (query.typings?.length) {
+      if (!result.typings) {
+        result.typings = [];
+      }
+      result.typings.push(...query.typings);
+    }
+  }
+  return result;
+}
+function isDriverValueEncoder(value) {
+  return typeof value === "object" && value !== null && "mapToDriverValue" in value && typeof value.mapToDriverValue === "function";
+}
+function sql(strings, ...params) {
+  const queryChunks = [];
+  if (params.length > 0 || strings.length > 0 && strings[0] !== "") {
+    queryChunks.push(new StringChunk(strings[0]));
+  }
+  for (const [paramIndex, param2] of params.entries()) {
+    queryChunks.push(param2, new StringChunk(strings[paramIndex + 1]));
+  }
+  return new SQL(queryChunks);
+}
+function fillPlaceholders(params, values) {
+  return params.map((p) => {
+    if (is(p, Placeholder)) {
+      if (!(p.name in values)) {
+        throw new Error(`No value for placeholder "${p.name}" was provided`);
+      }
+      return values[p.name];
+    }
+    if (is(p, Param) && is(p.value, Placeholder)) {
+      if (!(p.value.name in values)) {
+        throw new Error(`No value for placeholder "${p.value.name}" was provided`);
+      }
+      return p.encoder.mapToDriverValue(values[p.value.name]);
+    }
+    return p;
+  });
+}
+var StringChunk, SQL, Name, noopDecoder, noopEncoder, noopMapper, Param, Placeholder, IsDrizzleView, View;
+var init_sql = __esm(() => {
+  init_entity();
+  init_enum();
+  init_subquery();
+  init_tracing();
+  init_view_common();
+  init_column();
+  init_table();
+  StringChunk = class StringChunk {
+    static [entityKind] = "StringChunk";
+    value;
+    constructor(value) {
+      this.value = Array.isArray(value) ? value : [value];
+    }
+    getSQL() {
+      return new SQL([this]);
+    }
+  };
+  SQL = class SQL {
+    constructor(queryChunks) {
+      this.queryChunks = queryChunks;
+      for (const chunk of queryChunks) {
+        if (is(chunk, Table)) {
+          const schemaName = chunk[Table.Symbol.Schema];
+          this.usedTables.push(schemaName === undefined ? chunk[Table.Symbol.Name] : schemaName + "." + chunk[Table.Symbol.Name]);
+        }
+      }
+    }
+    static [entityKind] = "SQL";
+    decoder = noopDecoder;
+    shouldInlineParams = false;
+    usedTables = [];
+    append(query) {
+      this.queryChunks.push(...query.queryChunks);
+      return this;
+    }
+    toQuery(config) {
+      return tracer.startActiveSpan("drizzle.buildSQL", (span) => {
+        const query = this.buildQueryFromSourceParams(this.queryChunks, config);
+        span?.setAttributes({
+          "drizzle.query.text": query.sql,
+          "drizzle.query.params": JSON.stringify(query.params)
+        });
+        return query;
+      });
+    }
+    buildQueryFromSourceParams(chunks, _config) {
+      const config = Object.assign({}, _config, {
+        inlineParams: _config.inlineParams || this.shouldInlineParams,
+        paramStartIndex: _config.paramStartIndex || { value: 0 }
+      });
+      const {
+        casing,
+        escapeName,
+        escapeParam,
+        prepareTyping,
+        inlineParams,
+        paramStartIndex
+      } = config;
+      return mergeQueries(chunks.map((chunk) => {
+        if (is(chunk, StringChunk)) {
+          return { sql: chunk.value.join(""), params: [] };
+        }
+        if (is(chunk, Name)) {
+          return { sql: escapeName(chunk.value), params: [] };
+        }
+        if (chunk === undefined) {
+          return { sql: "", params: [] };
+        }
+        if (Array.isArray(chunk)) {
+          const result = [new StringChunk("(")];
+          for (const [i, p] of chunk.entries()) {
+            result.push(p);
+            if (i < chunk.length - 1) {
+              result.push(new StringChunk(", "));
+            }
+          }
+          result.push(new StringChunk(")"));
+          return this.buildQueryFromSourceParams(result, config);
+        }
+        if (is(chunk, SQL)) {
+          return this.buildQueryFromSourceParams(chunk.queryChunks, {
+            ...config,
+            inlineParams: inlineParams || chunk.shouldInlineParams
+          });
+        }
+        if (is(chunk, Table)) {
+          const schemaName = chunk[Table.Symbol.Schema];
+          const tableName = chunk[Table.Symbol.Name];
+          return {
+            sql: schemaName === undefined || chunk[IsAlias] ? escapeName(tableName) : escapeName(schemaName) + "." + escapeName(tableName),
+            params: []
+          };
+        }
+        if (is(chunk, Column)) {
+          const columnName = casing.getColumnCasing(chunk);
+          if (_config.invokeSource === "indexes") {
+            return { sql: escapeName(columnName), params: [] };
+          }
+          const schemaName = chunk.table[Table.Symbol.Schema];
+          return {
+            sql: chunk.table[IsAlias] || schemaName === undefined ? escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName) : escapeName(schemaName) + "." + escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName),
+            params: []
+          };
+        }
+        if (is(chunk, View)) {
+          const schemaName = chunk[ViewBaseConfig].schema;
+          const viewName = chunk[ViewBaseConfig].name;
+          return {
+            sql: schemaName === undefined || chunk[ViewBaseConfig].isAlias ? escapeName(viewName) : escapeName(schemaName) + "." + escapeName(viewName),
+            params: []
+          };
+        }
+        if (is(chunk, Param)) {
+          if (is(chunk.value, Placeholder)) {
+            return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+          }
+          const mappedValue = chunk.value === null ? null : chunk.encoder.mapToDriverValue(chunk.value);
+          if (is(mappedValue, SQL)) {
+            return this.buildQueryFromSourceParams([mappedValue], config);
+          }
+          if (inlineParams) {
+            return { sql: this.mapInlineParam(mappedValue, config), params: [] };
+          }
+          let typings = ["none"];
+          if (prepareTyping) {
+            typings = [prepareTyping(chunk.encoder)];
+          }
+          return { sql: escapeParam(paramStartIndex.value++, mappedValue), params: [mappedValue], typings };
+        }
+        if (is(chunk, Placeholder)) {
+          return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+        }
+        if (is(chunk, SQL.Aliased) && chunk.fieldAlias !== undefined) {
+          return { sql: escapeName(chunk.fieldAlias), params: [] };
+        }
+        if (is(chunk, Subquery)) {
+          if (chunk._.isWith) {
+            return { sql: escapeName(chunk._.alias), params: [] };
+          }
+          return this.buildQueryFromSourceParams([
+            new StringChunk("("),
+            chunk._.sql,
+            new StringChunk(") "),
+            new Name(chunk._.alias)
+          ], config);
+        }
+        if (isPgEnum(chunk)) {
+          if (chunk.schema) {
+            return { sql: escapeName(chunk.schema) + "." + escapeName(chunk.enumName), params: [] };
+          }
+          return { sql: escapeName(chunk.enumName), params: [] };
+        }
+        if (isSQLWrapper(chunk)) {
+          if (chunk.shouldOmitSQLParens?.()) {
+            return this.buildQueryFromSourceParams([chunk.getSQL()], config);
+          }
+          return this.buildQueryFromSourceParams([
+            new StringChunk("("),
+            chunk.getSQL(),
+            new StringChunk(")")
+          ], config);
+        }
+        if (inlineParams) {
+          return { sql: this.mapInlineParam(chunk, config), params: [] };
+        }
+        return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+      }));
+    }
+    mapInlineParam(chunk, { escapeString }) {
+      if (chunk === null) {
+        return "null";
+      }
+      if (typeof chunk === "number" || typeof chunk === "boolean") {
+        return chunk.toString();
+      }
+      if (typeof chunk === "string") {
+        return escapeString(chunk);
+      }
+      if (typeof chunk === "object") {
+        const mappedValueAsString = chunk.toString();
+        if (mappedValueAsString === "[object Object]") {
+          return escapeString(JSON.stringify(chunk));
+        }
+        return escapeString(mappedValueAsString);
+      }
+      throw new Error("Unexpected param value: " + chunk);
+    }
+    getSQL() {
+      return this;
+    }
+    as(alias) {
+      if (alias === undefined) {
+        return this;
+      }
+      return new SQL.Aliased(this, alias);
+    }
+    mapWith(decoder) {
+      this.decoder = typeof decoder === "function" ? { mapFromDriverValue: decoder } : decoder;
+      return this;
+    }
+    inlineParams() {
+      this.shouldInlineParams = true;
+      return this;
+    }
+    if(condition) {
+      return condition ? this : undefined;
+    }
+  };
+  Name = class Name {
+    constructor(value) {
+      this.value = value;
+    }
+    static [entityKind] = "Name";
+    brand;
+    getSQL() {
+      return new SQL([this]);
+    }
+  };
+  noopDecoder = {
+    mapFromDriverValue: (value) => value
+  };
+  noopEncoder = {
+    mapToDriverValue: (value) => value
+  };
+  noopMapper = {
+    ...noopDecoder,
+    ...noopEncoder
+  };
+  Param = class Param {
+    constructor(value, encoder = noopEncoder) {
+      this.value = value;
+      this.encoder = encoder;
+    }
+    static [entityKind] = "Param";
+    brand;
+    getSQL() {
+      return new SQL([this]);
+    }
+  };
+  ((sql2) => {
+    function empty() {
+      return new SQL([]);
+    }
+    sql2.empty = empty;
+    function fromList(list) {
+      return new SQL(list);
+    }
+    sql2.fromList = fromList;
+    function raw(str) {
+      return new SQL([new StringChunk(str)]);
+    }
+    sql2.raw = raw;
+    function join(chunks, separator) {
+      const result = [];
+      for (const [i, chunk] of chunks.entries()) {
+        if (i > 0 && separator !== undefined) {
+          result.push(separator);
+        }
+        result.push(chunk);
+      }
+      return new SQL(result);
+    }
+    sql2.join = join;
+    function identifier(value) {
+      return new Name(value);
+    }
+    sql2.identifier = identifier;
+    function placeholder2(name2) {
+      return new Placeholder(name2);
+    }
+    sql2.placeholder = placeholder2;
+    function param2(value, encoder) {
+      return new Param(value, encoder);
+    }
+    sql2.param = param2;
+  })(sql || (sql = {}));
+  ((SQL2) => {
+
+    class Aliased {
+      constructor(sql2, fieldAlias) {
+        this.sql = sql2;
+        this.fieldAlias = fieldAlias;
+      }
+      static [entityKind] = "SQL.Aliased";
+      isSelectionField = false;
+      getSQL() {
+        return this.sql;
+      }
+      clone() {
+        return new Aliased(this.sql, this.fieldAlias);
+      }
+    }
+    SQL2.Aliased = Aliased;
+  })(SQL || (SQL = {}));
+  Placeholder = class Placeholder {
+    constructor(name2) {
+      this.name = name2;
+    }
+    static [entityKind] = "Placeholder";
+    getSQL() {
+      return new SQL([this]);
+    }
+  };
+  IsDrizzleView = Symbol.for("drizzle:IsDrizzleView");
+  View = class View {
+    static [entityKind] = "View";
+    [ViewBaseConfig];
+    [IsDrizzleView] = true;
+    constructor({ name: name2, schema, selectedFields, query }) {
+      this[ViewBaseConfig] = {
+        name: name2,
+        originalName: name2,
+        schema,
+        selectedFields,
+        query,
+        isExisting: !query,
+        isAlias: false
+      };
+    }
+    getSQL() {
+      return new SQL([this]);
+    }
+  };
+  Column.prototype.getSQL = function() {
+    return new SQL([this]);
+  };
+  Table.prototype.getSQL = function() {
+    return new SQL([this]);
+  };
+  Subquery.prototype.getSQL = function() {
+    return new SQL([this]);
+  };
+});
+
+// node_modules/drizzle-orm/alias.js
+function aliasedTable(table, tableAlias) {
+  return new Proxy(table, new TableAliasProxyHandler(tableAlias, false));
+}
+function aliasedTableColumn(column, tableAlias) {
+  return new Proxy(column, new ColumnAliasProxyHandler(new Proxy(column.table, new TableAliasProxyHandler(tableAlias, false))));
+}
+function mapColumnsInAliasedSQLToAlias(query, alias) {
+  return new SQL.Aliased(mapColumnsInSQLToAlias(query.sql, alias), query.fieldAlias);
+}
+function mapColumnsInSQLToAlias(query, alias) {
+  return sql.join(query.queryChunks.map((c) => {
+    if (is(c, Column)) {
+      return aliasedTableColumn(c, alias);
+    }
+    if (is(c, SQL)) {
+      return mapColumnsInSQLToAlias(c, alias);
+    }
+    if (is(c, SQL.Aliased)) {
+      return mapColumnsInAliasedSQLToAlias(c, alias);
+    }
+    return c;
+  }));
+}
+var ColumnAliasProxyHandler, TableAliasProxyHandler;
+var init_alias = __esm(() => {
+  init_column();
+  init_entity();
+  init_sql();
+  init_table();
+  init_view_common();
+  ColumnAliasProxyHandler = class ColumnAliasProxyHandler {
+    constructor(table) {
+      this.table = table;
+    }
+    static [entityKind] = "ColumnAliasProxyHandler";
+    get(columnObj, prop) {
+      if (prop === "table") {
+        return this.table;
+      }
+      return columnObj[prop];
+    }
+  };
+  TableAliasProxyHandler = class TableAliasProxyHandler {
+    constructor(alias, replaceOriginalName) {
+      this.alias = alias;
+      this.replaceOriginalName = replaceOriginalName;
+    }
+    static [entityKind] = "TableAliasProxyHandler";
+    get(target, prop) {
+      if (prop === Table.Symbol.IsAlias) {
+        return true;
+      }
+      if (prop === Table.Symbol.Name) {
+        return this.alias;
+      }
+      if (this.replaceOriginalName && prop === Table.Symbol.OriginalName) {
+        return this.alias;
+      }
+      if (prop === ViewBaseConfig) {
+        return {
+          ...target[ViewBaseConfig],
+          name: this.alias,
+          isAlias: true
+        };
+      }
+      if (prop === Table.Symbol.Columns) {
+        const columns = target[Table.Symbol.Columns];
+        if (!columns) {
+          return columns;
+        }
+        const proxiedColumns = {};
+        Object.keys(columns).map((key) => {
+          proxiedColumns[key] = new Proxy(columns[key], new ColumnAliasProxyHandler(new Proxy(target, this)));
+        });
+        return proxiedColumns;
+      }
+      const value = target[prop];
+      if (is(value, Column)) {
+        return new Proxy(value, new ColumnAliasProxyHandler(new Proxy(target, this)));
+      }
+      return value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/errors.js
+var DrizzleError, DrizzleQueryError, TransactionRollbackError;
+var init_errors = __esm(() => {
+  init_entity();
+  DrizzleError = class DrizzleError extends Error {
+    static [entityKind] = "DrizzleError";
+    constructor({ message, cause }) {
+      super(message);
+      this.name = "DrizzleError";
+      this.cause = cause;
+    }
+  };
+  DrizzleQueryError = class DrizzleQueryError extends Error {
+    constructor(query, params, cause) {
+      super(`Failed query: ${query}
+params: ${params}`);
+      this.query = query;
+      this.params = params;
+      this.cause = cause;
+      Error.captureStackTrace(this, DrizzleQueryError);
+      if (cause)
+        this.cause = cause;
+    }
+  };
+  TransactionRollbackError = class TransactionRollbackError extends DrizzleError {
+    static [entityKind] = "TransactionRollbackError";
+    constructor() {
+      super({ message: "Rollback" });
+    }
+  };
+});
+
+// node_modules/drizzle-orm/logger.js
+var ConsoleLogWriter, DefaultLogger, NoopLogger;
+var init_logger = __esm(() => {
+  init_entity();
+  ConsoleLogWriter = class ConsoleLogWriter {
+    static [entityKind] = "ConsoleLogWriter";
+    write(message) {
+      console.log(message);
+    }
+  };
+  DefaultLogger = class DefaultLogger {
+    static [entityKind] = "DefaultLogger";
+    writer;
+    constructor(config) {
+      this.writer = config?.writer ?? new ConsoleLogWriter;
+    }
+    logQuery(query, params) {
+      const stringifiedParams = params.map((p) => {
+        try {
+          return JSON.stringify(p);
+        } catch {
+          return String(p);
+        }
+      });
+      const paramsStr = stringifiedParams.length ? ` -- params: [${stringifiedParams.join(", ")}]` : "";
+      this.writer.write(`Query: ${query}${paramsStr}`);
+    }
+  };
+  NoopLogger = class NoopLogger {
+    static [entityKind] = "NoopLogger";
+    logQuery() {}
+  };
+});
+
+// node_modules/drizzle-orm/query-promise.js
+var QueryPromise;
+var init_query_promise = __esm(() => {
+  init_entity();
+  QueryPromise = class QueryPromise {
+    static [entityKind] = "QueryPromise";
+    [Symbol.toStringTag] = "QueryPromise";
+    catch(onRejected) {
+      return this.then(undefined, onRejected);
+    }
+    finally(onFinally) {
+      return this.then((value) => {
+        onFinally?.();
+        return value;
+      }, (reason) => {
+        onFinally?.();
+        throw reason;
+      });
+    }
+    then(onFulfilled, onRejected) {
+      return this.execute().then(onFulfilled, onRejected);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/utils.js
+function mapResultRow(columns, row, joinsNotNullableMap) {
+  const nullifyMap = {};
+  const result = columns.reduce((result2, { path, field }, columnIndex) => {
+    let decoder;
+    if (is(field, Column)) {
+      decoder = field;
+    } else if (is(field, SQL)) {
+      decoder = field.decoder;
+    } else if (is(field, Subquery)) {
+      decoder = field._.sql.decoder;
+    } else {
+      decoder = field.sql.decoder;
+    }
+    let node = result2;
+    for (const [pathChunkIndex, pathChunk] of path.entries()) {
+      if (pathChunkIndex < path.length - 1) {
+        if (!(pathChunk in node)) {
+          node[pathChunk] = {};
+        }
+        node = node[pathChunk];
+      } else {
+        const rawValue = row[columnIndex];
+        const value = node[pathChunk] = rawValue === null ? null : decoder.mapFromDriverValue(rawValue);
+        if (joinsNotNullableMap && is(field, Column) && path.length === 2) {
+          const objectName = path[0];
+          if (!(objectName in nullifyMap)) {
+            nullifyMap[objectName] = value === null ? getTableName(field.table) : false;
+          } else if (typeof nullifyMap[objectName] === "string" && nullifyMap[objectName] !== getTableName(field.table)) {
+            nullifyMap[objectName] = false;
+          }
+        }
+      }
+    }
+    return result2;
+  }, {});
+  if (joinsNotNullableMap && Object.keys(nullifyMap).length > 0) {
+    for (const [objectName, tableName] of Object.entries(nullifyMap)) {
+      if (typeof tableName === "string" && !joinsNotNullableMap[tableName]) {
+        result[objectName] = null;
+      }
+    }
+  }
+  return result;
+}
+function orderSelectedFields(fields, pathPrefix) {
+  return Object.entries(fields).reduce((result, [name, field]) => {
+    if (typeof name !== "string") {
+      return result;
+    }
+    const newPath = pathPrefix ? [...pathPrefix, name] : [name];
+    if (is(field, Column) || is(field, SQL) || is(field, SQL.Aliased) || is(field, Subquery)) {
+      result.push({ path: newPath, field });
+    } else if (is(field, Table)) {
+      result.push(...orderSelectedFields(field[Table.Symbol.Columns], newPath));
+    } else {
+      result.push(...orderSelectedFields(field, newPath));
+    }
+    return result;
+  }, []);
+}
+function haveSameKeys(left, right) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  for (const [index, key] of leftKeys.entries()) {
+    if (key !== rightKeys[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+function mapUpdateSet(table, values) {
+  const entries = Object.entries(values).filter(([, value]) => value !== undefined).map(([key, value]) => {
+    if (is(value, SQL) || is(value, Column)) {
+      return [key, value];
+    } else {
+      return [key, new Param(value, table[Table.Symbol.Columns][key])];
+    }
+  });
+  if (entries.length === 0) {
+    throw new Error("No values to set");
+  }
+  return Object.fromEntries(entries);
+}
+function applyMixins(baseClass, extendedClasses) {
+  for (const extendedClass of extendedClasses) {
+    for (const name of Object.getOwnPropertyNames(extendedClass.prototype)) {
+      if (name === "constructor")
+        continue;
+      Object.defineProperty(baseClass.prototype, name, Object.getOwnPropertyDescriptor(extendedClass.prototype, name) || /* @__PURE__ */ Object.create(null));
+    }
+  }
+}
+function getTableColumns(table) {
+  return table[Table.Symbol.Columns];
+}
+function getTableLikeName(table) {
+  return is(table, Subquery) ? table._.alias : is(table, View) ? table[ViewBaseConfig].name : is(table, SQL) ? undefined : table[Table.Symbol.IsAlias] ? table[Table.Symbol.Name] : table[Table.Symbol.BaseName];
+}
+function getColumnNameAndConfig(a, b) {
+  return {
+    name: typeof a === "string" && a.length > 0 ? a : "",
+    config: typeof a === "object" ? a : b
+  };
+}
+function isConfig(data) {
+  if (typeof data !== "object" || data === null)
+    return false;
+  if (data.constructor.name !== "Object")
+    return false;
+  if ("logger" in data) {
+    const type = typeof data["logger"];
+    if (type !== "boolean" && (type !== "object" || typeof data["logger"]["logQuery"] !== "function") && type !== "undefined")
+      return false;
+    return true;
+  }
+  if ("schema" in data) {
+    const type = typeof data["schema"];
+    if (type !== "object" && type !== "undefined")
+      return false;
+    return true;
+  }
+  if ("casing" in data) {
+    const type = typeof data["casing"];
+    if (type !== "string" && type !== "undefined")
+      return false;
+    return true;
+  }
+  if ("mode" in data) {
+    if (data["mode"] !== "default" || data["mode"] !== "planetscale" || data["mode"] !== undefined)
+      return false;
+    return true;
+  }
+  if ("connection" in data) {
+    const type = typeof data["connection"];
+    if (type !== "string" && type !== "object" && type !== "undefined")
+      return false;
+    return true;
+  }
+  if ("client" in data) {
+    const type = typeof data["client"];
+    if (type !== "object" && type !== "function" && type !== "undefined")
+      return false;
+    return true;
+  }
+  if (Object.keys(data).length === 0)
+    return true;
+  return false;
+}
+var textDecoder;
+var init_utils = __esm(() => {
+  init_column();
+  init_entity();
+  init_sql();
+  init_subquery();
+  init_table();
+  init_view_common();
+  textDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder;
+});
+
+// node_modules/drizzle-orm/pg-core/columns/int.common.js
+var PgIntColumnBaseBuilder;
+var init_int_common = __esm(() => {
+  init_entity();
+  init_common();
+  PgIntColumnBaseBuilder = class PgIntColumnBaseBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgIntColumnBaseBuilder";
+    generatedAlwaysAsIdentity(sequence) {
+      if (sequence) {
+        const { name, ...options } = sequence;
+        this.config.generatedIdentity = {
+          type: "always",
+          sequenceName: name,
+          sequenceOptions: options
+        };
+      } else {
+        this.config.generatedIdentity = {
+          type: "always"
+        };
+      }
+      this.config.hasDefault = true;
+      this.config.notNull = true;
+      return this;
+    }
+    generatedByDefaultAsIdentity(sequence) {
+      if (sequence) {
+        const { name, ...options } = sequence;
+        this.config.generatedIdentity = {
+          type: "byDefault",
+          sequenceName: name,
+          sequenceOptions: options
+        };
+      } else {
+        this.config.generatedIdentity = {
+          type: "byDefault"
+        };
+      }
+      this.config.hasDefault = true;
+      this.config.notNull = true;
+      return this;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/bigint.js
+function bigint(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (config.mode === "number") {
+    return new PgBigInt53Builder(name);
+  }
+  return new PgBigInt64Builder(name);
+}
+var PgBigInt53Builder, PgBigInt53, PgBigInt64Builder, PgBigInt64;
+var init_bigint = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  init_int_common();
+  PgBigInt53Builder = class PgBigInt53Builder extends PgIntColumnBaseBuilder {
+    static [entityKind] = "PgBigInt53Builder";
+    constructor(name) {
+      super(name, "number", "PgBigInt53");
+    }
+    build(table) {
+      return new PgBigInt53(table, this.config);
+    }
+  };
+  PgBigInt53 = class PgBigInt53 extends PgColumn {
+    static [entityKind] = "PgBigInt53";
+    getSQLType() {
+      return "bigint";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "number") {
+        return value;
+      }
+      return Number(value);
+    }
+  };
+  PgBigInt64Builder = class PgBigInt64Builder extends PgIntColumnBaseBuilder {
+    static [entityKind] = "PgBigInt64Builder";
+    constructor(name) {
+      super(name, "bigint", "PgBigInt64");
+    }
+    build(table) {
+      return new PgBigInt64(table, this.config);
+    }
+  };
+  PgBigInt64 = class PgBigInt64 extends PgColumn {
+    static [entityKind] = "PgBigInt64";
+    getSQLType() {
+      return "bigint";
+    }
+    mapFromDriverValue(value) {
+      return BigInt(value);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/bigserial.js
+function bigserial(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (config.mode === "number") {
+    return new PgBigSerial53Builder(name);
+  }
+  return new PgBigSerial64Builder(name);
+}
+var PgBigSerial53Builder, PgBigSerial53, PgBigSerial64Builder, PgBigSerial64;
+var init_bigserial = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgBigSerial53Builder = class PgBigSerial53Builder extends PgColumnBuilder {
+    static [entityKind] = "PgBigSerial53Builder";
+    constructor(name) {
+      super(name, "number", "PgBigSerial53");
+      this.config.hasDefault = true;
+      this.config.notNull = true;
+    }
+    build(table) {
+      return new PgBigSerial53(table, this.config);
+    }
+  };
+  PgBigSerial53 = class PgBigSerial53 extends PgColumn {
+    static [entityKind] = "PgBigSerial53";
+    getSQLType() {
+      return "bigserial";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "number") {
+        return value;
+      }
+      return Number(value);
+    }
+  };
+  PgBigSerial64Builder = class PgBigSerial64Builder extends PgColumnBuilder {
+    static [entityKind] = "PgBigSerial64Builder";
+    constructor(name) {
+      super(name, "bigint", "PgBigSerial64");
+      this.config.hasDefault = true;
+    }
+    build(table) {
+      return new PgBigSerial64(table, this.config);
+    }
+  };
+  PgBigSerial64 = class PgBigSerial64 extends PgColumn {
+    static [entityKind] = "PgBigSerial64";
+    getSQLType() {
+      return "bigserial";
+    }
+    mapFromDriverValue(value) {
+      return BigInt(value);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/boolean.js
+function boolean(name) {
+  return new PgBooleanBuilder(name ?? "");
+}
+var PgBooleanBuilder, PgBoolean;
+var init_boolean = __esm(() => {
+  init_entity();
+  init_common();
+  PgBooleanBuilder = class PgBooleanBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgBooleanBuilder";
+    constructor(name) {
+      super(name, "boolean", "PgBoolean");
+    }
+    build(table) {
+      return new PgBoolean(table, this.config);
+    }
+  };
+  PgBoolean = class PgBoolean extends PgColumn {
+    static [entityKind] = "PgBoolean";
+    getSQLType() {
+      return "boolean";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/char.js
+function char(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgCharBuilder(name, config);
+}
+var PgCharBuilder, PgChar;
+var init_char = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgCharBuilder = class PgCharBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgCharBuilder";
+    constructor(name, config) {
+      super(name, "string", "PgChar");
+      this.config.length = config.length;
+      this.config.enumValues = config.enum;
+    }
+    build(table) {
+      return new PgChar(table, this.config);
+    }
+  };
+  PgChar = class PgChar extends PgColumn {
+    static [entityKind] = "PgChar";
+    length = this.config.length;
+    enumValues = this.config.enumValues;
+    getSQLType() {
+      return this.length === undefined ? `char` : `char(${this.length})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/cidr.js
+function cidr(name) {
+  return new PgCidrBuilder(name ?? "");
+}
+var PgCidrBuilder, PgCidr;
+var init_cidr = __esm(() => {
+  init_entity();
+  init_common();
+  PgCidrBuilder = class PgCidrBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgCidrBuilder";
+    constructor(name) {
+      super(name, "string", "PgCidr");
+    }
+    build(table) {
+      return new PgCidr(table, this.config);
+    }
+  };
+  PgCidr = class PgCidr extends PgColumn {
+    static [entityKind] = "PgCidr";
+    getSQLType() {
+      return "cidr";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/custom.js
+function customType(customTypeParams) {
+  return (a, b) => {
+    const { name, config } = getColumnNameAndConfig(a, b);
+    return new PgCustomColumnBuilder(name, config, customTypeParams);
+  };
+}
+var PgCustomColumnBuilder, PgCustomColumn;
+var init_custom = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgCustomColumnBuilder = class PgCustomColumnBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgCustomColumnBuilder";
+    constructor(name, fieldConfig, customTypeParams) {
+      super(name, "custom", "PgCustomColumn");
+      this.config.fieldConfig = fieldConfig;
+      this.config.customTypeParams = customTypeParams;
+    }
+    build(table) {
+      return new PgCustomColumn(table, this.config);
+    }
+  };
+  PgCustomColumn = class PgCustomColumn extends PgColumn {
+    static [entityKind] = "PgCustomColumn";
+    sqlName;
+    mapTo;
+    mapFrom;
+    constructor(table, config) {
+      super(table, config);
+      this.sqlName = config.customTypeParams.dataType(config.fieldConfig);
+      this.mapTo = config.customTypeParams.toDriver;
+      this.mapFrom = config.customTypeParams.fromDriver;
+    }
+    getSQLType() {
+      return this.sqlName;
+    }
+    mapFromDriverValue(value) {
+      return typeof this.mapFrom === "function" ? this.mapFrom(value) : value;
+    }
+    mapToDriverValue(value) {
+      return typeof this.mapTo === "function" ? this.mapTo(value) : value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/date.common.js
+var PgDateColumnBaseBuilder;
+var init_date_common = __esm(() => {
+  init_entity();
+  init_sql();
+  init_common();
+  PgDateColumnBaseBuilder = class PgDateColumnBaseBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgDateColumnBaseBuilder";
+    defaultNow() {
+      return this.default(sql`now()`);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/date.js
+function date(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (config?.mode === "date") {
+    return new PgDateBuilder(name);
+  }
+  return new PgDateStringBuilder(name);
+}
+var PgDateBuilder, PgDate, PgDateStringBuilder, PgDateString;
+var init_date = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  init_date_common();
+  PgDateBuilder = class PgDateBuilder extends PgDateColumnBaseBuilder {
+    static [entityKind] = "PgDateBuilder";
+    constructor(name) {
+      super(name, "date", "PgDate");
+    }
+    build(table) {
+      return new PgDate(table, this.config);
+    }
+  };
+  PgDate = class PgDate extends PgColumn {
+    static [entityKind] = "PgDate";
+    getSQLType() {
+      return "date";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string")
+        return new Date(value);
+      return value;
+    }
+    mapToDriverValue(value) {
+      return value.toISOString();
+    }
+  };
+  PgDateStringBuilder = class PgDateStringBuilder extends PgDateColumnBaseBuilder {
+    static [entityKind] = "PgDateStringBuilder";
+    constructor(name) {
+      super(name, "string", "PgDateString");
+    }
+    build(table) {
+      return new PgDateString(table, this.config);
+    }
+  };
+  PgDateString = class PgDateString extends PgColumn {
+    static [entityKind] = "PgDateString";
+    getSQLType() {
+      return "date";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string")
+        return value;
+      return value.toISOString().slice(0, -14);
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/double-precision.js
+function doublePrecision(name) {
+  return new PgDoublePrecisionBuilder(name ?? "");
+}
+var PgDoublePrecisionBuilder, PgDoublePrecision;
+var init_double_precision = __esm(() => {
+  init_entity();
+  init_common();
+  PgDoublePrecisionBuilder = class PgDoublePrecisionBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgDoublePrecisionBuilder";
+    constructor(name) {
+      super(name, "number", "PgDoublePrecision");
+    }
+    build(table) {
+      return new PgDoublePrecision(table, this.config);
+    }
+  };
+  PgDoublePrecision = class PgDoublePrecision extends PgColumn {
+    static [entityKind] = "PgDoublePrecision";
+    getSQLType() {
+      return "double precision";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        return Number.parseFloat(value);
+      }
+      return value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/inet.js
+function inet(name) {
+  return new PgInetBuilder(name ?? "");
+}
+var PgInetBuilder, PgInet;
+var init_inet = __esm(() => {
+  init_entity();
+  init_common();
+  PgInetBuilder = class PgInetBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgInetBuilder";
+    constructor(name) {
+      super(name, "string", "PgInet");
+    }
+    build(table) {
+      return new PgInet(table, this.config);
+    }
+  };
+  PgInet = class PgInet extends PgColumn {
+    static [entityKind] = "PgInet";
+    getSQLType() {
+      return "inet";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/integer.js
+function integer(name) {
+  return new PgIntegerBuilder(name ?? "");
+}
+var PgIntegerBuilder, PgInteger;
+var init_integer = __esm(() => {
+  init_entity();
+  init_common();
+  init_int_common();
+  PgIntegerBuilder = class PgIntegerBuilder extends PgIntColumnBaseBuilder {
+    static [entityKind] = "PgIntegerBuilder";
+    constructor(name) {
+      super(name, "number", "PgInteger");
+    }
+    build(table) {
+      return new PgInteger(table, this.config);
+    }
+  };
+  PgInteger = class PgInteger extends PgColumn {
+    static [entityKind] = "PgInteger";
+    getSQLType() {
+      return "integer";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        return Number.parseInt(value);
+      }
+      return value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/interval.js
+function interval(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgIntervalBuilder(name, config);
+}
+var PgIntervalBuilder, PgInterval;
+var init_interval = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgIntervalBuilder = class PgIntervalBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgIntervalBuilder";
+    constructor(name, intervalConfig) {
+      super(name, "string", "PgInterval");
+      this.config.intervalConfig = intervalConfig;
+    }
+    build(table) {
+      return new PgInterval(table, this.config);
+    }
+  };
+  PgInterval = class PgInterval extends PgColumn {
+    static [entityKind] = "PgInterval";
+    fields = this.config.intervalConfig.fields;
+    precision = this.config.intervalConfig.precision;
+    getSQLType() {
+      const fields = this.fields ? ` ${this.fields}` : "";
+      const precision = this.precision ? `(${this.precision})` : "";
+      return `interval${fields}${precision}`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/json.js
+function json(name) {
+  return new PgJsonBuilder(name ?? "");
+}
+var PgJsonBuilder, PgJson;
+var init_json = __esm(() => {
+  init_entity();
+  init_common();
+  PgJsonBuilder = class PgJsonBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgJsonBuilder";
+    constructor(name) {
+      super(name, "json", "PgJson");
+    }
+    build(table) {
+      return new PgJson(table, this.config);
+    }
+  };
+  PgJson = class PgJson extends PgColumn {
+    static [entityKind] = "PgJson";
+    constructor(table, config) {
+      super(table, config);
+    }
+    getSQLType() {
+      return "json";
+    }
+    mapToDriverValue(value) {
+      return JSON.stringify(value);
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      }
+      return value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/jsonb.js
+function jsonb(name) {
+  return new PgJsonbBuilder(name ?? "");
+}
+var PgJsonbBuilder, PgJsonb;
+var init_jsonb = __esm(() => {
+  init_entity();
+  init_common();
+  PgJsonbBuilder = class PgJsonbBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgJsonbBuilder";
+    constructor(name) {
+      super(name, "json", "PgJsonb");
+    }
+    build(table) {
+      return new PgJsonb(table, this.config);
+    }
+  };
+  PgJsonb = class PgJsonb extends PgColumn {
+    static [entityKind] = "PgJsonb";
+    constructor(table, config) {
+      super(table, config);
+    }
+    getSQLType() {
+      return "jsonb";
+    }
+    mapToDriverValue(value) {
+      return JSON.stringify(value);
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      }
+      return value;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/line.js
+function line(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (!config?.mode || config.mode === "tuple") {
+    return new PgLineBuilder(name);
+  }
+  return new PgLineABCBuilder(name);
+}
+var PgLineBuilder, PgLineTuple, PgLineABCBuilder, PgLineABC;
+var init_line = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgLineBuilder = class PgLineBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgLineBuilder";
+    constructor(name) {
+      super(name, "array", "PgLine");
+    }
+    build(table) {
+      return new PgLineTuple(table, this.config);
+    }
+  };
+  PgLineTuple = class PgLineTuple extends PgColumn {
+    static [entityKind] = "PgLine";
+    getSQLType() {
+      return "line";
+    }
+    mapFromDriverValue(value) {
+      const [a, b, c] = value.slice(1, -1).split(",");
+      return [Number.parseFloat(a), Number.parseFloat(b), Number.parseFloat(c)];
+    }
+    mapToDriverValue(value) {
+      return `{${value[0]},${value[1]},${value[2]}}`;
+    }
+  };
+  PgLineABCBuilder = class PgLineABCBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgLineABCBuilder";
+    constructor(name) {
+      super(name, "json", "PgLineABC");
+    }
+    build(table) {
+      return new PgLineABC(table, this.config);
+    }
+  };
+  PgLineABC = class PgLineABC extends PgColumn {
+    static [entityKind] = "PgLineABC";
+    getSQLType() {
+      return "line";
+    }
+    mapFromDriverValue(value) {
+      const [a, b, c] = value.slice(1, -1).split(",");
+      return { a: Number.parseFloat(a), b: Number.parseFloat(b), c: Number.parseFloat(c) };
+    }
+    mapToDriverValue(value) {
+      return `{${value.a},${value.b},${value.c}}`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/macaddr.js
+function macaddr(name) {
+  return new PgMacaddrBuilder(name ?? "");
+}
+var PgMacaddrBuilder, PgMacaddr;
+var init_macaddr = __esm(() => {
+  init_entity();
+  init_common();
+  PgMacaddrBuilder = class PgMacaddrBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgMacaddrBuilder";
+    constructor(name) {
+      super(name, "string", "PgMacaddr");
+    }
+    build(table) {
+      return new PgMacaddr(table, this.config);
+    }
+  };
+  PgMacaddr = class PgMacaddr extends PgColumn {
+    static [entityKind] = "PgMacaddr";
+    getSQLType() {
+      return "macaddr";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+function macaddr8(name) {
+  return new PgMacaddr8Builder(name ?? "");
+}
+var PgMacaddr8Builder, PgMacaddr8;
+var init_macaddr8 = __esm(() => {
+  init_entity();
+  init_common();
+  PgMacaddr8Builder = class PgMacaddr8Builder extends PgColumnBuilder {
+    static [entityKind] = "PgMacaddr8Builder";
+    constructor(name) {
+      super(name, "string", "PgMacaddr8");
+    }
+    build(table) {
+      return new PgMacaddr8(table, this.config);
+    }
+  };
+  PgMacaddr8 = class PgMacaddr8 extends PgColumn {
+    static [entityKind] = "PgMacaddr8";
+    getSQLType() {
+      return "macaddr8";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/numeric.js
+function numeric(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  const mode = config?.mode;
+  return mode === "number" ? new PgNumericNumberBuilder(name, config?.precision, config?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config?.precision, config?.scale) : new PgNumericBuilder(name, config?.precision, config?.scale);
+}
+var PgNumericBuilder, PgNumeric, PgNumericNumberBuilder, PgNumericNumber, PgNumericBigIntBuilder, PgNumericBigInt;
+var init_numeric = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgNumericBuilder = class PgNumericBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgNumericBuilder";
+    constructor(name, precision, scale) {
+      super(name, "string", "PgNumeric");
+      this.config.precision = precision;
+      this.config.scale = scale;
+    }
+    build(table) {
+      return new PgNumeric(table, this.config);
+    }
+  };
+  PgNumeric = class PgNumeric extends PgColumn {
+    static [entityKind] = "PgNumeric";
+    precision;
+    scale;
+    constructor(table, config) {
+      super(table, config);
+      this.precision = config.precision;
+      this.scale = config.scale;
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string")
+        return value;
+      return String(value);
+    }
+    getSQLType() {
+      if (this.precision !== undefined && this.scale !== undefined) {
+        return `numeric(${this.precision}, ${this.scale})`;
+      } else if (this.precision === undefined) {
+        return "numeric";
+      } else {
+        return `numeric(${this.precision})`;
+      }
+    }
+  };
+  PgNumericNumberBuilder = class PgNumericNumberBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgNumericNumberBuilder";
+    constructor(name, precision, scale) {
+      super(name, "number", "PgNumericNumber");
+      this.config.precision = precision;
+      this.config.scale = scale;
+    }
+    build(table) {
+      return new PgNumericNumber(table, this.config);
+    }
+  };
+  PgNumericNumber = class PgNumericNumber extends PgColumn {
+    static [entityKind] = "PgNumericNumber";
+    precision;
+    scale;
+    constructor(table, config) {
+      super(table, config);
+      this.precision = config.precision;
+      this.scale = config.scale;
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "number")
+        return value;
+      return Number(value);
+    }
+    mapToDriverValue = String;
+    getSQLType() {
+      if (this.precision !== undefined && this.scale !== undefined) {
+        return `numeric(${this.precision}, ${this.scale})`;
+      } else if (this.precision === undefined) {
+        return "numeric";
+      } else {
+        return `numeric(${this.precision})`;
+      }
+    }
+  };
+  PgNumericBigIntBuilder = class PgNumericBigIntBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgNumericBigIntBuilder";
+    constructor(name, precision, scale) {
+      super(name, "bigint", "PgNumericBigInt");
+      this.config.precision = precision;
+      this.config.scale = scale;
+    }
+    build(table) {
+      return new PgNumericBigInt(table, this.config);
+    }
+  };
+  PgNumericBigInt = class PgNumericBigInt extends PgColumn {
+    static [entityKind] = "PgNumericBigInt";
+    precision;
+    scale;
+    constructor(table, config) {
+      super(table, config);
+      this.precision = config.precision;
+      this.scale = config.scale;
+    }
+    mapFromDriverValue = BigInt;
+    mapToDriverValue = String;
+    getSQLType() {
+      if (this.precision !== undefined && this.scale !== undefined) {
+        return `numeric(${this.precision}, ${this.scale})`;
+      } else if (this.precision === undefined) {
+        return "numeric";
+      } else {
+        return `numeric(${this.precision})`;
+      }
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/point.js
+function point(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (!config?.mode || config.mode === "tuple") {
+    return new PgPointTupleBuilder(name);
+  }
+  return new PgPointObjectBuilder(name);
+}
+var PgPointTupleBuilder, PgPointTuple, PgPointObjectBuilder, PgPointObject;
+var init_point = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgPointTupleBuilder = class PgPointTupleBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgPointTupleBuilder";
+    constructor(name) {
+      super(name, "array", "PgPointTuple");
+    }
+    build(table) {
+      return new PgPointTuple(table, this.config);
+    }
+  };
+  PgPointTuple = class PgPointTuple extends PgColumn {
+    static [entityKind] = "PgPointTuple";
+    getSQLType() {
+      return "point";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        const [x, y] = value.slice(1, -1).split(",");
+        return [Number.parseFloat(x), Number.parseFloat(y)];
+      }
+      return [value.x, value.y];
+    }
+    mapToDriverValue(value) {
+      return `(${value[0]},${value[1]})`;
+    }
+  };
+  PgPointObjectBuilder = class PgPointObjectBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgPointObjectBuilder";
+    constructor(name) {
+      super(name, "json", "PgPointObject");
+    }
+    build(table) {
+      return new PgPointObject(table, this.config);
+    }
+  };
+  PgPointObject = class PgPointObject extends PgColumn {
+    static [entityKind] = "PgPointObject";
+    getSQLType() {
+      return "point";
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string") {
+        const [x, y] = value.slice(1, -1).split(",");
+        return { x: Number.parseFloat(x), y: Number.parseFloat(y) };
+      }
+      return value;
+    }
+    mapToDriverValue(value) {
+      return `(${value.x},${value.y})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+function hexToBytes(hex) {
+  const bytes = [];
+  for (let c = 0;c < hex.length; c += 2) {
+    bytes.push(Number.parseInt(hex.slice(c, c + 2), 16));
+  }
+  return new Uint8Array(bytes);
+}
+function bytesToFloat64(bytes, offset) {
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  for (let i = 0;i < 8; i++) {
+    view.setUint8(i, bytes[offset + i]);
+  }
+  return view.getFloat64(0, true);
+}
+function parseEWKB(hex) {
+  const bytes = hexToBytes(hex);
+  let offset = 0;
+  const byteOrder = bytes[offset];
+  offset += 1;
+  const view = new DataView(bytes.buffer);
+  const geomType = view.getUint32(offset, byteOrder === 1);
+  offset += 4;
+  let _srid;
+  if (geomType & 536870912) {
+    _srid = view.getUint32(offset, byteOrder === 1);
+    offset += 4;
+  }
+  if ((geomType & 65535) === 1) {
+    const x = bytesToFloat64(bytes, offset);
+    offset += 8;
+    const y = bytesToFloat64(bytes, offset);
+    offset += 8;
+    return [x, y];
+  }
+  throw new Error("Unsupported geometry type");
+}
+var init_utils2 = () => {};
+
+// node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+function geometry(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (!config?.mode || config.mode === "tuple") {
+    return new PgGeometryBuilder(name);
+  }
+  return new PgGeometryObjectBuilder(name);
+}
+var PgGeometryBuilder, PgGeometry, PgGeometryObjectBuilder, PgGeometryObject;
+var init_geometry = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  init_utils2();
+  PgGeometryBuilder = class PgGeometryBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgGeometryBuilder";
+    constructor(name) {
+      super(name, "array", "PgGeometry");
+    }
+    build(table) {
+      return new PgGeometry(table, this.config);
+    }
+  };
+  PgGeometry = class PgGeometry extends PgColumn {
+    static [entityKind] = "PgGeometry";
+    getSQLType() {
+      return "geometry(point)";
+    }
+    mapFromDriverValue(value) {
+      return parseEWKB(value);
+    }
+    mapToDriverValue(value) {
+      return `point(${value[0]} ${value[1]})`;
+    }
+  };
+  PgGeometryObjectBuilder = class PgGeometryObjectBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgGeometryObjectBuilder";
+    constructor(name) {
+      super(name, "json", "PgGeometryObject");
+    }
+    build(table) {
+      return new PgGeometryObject(table, this.config);
+    }
+  };
+  PgGeometryObject = class PgGeometryObject extends PgColumn {
+    static [entityKind] = "PgGeometryObject";
+    getSQLType() {
+      return "geometry(point)";
+    }
+    mapFromDriverValue(value) {
+      const parsed = parseEWKB(value);
+      return { x: parsed[0], y: parsed[1] };
+    }
+    mapToDriverValue(value) {
+      return `point(${value.x} ${value.y})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/real.js
+function real(name) {
+  return new PgRealBuilder(name ?? "");
+}
+var PgRealBuilder, PgReal;
+var init_real = __esm(() => {
+  init_entity();
+  init_common();
+  PgRealBuilder = class PgRealBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgRealBuilder";
+    constructor(name, length) {
+      super(name, "number", "PgReal");
+      this.config.length = length;
+    }
+    build(table) {
+      return new PgReal(table, this.config);
+    }
+  };
+  PgReal = class PgReal extends PgColumn {
+    static [entityKind] = "PgReal";
+    constructor(table, config) {
+      super(table, config);
+    }
+    getSQLType() {
+      return "real";
+    }
+    mapFromDriverValue = (value) => {
+      if (typeof value === "string") {
+        return Number.parseFloat(value);
+      }
+      return value;
+    };
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/serial.js
+function serial(name) {
+  return new PgSerialBuilder(name ?? "");
+}
+var PgSerialBuilder, PgSerial;
+var init_serial = __esm(() => {
+  init_entity();
+  init_common();
+  PgSerialBuilder = class PgSerialBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgSerialBuilder";
+    constructor(name) {
+      super(name, "number", "PgSerial");
+      this.config.hasDefault = true;
+      this.config.notNull = true;
+    }
+    build(table) {
+      return new PgSerial(table, this.config);
+    }
+  };
+  PgSerial = class PgSerial extends PgColumn {
+    static [entityKind] = "PgSerial";
+    getSQLType() {
+      return "serial";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/smallint.js
+function smallint(name) {
+  return new PgSmallIntBuilder(name ?? "");
+}
+var PgSmallIntBuilder, PgSmallInt;
+var init_smallint = __esm(() => {
+  init_entity();
+  init_common();
+  init_int_common();
+  PgSmallIntBuilder = class PgSmallIntBuilder extends PgIntColumnBaseBuilder {
+    static [entityKind] = "PgSmallIntBuilder";
+    constructor(name) {
+      super(name, "number", "PgSmallInt");
+    }
+    build(table) {
+      return new PgSmallInt(table, this.config);
+    }
+  };
+  PgSmallInt = class PgSmallInt extends PgColumn {
+    static [entityKind] = "PgSmallInt";
+    getSQLType() {
+      return "smallint";
+    }
+    mapFromDriverValue = (value) => {
+      if (typeof value === "string") {
+        return Number(value);
+      }
+      return value;
+    };
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/smallserial.js
+function smallserial(name) {
+  return new PgSmallSerialBuilder(name ?? "");
+}
+var PgSmallSerialBuilder, PgSmallSerial;
+var init_smallserial = __esm(() => {
+  init_entity();
+  init_common();
+  PgSmallSerialBuilder = class PgSmallSerialBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgSmallSerialBuilder";
+    constructor(name) {
+      super(name, "number", "PgSmallSerial");
+      this.config.hasDefault = true;
+      this.config.notNull = true;
+    }
+    build(table) {
+      return new PgSmallSerial(table, this.config);
+    }
+  };
+  PgSmallSerial = class PgSmallSerial extends PgColumn {
+    static [entityKind] = "PgSmallSerial";
+    getSQLType() {
+      return "smallserial";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/text.js
+function text(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgTextBuilder(name, config);
+}
+var PgTextBuilder, PgText;
+var init_text = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgTextBuilder = class PgTextBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgTextBuilder";
+    constructor(name, config) {
+      super(name, "string", "PgText");
+      this.config.enumValues = config.enum;
+    }
+    build(table) {
+      return new PgText(table, this.config);
+    }
+  };
+  PgText = class PgText extends PgColumn {
+    static [entityKind] = "PgText";
+    enumValues = this.config.enumValues;
+    getSQLType() {
+      return "text";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/time.js
+function time(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgTimeBuilder(name, config.withTimezone ?? false, config.precision);
+}
+var PgTimeBuilder, PgTime;
+var init_time = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  init_date_common();
+  PgTimeBuilder = class PgTimeBuilder extends PgDateColumnBaseBuilder {
+    constructor(name, withTimezone, precision) {
+      super(name, "string", "PgTime");
+      this.withTimezone = withTimezone;
+      this.precision = precision;
+      this.config.withTimezone = withTimezone;
+      this.config.precision = precision;
+    }
+    static [entityKind] = "PgTimeBuilder";
+    build(table) {
+      return new PgTime(table, this.config);
+    }
+  };
+  PgTime = class PgTime extends PgColumn {
+    static [entityKind] = "PgTime";
+    withTimezone;
+    precision;
+    constructor(table, config) {
+      super(table, config);
+      this.withTimezone = config.withTimezone;
+      this.precision = config.precision;
+    }
+    getSQLType() {
+      const precision = this.precision === undefined ? "" : `(${this.precision})`;
+      return `time${precision}${this.withTimezone ? " with time zone" : ""}`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/timestamp.js
+function timestamp(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  if (config?.mode === "string") {
+    return new PgTimestampStringBuilder(name, config.withTimezone ?? false, config.precision);
+  }
+  return new PgTimestampBuilder(name, config?.withTimezone ?? false, config?.precision);
+}
+var PgTimestampBuilder, PgTimestamp, PgTimestampStringBuilder, PgTimestampString;
+var init_timestamp = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  init_date_common();
+  PgTimestampBuilder = class PgTimestampBuilder extends PgDateColumnBaseBuilder {
+    static [entityKind] = "PgTimestampBuilder";
+    constructor(name, withTimezone, precision) {
+      super(name, "date", "PgTimestamp");
+      this.config.withTimezone = withTimezone;
+      this.config.precision = precision;
+    }
+    build(table) {
+      return new PgTimestamp(table, this.config);
+    }
+  };
+  PgTimestamp = class PgTimestamp extends PgColumn {
+    static [entityKind] = "PgTimestamp";
+    withTimezone;
+    precision;
+    constructor(table, config) {
+      super(table, config);
+      this.withTimezone = config.withTimezone;
+      this.precision = config.precision;
+    }
+    getSQLType() {
+      const precision = this.precision === undefined ? "" : ` (${this.precision})`;
+      return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string")
+        return new Date(this.withTimezone ? value : value + "+0000");
+      return value;
+    }
+    mapToDriverValue = (value) => {
+      return value.toISOString();
+    };
+  };
+  PgTimestampStringBuilder = class PgTimestampStringBuilder extends PgDateColumnBaseBuilder {
+    static [entityKind] = "PgTimestampStringBuilder";
+    constructor(name, withTimezone, precision) {
+      super(name, "string", "PgTimestampString");
+      this.config.withTimezone = withTimezone;
+      this.config.precision = precision;
+    }
+    build(table) {
+      return new PgTimestampString(table, this.config);
+    }
+  };
+  PgTimestampString = class PgTimestampString extends PgColumn {
+    static [entityKind] = "PgTimestampString";
+    withTimezone;
+    precision;
+    constructor(table, config) {
+      super(table, config);
+      this.withTimezone = config.withTimezone;
+      this.precision = config.precision;
+    }
+    getSQLType() {
+      const precision = this.precision === undefined ? "" : `(${this.precision})`;
+      return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
+    }
+    mapFromDriverValue(value) {
+      if (typeof value === "string")
+        return value;
+      const shortened = value.toISOString().slice(0, -1).replace("T", " ");
+      if (this.withTimezone) {
+        const offset = value.getTimezoneOffset();
+        const sign = offset <= 0 ? "+" : "-";
+        return `${shortened}${sign}${Math.floor(Math.abs(offset) / 60).toString().padStart(2, "0")}`;
+      }
+      return shortened;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/uuid.js
+function uuid(name) {
+  return new PgUUIDBuilder(name ?? "");
+}
+var PgUUIDBuilder, PgUUID;
+var init_uuid = __esm(() => {
+  init_entity();
+  init_sql();
+  init_common();
+  PgUUIDBuilder = class PgUUIDBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgUUIDBuilder";
+    constructor(name) {
+      super(name, "string", "PgUUID");
+    }
+    defaultRandom() {
+      return this.default(sql`gen_random_uuid()`);
+    }
+    build(table) {
+      return new PgUUID(table, this.config);
+    }
+  };
+  PgUUID = class PgUUID extends PgColumn {
+    static [entityKind] = "PgUUID";
+    getSQLType() {
+      return "uuid";
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/varchar.js
+function varchar(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgVarcharBuilder(name, config);
+}
+var PgVarcharBuilder, PgVarchar;
+var init_varchar = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgVarcharBuilder = class PgVarcharBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgVarcharBuilder";
+    constructor(name, config) {
+      super(name, "string", "PgVarchar");
+      this.config.length = config.length;
+      this.config.enumValues = config.enum;
+    }
+    build(table) {
+      return new PgVarchar(table, this.config);
+    }
+  };
+  PgVarchar = class PgVarchar extends PgColumn {
+    static [entityKind] = "PgVarchar";
+    length = this.config.length;
+    enumValues = this.config.enumValues;
+    getSQLType() {
+      return this.length === undefined ? `varchar` : `varchar(${this.length})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+function bit(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgBinaryVectorBuilder(name, config);
+}
+var PgBinaryVectorBuilder, PgBinaryVector;
+var init_bit = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgBinaryVectorBuilder = class PgBinaryVectorBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgBinaryVectorBuilder";
+    constructor(name, config) {
+      super(name, "string", "PgBinaryVector");
+      this.config.dimensions = config.dimensions;
+    }
+    build(table) {
+      return new PgBinaryVector(table, this.config);
+    }
+  };
+  PgBinaryVector = class PgBinaryVector extends PgColumn {
+    static [entityKind] = "PgBinaryVector";
+    dimensions = this.config.dimensions;
+    getSQLType() {
+      return `bit(${this.dimensions})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+function halfvec(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgHalfVectorBuilder(name, config);
+}
+var PgHalfVectorBuilder, PgHalfVector;
+var init_halfvec = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgHalfVectorBuilder = class PgHalfVectorBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgHalfVectorBuilder";
+    constructor(name, config) {
+      super(name, "array", "PgHalfVector");
+      this.config.dimensions = config.dimensions;
+    }
+    build(table) {
+      return new PgHalfVector(table, this.config);
+    }
+  };
+  PgHalfVector = class PgHalfVector extends PgColumn {
+    static [entityKind] = "PgHalfVector";
+    dimensions = this.config.dimensions;
+    getSQLType() {
+      return `halfvec(${this.dimensions})`;
+    }
+    mapToDriverValue(value) {
+      return JSON.stringify(value);
+    }
+    mapFromDriverValue(value) {
+      return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+function sparsevec(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgSparseVectorBuilder(name, config);
+}
+var PgSparseVectorBuilder, PgSparseVector;
+var init_sparsevec = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgSparseVectorBuilder = class PgSparseVectorBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgSparseVectorBuilder";
+    constructor(name, config) {
+      super(name, "string", "PgSparseVector");
+      this.config.dimensions = config.dimensions;
+    }
+    build(table) {
+      return new PgSparseVector(table, this.config);
+    }
+  };
+  PgSparseVector = class PgSparseVector extends PgColumn {
+    static [entityKind] = "PgSparseVector";
+    dimensions = this.config.dimensions;
+    getSQLType() {
+      return `sparsevec(${this.dimensions})`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+function vector(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
+  return new PgVectorBuilder(name, config);
+}
+var PgVectorBuilder, PgVector;
+var init_vector = __esm(() => {
+  init_entity();
+  init_utils();
+  init_common();
+  PgVectorBuilder = class PgVectorBuilder extends PgColumnBuilder {
+    static [entityKind] = "PgVectorBuilder";
+    constructor(name, config) {
+      super(name, "array", "PgVector");
+      this.config.dimensions = config.dimensions;
+    }
+    build(table) {
+      return new PgVector(table, this.config);
+    }
+  };
+  PgVector = class PgVector extends PgColumn {
+    static [entityKind] = "PgVector";
+    dimensions = this.config.dimensions;
+    getSQLType() {
+      return `vector(${this.dimensions})`;
+    }
+    mapToDriverValue(value) {
+      return JSON.stringify(value);
+    }
+    mapFromDriverValue(value) {
+      return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
+    }
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/columns/all.js
+function getPgColumnBuilders() {
+  return {
+    bigint,
+    bigserial,
+    boolean,
+    char,
+    cidr,
+    customType,
+    date,
+    doublePrecision,
+    inet,
+    integer,
+    interval,
+    json,
+    jsonb,
+    line,
+    macaddr,
+    macaddr8,
+    numeric,
+    point,
+    geometry,
+    real,
+    serial,
+    smallint,
+    smallserial,
+    text,
+    time,
+    timestamp,
+    uuid,
+    varchar,
+    bit,
+    halfvec,
+    sparsevec,
+    vector
+  };
+}
+var init_all = __esm(() => {
+  init_bigint();
+  init_bigserial();
+  init_boolean();
+  init_char();
+  init_cidr();
+  init_custom();
+  init_date();
+  init_double_precision();
+  init_inet();
+  init_integer();
+  init_interval();
+  init_json();
+  init_jsonb();
+  init_line();
+  init_macaddr();
+  init_macaddr8();
+  init_numeric();
+  init_point();
+  init_geometry();
+  init_real();
+  init_serial();
+  init_smallint();
+  init_smallserial();
+  init_text();
+  init_time();
+  init_timestamp();
+  init_uuid();
+  init_varchar();
+  init_bit();
+  init_halfvec();
+  init_sparsevec();
+  init_vector();
+});
+
+// node_modules/drizzle-orm/pg-core/table.js
+function pgTableWithSchema(name, columns, extraConfig, schema, baseName = name) {
+  const rawTable = new PgTable(name, schema, baseName);
+  const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
+  const builtColumns = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
+    const colBuilder = colBuilderBase;
+    colBuilder.setName(name2);
+    const column = colBuilder.build(rawTable);
+    rawTable[InlineForeignKeys].push(...colBuilder.buildForeignKeys(column, rawTable));
+    return [name2, column];
+  }));
+  const builtColumnsForExtraConfig = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
+    const colBuilder = colBuilderBase;
+    colBuilder.setName(name2);
+    const column = colBuilder.buildExtraConfigColumn(rawTable);
+    return [name2, column];
+  }));
+  const table = Object.assign(rawTable, builtColumns);
+  table[Table.Symbol.Columns] = builtColumns;
+  table[Table.Symbol.ExtraConfigColumns] = builtColumnsForExtraConfig;
+  if (extraConfig) {
+    table[PgTable.Symbol.ExtraConfigBuilder] = extraConfig;
+  }
+  return Object.assign(table, {
+    enableRLS: () => {
+      table[PgTable.Symbol.EnableRLS] = true;
+      return table;
+    }
+  });
+}
+var InlineForeignKeys, EnableRLS, PgTable, pgTable = (name, columns, extraConfig) => {
+  return pgTableWithSchema(name, columns, extraConfig, undefined);
+};
+var init_table2 = __esm(() => {
+  init_entity();
+  init_table();
+  init_all();
+  InlineForeignKeys = Symbol.for("drizzle:PgInlineForeignKeys");
+  EnableRLS = Symbol.for("drizzle:EnableRLS");
+  PgTable = class PgTable extends Table {
+    static [entityKind] = "PgTable";
+    static Symbol = Object.assign({}, Table.Symbol, {
+      InlineForeignKeys,
+      EnableRLS
+    });
+    [InlineForeignKeys] = [];
+    [EnableRLS] = false;
+    [Table.Symbol.ExtraConfigBuilder] = undefined;
+    [Table.Symbol.ExtraConfigColumns] = {};
+  };
+});
+
+// node_modules/drizzle-orm/pg-core/primary-keys.js
+var PrimaryKeyBuilder, PrimaryKey;
+var init_primary_keys = __esm(() => {
+  init_entity();
+  init_table2();
+  PrimaryKeyBuilder = class PrimaryKeyBuilder {
+    static [entityKind] = "PgPrimaryKeyBuilder";
+    columns;
+    name;
+    constructor(columns, name) {
+      this.columns = columns;
+      this.name = name;
+    }
+    build(table) {
+      return new PrimaryKey(table, this.columns, this.name);
+    }
+  };
+  PrimaryKey = class PrimaryKey {
+    constructor(table, columns, name) {
+      this.table = table;
+      this.columns = columns;
+      this.name = name;
+    }
+    static [entityKind] = "PgPrimaryKey";
+    columns;
+    name;
+    getName() {
+      return this.name ?? `${this.table[PgTable.Symbol.Name]}_${this.columns.map((column) => column.name).join("_")}_pk`;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/sql/expressions/conditions.js
+function bindIfParam(value, column) {
+  if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
+    return new Param(value, column);
+  }
+  return value;
+}
+function and(...unfilteredConditions) {
+  const conditions = unfilteredConditions.filter((c) => c !== undefined);
+  if (conditions.length === 0) {
+    return;
+  }
+  if (conditions.length === 1) {
+    return new SQL(conditions);
+  }
+  return new SQL([
+    new StringChunk("("),
+    sql.join(conditions, new StringChunk(" and ")),
+    new StringChunk(")")
+  ]);
+}
+function or(...unfilteredConditions) {
+  const conditions = unfilteredConditions.filter((c) => c !== undefined);
+  if (conditions.length === 0) {
+    return;
+  }
+  if (conditions.length === 1) {
+    return new SQL(conditions);
+  }
+  return new SQL([
+    new StringChunk("("),
+    sql.join(conditions, new StringChunk(" or ")),
+    new StringChunk(")")
+  ]);
+}
+function not(condition) {
+  return sql`not ${condition}`;
+}
+function inArray(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
+      return sql`false`;
+    }
+    return sql`${column} in ${values.map((v) => bindIfParam(v, column))}`;
+  }
+  return sql`${column} in ${bindIfParam(values, column)}`;
+}
+function notInArray(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
+      return sql`true`;
+    }
+    return sql`${column} not in ${values.map((v) => bindIfParam(v, column))}`;
+  }
+  return sql`${column} not in ${bindIfParam(values, column)}`;
+}
+function isNull(value) {
+  return sql`${value} is null`;
+}
+function isNotNull(value) {
+  return sql`${value} is not null`;
+}
+function exists(subquery) {
+  return sql`exists ${subquery}`;
+}
+function notExists(subquery) {
+  return sql`not exists ${subquery}`;
+}
+function between(column, min, max) {
+  return sql`${column} between ${bindIfParam(min, column)} and ${bindIfParam(max, column)}`;
+}
+function notBetween(column, min, max) {
+  return sql`${column} not between ${bindIfParam(min, column)} and ${bindIfParam(max, column)}`;
+}
+function like(column, value) {
+  return sql`${column} like ${value}`;
+}
+function notLike(column, value) {
+  return sql`${column} not like ${value}`;
+}
+function ilike(column, value) {
+  return sql`${column} ilike ${value}`;
+}
+function notIlike(column, value) {
+  return sql`${column} not ilike ${value}`;
+}
+var eq = (left, right) => {
+  return sql`${left} = ${bindIfParam(right, left)}`;
+}, ne = (left, right) => {
+  return sql`${left} <> ${bindIfParam(right, left)}`;
+}, gt = (left, right) => {
+  return sql`${left} > ${bindIfParam(right, left)}`;
+}, gte = (left, right) => {
+  return sql`${left} >= ${bindIfParam(right, left)}`;
+}, lt = (left, right) => {
+  return sql`${left} < ${bindIfParam(right, left)}`;
+}, lte = (left, right) => {
+  return sql`${left} <= ${bindIfParam(right, left)}`;
+};
+var init_conditions = __esm(() => {
+  init_column();
+  init_entity();
+  init_table();
+  init_sql();
+});
+
+// node_modules/drizzle-orm/sql/expressions/select.js
+function asc(column) {
+  return sql`${column} asc`;
+}
+function desc(column) {
+  return sql`${column} desc`;
+}
+var init_select = __esm(() => {
+  init_sql();
+});
+
+// node_modules/drizzle-orm/sql/expressions/index.js
+var init_expressions = __esm(() => {
+  init_conditions();
+  init_select();
+});
+
+// node_modules/drizzle-orm/relations.js
+function getOperators() {
+  return {
+    and,
+    between,
+    eq,
+    exists,
+    gt,
+    gte,
+    ilike,
+    inArray,
+    isNull,
+    isNotNull,
+    like,
+    lt,
+    lte,
+    ne,
+    not,
+    notBetween,
+    notExists,
+    notLike,
+    notIlike,
+    notInArray,
+    or,
+    sql
+  };
+}
+function getOrderByOperators() {
+  return {
+    sql,
+    asc,
+    desc
+  };
+}
+function extractTablesRelationalConfig(schema, configHelpers) {
+  if (Object.keys(schema).length === 1 && "default" in schema && !is(schema["default"], Table)) {
+    schema = schema["default"];
+  }
+  const tableNamesMap = {};
+  const relationsBuffer = {};
+  const tablesConfig = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (is(value, Table)) {
+      const dbName = getTableUniqueName(value);
+      const bufferedRelations = relationsBuffer[dbName];
+      tableNamesMap[dbName] = key;
+      tablesConfig[key] = {
+        tsName: key,
+        dbName: value[Table.Symbol.Name],
+        schema: value[Table.Symbol.Schema],
+        columns: value[Table.Symbol.Columns],
+        relations: bufferedRelations?.relations ?? {},
+        primaryKey: bufferedRelations?.primaryKey ?? []
+      };
+      for (const column of Object.values(value[Table.Symbol.Columns])) {
+        if (column.primary) {
+          tablesConfig[key].primaryKey.push(column);
+        }
+      }
+      const extraConfig = value[Table.Symbol.ExtraConfigBuilder]?.(value[Table.Symbol.ExtraConfigColumns]);
+      if (extraConfig) {
+        for (const configEntry of Object.values(extraConfig)) {
+          if (is(configEntry, PrimaryKeyBuilder)) {
+            tablesConfig[key].primaryKey.push(...configEntry.columns);
+          }
+        }
+      }
+    } else if (is(value, Relations)) {
+      const dbName = getTableUniqueName(value.table);
+      const tableName = tableNamesMap[dbName];
+      const relations2 = value.config(configHelpers(value.table));
+      let primaryKey;
+      for (const [relationName, relation] of Object.entries(relations2)) {
+        if (tableName) {
+          const tableConfig = tablesConfig[tableName];
+          tableConfig.relations[relationName] = relation;
+          if (primaryKey) {
+            tableConfig.primaryKey.push(...primaryKey);
+          }
+        } else {
+          if (!(dbName in relationsBuffer)) {
+            relationsBuffer[dbName] = {
+              relations: {},
+              primaryKey
+            };
+          }
+          relationsBuffer[dbName].relations[relationName] = relation;
+        }
+      }
+    }
+  }
+  return { tables: tablesConfig, tableNamesMap };
+}
+function createOne(sourceTable) {
+  return function one(table, config) {
+    return new One(sourceTable, table, config, config?.fields.reduce((res, f) => res && f.notNull, true) ?? false);
+  };
+}
+function createMany(sourceTable) {
+  return function many(referencedTable, config) {
+    return new Many(sourceTable, referencedTable, config);
+  };
+}
+function normalizeRelation(schema, tableNamesMap, relation) {
+  if (is(relation, One) && relation.config) {
+    return {
+      fields: relation.config.fields,
+      references: relation.config.references
+    };
+  }
+  const referencedTableTsName = tableNamesMap[getTableUniqueName(relation.referencedTable)];
+  if (!referencedTableTsName) {
+    throw new Error(`Table "${relation.referencedTable[Table.Symbol.Name]}" not found in schema`);
+  }
+  const referencedTableConfig = schema[referencedTableTsName];
+  if (!referencedTableConfig) {
+    throw new Error(`Table "${referencedTableTsName}" not found in schema`);
+  }
+  const sourceTable = relation.sourceTable;
+  const sourceTableTsName = tableNamesMap[getTableUniqueName(sourceTable)];
+  if (!sourceTableTsName) {
+    throw new Error(`Table "${sourceTable[Table.Symbol.Name]}" not found in schema`);
+  }
+  const reverseRelations = [];
+  for (const referencedTableRelation of Object.values(referencedTableConfig.relations)) {
+    if (relation.relationName && relation !== referencedTableRelation && referencedTableRelation.relationName === relation.relationName || !relation.relationName && referencedTableRelation.referencedTable === relation.sourceTable) {
+      reverseRelations.push(referencedTableRelation);
+    }
+  }
+  if (reverseRelations.length > 1) {
+    throw relation.relationName ? new Error(`There are multiple relations with name "${relation.relationName}" in table "${referencedTableTsName}"`) : new Error(`There are multiple relations between "${referencedTableTsName}" and "${relation.sourceTable[Table.Symbol.Name]}". Please specify relation name`);
+  }
+  if (reverseRelations[0] && is(reverseRelations[0], One) && reverseRelations[0].config) {
+    return {
+      fields: reverseRelations[0].config.references,
+      references: reverseRelations[0].config.fields
+    };
+  }
+  throw new Error(`There is not enough information to infer relation "${sourceTableTsName}.${relation.fieldName}"`);
+}
+function createTableRelationsHelpers(sourceTable) {
+  return {
+    one: createOne(sourceTable),
+    many: createMany(sourceTable)
+  };
+}
+function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelection, mapColumnValue = (value) => value) {
+  const result = {};
+  for (const [
+    selectionItemIndex,
+    selectionItem
+  ] of buildQueryResultSelection.entries()) {
+    if (selectionItem.isJson) {
+      const relation = tableConfig.relations[selectionItem.tsKey];
+      const rawSubRows = row[selectionItemIndex];
+      const subRows = typeof rawSubRows === "string" ? JSON.parse(rawSubRows) : rawSubRows;
+      result[selectionItem.tsKey] = is(relation, One) ? subRows && mapRelationalRow(tablesConfig, tablesConfig[selectionItem.relationTableTsKey], subRows, selectionItem.selection, mapColumnValue) : subRows.map((subRow) => mapRelationalRow(tablesConfig, tablesConfig[selectionItem.relationTableTsKey], subRow, selectionItem.selection, mapColumnValue));
+    } else {
+      const value = mapColumnValue(row[selectionItemIndex]);
+      const field = selectionItem.field;
+      let decoder;
+      if (is(field, Column)) {
+        decoder = field;
+      } else if (is(field, SQL)) {
+        decoder = field.decoder;
+      } else {
+        decoder = field.sql.decoder;
+      }
+      result[selectionItem.tsKey] = value === null ? null : decoder.mapFromDriverValue(value);
+    }
+  }
+  return result;
+}
+var Relation, Relations, One, Many;
+var init_relations = __esm(() => {
+  init_table();
+  init_column();
+  init_entity();
+  init_primary_keys();
+  init_expressions();
+  init_sql();
+  Relation = class Relation {
+    constructor(sourceTable, referencedTable, relationName) {
+      this.sourceTable = sourceTable;
+      this.referencedTable = referencedTable;
+      this.relationName = relationName;
+      this.referencedTableName = referencedTable[Table.Symbol.Name];
+    }
+    static [entityKind] = "Relation";
+    referencedTableName;
+    fieldName;
+  };
+  Relations = class Relations {
+    constructor(table, config) {
+      this.table = table;
+      this.config = config;
+    }
+    static [entityKind] = "Relations";
+  };
+  One = class One extends Relation {
+    constructor(sourceTable, referencedTable, config, isNullable) {
+      super(sourceTable, referencedTable, config?.relationName);
+      this.config = config;
+      this.isNullable = isNullable;
+    }
+    static [entityKind] = "One";
+    withFieldName(fieldName) {
+      const relation = new One(this.sourceTable, this.referencedTable, this.config, this.isNullable);
+      relation.fieldName = fieldName;
+      return relation;
+    }
+  };
+  Many = class Many extends Relation {
+    constructor(sourceTable, referencedTable, config) {
+      super(sourceTable, referencedTable, config?.relationName);
+      this.config = config;
+    }
+    static [entityKind] = "Many";
+    withFieldName(fieldName) {
+      const relation = new Many(this.sourceTable, this.referencedTable, this.config);
+      relation.fieldName = fieldName;
+      return relation;
+    }
+  };
+});
+
+// node_modules/drizzle-orm/sql/functions/aggregate.js
+function count(expression) {
+  return sql`count(${expression || sql.raw("*")})`.mapWith(Number);
+}
+function sum(expression) {
+  return sql`sum(${expression})`.mapWith(String);
+}
+var init_aggregate = __esm(() => {
+  init_sql();
+});
+
+// node_modules/drizzle-orm/sql/functions/vector.js
+var init_vector2 = () => {};
+
+// node_modules/drizzle-orm/sql/functions/index.js
+var init_functions = __esm(() => {
+  init_aggregate();
+  init_vector2();
+});
+
+// node_modules/drizzle-orm/sql/index.js
+var init_sql2 = __esm(() => {
+  init_expressions();
+  init_functions();
+  init_sql();
+});
+
+// node_modules/drizzle-orm/index.js
+var init_drizzle_orm = __esm(() => {
+  init_alias();
+  init_column_builder();
+  init_column();
+  init_entity();
+  init_errors();
+  init_logger();
+  init_query_promise();
+  init_relations();
+  init_sql2();
+  init_subquery();
+  init_table();
+  init_utils();
+  init_view_common();
+});
+
 // node_modules/postgres/src/query.js
 function cachedError(xs) {
   if (originCache.has(xs))
@@ -216,7 +3522,7 @@ function notSupported(x) {
   return error;
 }
 var PostgresError, Errors;
-var init_errors = __esm(() => {
+var init_errors2 = __esm(() => {
   PostgresError = class PostgresError extends Error {
     constructor(x) {
       super(x.message);
@@ -268,14 +3574,14 @@ function fragment(q, parameters, types2, options) {
   return stringify(q, q.strings[0], q.args[0], parameters, types2, options);
 }
 function valuesBuilder(first, parameters, types2, columns, options) {
-  return first.map((row) => "(" + columns.map((column) => stringifyValue("values", row[column], parameters, types2, options)).join(",") + ")").join(",");
+  return first.map((row) => "(" + columns.map((column2) => stringifyValue("values", row[column2], parameters, types2, options)).join(",") + ")").join(",");
 }
 function values(first, rest, parameters, types2, options) {
   const multi = Array.isArray(first[0]);
   const columns = rest.length ? rest.flat() : Object.keys(multi ? first[0] : first);
   return valuesBuilder(multi ? first : [first], parameters, types2, columns, options);
 }
-function select(first, rest, parameters, types2, options) {
+function select2(first, rest, parameters, types2, options) {
   typeof first === "string" && (first = [first].concat(rest));
   if (Array.isArray(first))
     return escapeIdentifiers(first, options);
@@ -304,8 +3610,8 @@ function typeHandlers(types2) {
     return acc;
   }, { parsers: {}, serializers: {} });
 }
-function escapeIdentifiers(xs, { transform: { column } }) {
-  return xs.map((x) => escapeIdentifier(column.to ? column.to(x) : x)).join(",");
+function escapeIdentifiers(xs, { transform: { column: column2 } }) {
+  return xs.map((x) => escapeIdentifier(column2.to ? column2.to(x) : x)).join(",");
 }
 function arrayEscape(x) {
   return x.replace(escapeBackslash, "\\\\").replace(escapeQuote, "\\\"");
@@ -346,8 +3652,8 @@ function arrayParserLoop(s, x, parser, typarray) {
   return xs;
 }
 function createJsonTransform(fn) {
-  return function jsonTransform(x, column) {
-    return typeof x === "object" && x !== null && (column.type === 114 || column.type === 3802) ? Array.isArray(x) ? x.map((x2) => jsonTransform(x2, column)) : Object.entries(x).reduce((acc, [k, v]) => Object.assign(acc, { [fn(k)]: jsonTransform(v, column) }), {}) : x;
+  return function jsonTransform(x, column2) {
+    return typeof x === "object" && x !== null && (column2.type === 114 || column2.type === 3802) ? Array.isArray(x) ? x.map((x2) => jsonTransform(x2, column2)) : Object.entries(x).reduce((acc, [k, v]) => Object.assign(acc, { [fn(k)]: jsonTransform(v, column2) }), {}) : x;
   };
 }
 var types, Identifier, Parameter, Builder, defaultHandlers, builders, serializers, parsers, mergeUserTypes = function(types2) {
@@ -393,7 +3699,7 @@ var types, Identifier, Parameter, Builder, defaultHandlers, builders, serializer
 }, toKebab = (x) => x.replace(/_/g, "-"), fromCamel = (x) => x.replace(/([A-Z])/g, "_$1").toLowerCase(), fromPascal = (x) => (x.slice(0, 1) + x.slice(1).replace(/([A-Z])/g, "_$1")).toLowerCase(), fromKebab = (x) => x.replace(/-/g, "_"), camel, pascal, kebab;
 var init_types = __esm(() => {
   init_query();
-  init_errors();
+  init_errors2();
   types = {
     string: {
       to: 25,
@@ -463,10 +3769,10 @@ var init_types = __esm(() => {
       const x = values(...xs);
       return x === "()" ? "(null)" : x;
     },
-    select,
-    as: select,
-    returning: select,
-    "\\(": select,
+    select: select2,
+    as: select2,
+    returning: select2,
+    "\\(": select2,
     update(first, rest, parameters, types2, options) {
       return (rest.length ? rest.flat() : Object.keys(first)).map((x) => escapeIdentifier(options.transform.column.to ? options.transform.column.to(x) : x) + "=" + stringifyValue("values", first[x], parameters, types2, options));
     },
@@ -924,15 +4230,15 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   function DataRow(x) {
     let index = 7;
     let length2;
-    let column;
+    let column2;
     let value;
     const row = query.isRaw ? new Array(query.statement.columns.length) : {};
     for (let i = 0;i < query.statement.columns.length; i++) {
-      column = query.statement.columns[i];
+      column2 = query.statement.columns[i];
       length2 = x.readInt32BE(index);
       index += 4;
-      value = length2 === -1 ? null : query.isRaw === true ? x.subarray(index, index += length2) : column.parser === undefined ? x.toString("utf8", index, index += length2) : column.parser.array === true ? column.parser(x.toString("utf8", index + 1, index += length2)) : column.parser(x.toString("utf8", index, index += length2));
-      query.isRaw ? row[i] = query.isRaw === true ? value : transform.value.from ? transform.value.from(value, column) : value : row[column.name] = transform.value.from ? transform.value.from(value, column) : value;
+      value = length2 === -1 ? null : query.isRaw === true ? x.subarray(index, index += length2) : column2.parser === undefined ? x.toString("utf8", index, index += length2) : column2.parser.array === true ? column2.parser(x.toString("utf8", index + 1, index += length2)) : column2.parser(x.toString("utf8", index, index += length2));
+      query.isRaw ? row[i] = query.isRaw === true ? value : transform.value.from ? transform.value.from(value, column2) : value : row[column2.name] = transform.value.from ? transform.value.from(value, column2) : value;
     }
     query.forEachFn ? query.forEachFn(transform.row.from ? transform.row.from(row) : row, result) : result[rows++] = transform.row.from ? transform.row.from(row) : row;
   }
@@ -1029,13 +4335,13 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       start = index;
       while (x[index++] !== 0)
         ;
-      const table = x.readUInt32BE(index);
+      const table2 = x.readUInt32BE(index);
       const number = x.readUInt16BE(index + 4);
       const type = x.readUInt32BE(index + 6);
       query.statement.columns[i] = {
         name: transform.column.from ? transform.column.from(x.toString("utf8", start, index - 1)) : x.toString("utf8", start, index - 1),
         parser: parsers2[type],
-        table,
+        table: table2,
         number,
         type
       };
@@ -1325,7 +4631,7 @@ function timer(fn, seconds) {
 var connection_default, uid = 1, Sync, Flush, SSLRequest, ExecuteUnnamed, DescribeUnnamed, noop = () => {}, retryRoutines, errorFields;
 var init_connection = __esm(() => {
   init_types();
-  init_errors();
+  init_errors2();
   init_result();
   init_queue();
   init_query();
@@ -1367,7 +4673,7 @@ var init_connection = __esm(() => {
 function Subscribe(postgres2, options) {
   const subscribers = new Map, slot = "postgresjs_" + Math.random().toString(36).slice(2), state = {};
   let connection2, stream, ended = false;
-  const sql = subscribe.sql = postgres2({
+  const sql4 = subscribe.sql = postgres2({
     ...options,
     transform: { column: {}, value: {}, row: {} },
     max: 1,
@@ -1383,18 +4689,18 @@ function Subscribe(postgres2, options) {
         return;
       stream = null;
       state.pid = state.secret = undefined;
-      connected(await init(sql, slot, options.publications));
+      connected(await init(sql4, slot, options.publications));
       subscribers.forEach((event) => event.forEach(({ onsubscribe }) => onsubscribe()));
     },
     no_subscribe: true
   });
-  const { end, close } = sql;
-  sql.end = async () => {
+  const { end, close } = sql4;
+  sql4.end = async () => {
     ended = true;
     stream && await new Promise((r) => (stream.once("close", r), stream.end()));
     return end();
   };
-  sql.close = async () => {
+  sql4.close = async () => {
     stream && await new Promise((r) => (stream.once("close", r), stream.end()));
     return close();
   };
@@ -1402,7 +4708,7 @@ function Subscribe(postgres2, options) {
   async function subscribe(event, fn, onsubscribe = noop2, onerror = noop2) {
     event = parseEvent(event);
     if (!connection2)
-      connection2 = init(sql, slot, options.publications);
+      connection2 = init(sql4, slot, options.publications);
     const subscriber = { fn, onsubscribe };
     const fns = subscribers.has(event) ? subscribers.get(event).add(subscriber) : subscribers.set(event, new Set([subscriber])).get(event);
     const unsubscribe = () => {
@@ -1413,7 +4719,7 @@ function Subscribe(postgres2, options) {
       connected(x);
       onsubscribe();
       stream && stream.on("error", onerror);
-      return { unsubscribe, state, sql };
+      return { unsubscribe, state, sql: sql4 };
     });
   }
   function connected(x) {
@@ -1421,25 +4727,25 @@ function Subscribe(postgres2, options) {
     state.pid = x.state.pid;
     state.secret = x.state.secret;
   }
-  async function init(sql2, slot2, publications) {
+  async function init(sql5, slot2, publications) {
     if (!publications)
       throw new Error("Missing publication names");
-    const xs = await sql2.unsafe(`CREATE_REPLICATION_SLOT ${slot2} TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT`);
+    const xs = await sql5.unsafe(`CREATE_REPLICATION_SLOT ${slot2} TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT`);
     const [x] = xs;
-    const stream2 = await sql2.unsafe(`START_REPLICATION SLOT ${slot2} LOGICAL ${x.consistent_point} (proto_version '1', publication_names '${publications}')`).writable();
+    const stream2 = await sql5.unsafe(`START_REPLICATION SLOT ${slot2} LOGICAL ${x.consistent_point} (proto_version '1', publication_names '${publications}')`).writable();
     const state2 = {
       lsn: Buffer.concat(x.consistent_point.split("/").map((x2) => Buffer.from(("00000000" + x2).slice(-8), "hex")))
     };
     stream2.on("data", data);
     stream2.on("error", error);
-    stream2.on("close", sql2.close);
+    stream2.on("close", sql5.close);
     return { stream: stream2, state: xs.state };
     function error(e) {
       console.error("Unexpected error during logical streaming - reconnecting", e);
     }
     function data(x2) {
       if (x2[0] === 119) {
-        parse(x2.subarray(25), state2, sql2.options.parsers, handle, options.transform);
+        parse(x2.subarray(25), state2, sql5.options.parsers, handle, options.transform);
       } else if (x2[0] === 107 && x2[17]) {
         state2.lsn = x2.subarray(1, 9);
         pong();
@@ -1470,7 +4776,7 @@ function Time(x) {
   return new Date(Date.UTC(2000, 0, 1) + Number(x / BigInt(1000)));
 }
 function parse(x, state, parsers2, handle, transform) {
-  const char = (acc, [k, v]) => (acc[k.charCodeAt(0)] = v, acc);
+  const char2 = (acc, [k, v]) => (acc[k.charCodeAt(0)] = v, acc);
   Object.entries({
     R: (x2) => {
       let i = 1;
@@ -1481,16 +4787,16 @@ function parse(x, state, parsers2, handle, transform) {
         keys: []
       };
       i += 2;
-      let columnIndex = 0, column;
+      let columnIndex = 0, column2;
       while (i < x2.length) {
-        column = r.columns[columnIndex++] = {
+        column2 = r.columns[columnIndex++] = {
           key: x2[i++],
           name: transform.column.from ? transform.column.from(x2.toString("utf8", i, i = x2.indexOf(0, i))) : x2.toString("utf8", i, i = x2.indexOf(0, i)),
           type: x2.readUInt32BE(i += 1),
           parser: parsers2[x2.readUInt32BE(i)],
           atttypmod: x2.readUInt32BE(i += 4)
         };
-        column.key && r.keys.push(column);
+        column2.key && r.keys.push(column2);
         i += 4;
       }
     },
@@ -1537,16 +4843,16 @@ function parse(x, state, parsers2, handle, transform) {
     },
     T: () => {},
     C: () => {}
-  }).reduce(char, {})[x[0]](x);
+  }).reduce(char2, {})[x[0]](x);
 }
 function tuples(x, columns, xi, transform) {
-  let type, column, value;
+  let type, column2, value;
   const row = transform.raw ? new Array(columns.length) : {};
   for (let i = 0;i < columns.length; i++) {
     type = x[xi++];
-    column = columns[i];
-    value = type === 110 ? null : type === 117 ? undefined : column.parser === undefined ? x.toString("utf8", xi + 4, xi += 4 + x.readUInt32BE(xi)) : column.parser.array === true ? column.parser(x.toString("utf8", xi + 5, xi += 4 + x.readUInt32BE(xi))) : column.parser(x.toString("utf8", xi + 4, xi += 4 + x.readUInt32BE(xi)));
-    transform.raw ? row[i] = transform.raw === true ? value : transform.value.from ? transform.value.from(value, column) : value : row[column.name] = transform.value.from ? transform.value.from(value, column) : value;
+    column2 = columns[i];
+    value = type === 110 ? null : type === 117 ? undefined : column2.parser === undefined ? x.toString("utf8", xi + 4, xi += 4 + x.readUInt32BE(xi)) : column2.parser.array === true ? column2.parser(x.toString("utf8", xi + 5, xi += 4 + x.readUInt32BE(xi))) : column2.parser(x.toString("utf8", xi + 4, xi += 4 + x.readUInt32BE(xi)));
+    transform.raw ? row[i] = transform.raw === true ? value : transform.value.from ? transform.value.from(value, column2) : value : row[column2.name] = transform.value.from ? transform.value.from(value, column2) : value;
   }
   return { i: xi, row: transform.row.from ? transform.row.from(row) : row };
 }
@@ -1561,22 +4867,22 @@ var noop2 = () => {};
 
 // node_modules/postgres/src/large.js
 import Stream2 from "stream";
-function largeObject(sql, oid, mode = 131072 | 262144) {
+function largeObject(sql4, oid, mode = 131072 | 262144) {
   return new Promise(async (resolve, reject) => {
-    await sql.begin(async (sql2) => {
+    await sql4.begin(async (sql5) => {
       let finish;
-      !oid && ([{ oid }] = await sql2`select lo_creat(-1) as oid`);
-      const [{ fd }] = await sql2`select lo_open(${oid}, ${mode}) as fd`;
+      !oid && ([{ oid }] = await sql5`select lo_creat(-1) as oid`);
+      const [{ fd }] = await sql5`select lo_open(${oid}, ${mode}) as fd`;
       const lo = {
         writable,
         readable,
-        close: () => sql2`select lo_close(${fd})`.then(finish),
-        tell: () => sql2`select lo_tell64(${fd})`,
-        read: (x) => sql2`select loread(${fd}, ${x}) as data`,
-        write: (x) => sql2`select lowrite(${fd}, ${x})`,
-        truncate: (x) => sql2`select lo_truncate64(${fd}, ${x})`,
-        seek: (x, whence = 0) => sql2`select lo_lseek64(${fd}, ${x}, ${whence})`,
-        size: () => sql2`
+        close: () => sql5`select lo_close(${fd})`.then(finish),
+        tell: () => sql5`select lo_tell64(${fd})`,
+        read: (x) => sql5`select loread(${fd}, ${x}) as data`,
+        write: (x) => sql5`select lowrite(${fd}, ${x})`,
+        truncate: (x) => sql5`select lo_truncate64(${fd}, ${x})`,
+        seek: (x, whence = 0) => sql5`select lo_lseek64(${fd}, ${x}, ${whence})`,
+        size: () => sql5`
           select
             lo_lseek64(${fd}, location, 0) as position,
             seek.size
@@ -1634,12 +4940,12 @@ function Postgres(a, b2) {
   let ending = false;
   const queries = queue_default(), connecting = queue_default(), reserved = queue_default(), closed = queue_default(), ended = queue_default(), open = queue_default(), busy = queue_default(), full = queue_default(), queues = { connecting, reserved, closed, ended, open, busy, full };
   const connections = [...Array(options.max)].map(() => connection_default(options, queues, { onopen, onend, onclose }));
-  const sql = Sql(handler);
-  Object.assign(sql, {
+  const sql4 = Sql(handler);
+  Object.assign(sql4, {
     get parameters() {
       return options.parameters;
     },
-    largeObject: largeObject.bind(null, sql),
+    largeObject: largeObject.bind(null, sql4),
     subscribe,
     CLOSE,
     END: CLOSE,
@@ -1651,27 +4957,27 @@ function Postgres(a, b2) {
     close,
     end
   });
-  return sql;
+  return sql4;
   function Sql(handler2) {
     handler2.debug = options.debug;
     Object.entries(options.types).reduce((acc, [name, type]) => {
       acc[name] = (x) => new Parameter(x, type.to);
       return acc;
     }, typed);
-    Object.assign(sql2, {
+    Object.assign(sql5, {
       types: typed,
       typed,
       unsafe,
       notify,
       array,
-      json,
+      json: json2,
       file
     });
-    return sql2;
+    return sql5;
     function typed(value, type) {
       return new Parameter(value, type);
     }
-    function sql2(strings, ...args) {
+    function sql5(strings, ...args) {
       const query = strings && Array.isArray(strings.raw) ? new Query(strings, args, handler2, cancel) : typeof strings === "string" && !args.length ? new Identifier(options.transform.column.to ? options.transform.column.to(strings) : strings) : new Builder(strings, args);
       return query;
     }
@@ -1702,7 +5008,7 @@ function Postgres(a, b2) {
   }
   async function listen(name, fn, onlisten) {
     const listener = { fn, onlisten };
-    const sql2 = listen.sql || (listen.sql = Postgres({
+    const sql5 = listen.sql || (listen.sql = Postgres({
       ...options,
       max: 1,
       idle_timeout: null,
@@ -1718,14 +5024,14 @@ function Postgres(a, b2) {
         c in listen.channels && listen.channels[c].listeners.forEach((l) => l.fn(x));
       }
     }));
-    const channels = listen.channels || (listen.channels = {}), exists = name in channels;
-    if (exists) {
+    const channels = listen.channels || (listen.channels = {}), exists2 = name in channels;
+    if (exists2) {
       channels[name].listeners.push(listener);
       const result2 = await channels[name].result;
       listener.onlisten && listener.onlisten();
       return { state: result2.state, unlisten };
     }
-    channels[name] = { result: sql2`listen ${sql2.unsafe('"' + name.replace(/"/g, '""') + '"')}`, listeners: [listener] };
+    channels[name] = { result: sql5`listen ${sql5.unsafe('"' + name.replace(/"/g, '""') + '"')}`, listeners: [listener] };
     const result = await channels[name].result;
     listener.onlisten && listener.onlisten();
     return { state: result.state, unlisten };
@@ -1736,11 +5042,11 @@ function Postgres(a, b2) {
       if (channels[name].listeners.length)
         return;
       delete channels[name];
-      return sql2`unlisten ${sql2.unsafe('"' + name.replace(/"/g, '""') + '"')}`;
+      return sql5`unlisten ${sql5.unsafe('"' + name.replace(/"/g, '""') + '"')}`;
     }
   }
   async function notify(channel, payload) {
-    return await sql`select pg_notify(${channel}, ${"" + payload})`;
+    return await sql4`select pg_notify(${channel}, ${"" + payload})`;
   }
   async function reserve() {
     const queue = queue_default();
@@ -1752,12 +5058,12 @@ function Postgres(a, b2) {
     move(c, reserved);
     c.reserved = () => queue.length ? c.execute(queue.shift()) : move(c, reserved);
     c.reserved.release = true;
-    const sql2 = Sql(handler2);
-    sql2.release = () => {
+    const sql5 = Sql(handler2);
+    sql5.release = () => {
       c.reserved = null;
       onopen(c);
     };
-    return sql2;
+    return sql5;
     function handler2(q) {
       c.queue === full ? queue.push(q) : c.execute(q) || move(c, full);
     }
@@ -1767,7 +5073,7 @@ function Postgres(a, b2) {
     const queries2 = queue_default();
     let savepoints = 0, connection2, prepare = null;
     try {
-      await sql.unsafe("begin " + options2.replace(/[^a-z ]/ig, ""), [], { onexecute }).execute();
+      await sql4.unsafe("begin " + options2.replace(/[^a-z ]/ig, ""), [], { onexecute }).execute();
       return await Promise.race([
         scope(connection2, fn),
         new Promise((_, reject) => connection2.onclose = reject)
@@ -1776,29 +5082,29 @@ function Postgres(a, b2) {
       throw error;
     }
     async function scope(c, fn2, name) {
-      const sql2 = Sql(handler2);
-      sql2.savepoint = savepoint;
-      sql2.prepare = (x) => prepare = x.replace(/[^a-z0-9$-_. ]/gi);
+      const sql5 = Sql(handler2);
+      sql5.savepoint = savepoint;
+      sql5.prepare = (x) => prepare = x.replace(/[^a-z0-9$-_. ]/gi);
       let uncaughtError, result;
-      name && await sql2`savepoint ${sql2(name)}`;
+      name && await sql5`savepoint ${sql5(name)}`;
       try {
         result = await new Promise((resolve, reject) => {
-          const x = fn2(sql2);
+          const x = fn2(sql5);
           Promise.resolve(Array.isArray(x) ? Promise.all(x) : x).then(resolve, reject);
         });
         if (uncaughtError)
           throw uncaughtError;
       } catch (e) {
-        await (name ? sql2`rollback to ${sql2(name)}` : sql2`rollback`);
+        await (name ? sql5`rollback to ${sql5(name)}` : sql5`rollback`);
         throw e instanceof PostgresError && e.code === "25P02" && uncaughtError || e;
       }
       if (!name) {
-        prepare ? await sql2`prepare transaction '${sql2.unsafe(prepare)}'` : await sql2`commit`;
+        prepare ? await sql5`prepare transaction '${sql5.unsafe(prepare)}'` : await sql5`commit`;
       }
       return result;
       function savepoint(name2, fn3) {
         if (name2 && Array.isArray(name2.raw))
-          return savepoint((sql3) => sql3.apply(sql3, arguments));
+          return savepoint((sql6) => sql6.apply(sql6, arguments));
         arguments.length === 1 && (fn3 = name2, name2 = null);
         return scope(c, fn3, "s" + savepoints++ + (name2 ? "_" + name2 : ""));
       }
@@ -1820,7 +5126,7 @@ function Postgres(a, b2) {
     queue === open ? c.idleTimer.start() : c.idleTimer.cancel();
     return c;
   }
-  function json(x) {
+  function json2(x) {
     return new Parameter(x, 3802);
   }
   function array(x, type) {
@@ -2009,7 +5315,7 @@ var init_src = __esm(() => {
   init_connection();
   init_query();
   init_queue();
-  init_errors();
+  init_errors2();
   init_large();
   Object.assign(Postgres, {
     PostgresError,
@@ -2032,1158 +5338,6 @@ var init_src = __esm(() => {
   src_default = Postgres;
 });
 
-// node_modules/drizzle-orm/entity.js
-function is(value, type) {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  if (value instanceof type) {
-    return true;
-  }
-  if (!Object.prototype.hasOwnProperty.call(type, entityKind)) {
-    throw new Error(`Class "${type.name ?? "<unknown>"}" doesn't look like a Drizzle entity. If this is incorrect and the class is provided by Drizzle, please report this as a bug.`);
-  }
-  let cls = Object.getPrototypeOf(value).constructor;
-  if (cls) {
-    while (cls) {
-      if (entityKind in cls && cls[entityKind] === type[entityKind]) {
-        return true;
-      }
-      cls = Object.getPrototypeOf(cls);
-    }
-  }
-  return false;
-}
-var entityKind, hasOwnEntityKind;
-var init_entity = __esm(() => {
-  entityKind = Symbol.for("drizzle:entityKind");
-  hasOwnEntityKind = Symbol.for("drizzle:hasOwnEntityKind");
-});
-
-// node_modules/drizzle-orm/logger.js
-var ConsoleLogWriter, DefaultLogger, NoopLogger;
-var init_logger = __esm(() => {
-  init_entity();
-  ConsoleLogWriter = class ConsoleLogWriter {
-    static [entityKind] = "ConsoleLogWriter";
-    write(message) {
-      console.log(message);
-    }
-  };
-  DefaultLogger = class DefaultLogger {
-    static [entityKind] = "DefaultLogger";
-    writer;
-    constructor(config) {
-      this.writer = config?.writer ?? new ConsoleLogWriter;
-    }
-    logQuery(query, params) {
-      const stringifiedParams = params.map((p) => {
-        try {
-          return JSON.stringify(p);
-        } catch {
-          return String(p);
-        }
-      });
-      const paramsStr = stringifiedParams.length ? ` -- params: [${stringifiedParams.join(", ")}]` : "";
-      this.writer.write(`Query: ${query}${paramsStr}`);
-    }
-  };
-  NoopLogger = class NoopLogger {
-    static [entityKind] = "NoopLogger";
-    logQuery() {}
-  };
-});
-
-// node_modules/drizzle-orm/query-promise.js
-var QueryPromise;
-var init_query_promise = __esm(() => {
-  init_entity();
-  QueryPromise = class QueryPromise {
-    static [entityKind] = "QueryPromise";
-    [Symbol.toStringTag] = "QueryPromise";
-    catch(onRejected) {
-      return this.then(undefined, onRejected);
-    }
-    finally(onFinally) {
-      return this.then((value) => {
-        onFinally?.();
-        return value;
-      }, (reason) => {
-        onFinally?.();
-        throw reason;
-      });
-    }
-    then(onFulfilled, onRejected) {
-      return this.execute().then(onFulfilled, onRejected);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/column.js
-var Column;
-var init_column = __esm(() => {
-  init_entity();
-  Column = class Column {
-    constructor(table, config) {
-      this.table = table;
-      this.config = config;
-      this.name = config.name;
-      this.keyAsName = config.keyAsName;
-      this.notNull = config.notNull;
-      this.default = config.default;
-      this.defaultFn = config.defaultFn;
-      this.onUpdateFn = config.onUpdateFn;
-      this.hasDefault = config.hasDefault;
-      this.primary = config.primaryKey;
-      this.isUnique = config.isUnique;
-      this.uniqueName = config.uniqueName;
-      this.uniqueType = config.uniqueType;
-      this.dataType = config.dataType;
-      this.columnType = config.columnType;
-      this.generated = config.generated;
-      this.generatedIdentity = config.generatedIdentity;
-    }
-    static [entityKind] = "Column";
-    name;
-    keyAsName;
-    primary;
-    notNull;
-    default;
-    defaultFn;
-    onUpdateFn;
-    hasDefault;
-    isUnique;
-    uniqueName;
-    uniqueType;
-    dataType;
-    columnType;
-    enumValues = undefined;
-    generated = undefined;
-    generatedIdentity = undefined;
-    config;
-    mapFromDriverValue(value) {
-      return value;
-    }
-    mapToDriverValue(value) {
-      return value;
-    }
-    shouldDisableInsert() {
-      return this.config.generated !== undefined && this.config.generated.type !== "byDefault";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/column-builder.js
-var ColumnBuilder;
-var init_column_builder = __esm(() => {
-  init_entity();
-  ColumnBuilder = class ColumnBuilder {
-    static [entityKind] = "ColumnBuilder";
-    config;
-    constructor(name, dataType, columnType) {
-      this.config = {
-        name,
-        keyAsName: name === "",
-        notNull: false,
-        default: undefined,
-        hasDefault: false,
-        primaryKey: false,
-        isUnique: false,
-        uniqueName: undefined,
-        uniqueType: undefined,
-        dataType,
-        columnType,
-        generated: undefined
-      };
-    }
-    $type() {
-      return this;
-    }
-    notNull() {
-      this.config.notNull = true;
-      return this;
-    }
-    default(value) {
-      this.config.default = value;
-      this.config.hasDefault = true;
-      return this;
-    }
-    $defaultFn(fn) {
-      this.config.defaultFn = fn;
-      this.config.hasDefault = true;
-      return this;
-    }
-    $default = this.$defaultFn;
-    $onUpdateFn(fn) {
-      this.config.onUpdateFn = fn;
-      this.config.hasDefault = true;
-      return this;
-    }
-    $onUpdate = this.$onUpdateFn;
-    primaryKey() {
-      this.config.primaryKey = true;
-      this.config.notNull = true;
-      return this;
-    }
-    setName(name) {
-      if (this.config.name !== "")
-        return;
-      this.config.name = name;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/table.utils.js
-var TableName;
-var init_table_utils = __esm(() => {
-  TableName = Symbol.for("drizzle:Name");
-});
-
-// node_modules/drizzle-orm/pg-core/foreign-keys.js
-var ForeignKeyBuilder, ForeignKey;
-var init_foreign_keys = __esm(() => {
-  init_entity();
-  init_table_utils();
-  ForeignKeyBuilder = class ForeignKeyBuilder {
-    static [entityKind] = "PgForeignKeyBuilder";
-    reference;
-    _onUpdate = "no action";
-    _onDelete = "no action";
-    constructor(config, actions) {
-      this.reference = () => {
-        const { name, columns, foreignColumns } = config();
-        return { name, columns, foreignTable: foreignColumns[0].table, foreignColumns };
-      };
-      if (actions) {
-        this._onUpdate = actions.onUpdate;
-        this._onDelete = actions.onDelete;
-      }
-    }
-    onUpdate(action) {
-      this._onUpdate = action === undefined ? "no action" : action;
-      return this;
-    }
-    onDelete(action) {
-      this._onDelete = action === undefined ? "no action" : action;
-      return this;
-    }
-    build(table) {
-      return new ForeignKey(table, this);
-    }
-  };
-  ForeignKey = class ForeignKey {
-    constructor(table, builder) {
-      this.table = table;
-      this.reference = builder.reference;
-      this.onUpdate = builder._onUpdate;
-      this.onDelete = builder._onDelete;
-    }
-    static [entityKind] = "PgForeignKey";
-    reference;
-    onUpdate;
-    onDelete;
-    getName() {
-      const { name, columns, foreignColumns } = this.reference();
-      const columnNames = columns.map((column) => column.name);
-      const foreignColumnNames = foreignColumns.map((column) => column.name);
-      const chunks = [
-        this.table[TableName],
-        ...columnNames,
-        foreignColumns[0].table[TableName],
-        ...foreignColumnNames
-      ];
-      return name ?? `${chunks.join("_")}_fk`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/tracing-utils.js
-function iife(fn, ...args) {
-  return fn(...args);
-}
-var init_tracing_utils = () => {};
-
-// node_modules/drizzle-orm/pg-core/unique-constraint.js
-function uniqueKeyName(table, columns) {
-  return `${table[TableName]}_${columns.join("_")}_unique`;
-}
-var init_unique_constraint = __esm(() => {
-  init_table_utils();
-});
-
-// node_modules/drizzle-orm/pg-core/utils/array.js
-function parsePgArrayValue(arrayString, startFrom, inQuotes) {
-  for (let i = startFrom;i < arrayString.length; i++) {
-    const char = arrayString[i];
-    if (char === "\\") {
-      i++;
-      continue;
-    }
-    if (char === '"') {
-      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i + 1];
-    }
-    if (inQuotes) {
-      continue;
-    }
-    if (char === "," || char === "}") {
-      return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i];
-    }
-  }
-  return [arrayString.slice(startFrom).replace(/\\/g, ""), arrayString.length];
-}
-function parsePgNestedArray(arrayString, startFrom = 0) {
-  const result = [];
-  let i = startFrom;
-  let lastCharIsComma = false;
-  while (i < arrayString.length) {
-    const char = arrayString[i];
-    if (char === ",") {
-      if (lastCharIsComma || i === startFrom) {
-        result.push("");
-      }
-      lastCharIsComma = true;
-      i++;
-      continue;
-    }
-    lastCharIsComma = false;
-    if (char === "\\") {
-      i += 2;
-      continue;
-    }
-    if (char === '"') {
-      const [value2, startFrom2] = parsePgArrayValue(arrayString, i + 1, true);
-      result.push(value2);
-      i = startFrom2;
-      continue;
-    }
-    if (char === "}") {
-      return [result, i + 1];
-    }
-    if (char === "{") {
-      const [value2, startFrom2] = parsePgNestedArray(arrayString, i + 1);
-      result.push(value2);
-      i = startFrom2;
-      continue;
-    }
-    const [value, newStartFrom] = parsePgArrayValue(arrayString, i, false);
-    result.push(value);
-    i = newStartFrom;
-  }
-  return [result, i];
-}
-function parsePgArray(arrayString) {
-  const [result] = parsePgNestedArray(arrayString, 1);
-  return result;
-}
-function makePgArray(array) {
-  return `{${array.map((item) => {
-    if (Array.isArray(item)) {
-      return makePgArray(item);
-    }
-    if (typeof item === "string") {
-      return `"${item.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
-    }
-    return `${item}`;
-  }).join(",")}}`;
-}
-var init_array = () => {};
-
-// node_modules/drizzle-orm/pg-core/columns/common.js
-var PgColumnBuilder, PgColumn, ExtraConfigColumn, PgArrayBuilder, PgArray;
-var init_common = __esm(() => {
-  init_column_builder();
-  init_column();
-  init_entity();
-  init_foreign_keys();
-  init_tracing_utils();
-  init_unique_constraint();
-  init_array();
-  PgColumnBuilder = class PgColumnBuilder extends ColumnBuilder {
-    foreignKeyConfigs = [];
-    static [entityKind] = "PgColumnBuilder";
-    array(size2) {
-      return new PgArrayBuilder(this.config.name, this, size2);
-    }
-    references(ref, actions = {}) {
-      this.foreignKeyConfigs.push({ ref, actions });
-      return this;
-    }
-    unique(name, config) {
-      this.config.isUnique = true;
-      this.config.uniqueName = name;
-      this.config.uniqueType = config?.nulls;
-      return this;
-    }
-    generatedAlwaysAs(as) {
-      this.config.generated = {
-        as,
-        type: "always",
-        mode: "stored"
-      };
-      return this;
-    }
-    buildForeignKeys(column, table) {
-      return this.foreignKeyConfigs.map(({ ref, actions }) => {
-        return iife((ref2, actions2) => {
-          const builder = new ForeignKeyBuilder(() => {
-            const foreignColumn = ref2();
-            return { columns: [column], foreignColumns: [foreignColumn] };
-          });
-          if (actions2.onUpdate) {
-            builder.onUpdate(actions2.onUpdate);
-          }
-          if (actions2.onDelete) {
-            builder.onDelete(actions2.onDelete);
-          }
-          return builder.build(table);
-        }, ref, actions);
-      });
-    }
-    buildExtraConfigColumn(table) {
-      return new ExtraConfigColumn(table, this.config);
-    }
-  };
-  PgColumn = class PgColumn extends Column {
-    constructor(table, config) {
-      if (!config.uniqueName) {
-        config.uniqueName = uniqueKeyName(table, [config.name]);
-      }
-      super(table, config);
-      this.table = table;
-    }
-    static [entityKind] = "PgColumn";
-  };
-  ExtraConfigColumn = class ExtraConfigColumn extends PgColumn {
-    static [entityKind] = "ExtraConfigColumn";
-    getSQLType() {
-      return this.getSQLType();
-    }
-    indexConfig = {
-      order: this.config.order ?? "asc",
-      nulls: this.config.nulls ?? "last",
-      opClass: this.config.opClass
-    };
-    defaultConfig = {
-      order: "asc",
-      nulls: "last",
-      opClass: undefined
-    };
-    asc() {
-      this.indexConfig.order = "asc";
-      return this;
-    }
-    desc() {
-      this.indexConfig.order = "desc";
-      return this;
-    }
-    nullsFirst() {
-      this.indexConfig.nulls = "first";
-      return this;
-    }
-    nullsLast() {
-      this.indexConfig.nulls = "last";
-      return this;
-    }
-    op(opClass) {
-      this.indexConfig.opClass = opClass;
-      return this;
-    }
-  };
-  PgArrayBuilder = class PgArrayBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgArrayBuilder";
-    constructor(name, baseBuilder, size2) {
-      super(name, "array", "PgArray");
-      this.config.baseBuilder = baseBuilder;
-      this.config.size = size2;
-    }
-    build(table) {
-      const baseColumn = this.config.baseBuilder.build(table);
-      return new PgArray(table, this.config, baseColumn);
-    }
-  };
-  PgArray = class PgArray extends PgColumn {
-    constructor(table, config, baseColumn, range) {
-      super(table, config);
-      this.baseColumn = baseColumn;
-      this.range = range;
-      this.size = config.size;
-    }
-    size;
-    static [entityKind] = "PgArray";
-    getSQLType() {
-      return `${this.baseColumn.getSQLType()}[${typeof this.size === "number" ? this.size : ""}]`;
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        value = parsePgArray(value);
-      }
-      return value.map((v) => this.baseColumn.mapFromDriverValue(v));
-    }
-    mapToDriverValue(value, isNestedArray = false) {
-      const a = value.map((v) => v === null ? null : is(this.baseColumn, PgArray) ? this.baseColumn.mapToDriverValue(v, true) : this.baseColumn.mapToDriverValue(v));
-      if (isNestedArray)
-        return a;
-      return makePgArray(a);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/enum.js
-function isPgEnum(obj) {
-  return !!obj && typeof obj === "function" && isPgEnumSym in obj && obj[isPgEnumSym] === true;
-}
-function pgEnum(enumName, input) {
-  return Array.isArray(input) ? pgEnumWithSchema(enumName, [...input], undefined) : pgEnumObjectWithSchema(enumName, input, undefined);
-}
-function pgEnumWithSchema(enumName, values2, schema) {
-  const enumInstance = Object.assign((name) => new PgEnumColumnBuilder(name ?? "", enumInstance), {
-    enumName,
-    enumValues: values2,
-    schema,
-    [isPgEnumSym]: true
-  });
-  return enumInstance;
-}
-function pgEnumObjectWithSchema(enumName, values2, schema) {
-  const enumInstance = Object.assign((name) => new PgEnumObjectColumnBuilder(name ?? "", enumInstance), {
-    enumName,
-    enumValues: Object.values(values2),
-    schema,
-    [isPgEnumSym]: true
-  });
-  return enumInstance;
-}
-var PgEnumObjectColumnBuilder, PgEnumObjectColumn, isPgEnumSym, PgEnumColumnBuilder, PgEnumColumn;
-var init_enum = __esm(() => {
-  init_entity();
-  init_common();
-  PgEnumObjectColumnBuilder = class PgEnumObjectColumnBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgEnumObjectColumnBuilder";
-    constructor(name, enumInstance) {
-      super(name, "string", "PgEnumObjectColumn");
-      this.config.enum = enumInstance;
-    }
-    build(table) {
-      return new PgEnumObjectColumn(table, this.config);
-    }
-  };
-  PgEnumObjectColumn = class PgEnumObjectColumn extends PgColumn {
-    static [entityKind] = "PgEnumObjectColumn";
-    enum;
-    enumValues = this.config.enum.enumValues;
-    constructor(table, config) {
-      super(table, config);
-      this.enum = config.enum;
-    }
-    getSQLType() {
-      return this.enum.enumName;
-    }
-  };
-  isPgEnumSym = Symbol.for("drizzle:isPgEnum");
-  PgEnumColumnBuilder = class PgEnumColumnBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgEnumColumnBuilder";
-    constructor(name, enumInstance) {
-      super(name, "string", "PgEnumColumn");
-      this.config.enum = enumInstance;
-    }
-    build(table) {
-      return new PgEnumColumn(table, this.config);
-    }
-  };
-  PgEnumColumn = class PgEnumColumn extends PgColumn {
-    static [entityKind] = "PgEnumColumn";
-    enum = this.config.enum;
-    enumValues = this.config.enum.enumValues;
-    constructor(table, config) {
-      super(table, config);
-      this.enum = config.enum;
-    }
-    getSQLType() {
-      return this.enum.enumName;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/subquery.js
-var Subquery, WithSubquery;
-var init_subquery = __esm(() => {
-  init_entity();
-  Subquery = class Subquery {
-    static [entityKind] = "Subquery";
-    constructor(sql, fields, alias, isWith = false, usedTables = []) {
-      this._ = {
-        brand: "Subquery",
-        sql,
-        selectedFields: fields,
-        alias,
-        isWith,
-        usedTables
-      };
-    }
-  };
-  WithSubquery = class WithSubquery extends Subquery {
-    static [entityKind] = "WithSubquery";
-  };
-});
-
-// node_modules/drizzle-orm/version.js
-var version = "0.45.2";
-var init_version = () => {};
-
-// node_modules/drizzle-orm/tracing.js
-var otel, rawTracer, tracer;
-var init_tracing = __esm(() => {
-  init_tracing_utils();
-  init_version();
-  tracer = {
-    startActiveSpan(name, fn) {
-      if (!otel) {
-        return fn();
-      }
-      if (!rawTracer) {
-        rawTracer = otel.trace.getTracer("drizzle-orm", version);
-      }
-      return iife((otel2, rawTracer2) => rawTracer2.startActiveSpan(name, (span) => {
-        try {
-          return fn(span);
-        } catch (e) {
-          span.setStatus({
-            code: otel2.SpanStatusCode.ERROR,
-            message: e instanceof Error ? e.message : "Unknown error"
-          });
-          throw e;
-        } finally {
-          span.end();
-        }
-      }), otel, rawTracer);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/view-common.js
-var ViewBaseConfig;
-var init_view_common = __esm(() => {
-  ViewBaseConfig = Symbol.for("drizzle:ViewBaseConfig");
-});
-
-// node_modules/drizzle-orm/table.js
-function getTableName(table) {
-  return table[TableName];
-}
-function getTableUniqueName(table) {
-  return `${table[Schema] ?? "public"}.${table[TableName]}`;
-}
-var Schema, Columns, ExtraConfigColumns, OriginalName, BaseName, IsAlias, ExtraConfigBuilder, IsDrizzleTable, Table;
-var init_table = __esm(() => {
-  init_entity();
-  init_table_utils();
-  Schema = Symbol.for("drizzle:Schema");
-  Columns = Symbol.for("drizzle:Columns");
-  ExtraConfigColumns = Symbol.for("drizzle:ExtraConfigColumns");
-  OriginalName = Symbol.for("drizzle:OriginalName");
-  BaseName = Symbol.for("drizzle:BaseName");
-  IsAlias = Symbol.for("drizzle:IsAlias");
-  ExtraConfigBuilder = Symbol.for("drizzle:ExtraConfigBuilder");
-  IsDrizzleTable = Symbol.for("drizzle:IsDrizzleTable");
-  Table = class Table {
-    static [entityKind] = "Table";
-    static Symbol = {
-      Name: TableName,
-      Schema,
-      OriginalName,
-      Columns,
-      ExtraConfigColumns,
-      BaseName,
-      IsAlias,
-      ExtraConfigBuilder
-    };
-    [TableName];
-    [OriginalName];
-    [Schema];
-    [Columns];
-    [ExtraConfigColumns];
-    [BaseName];
-    [IsAlias] = false;
-    [IsDrizzleTable] = true;
-    [ExtraConfigBuilder] = undefined;
-    constructor(name, schema, baseName) {
-      this[TableName] = this[OriginalName] = name;
-      this[Schema] = schema;
-      this[BaseName] = baseName;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/sql/sql.js
-function isSQLWrapper(value) {
-  return value !== null && value !== undefined && typeof value.getSQL === "function";
-}
-function mergeQueries(queries) {
-  const result = { sql: "", params: [] };
-  for (const query of queries) {
-    result.sql += query.sql;
-    result.params.push(...query.params);
-    if (query.typings?.length) {
-      if (!result.typings) {
-        result.typings = [];
-      }
-      result.typings.push(...query.typings);
-    }
-  }
-  return result;
-}
-function isDriverValueEncoder(value) {
-  return typeof value === "object" && value !== null && "mapToDriverValue" in value && typeof value.mapToDriverValue === "function";
-}
-function sql(strings, ...params) {
-  const queryChunks = [];
-  if (params.length > 0 || strings.length > 0 && strings[0] !== "") {
-    queryChunks.push(new StringChunk(strings[0]));
-  }
-  for (const [paramIndex, param2] of params.entries()) {
-    queryChunks.push(param2, new StringChunk(strings[paramIndex + 1]));
-  }
-  return new SQL(queryChunks);
-}
-function fillPlaceholders(params, values2) {
-  return params.map((p) => {
-    if (is(p, Placeholder)) {
-      if (!(p.name in values2)) {
-        throw new Error(`No value for placeholder "${p.name}" was provided`);
-      }
-      return values2[p.name];
-    }
-    if (is(p, Param) && is(p.value, Placeholder)) {
-      if (!(p.value.name in values2)) {
-        throw new Error(`No value for placeholder "${p.value.name}" was provided`);
-      }
-      return p.encoder.mapToDriverValue(values2[p.value.name]);
-    }
-    return p;
-  });
-}
-var StringChunk, SQL, Name, noopDecoder, noopEncoder, noopMapper, Param, Placeholder, IsDrizzleView, View;
-var init_sql = __esm(() => {
-  init_entity();
-  init_enum();
-  init_subquery();
-  init_tracing();
-  init_view_common();
-  init_column();
-  init_table();
-  StringChunk = class StringChunk {
-    static [entityKind] = "StringChunk";
-    value;
-    constructor(value) {
-      this.value = Array.isArray(value) ? value : [value];
-    }
-    getSQL() {
-      return new SQL([this]);
-    }
-  };
-  SQL = class SQL {
-    constructor(queryChunks) {
-      this.queryChunks = queryChunks;
-      for (const chunk of queryChunks) {
-        if (is(chunk, Table)) {
-          const schemaName = chunk[Table.Symbol.Schema];
-          this.usedTables.push(schemaName === undefined ? chunk[Table.Symbol.Name] : schemaName + "." + chunk[Table.Symbol.Name]);
-        }
-      }
-    }
-    static [entityKind] = "SQL";
-    decoder = noopDecoder;
-    shouldInlineParams = false;
-    usedTables = [];
-    append(query) {
-      this.queryChunks.push(...query.queryChunks);
-      return this;
-    }
-    toQuery(config) {
-      return tracer.startActiveSpan("drizzle.buildSQL", (span) => {
-        const query = this.buildQueryFromSourceParams(this.queryChunks, config);
-        span?.setAttributes({
-          "drizzle.query.text": query.sql,
-          "drizzle.query.params": JSON.stringify(query.params)
-        });
-        return query;
-      });
-    }
-    buildQueryFromSourceParams(chunks, _config) {
-      const config = Object.assign({}, _config, {
-        inlineParams: _config.inlineParams || this.shouldInlineParams,
-        paramStartIndex: _config.paramStartIndex || { value: 0 }
-      });
-      const {
-        casing,
-        escapeName,
-        escapeParam,
-        prepareTyping,
-        inlineParams,
-        paramStartIndex
-      } = config;
-      return mergeQueries(chunks.map((chunk) => {
-        if (is(chunk, StringChunk)) {
-          return { sql: chunk.value.join(""), params: [] };
-        }
-        if (is(chunk, Name)) {
-          return { sql: escapeName(chunk.value), params: [] };
-        }
-        if (chunk === undefined) {
-          return { sql: "", params: [] };
-        }
-        if (Array.isArray(chunk)) {
-          const result = [new StringChunk("(")];
-          for (const [i, p] of chunk.entries()) {
-            result.push(p);
-            if (i < chunk.length - 1) {
-              result.push(new StringChunk(", "));
-            }
-          }
-          result.push(new StringChunk(")"));
-          return this.buildQueryFromSourceParams(result, config);
-        }
-        if (is(chunk, SQL)) {
-          return this.buildQueryFromSourceParams(chunk.queryChunks, {
-            ...config,
-            inlineParams: inlineParams || chunk.shouldInlineParams
-          });
-        }
-        if (is(chunk, Table)) {
-          const schemaName = chunk[Table.Symbol.Schema];
-          const tableName = chunk[Table.Symbol.Name];
-          return {
-            sql: schemaName === undefined || chunk[IsAlias] ? escapeName(tableName) : escapeName(schemaName) + "." + escapeName(tableName),
-            params: []
-          };
-        }
-        if (is(chunk, Column)) {
-          const columnName = casing.getColumnCasing(chunk);
-          if (_config.invokeSource === "indexes") {
-            return { sql: escapeName(columnName), params: [] };
-          }
-          const schemaName = chunk.table[Table.Symbol.Schema];
-          return {
-            sql: chunk.table[IsAlias] || schemaName === undefined ? escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName) : escapeName(schemaName) + "." + escapeName(chunk.table[Table.Symbol.Name]) + "." + escapeName(columnName),
-            params: []
-          };
-        }
-        if (is(chunk, View)) {
-          const schemaName = chunk[ViewBaseConfig].schema;
-          const viewName = chunk[ViewBaseConfig].name;
-          return {
-            sql: schemaName === undefined || chunk[ViewBaseConfig].isAlias ? escapeName(viewName) : escapeName(schemaName) + "." + escapeName(viewName),
-            params: []
-          };
-        }
-        if (is(chunk, Param)) {
-          if (is(chunk.value, Placeholder)) {
-            return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
-          }
-          const mappedValue = chunk.value === null ? null : chunk.encoder.mapToDriverValue(chunk.value);
-          if (is(mappedValue, SQL)) {
-            return this.buildQueryFromSourceParams([mappedValue], config);
-          }
-          if (inlineParams) {
-            return { sql: this.mapInlineParam(mappedValue, config), params: [] };
-          }
-          let typings = ["none"];
-          if (prepareTyping) {
-            typings = [prepareTyping(chunk.encoder)];
-          }
-          return { sql: escapeParam(paramStartIndex.value++, mappedValue), params: [mappedValue], typings };
-        }
-        if (is(chunk, Placeholder)) {
-          return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
-        }
-        if (is(chunk, SQL.Aliased) && chunk.fieldAlias !== undefined) {
-          return { sql: escapeName(chunk.fieldAlias), params: [] };
-        }
-        if (is(chunk, Subquery)) {
-          if (chunk._.isWith) {
-            return { sql: escapeName(chunk._.alias), params: [] };
-          }
-          return this.buildQueryFromSourceParams([
-            new StringChunk("("),
-            chunk._.sql,
-            new StringChunk(") "),
-            new Name(chunk._.alias)
-          ], config);
-        }
-        if (isPgEnum(chunk)) {
-          if (chunk.schema) {
-            return { sql: escapeName(chunk.schema) + "." + escapeName(chunk.enumName), params: [] };
-          }
-          return { sql: escapeName(chunk.enumName), params: [] };
-        }
-        if (isSQLWrapper(chunk)) {
-          if (chunk.shouldOmitSQLParens?.()) {
-            return this.buildQueryFromSourceParams([chunk.getSQL()], config);
-          }
-          return this.buildQueryFromSourceParams([
-            new StringChunk("("),
-            chunk.getSQL(),
-            new StringChunk(")")
-          ], config);
-        }
-        if (inlineParams) {
-          return { sql: this.mapInlineParam(chunk, config), params: [] };
-        }
-        return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
-      }));
-    }
-    mapInlineParam(chunk, { escapeString }) {
-      if (chunk === null) {
-        return "null";
-      }
-      if (typeof chunk === "number" || typeof chunk === "boolean") {
-        return chunk.toString();
-      }
-      if (typeof chunk === "string") {
-        return escapeString(chunk);
-      }
-      if (typeof chunk === "object") {
-        const mappedValueAsString = chunk.toString();
-        if (mappedValueAsString === "[object Object]") {
-          return escapeString(JSON.stringify(chunk));
-        }
-        return escapeString(mappedValueAsString);
-      }
-      throw new Error("Unexpected param value: " + chunk);
-    }
-    getSQL() {
-      return this;
-    }
-    as(alias) {
-      if (alias === undefined) {
-        return this;
-      }
-      return new SQL.Aliased(this, alias);
-    }
-    mapWith(decoder) {
-      this.decoder = typeof decoder === "function" ? { mapFromDriverValue: decoder } : decoder;
-      return this;
-    }
-    inlineParams() {
-      this.shouldInlineParams = true;
-      return this;
-    }
-    if(condition) {
-      return condition ? this : undefined;
-    }
-  };
-  Name = class Name {
-    constructor(value) {
-      this.value = value;
-    }
-    static [entityKind] = "Name";
-    brand;
-    getSQL() {
-      return new SQL([this]);
-    }
-  };
-  noopDecoder = {
-    mapFromDriverValue: (value) => value
-  };
-  noopEncoder = {
-    mapToDriverValue: (value) => value
-  };
-  noopMapper = {
-    ...noopDecoder,
-    ...noopEncoder
-  };
-  Param = class Param {
-    constructor(value, encoder = noopEncoder) {
-      this.value = value;
-      this.encoder = encoder;
-    }
-    static [entityKind] = "Param";
-    brand;
-    getSQL() {
-      return new SQL([this]);
-    }
-  };
-  ((sql2) => {
-    function empty() {
-      return new SQL([]);
-    }
-    sql2.empty = empty;
-    function fromList(list) {
-      return new SQL(list);
-    }
-    sql2.fromList = fromList;
-    function raw(str) {
-      return new SQL([new StringChunk(str)]);
-    }
-    sql2.raw = raw;
-    function join(chunks, separator) {
-      const result = [];
-      for (const [i, chunk] of chunks.entries()) {
-        if (i > 0 && separator !== undefined) {
-          result.push(separator);
-        }
-        result.push(chunk);
-      }
-      return new SQL(result);
-    }
-    sql2.join = join;
-    function identifier(value) {
-      return new Name(value);
-    }
-    sql2.identifier = identifier;
-    function placeholder2(name2) {
-      return new Placeholder(name2);
-    }
-    sql2.placeholder = placeholder2;
-    function param2(value, encoder) {
-      return new Param(value, encoder);
-    }
-    sql2.param = param2;
-  })(sql || (sql = {}));
-  ((SQL2) => {
-
-    class Aliased {
-      constructor(sql2, fieldAlias) {
-        this.sql = sql2;
-        this.fieldAlias = fieldAlias;
-      }
-      static [entityKind] = "SQL.Aliased";
-      isSelectionField = false;
-      getSQL() {
-        return this.sql;
-      }
-      clone() {
-        return new Aliased(this.sql, this.fieldAlias);
-      }
-    }
-    SQL2.Aliased = Aliased;
-  })(SQL || (SQL = {}));
-  Placeholder = class Placeholder {
-    constructor(name2) {
-      this.name = name2;
-    }
-    static [entityKind] = "Placeholder";
-    getSQL() {
-      return new SQL([this]);
-    }
-  };
-  IsDrizzleView = Symbol.for("drizzle:IsDrizzleView");
-  View = class View {
-    static [entityKind] = "View";
-    [ViewBaseConfig];
-    [IsDrizzleView] = true;
-    constructor({ name: name2, schema, selectedFields, query }) {
-      this[ViewBaseConfig] = {
-        name: name2,
-        originalName: name2,
-        schema,
-        selectedFields,
-        query,
-        isExisting: !query,
-        isAlias: false
-      };
-    }
-    getSQL() {
-      return new SQL([this]);
-    }
-  };
-  Column.prototype.getSQL = function() {
-    return new SQL([this]);
-  };
-  Table.prototype.getSQL = function() {
-    return new SQL([this]);
-  };
-  Subquery.prototype.getSQL = function() {
-    return new SQL([this]);
-  };
-});
-
-// node_modules/drizzle-orm/alias.js
-function aliasedTable(table, tableAlias) {
-  return new Proxy(table, new TableAliasProxyHandler(tableAlias, false));
-}
-function aliasedTableColumn(column, tableAlias) {
-  return new Proxy(column, new ColumnAliasProxyHandler(new Proxy(column.table, new TableAliasProxyHandler(tableAlias, false))));
-}
-function mapColumnsInAliasedSQLToAlias(query, alias) {
-  return new SQL.Aliased(mapColumnsInSQLToAlias(query.sql, alias), query.fieldAlias);
-}
-function mapColumnsInSQLToAlias(query, alias) {
-  return sql.join(query.queryChunks.map((c) => {
-    if (is(c, Column)) {
-      return aliasedTableColumn(c, alias);
-    }
-    if (is(c, SQL)) {
-      return mapColumnsInSQLToAlias(c, alias);
-    }
-    if (is(c, SQL.Aliased)) {
-      return mapColumnsInAliasedSQLToAlias(c, alias);
-    }
-    return c;
-  }));
-}
-var ColumnAliasProxyHandler, TableAliasProxyHandler;
-var init_alias = __esm(() => {
-  init_column();
-  init_entity();
-  init_sql();
-  init_table();
-  init_view_common();
-  ColumnAliasProxyHandler = class ColumnAliasProxyHandler {
-    constructor(table) {
-      this.table = table;
-    }
-    static [entityKind] = "ColumnAliasProxyHandler";
-    get(columnObj, prop) {
-      if (prop === "table") {
-        return this.table;
-      }
-      return columnObj[prop];
-    }
-  };
-  TableAliasProxyHandler = class TableAliasProxyHandler {
-    constructor(alias, replaceOriginalName) {
-      this.alias = alias;
-      this.replaceOriginalName = replaceOriginalName;
-    }
-    static [entityKind] = "TableAliasProxyHandler";
-    get(target, prop) {
-      if (prop === Table.Symbol.IsAlias) {
-        return true;
-      }
-      if (prop === Table.Symbol.Name) {
-        return this.alias;
-      }
-      if (this.replaceOriginalName && prop === Table.Symbol.OriginalName) {
-        return this.alias;
-      }
-      if (prop === ViewBaseConfig) {
-        return {
-          ...target[ViewBaseConfig],
-          name: this.alias,
-          isAlias: true
-        };
-      }
-      if (prop === Table.Symbol.Columns) {
-        const columns = target[Table.Symbol.Columns];
-        if (!columns) {
-          return columns;
-        }
-        const proxiedColumns = {};
-        Object.keys(columns).map((key) => {
-          proxiedColumns[key] = new Proxy(columns[key], new ColumnAliasProxyHandler(new Proxy(target, this)));
-        });
-        return proxiedColumns;
-      }
-      const value = target[prop];
-      if (is(value, Column)) {
-        return new Proxy(value, new ColumnAliasProxyHandler(new Proxy(target, this)));
-      }
-      return value;
-    }
-  };
-});
-
 // node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler;
 var init_selection_proxy = __esm(() => {
@@ -3199,23 +5353,23 @@ var init_selection_proxy = __esm(() => {
     constructor(config) {
       this.config = { ...config };
     }
-    get(subquery, prop) {
+    get(subquery2, prop) {
       if (prop === "_") {
         return {
-          ...subquery["_"],
-          selectedFields: new Proxy(subquery._.selectedFields, this)
+          ...subquery2["_"],
+          selectedFields: new Proxy(subquery2._.selectedFields, this)
         };
       }
       if (prop === ViewBaseConfig) {
         return {
-          ...subquery[ViewBaseConfig],
-          selectedFields: new Proxy(subquery[ViewBaseConfig].selectedFields, this)
+          ...subquery2[ViewBaseConfig],
+          selectedFields: new Proxy(subquery2[ViewBaseConfig].selectedFields, this)
         };
       }
       if (typeof prop === "symbol") {
-        return subquery[prop];
+        return subquery2[prop];
       }
-      const columns = is(subquery, Subquery) ? subquery._.selectedFields : is(subquery, View) ? subquery[ViewBaseConfig].selectedFields : subquery;
+      const columns = is(subquery2, Subquery) ? subquery2._.selectedFields : is(subquery2, View) ? subquery2[ViewBaseConfig].selectedFields : subquery2;
       const value = columns[prop];
       if (is(value, SQL.Aliased)) {
         if (this.config.sqlAliasedBehavior === "sql" && !value.isSelectionField) {
@@ -3242,1703 +5396,6 @@ var init_selection_proxy = __esm(() => {
       }
       return new Proxy(value, new SelectionProxyHandler(this.config));
     }
-  };
-});
-
-// node_modules/drizzle-orm/utils.js
-function mapResultRow(columns, row, joinsNotNullableMap) {
-  const nullifyMap = {};
-  const result = columns.reduce((result2, { path, field }, columnIndex) => {
-    let decoder;
-    if (is(field, Column)) {
-      decoder = field;
-    } else if (is(field, SQL)) {
-      decoder = field.decoder;
-    } else if (is(field, Subquery)) {
-      decoder = field._.sql.decoder;
-    } else {
-      decoder = field.sql.decoder;
-    }
-    let node = result2;
-    for (const [pathChunkIndex, pathChunk] of path.entries()) {
-      if (pathChunkIndex < path.length - 1) {
-        if (!(pathChunk in node)) {
-          node[pathChunk] = {};
-        }
-        node = node[pathChunk];
-      } else {
-        const rawValue = row[columnIndex];
-        const value = node[pathChunk] = rawValue === null ? null : decoder.mapFromDriverValue(rawValue);
-        if (joinsNotNullableMap && is(field, Column) && path.length === 2) {
-          const objectName = path[0];
-          if (!(objectName in nullifyMap)) {
-            nullifyMap[objectName] = value === null ? getTableName(field.table) : false;
-          } else if (typeof nullifyMap[objectName] === "string" && nullifyMap[objectName] !== getTableName(field.table)) {
-            nullifyMap[objectName] = false;
-          }
-        }
-      }
-    }
-    return result2;
-  }, {});
-  if (joinsNotNullableMap && Object.keys(nullifyMap).length > 0) {
-    for (const [objectName, tableName] of Object.entries(nullifyMap)) {
-      if (typeof tableName === "string" && !joinsNotNullableMap[tableName]) {
-        result[objectName] = null;
-      }
-    }
-  }
-  return result;
-}
-function orderSelectedFields(fields, pathPrefix) {
-  return Object.entries(fields).reduce((result, [name, field]) => {
-    if (typeof name !== "string") {
-      return result;
-    }
-    const newPath = pathPrefix ? [...pathPrefix, name] : [name];
-    if (is(field, Column) || is(field, SQL) || is(field, SQL.Aliased) || is(field, Subquery)) {
-      result.push({ path: newPath, field });
-    } else if (is(field, Table)) {
-      result.push(...orderSelectedFields(field[Table.Symbol.Columns], newPath));
-    } else {
-      result.push(...orderSelectedFields(field, newPath));
-    }
-    return result;
-  }, []);
-}
-function haveSameKeys(left, right) {
-  const leftKeys = Object.keys(left);
-  const rightKeys = Object.keys(right);
-  if (leftKeys.length !== rightKeys.length) {
-    return false;
-  }
-  for (const [index, key] of leftKeys.entries()) {
-    if (key !== rightKeys[index]) {
-      return false;
-    }
-  }
-  return true;
-}
-function mapUpdateSet(table, values2) {
-  const entries = Object.entries(values2).filter(([, value]) => value !== undefined).map(([key, value]) => {
-    if (is(value, SQL) || is(value, Column)) {
-      return [key, value];
-    } else {
-      return [key, new Param(value, table[Table.Symbol.Columns][key])];
-    }
-  });
-  if (entries.length === 0) {
-    throw new Error("No values to set");
-  }
-  return Object.fromEntries(entries);
-}
-function applyMixins(baseClass, extendedClasses) {
-  for (const extendedClass of extendedClasses) {
-    for (const name of Object.getOwnPropertyNames(extendedClass.prototype)) {
-      if (name === "constructor")
-        continue;
-      Object.defineProperty(baseClass.prototype, name, Object.getOwnPropertyDescriptor(extendedClass.prototype, name) || /* @__PURE__ */ Object.create(null));
-    }
-  }
-}
-function getTableColumns(table) {
-  return table[Table.Symbol.Columns];
-}
-function getTableLikeName(table) {
-  return is(table, Subquery) ? table._.alias : is(table, View) ? table[ViewBaseConfig].name : is(table, SQL) ? undefined : table[Table.Symbol.IsAlias] ? table[Table.Symbol.Name] : table[Table.Symbol.BaseName];
-}
-function getColumnNameAndConfig(a, b2) {
-  return {
-    name: typeof a === "string" && a.length > 0 ? a : "",
-    config: typeof a === "object" ? a : b2
-  };
-}
-function isConfig(data) {
-  if (typeof data !== "object" || data === null)
-    return false;
-  if (data.constructor.name !== "Object")
-    return false;
-  if ("logger" in data) {
-    const type = typeof data["logger"];
-    if (type !== "boolean" && (type !== "object" || typeof data["logger"]["logQuery"] !== "function") && type !== "undefined")
-      return false;
-    return true;
-  }
-  if ("schema" in data) {
-    const type = typeof data["schema"];
-    if (type !== "object" && type !== "undefined")
-      return false;
-    return true;
-  }
-  if ("casing" in data) {
-    const type = typeof data["casing"];
-    if (type !== "string" && type !== "undefined")
-      return false;
-    return true;
-  }
-  if ("mode" in data) {
-    if (data["mode"] !== "default" || data["mode"] !== "planetscale" || data["mode"] !== undefined)
-      return false;
-    return true;
-  }
-  if ("connection" in data) {
-    const type = typeof data["connection"];
-    if (type !== "string" && type !== "object" && type !== "undefined")
-      return false;
-    return true;
-  }
-  if ("client" in data) {
-    const type = typeof data["client"];
-    if (type !== "object" && type !== "function" && type !== "undefined")
-      return false;
-    return true;
-  }
-  if (Object.keys(data).length === 0)
-    return true;
-  return false;
-}
-var textDecoder;
-var init_utils = __esm(() => {
-  init_column();
-  init_entity();
-  init_sql();
-  init_subquery();
-  init_table();
-  init_view_common();
-  textDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder;
-});
-
-// node_modules/drizzle-orm/pg-core/columns/int.common.js
-var PgIntColumnBaseBuilder;
-var init_int_common = __esm(() => {
-  init_entity();
-  init_common();
-  PgIntColumnBaseBuilder = class PgIntColumnBaseBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgIntColumnBaseBuilder";
-    generatedAlwaysAsIdentity(sequence) {
-      if (sequence) {
-        const { name, ...options } = sequence;
-        this.config.generatedIdentity = {
-          type: "always",
-          sequenceName: name,
-          sequenceOptions: options
-        };
-      } else {
-        this.config.generatedIdentity = {
-          type: "always"
-        };
-      }
-      this.config.hasDefault = true;
-      this.config.notNull = true;
-      return this;
-    }
-    generatedByDefaultAsIdentity(sequence) {
-      if (sequence) {
-        const { name, ...options } = sequence;
-        this.config.generatedIdentity = {
-          type: "byDefault",
-          sequenceName: name,
-          sequenceOptions: options
-        };
-      } else {
-        this.config.generatedIdentity = {
-          type: "byDefault"
-        };
-      }
-      this.config.hasDefault = true;
-      this.config.notNull = true;
-      return this;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/bigint.js
-function bigint(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (config.mode === "number") {
-    return new PgBigInt53Builder(name);
-  }
-  return new PgBigInt64Builder(name);
-}
-var PgBigInt53Builder, PgBigInt53, PgBigInt64Builder, PgBigInt64;
-var init_bigint = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  init_int_common();
-  PgBigInt53Builder = class PgBigInt53Builder extends PgIntColumnBaseBuilder {
-    static [entityKind] = "PgBigInt53Builder";
-    constructor(name) {
-      super(name, "number", "PgBigInt53");
-    }
-    build(table) {
-      return new PgBigInt53(table, this.config);
-    }
-  };
-  PgBigInt53 = class PgBigInt53 extends PgColumn {
-    static [entityKind] = "PgBigInt53";
-    getSQLType() {
-      return "bigint";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "number") {
-        return value;
-      }
-      return Number(value);
-    }
-  };
-  PgBigInt64Builder = class PgBigInt64Builder extends PgIntColumnBaseBuilder {
-    static [entityKind] = "PgBigInt64Builder";
-    constructor(name) {
-      super(name, "bigint", "PgBigInt64");
-    }
-    build(table) {
-      return new PgBigInt64(table, this.config);
-    }
-  };
-  PgBigInt64 = class PgBigInt64 extends PgColumn {
-    static [entityKind] = "PgBigInt64";
-    getSQLType() {
-      return "bigint";
-    }
-    mapFromDriverValue(value) {
-      return BigInt(value);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/bigserial.js
-function bigserial(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (config.mode === "number") {
-    return new PgBigSerial53Builder(name);
-  }
-  return new PgBigSerial64Builder(name);
-}
-var PgBigSerial53Builder, PgBigSerial53, PgBigSerial64Builder, PgBigSerial64;
-var init_bigserial = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgBigSerial53Builder = class PgBigSerial53Builder extends PgColumnBuilder {
-    static [entityKind] = "PgBigSerial53Builder";
-    constructor(name) {
-      super(name, "number", "PgBigSerial53");
-      this.config.hasDefault = true;
-      this.config.notNull = true;
-    }
-    build(table) {
-      return new PgBigSerial53(table, this.config);
-    }
-  };
-  PgBigSerial53 = class PgBigSerial53 extends PgColumn {
-    static [entityKind] = "PgBigSerial53";
-    getSQLType() {
-      return "bigserial";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "number") {
-        return value;
-      }
-      return Number(value);
-    }
-  };
-  PgBigSerial64Builder = class PgBigSerial64Builder extends PgColumnBuilder {
-    static [entityKind] = "PgBigSerial64Builder";
-    constructor(name) {
-      super(name, "bigint", "PgBigSerial64");
-      this.config.hasDefault = true;
-    }
-    build(table) {
-      return new PgBigSerial64(table, this.config);
-    }
-  };
-  PgBigSerial64 = class PgBigSerial64 extends PgColumn {
-    static [entityKind] = "PgBigSerial64";
-    getSQLType() {
-      return "bigserial";
-    }
-    mapFromDriverValue(value) {
-      return BigInt(value);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/boolean.js
-function boolean(name) {
-  return new PgBooleanBuilder(name ?? "");
-}
-var PgBooleanBuilder, PgBoolean;
-var init_boolean = __esm(() => {
-  init_entity();
-  init_common();
-  PgBooleanBuilder = class PgBooleanBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgBooleanBuilder";
-    constructor(name) {
-      super(name, "boolean", "PgBoolean");
-    }
-    build(table) {
-      return new PgBoolean(table, this.config);
-    }
-  };
-  PgBoolean = class PgBoolean extends PgColumn {
-    static [entityKind] = "PgBoolean";
-    getSQLType() {
-      return "boolean";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/char.js
-function char(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgCharBuilder(name, config);
-}
-var PgCharBuilder, PgChar;
-var init_char = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgCharBuilder = class PgCharBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgCharBuilder";
-    constructor(name, config) {
-      super(name, "string", "PgChar");
-      this.config.length = config.length;
-      this.config.enumValues = config.enum;
-    }
-    build(table) {
-      return new PgChar(table, this.config);
-    }
-  };
-  PgChar = class PgChar extends PgColumn {
-    static [entityKind] = "PgChar";
-    length = this.config.length;
-    enumValues = this.config.enumValues;
-    getSQLType() {
-      return this.length === undefined ? `char` : `char(${this.length})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/cidr.js
-function cidr(name) {
-  return new PgCidrBuilder(name ?? "");
-}
-var PgCidrBuilder, PgCidr;
-var init_cidr = __esm(() => {
-  init_entity();
-  init_common();
-  PgCidrBuilder = class PgCidrBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgCidrBuilder";
-    constructor(name) {
-      super(name, "string", "PgCidr");
-    }
-    build(table) {
-      return new PgCidr(table, this.config);
-    }
-  };
-  PgCidr = class PgCidr extends PgColumn {
-    static [entityKind] = "PgCidr";
-    getSQLType() {
-      return "cidr";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/custom.js
-function customType(customTypeParams) {
-  return (a, b2) => {
-    const { name, config } = getColumnNameAndConfig(a, b2);
-    return new PgCustomColumnBuilder(name, config, customTypeParams);
-  };
-}
-var PgCustomColumnBuilder, PgCustomColumn;
-var init_custom = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgCustomColumnBuilder = class PgCustomColumnBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgCustomColumnBuilder";
-    constructor(name, fieldConfig, customTypeParams) {
-      super(name, "custom", "PgCustomColumn");
-      this.config.fieldConfig = fieldConfig;
-      this.config.customTypeParams = customTypeParams;
-    }
-    build(table) {
-      return new PgCustomColumn(table, this.config);
-    }
-  };
-  PgCustomColumn = class PgCustomColumn extends PgColumn {
-    static [entityKind] = "PgCustomColumn";
-    sqlName;
-    mapTo;
-    mapFrom;
-    constructor(table, config) {
-      super(table, config);
-      this.sqlName = config.customTypeParams.dataType(config.fieldConfig);
-      this.mapTo = config.customTypeParams.toDriver;
-      this.mapFrom = config.customTypeParams.fromDriver;
-    }
-    getSQLType() {
-      return this.sqlName;
-    }
-    mapFromDriverValue(value) {
-      return typeof this.mapFrom === "function" ? this.mapFrom(value) : value;
-    }
-    mapToDriverValue(value) {
-      return typeof this.mapTo === "function" ? this.mapTo(value) : value;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/date.common.js
-var PgDateColumnBaseBuilder;
-var init_date_common = __esm(() => {
-  init_entity();
-  init_sql();
-  init_common();
-  PgDateColumnBaseBuilder = class PgDateColumnBaseBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgDateColumnBaseBuilder";
-    defaultNow() {
-      return this.default(sql`now()`);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/date.js
-function date(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (config?.mode === "date") {
-    return new PgDateBuilder(name);
-  }
-  return new PgDateStringBuilder(name);
-}
-var PgDateBuilder, PgDate, PgDateStringBuilder, PgDateString;
-var init_date = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  init_date_common();
-  PgDateBuilder = class PgDateBuilder extends PgDateColumnBaseBuilder {
-    static [entityKind] = "PgDateBuilder";
-    constructor(name) {
-      super(name, "date", "PgDate");
-    }
-    build(table) {
-      return new PgDate(table, this.config);
-    }
-  };
-  PgDate = class PgDate extends PgColumn {
-    static [entityKind] = "PgDate";
-    getSQLType() {
-      return "date";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string")
-        return new Date(value);
-      return value;
-    }
-    mapToDriverValue(value) {
-      return value.toISOString();
-    }
-  };
-  PgDateStringBuilder = class PgDateStringBuilder extends PgDateColumnBaseBuilder {
-    static [entityKind] = "PgDateStringBuilder";
-    constructor(name) {
-      super(name, "string", "PgDateString");
-    }
-    build(table) {
-      return new PgDateString(table, this.config);
-    }
-  };
-  PgDateString = class PgDateString extends PgColumn {
-    static [entityKind] = "PgDateString";
-    getSQLType() {
-      return "date";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string")
-        return value;
-      return value.toISOString().slice(0, -14);
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/double-precision.js
-function doublePrecision(name) {
-  return new PgDoublePrecisionBuilder(name ?? "");
-}
-var PgDoublePrecisionBuilder, PgDoublePrecision;
-var init_double_precision = __esm(() => {
-  init_entity();
-  init_common();
-  PgDoublePrecisionBuilder = class PgDoublePrecisionBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgDoublePrecisionBuilder";
-    constructor(name) {
-      super(name, "number", "PgDoublePrecision");
-    }
-    build(table) {
-      return new PgDoublePrecision(table, this.config);
-    }
-  };
-  PgDoublePrecision = class PgDoublePrecision extends PgColumn {
-    static [entityKind] = "PgDoublePrecision";
-    getSQLType() {
-      return "double precision";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        return Number.parseFloat(value);
-      }
-      return value;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/inet.js
-function inet(name) {
-  return new PgInetBuilder(name ?? "");
-}
-var PgInetBuilder, PgInet;
-var init_inet = __esm(() => {
-  init_entity();
-  init_common();
-  PgInetBuilder = class PgInetBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgInetBuilder";
-    constructor(name) {
-      super(name, "string", "PgInet");
-    }
-    build(table) {
-      return new PgInet(table, this.config);
-    }
-  };
-  PgInet = class PgInet extends PgColumn {
-    static [entityKind] = "PgInet";
-    getSQLType() {
-      return "inet";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/integer.js
-function integer(name) {
-  return new PgIntegerBuilder(name ?? "");
-}
-var PgIntegerBuilder, PgInteger;
-var init_integer = __esm(() => {
-  init_entity();
-  init_common();
-  init_int_common();
-  PgIntegerBuilder = class PgIntegerBuilder extends PgIntColumnBaseBuilder {
-    static [entityKind] = "PgIntegerBuilder";
-    constructor(name) {
-      super(name, "number", "PgInteger");
-    }
-    build(table) {
-      return new PgInteger(table, this.config);
-    }
-  };
-  PgInteger = class PgInteger extends PgColumn {
-    static [entityKind] = "PgInteger";
-    getSQLType() {
-      return "integer";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        return Number.parseInt(value);
-      }
-      return value;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/interval.js
-function interval(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgIntervalBuilder(name, config);
-}
-var PgIntervalBuilder, PgInterval;
-var init_interval = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgIntervalBuilder = class PgIntervalBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgIntervalBuilder";
-    constructor(name, intervalConfig) {
-      super(name, "string", "PgInterval");
-      this.config.intervalConfig = intervalConfig;
-    }
-    build(table) {
-      return new PgInterval(table, this.config);
-    }
-  };
-  PgInterval = class PgInterval extends PgColumn {
-    static [entityKind] = "PgInterval";
-    fields = this.config.intervalConfig.fields;
-    precision = this.config.intervalConfig.precision;
-    getSQLType() {
-      const fields = this.fields ? ` ${this.fields}` : "";
-      const precision = this.precision ? `(${this.precision})` : "";
-      return `interval${fields}${precision}`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/json.js
-function json(name) {
-  return new PgJsonBuilder(name ?? "");
-}
-var PgJsonBuilder, PgJson;
-var init_json = __esm(() => {
-  init_entity();
-  init_common();
-  PgJsonBuilder = class PgJsonBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgJsonBuilder";
-    constructor(name) {
-      super(name, "json", "PgJson");
-    }
-    build(table) {
-      return new PgJson(table, this.config);
-    }
-  };
-  PgJson = class PgJson extends PgColumn {
-    static [entityKind] = "PgJson";
-    constructor(table, config) {
-      super(table, config);
-    }
-    getSQLType() {
-      return "json";
-    }
-    mapToDriverValue(value) {
-      return JSON.stringify(value);
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return value;
-        }
-      }
-      return value;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/jsonb.js
-function jsonb(name) {
-  return new PgJsonbBuilder(name ?? "");
-}
-var PgJsonbBuilder, PgJsonb;
-var init_jsonb = __esm(() => {
-  init_entity();
-  init_common();
-  PgJsonbBuilder = class PgJsonbBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgJsonbBuilder";
-    constructor(name) {
-      super(name, "json", "PgJsonb");
-    }
-    build(table) {
-      return new PgJsonb(table, this.config);
-    }
-  };
-  PgJsonb = class PgJsonb extends PgColumn {
-    static [entityKind] = "PgJsonb";
-    constructor(table, config) {
-      super(table, config);
-    }
-    getSQLType() {
-      return "jsonb";
-    }
-    mapToDriverValue(value) {
-      return JSON.stringify(value);
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return value;
-        }
-      }
-      return value;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/line.js
-function line(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgLineBuilder(name);
-  }
-  return new PgLineABCBuilder(name);
-}
-var PgLineBuilder, PgLineTuple, PgLineABCBuilder, PgLineABC;
-var init_line = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgLineBuilder = class PgLineBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgLineBuilder";
-    constructor(name) {
-      super(name, "array", "PgLine");
-    }
-    build(table) {
-      return new PgLineTuple(table, this.config);
-    }
-  };
-  PgLineTuple = class PgLineTuple extends PgColumn {
-    static [entityKind] = "PgLine";
-    getSQLType() {
-      return "line";
-    }
-    mapFromDriverValue(value) {
-      const [a, b2, c] = value.slice(1, -1).split(",");
-      return [Number.parseFloat(a), Number.parseFloat(b2), Number.parseFloat(c)];
-    }
-    mapToDriverValue(value) {
-      return `{${value[0]},${value[1]},${value[2]}}`;
-    }
-  };
-  PgLineABCBuilder = class PgLineABCBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgLineABCBuilder";
-    constructor(name) {
-      super(name, "json", "PgLineABC");
-    }
-    build(table) {
-      return new PgLineABC(table, this.config);
-    }
-  };
-  PgLineABC = class PgLineABC extends PgColumn {
-    static [entityKind] = "PgLineABC";
-    getSQLType() {
-      return "line";
-    }
-    mapFromDriverValue(value) {
-      const [a, b2, c] = value.slice(1, -1).split(",");
-      return { a: Number.parseFloat(a), b: Number.parseFloat(b2), c: Number.parseFloat(c) };
-    }
-    mapToDriverValue(value) {
-      return `{${value.a},${value.b},${value.c}}`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/macaddr.js
-function macaddr(name) {
-  return new PgMacaddrBuilder(name ?? "");
-}
-var PgMacaddrBuilder, PgMacaddr;
-var init_macaddr = __esm(() => {
-  init_entity();
-  init_common();
-  PgMacaddrBuilder = class PgMacaddrBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgMacaddrBuilder";
-    constructor(name) {
-      super(name, "string", "PgMacaddr");
-    }
-    build(table) {
-      return new PgMacaddr(table, this.config);
-    }
-  };
-  PgMacaddr = class PgMacaddr extends PgColumn {
-    static [entityKind] = "PgMacaddr";
-    getSQLType() {
-      return "macaddr";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/macaddr8.js
-function macaddr8(name) {
-  return new PgMacaddr8Builder(name ?? "");
-}
-var PgMacaddr8Builder, PgMacaddr8;
-var init_macaddr8 = __esm(() => {
-  init_entity();
-  init_common();
-  PgMacaddr8Builder = class PgMacaddr8Builder extends PgColumnBuilder {
-    static [entityKind] = "PgMacaddr8Builder";
-    constructor(name) {
-      super(name, "string", "PgMacaddr8");
-    }
-    build(table) {
-      return new PgMacaddr8(table, this.config);
-    }
-  };
-  PgMacaddr8 = class PgMacaddr8 extends PgColumn {
-    static [entityKind] = "PgMacaddr8";
-    getSQLType() {
-      return "macaddr8";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/numeric.js
-function numeric(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  const mode = config?.mode;
-  return mode === "number" ? new PgNumericNumberBuilder(name, config?.precision, config?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config?.precision, config?.scale) : new PgNumericBuilder(name, config?.precision, config?.scale);
-}
-var PgNumericBuilder, PgNumeric, PgNumericNumberBuilder, PgNumericNumber, PgNumericBigIntBuilder, PgNumericBigInt;
-var init_numeric = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgNumericBuilder = class PgNumericBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgNumericBuilder";
-    constructor(name, precision, scale) {
-      super(name, "string", "PgNumeric");
-      this.config.precision = precision;
-      this.config.scale = scale;
-    }
-    build(table) {
-      return new PgNumeric(table, this.config);
-    }
-  };
-  PgNumeric = class PgNumeric extends PgColumn {
-    static [entityKind] = "PgNumeric";
-    precision;
-    scale;
-    constructor(table, config) {
-      super(table, config);
-      this.precision = config.precision;
-      this.scale = config.scale;
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string")
-        return value;
-      return String(value);
-    }
-    getSQLType() {
-      if (this.precision !== undefined && this.scale !== undefined) {
-        return `numeric(${this.precision}, ${this.scale})`;
-      } else if (this.precision === undefined) {
-        return "numeric";
-      } else {
-        return `numeric(${this.precision})`;
-      }
-    }
-  };
-  PgNumericNumberBuilder = class PgNumericNumberBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgNumericNumberBuilder";
-    constructor(name, precision, scale) {
-      super(name, "number", "PgNumericNumber");
-      this.config.precision = precision;
-      this.config.scale = scale;
-    }
-    build(table) {
-      return new PgNumericNumber(table, this.config);
-    }
-  };
-  PgNumericNumber = class PgNumericNumber extends PgColumn {
-    static [entityKind] = "PgNumericNumber";
-    precision;
-    scale;
-    constructor(table, config) {
-      super(table, config);
-      this.precision = config.precision;
-      this.scale = config.scale;
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "number")
-        return value;
-      return Number(value);
-    }
-    mapToDriverValue = String;
-    getSQLType() {
-      if (this.precision !== undefined && this.scale !== undefined) {
-        return `numeric(${this.precision}, ${this.scale})`;
-      } else if (this.precision === undefined) {
-        return "numeric";
-      } else {
-        return `numeric(${this.precision})`;
-      }
-    }
-  };
-  PgNumericBigIntBuilder = class PgNumericBigIntBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgNumericBigIntBuilder";
-    constructor(name, precision, scale) {
-      super(name, "bigint", "PgNumericBigInt");
-      this.config.precision = precision;
-      this.config.scale = scale;
-    }
-    build(table) {
-      return new PgNumericBigInt(table, this.config);
-    }
-  };
-  PgNumericBigInt = class PgNumericBigInt extends PgColumn {
-    static [entityKind] = "PgNumericBigInt";
-    precision;
-    scale;
-    constructor(table, config) {
-      super(table, config);
-      this.precision = config.precision;
-      this.scale = config.scale;
-    }
-    mapFromDriverValue = BigInt;
-    mapToDriverValue = String;
-    getSQLType() {
-      if (this.precision !== undefined && this.scale !== undefined) {
-        return `numeric(${this.precision}, ${this.scale})`;
-      } else if (this.precision === undefined) {
-        return "numeric";
-      } else {
-        return `numeric(${this.precision})`;
-      }
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/point.js
-function point(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgPointTupleBuilder(name);
-  }
-  return new PgPointObjectBuilder(name);
-}
-var PgPointTupleBuilder, PgPointTuple, PgPointObjectBuilder, PgPointObject;
-var init_point = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgPointTupleBuilder = class PgPointTupleBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgPointTupleBuilder";
-    constructor(name) {
-      super(name, "array", "PgPointTuple");
-    }
-    build(table) {
-      return new PgPointTuple(table, this.config);
-    }
-  };
-  PgPointTuple = class PgPointTuple extends PgColumn {
-    static [entityKind] = "PgPointTuple";
-    getSQLType() {
-      return "point";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        const [x, y] = value.slice(1, -1).split(",");
-        return [Number.parseFloat(x), Number.parseFloat(y)];
-      }
-      return [value.x, value.y];
-    }
-    mapToDriverValue(value) {
-      return `(${value[0]},${value[1]})`;
-    }
-  };
-  PgPointObjectBuilder = class PgPointObjectBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgPointObjectBuilder";
-    constructor(name) {
-      super(name, "json", "PgPointObject");
-    }
-    build(table) {
-      return new PgPointObject(table, this.config);
-    }
-  };
-  PgPointObject = class PgPointObject extends PgColumn {
-    static [entityKind] = "PgPointObject";
-    getSQLType() {
-      return "point";
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string") {
-        const [x, y] = value.slice(1, -1).split(",");
-        return { x: Number.parseFloat(x), y: Number.parseFloat(y) };
-      }
-      return value;
-    }
-    mapToDriverValue(value) {
-      return `(${value.x},${value.y})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
-function hexToBytes(hex) {
-  const bytes = [];
-  for (let c = 0;c < hex.length; c += 2) {
-    bytes.push(Number.parseInt(hex.slice(c, c + 2), 16));
-  }
-  return new Uint8Array(bytes);
-}
-function bytesToFloat64(bytes, offset) {
-  const buffer2 = new ArrayBuffer(8);
-  const view = new DataView(buffer2);
-  for (let i = 0;i < 8; i++) {
-    view.setUint8(i, bytes[offset + i]);
-  }
-  return view.getFloat64(0, true);
-}
-function parseEWKB(hex) {
-  const bytes = hexToBytes(hex);
-  let offset = 0;
-  const byteOrder = bytes[offset];
-  offset += 1;
-  const view = new DataView(bytes.buffer);
-  const geomType = view.getUint32(offset, byteOrder === 1);
-  offset += 4;
-  let _srid;
-  if (geomType & 536870912) {
-    _srid = view.getUint32(offset, byteOrder === 1);
-    offset += 4;
-  }
-  if ((geomType & 65535) === 1) {
-    const x = bytesToFloat64(bytes, offset);
-    offset += 8;
-    const y = bytesToFloat64(bytes, offset);
-    offset += 8;
-    return [x, y];
-  }
-  throw new Error("Unsupported geometry type");
-}
-var init_utils2 = () => {};
-
-// node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
-function geometry(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgGeometryBuilder(name);
-  }
-  return new PgGeometryObjectBuilder(name);
-}
-var PgGeometryBuilder, PgGeometry, PgGeometryObjectBuilder, PgGeometryObject;
-var init_geometry = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  init_utils2();
-  PgGeometryBuilder = class PgGeometryBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgGeometryBuilder";
-    constructor(name) {
-      super(name, "array", "PgGeometry");
-    }
-    build(table) {
-      return new PgGeometry(table, this.config);
-    }
-  };
-  PgGeometry = class PgGeometry extends PgColumn {
-    static [entityKind] = "PgGeometry";
-    getSQLType() {
-      return "geometry(point)";
-    }
-    mapFromDriverValue(value) {
-      return parseEWKB(value);
-    }
-    mapToDriverValue(value) {
-      return `point(${value[0]} ${value[1]})`;
-    }
-  };
-  PgGeometryObjectBuilder = class PgGeometryObjectBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgGeometryObjectBuilder";
-    constructor(name) {
-      super(name, "json", "PgGeometryObject");
-    }
-    build(table) {
-      return new PgGeometryObject(table, this.config);
-    }
-  };
-  PgGeometryObject = class PgGeometryObject extends PgColumn {
-    static [entityKind] = "PgGeometryObject";
-    getSQLType() {
-      return "geometry(point)";
-    }
-    mapFromDriverValue(value) {
-      const parsed = parseEWKB(value);
-      return { x: parsed[0], y: parsed[1] };
-    }
-    mapToDriverValue(value) {
-      return `point(${value.x} ${value.y})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/real.js
-function real(name) {
-  return new PgRealBuilder(name ?? "");
-}
-var PgRealBuilder, PgReal;
-var init_real = __esm(() => {
-  init_entity();
-  init_common();
-  PgRealBuilder = class PgRealBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgRealBuilder";
-    constructor(name, length) {
-      super(name, "number", "PgReal");
-      this.config.length = length;
-    }
-    build(table) {
-      return new PgReal(table, this.config);
-    }
-  };
-  PgReal = class PgReal extends PgColumn {
-    static [entityKind] = "PgReal";
-    constructor(table, config) {
-      super(table, config);
-    }
-    getSQLType() {
-      return "real";
-    }
-    mapFromDriverValue = (value) => {
-      if (typeof value === "string") {
-        return Number.parseFloat(value);
-      }
-      return value;
-    };
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/serial.js
-function serial(name) {
-  return new PgSerialBuilder(name ?? "");
-}
-var PgSerialBuilder, PgSerial;
-var init_serial = __esm(() => {
-  init_entity();
-  init_common();
-  PgSerialBuilder = class PgSerialBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgSerialBuilder";
-    constructor(name) {
-      super(name, "number", "PgSerial");
-      this.config.hasDefault = true;
-      this.config.notNull = true;
-    }
-    build(table) {
-      return new PgSerial(table, this.config);
-    }
-  };
-  PgSerial = class PgSerial extends PgColumn {
-    static [entityKind] = "PgSerial";
-    getSQLType() {
-      return "serial";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/smallint.js
-function smallint(name) {
-  return new PgSmallIntBuilder(name ?? "");
-}
-var PgSmallIntBuilder, PgSmallInt;
-var init_smallint = __esm(() => {
-  init_entity();
-  init_common();
-  init_int_common();
-  PgSmallIntBuilder = class PgSmallIntBuilder extends PgIntColumnBaseBuilder {
-    static [entityKind] = "PgSmallIntBuilder";
-    constructor(name) {
-      super(name, "number", "PgSmallInt");
-    }
-    build(table) {
-      return new PgSmallInt(table, this.config);
-    }
-  };
-  PgSmallInt = class PgSmallInt extends PgColumn {
-    static [entityKind] = "PgSmallInt";
-    getSQLType() {
-      return "smallint";
-    }
-    mapFromDriverValue = (value) => {
-      if (typeof value === "string") {
-        return Number(value);
-      }
-      return value;
-    };
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/smallserial.js
-function smallserial(name) {
-  return new PgSmallSerialBuilder(name ?? "");
-}
-var PgSmallSerialBuilder, PgSmallSerial;
-var init_smallserial = __esm(() => {
-  init_entity();
-  init_common();
-  PgSmallSerialBuilder = class PgSmallSerialBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgSmallSerialBuilder";
-    constructor(name) {
-      super(name, "number", "PgSmallSerial");
-      this.config.hasDefault = true;
-      this.config.notNull = true;
-    }
-    build(table) {
-      return new PgSmallSerial(table, this.config);
-    }
-  };
-  PgSmallSerial = class PgSmallSerial extends PgColumn {
-    static [entityKind] = "PgSmallSerial";
-    getSQLType() {
-      return "smallserial";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/text.js
-function text(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgTextBuilder(name, config);
-}
-var PgTextBuilder, PgText;
-var init_text = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgTextBuilder = class PgTextBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgTextBuilder";
-    constructor(name, config) {
-      super(name, "string", "PgText");
-      this.config.enumValues = config.enum;
-    }
-    build(table) {
-      return new PgText(table, this.config);
-    }
-  };
-  PgText = class PgText extends PgColumn {
-    static [entityKind] = "PgText";
-    enumValues = this.config.enumValues;
-    getSQLType() {
-      return "text";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/time.js
-function time(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgTimeBuilder(name, config.withTimezone ?? false, config.precision);
-}
-var PgTimeBuilder, PgTime;
-var init_time = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  init_date_common();
-  PgTimeBuilder = class PgTimeBuilder extends PgDateColumnBaseBuilder {
-    constructor(name, withTimezone, precision) {
-      super(name, "string", "PgTime");
-      this.withTimezone = withTimezone;
-      this.precision = precision;
-      this.config.withTimezone = withTimezone;
-      this.config.precision = precision;
-    }
-    static [entityKind] = "PgTimeBuilder";
-    build(table) {
-      return new PgTime(table, this.config);
-    }
-  };
-  PgTime = class PgTime extends PgColumn {
-    static [entityKind] = "PgTime";
-    withTimezone;
-    precision;
-    constructor(table, config) {
-      super(table, config);
-      this.withTimezone = config.withTimezone;
-      this.precision = config.precision;
-    }
-    getSQLType() {
-      const precision = this.precision === undefined ? "" : `(${this.precision})`;
-      return `time${precision}${this.withTimezone ? " with time zone" : ""}`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/timestamp.js
-function timestamp(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  if (config?.mode === "string") {
-    return new PgTimestampStringBuilder(name, config.withTimezone ?? false, config.precision);
-  }
-  return new PgTimestampBuilder(name, config?.withTimezone ?? false, config?.precision);
-}
-var PgTimestampBuilder, PgTimestamp, PgTimestampStringBuilder, PgTimestampString;
-var init_timestamp = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  init_date_common();
-  PgTimestampBuilder = class PgTimestampBuilder extends PgDateColumnBaseBuilder {
-    static [entityKind] = "PgTimestampBuilder";
-    constructor(name, withTimezone, precision) {
-      super(name, "date", "PgTimestamp");
-      this.config.withTimezone = withTimezone;
-      this.config.precision = precision;
-    }
-    build(table) {
-      return new PgTimestamp(table, this.config);
-    }
-  };
-  PgTimestamp = class PgTimestamp extends PgColumn {
-    static [entityKind] = "PgTimestamp";
-    withTimezone;
-    precision;
-    constructor(table, config) {
-      super(table, config);
-      this.withTimezone = config.withTimezone;
-      this.precision = config.precision;
-    }
-    getSQLType() {
-      const precision = this.precision === undefined ? "" : ` (${this.precision})`;
-      return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string")
-        return new Date(this.withTimezone ? value : value + "+0000");
-      return value;
-    }
-    mapToDriverValue = (value) => {
-      return value.toISOString();
-    };
-  };
-  PgTimestampStringBuilder = class PgTimestampStringBuilder extends PgDateColumnBaseBuilder {
-    static [entityKind] = "PgTimestampStringBuilder";
-    constructor(name, withTimezone, precision) {
-      super(name, "string", "PgTimestampString");
-      this.config.withTimezone = withTimezone;
-      this.config.precision = precision;
-    }
-    build(table) {
-      return new PgTimestampString(table, this.config);
-    }
-  };
-  PgTimestampString = class PgTimestampString extends PgColumn {
-    static [entityKind] = "PgTimestampString";
-    withTimezone;
-    precision;
-    constructor(table, config) {
-      super(table, config);
-      this.withTimezone = config.withTimezone;
-      this.precision = config.precision;
-    }
-    getSQLType() {
-      const precision = this.precision === undefined ? "" : `(${this.precision})`;
-      return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
-    }
-    mapFromDriverValue(value) {
-      if (typeof value === "string")
-        return value;
-      const shortened = value.toISOString().slice(0, -1).replace("T", " ");
-      if (this.withTimezone) {
-        const offset = value.getTimezoneOffset();
-        const sign = offset <= 0 ? "+" : "-";
-        return `${shortened}${sign}${Math.floor(Math.abs(offset) / 60).toString().padStart(2, "0")}`;
-      }
-      return shortened;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/uuid.js
-function uuid(name) {
-  return new PgUUIDBuilder(name ?? "");
-}
-var PgUUIDBuilder, PgUUID;
-var init_uuid = __esm(() => {
-  init_entity();
-  init_sql();
-  init_common();
-  PgUUIDBuilder = class PgUUIDBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgUUIDBuilder";
-    constructor(name) {
-      super(name, "string", "PgUUID");
-    }
-    defaultRandom() {
-      return this.default(sql`gen_random_uuid()`);
-    }
-    build(table) {
-      return new PgUUID(table, this.config);
-    }
-  };
-  PgUUID = class PgUUID extends PgColumn {
-    static [entityKind] = "PgUUID";
-    getSQLType() {
-      return "uuid";
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/varchar.js
-function varchar(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgVarcharBuilder(name, config);
-}
-var PgVarcharBuilder, PgVarchar;
-var init_varchar = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgVarcharBuilder = class PgVarcharBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgVarcharBuilder";
-    constructor(name, config) {
-      super(name, "string", "PgVarchar");
-      this.config.length = config.length;
-      this.config.enumValues = config.enum;
-    }
-    build(table) {
-      return new PgVarchar(table, this.config);
-    }
-  };
-  PgVarchar = class PgVarchar extends PgColumn {
-    static [entityKind] = "PgVarchar";
-    length = this.config.length;
-    enumValues = this.config.enumValues;
-    getSQLType() {
-      return this.length === undefined ? `varchar` : `varchar(${this.length})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
-function bit(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgBinaryVectorBuilder(name, config);
-}
-var PgBinaryVectorBuilder, PgBinaryVector;
-var init_bit = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgBinaryVectorBuilder = class PgBinaryVectorBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgBinaryVectorBuilder";
-    constructor(name, config) {
-      super(name, "string", "PgBinaryVector");
-      this.config.dimensions = config.dimensions;
-    }
-    build(table) {
-      return new PgBinaryVector(table, this.config);
-    }
-  };
-  PgBinaryVector = class PgBinaryVector extends PgColumn {
-    static [entityKind] = "PgBinaryVector";
-    dimensions = this.config.dimensions;
-    getSQLType() {
-      return `bit(${this.dimensions})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
-function halfvec(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgHalfVectorBuilder(name, config);
-}
-var PgHalfVectorBuilder, PgHalfVector;
-var init_halfvec = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgHalfVectorBuilder = class PgHalfVectorBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgHalfVectorBuilder";
-    constructor(name, config) {
-      super(name, "array", "PgHalfVector");
-      this.config.dimensions = config.dimensions;
-    }
-    build(table) {
-      return new PgHalfVector(table, this.config);
-    }
-  };
-  PgHalfVector = class PgHalfVector extends PgColumn {
-    static [entityKind] = "PgHalfVector";
-    dimensions = this.config.dimensions;
-    getSQLType() {
-      return `halfvec(${this.dimensions})`;
-    }
-    mapToDriverValue(value) {
-      return JSON.stringify(value);
-    }
-    mapFromDriverValue(value) {
-      return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
-function sparsevec(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgSparseVectorBuilder(name, config);
-}
-var PgSparseVectorBuilder, PgSparseVector;
-var init_sparsevec = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgSparseVectorBuilder = class PgSparseVectorBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgSparseVectorBuilder";
-    constructor(name, config) {
-      super(name, "string", "PgSparseVector");
-      this.config.dimensions = config.dimensions;
-    }
-    build(table) {
-      return new PgSparseVector(table, this.config);
-    }
-  };
-  PgSparseVector = class PgSparseVector extends PgColumn {
-    static [entityKind] = "PgSparseVector";
-    dimensions = this.config.dimensions;
-    getSQLType() {
-      return `sparsevec(${this.dimensions})`;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
-function vector(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
-  return new PgVectorBuilder(name, config);
-}
-var PgVectorBuilder, PgVector;
-var init_vector = __esm(() => {
-  init_entity();
-  init_utils();
-  init_common();
-  PgVectorBuilder = class PgVectorBuilder extends PgColumnBuilder {
-    static [entityKind] = "PgVectorBuilder";
-    constructor(name, config) {
-      super(name, "array", "PgVector");
-      this.config.dimensions = config.dimensions;
-    }
-    build(table) {
-      return new PgVector(table, this.config);
-    }
-  };
-  PgVector = class PgVector extends PgColumn {
-    static [entityKind] = "PgVector";
-    dimensions = this.config.dimensions;
-    getSQLType() {
-      return `vector(${this.dimensions})`;
-    }
-    mapToDriverValue(value) {
-      return JSON.stringify(value);
-    }
-    mapFromDriverValue(value) {
-      return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
-    }
-  };
-});
-
-// node_modules/drizzle-orm/pg-core/columns/all.js
-function getPgColumnBuilders() {
-  return {
-    bigint,
-    bigserial,
-    boolean,
-    char,
-    cidr,
-    customType,
-    date,
-    doublePrecision,
-    inet,
-    integer,
-    interval,
-    json,
-    jsonb,
-    line,
-    macaddr,
-    macaddr8,
-    numeric,
-    point,
-    geometry,
-    real,
-    serial,
-    smallint,
-    smallserial,
-    text,
-    time,
-    timestamp,
-    uuid,
-    varchar,
-    bit,
-    halfvec,
-    sparsevec,
-    vector
-  };
-}
-var init_all = __esm(() => {
-  init_bigint();
-  init_bigserial();
-  init_boolean();
-  init_char();
-  init_cidr();
-  init_custom();
-  init_date();
-  init_double_precision();
-  init_inet();
-  init_integer();
-  init_interval();
-  init_json();
-  init_jsonb();
-  init_line();
-  init_macaddr();
-  init_macaddr8();
-  init_numeric();
-  init_point();
-  init_geometry();
-  init_real();
-  init_serial();
-  init_smallint();
-  init_smallserial();
-  init_text();
-  init_time();
-  init_timestamp();
-  init_uuid();
-  init_varchar();
-  init_bit();
-  init_halfvec();
-  init_sparsevec();
-  init_vector();
-});
-
-// node_modules/drizzle-orm/pg-core/table.js
-function pgTableWithSchema(name, columns, extraConfig, schema, baseName = name) {
-  const rawTable = new PgTable(name, schema, baseName);
-  const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
-  const builtColumns = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
-    const colBuilder = colBuilderBase;
-    colBuilder.setName(name2);
-    const column = colBuilder.build(rawTable);
-    rawTable[InlineForeignKeys].push(...colBuilder.buildForeignKeys(column, rawTable));
-    return [name2, column];
-  }));
-  const builtColumnsForExtraConfig = Object.fromEntries(Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
-    const colBuilder = colBuilderBase;
-    colBuilder.setName(name2);
-    const column = colBuilder.buildExtraConfigColumn(rawTable);
-    return [name2, column];
-  }));
-  const table = Object.assign(rawTable, builtColumns);
-  table[Table.Symbol.Columns] = builtColumns;
-  table[Table.Symbol.ExtraConfigColumns] = builtColumnsForExtraConfig;
-  if (extraConfig) {
-    table[PgTable.Symbol.ExtraConfigBuilder] = extraConfig;
-  }
-  return Object.assign(table, {
-    enableRLS: () => {
-      table[PgTable.Symbol.EnableRLS] = true;
-      return table;
-    }
-  });
-}
-var InlineForeignKeys, EnableRLS, PgTable, pgTable = (name, columns, extraConfig) => {
-  return pgTableWithSchema(name, columns, extraConfig, undefined);
-};
-var init_table2 = __esm(() => {
-  init_entity();
-  init_table();
-  init_all();
-  InlineForeignKeys = Symbol.for("drizzle:PgInlineForeignKeys");
-  EnableRLS = Symbol.for("drizzle:EnableRLS");
-  PgTable = class PgTable extends Table {
-    static [entityKind] = "PgTable";
-    static Symbol = Object.assign({}, Table.Symbol, {
-      InlineForeignKeys,
-      EnableRLS
-    });
-    [InlineForeignKeys] = [];
-    [EnableRLS] = false;
-    [Table.Symbol.ExtraConfigBuilder] = undefined;
-    [Table.Symbol.ExtraConfigColumns] = {};
   };
 });
 
@@ -4990,38 +5447,6 @@ var init_indexes = () => {};
 // node_modules/drizzle-orm/pg-core/policies.js
 var init_policies = () => {};
 
-// node_modules/drizzle-orm/pg-core/primary-keys.js
-var PrimaryKeyBuilder, PrimaryKey;
-var init_primary_keys = __esm(() => {
-  init_entity();
-  init_table2();
-  PrimaryKeyBuilder = class PrimaryKeyBuilder {
-    static [entityKind] = "PgPrimaryKeyBuilder";
-    columns;
-    name;
-    constructor(columns, name) {
-      this.columns = columns;
-      this.name = name;
-    }
-    build(table) {
-      return new PrimaryKey(table, this.columns, this.name);
-    }
-  };
-  PrimaryKey = class PrimaryKey {
-    constructor(table, columns, name) {
-      this.table = table;
-      this.columns = columns;
-      this.name = name;
-    }
-    static [entityKind] = "PgPrimaryKey";
-    columns;
-    name;
-    getName() {
-      return this.name ?? `${this.table[PgTable.Symbol.Name]}_${this.columns.map((column) => column.name).join("_")}_pk`;
-    }
-  };
-});
-
 // node_modules/drizzle-orm/pg-core/view-common.js
 var PgViewConfig;
 var init_view_common2 = __esm(() => {
@@ -5055,25 +5480,25 @@ var init_casing = __esm(() => {
     constructor(casing) {
       this.convert = casing === "snake_case" ? toSnakeCase : casing === "camelCase" ? toCamelCase : noopCase;
     }
-    getColumnCasing(column) {
-      if (!column.keyAsName)
-        return column.name;
-      const schema = column.table[Table.Symbol.Schema] ?? "public";
-      const tableName = column.table[Table.Symbol.OriginalName];
-      const key = `${schema}.${tableName}.${column.name}`;
+    getColumnCasing(column2) {
+      if (!column2.keyAsName)
+        return column2.name;
+      const schema = column2.table[Table.Symbol.Schema] ?? "public";
+      const tableName = column2.table[Table.Symbol.OriginalName];
+      const key = `${schema}.${tableName}.${column2.name}`;
       if (!this.cache[key]) {
-        this.cacheTable(column.table);
+        this.cacheTable(column2.table);
       }
       return this.cache[key];
     }
-    cacheTable(table) {
-      const schema = table[Table.Symbol.Schema] ?? "public";
-      const tableName = table[Table.Symbol.OriginalName];
+    cacheTable(table2) {
+      const schema = table2[Table.Symbol.Schema] ?? "public";
+      const tableName = table2[Table.Symbol.OriginalName];
       const tableKey = `${schema}.${tableName}`;
       if (!this.cachedTables[tableKey]) {
-        for (const column of Object.values(table[Table.Symbol.Columns])) {
-          const columnKey = `${tableKey}.${column.name}`;
-          this.cache[columnKey] = this.convert(column.name);
+        for (const column2 of Object.values(table2[Table.Symbol.Columns])) {
+          const columnKey = `${tableKey}.${column2.name}`;
+          this.cache[columnKey] = this.convert(column2.name);
         }
         this.cachedTables[tableKey] = true;
       }
@@ -5083,411 +5508,6 @@ var init_casing = __esm(() => {
       this.cachedTables = {};
     }
   };
-});
-
-// node_modules/drizzle-orm/errors.js
-var DrizzleError, DrizzleQueryError, TransactionRollbackError;
-var init_errors2 = __esm(() => {
-  init_entity();
-  DrizzleError = class DrizzleError extends Error {
-    static [entityKind] = "DrizzleError";
-    constructor({ message, cause }) {
-      super(message);
-      this.name = "DrizzleError";
-      this.cause = cause;
-    }
-  };
-  DrizzleQueryError = class DrizzleQueryError extends Error {
-    constructor(query, params, cause) {
-      super(`Failed query: ${query}
-params: ${params}`);
-      this.query = query;
-      this.params = params;
-      this.cause = cause;
-      Error.captureStackTrace(this, DrizzleQueryError);
-      if (cause)
-        this.cause = cause;
-    }
-  };
-  TransactionRollbackError = class TransactionRollbackError extends DrizzleError {
-    static [entityKind] = "TransactionRollbackError";
-    constructor() {
-      super({ message: "Rollback" });
-    }
-  };
-});
-
-// node_modules/drizzle-orm/sql/expressions/conditions.js
-function bindIfParam(value, column) {
-  if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
-    return new Param(value, column);
-  }
-  return value;
-}
-function and(...unfilteredConditions) {
-  const conditions = unfilteredConditions.filter((c) => c !== undefined);
-  if (conditions.length === 0) {
-    return;
-  }
-  if (conditions.length === 1) {
-    return new SQL(conditions);
-  }
-  return new SQL([
-    new StringChunk("("),
-    sql.join(conditions, new StringChunk(" and ")),
-    new StringChunk(")")
-  ]);
-}
-function or(...unfilteredConditions) {
-  const conditions = unfilteredConditions.filter((c) => c !== undefined);
-  if (conditions.length === 0) {
-    return;
-  }
-  if (conditions.length === 1) {
-    return new SQL(conditions);
-  }
-  return new SQL([
-    new StringChunk("("),
-    sql.join(conditions, new StringChunk(" or ")),
-    new StringChunk(")")
-  ]);
-}
-function not(condition) {
-  return sql`not ${condition}`;
-}
-function inArray(column, values2) {
-  if (Array.isArray(values2)) {
-    if (values2.length === 0) {
-      return sql`false`;
-    }
-    return sql`${column} in ${values2.map((v) => bindIfParam(v, column))}`;
-  }
-  return sql`${column} in ${bindIfParam(values2, column)}`;
-}
-function notInArray(column, values2) {
-  if (Array.isArray(values2)) {
-    if (values2.length === 0) {
-      return sql`true`;
-    }
-    return sql`${column} not in ${values2.map((v) => bindIfParam(v, column))}`;
-  }
-  return sql`${column} not in ${bindIfParam(values2, column)}`;
-}
-function isNull(value) {
-  return sql`${value} is null`;
-}
-function isNotNull(value) {
-  return sql`${value} is not null`;
-}
-function exists(subquery) {
-  return sql`exists ${subquery}`;
-}
-function notExists(subquery) {
-  return sql`not exists ${subquery}`;
-}
-function between(column, min, max) {
-  return sql`${column} between ${bindIfParam(min, column)} and ${bindIfParam(max, column)}`;
-}
-function notBetween(column, min, max) {
-  return sql`${column} not between ${bindIfParam(min, column)} and ${bindIfParam(max, column)}`;
-}
-function like(column, value) {
-  return sql`${column} like ${value}`;
-}
-function notLike(column, value) {
-  return sql`${column} not like ${value}`;
-}
-function ilike(column, value) {
-  return sql`${column} ilike ${value}`;
-}
-function notIlike(column, value) {
-  return sql`${column} not ilike ${value}`;
-}
-var eq = (left, right) => {
-  return sql`${left} = ${bindIfParam(right, left)}`;
-}, ne = (left, right) => {
-  return sql`${left} <> ${bindIfParam(right, left)}`;
-}, gt = (left, right) => {
-  return sql`${left} > ${bindIfParam(right, left)}`;
-}, gte = (left, right) => {
-  return sql`${left} >= ${bindIfParam(right, left)}`;
-}, lt = (left, right) => {
-  return sql`${left} < ${bindIfParam(right, left)}`;
-}, lte = (left, right) => {
-  return sql`${left} <= ${bindIfParam(right, left)}`;
-};
-var init_conditions = __esm(() => {
-  init_column();
-  init_entity();
-  init_table();
-  init_sql();
-});
-
-// node_modules/drizzle-orm/sql/expressions/select.js
-function asc(column) {
-  return sql`${column} asc`;
-}
-function desc(column) {
-  return sql`${column} desc`;
-}
-var init_select = __esm(() => {
-  init_sql();
-});
-
-// node_modules/drizzle-orm/sql/expressions/index.js
-var init_expressions = __esm(() => {
-  init_conditions();
-  init_select();
-});
-
-// node_modules/drizzle-orm/relations.js
-function getOperators() {
-  return {
-    and,
-    between,
-    eq,
-    exists,
-    gt,
-    gte,
-    ilike,
-    inArray,
-    isNull,
-    isNotNull,
-    like,
-    lt,
-    lte,
-    ne,
-    not,
-    notBetween,
-    notExists,
-    notLike,
-    notIlike,
-    notInArray,
-    or,
-    sql
-  };
-}
-function getOrderByOperators() {
-  return {
-    sql,
-    asc,
-    desc
-  };
-}
-function extractTablesRelationalConfig(schema, configHelpers) {
-  if (Object.keys(schema).length === 1 && "default" in schema && !is(schema["default"], Table)) {
-    schema = schema["default"];
-  }
-  const tableNamesMap = {};
-  const relationsBuffer = {};
-  const tablesConfig = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (is(value, Table)) {
-      const dbName = getTableUniqueName(value);
-      const bufferedRelations = relationsBuffer[dbName];
-      tableNamesMap[dbName] = key;
-      tablesConfig[key] = {
-        tsName: key,
-        dbName: value[Table.Symbol.Name],
-        schema: value[Table.Symbol.Schema],
-        columns: value[Table.Symbol.Columns],
-        relations: bufferedRelations?.relations ?? {},
-        primaryKey: bufferedRelations?.primaryKey ?? []
-      };
-      for (const column of Object.values(value[Table.Symbol.Columns])) {
-        if (column.primary) {
-          tablesConfig[key].primaryKey.push(column);
-        }
-      }
-      const extraConfig = value[Table.Symbol.ExtraConfigBuilder]?.(value[Table.Symbol.ExtraConfigColumns]);
-      if (extraConfig) {
-        for (const configEntry of Object.values(extraConfig)) {
-          if (is(configEntry, PrimaryKeyBuilder)) {
-            tablesConfig[key].primaryKey.push(...configEntry.columns);
-          }
-        }
-      }
-    } else if (is(value, Relations)) {
-      const dbName = getTableUniqueName(value.table);
-      const tableName = tableNamesMap[dbName];
-      const relations2 = value.config(configHelpers(value.table));
-      let primaryKey;
-      for (const [relationName, relation] of Object.entries(relations2)) {
-        if (tableName) {
-          const tableConfig = tablesConfig[tableName];
-          tableConfig.relations[relationName] = relation;
-          if (primaryKey) {
-            tableConfig.primaryKey.push(...primaryKey);
-          }
-        } else {
-          if (!(dbName in relationsBuffer)) {
-            relationsBuffer[dbName] = {
-              relations: {},
-              primaryKey
-            };
-          }
-          relationsBuffer[dbName].relations[relationName] = relation;
-        }
-      }
-    }
-  }
-  return { tables: tablesConfig, tableNamesMap };
-}
-function createOne(sourceTable) {
-  return function one(table, config) {
-    return new One(sourceTable, table, config, config?.fields.reduce((res, f) => res && f.notNull, true) ?? false);
-  };
-}
-function createMany(sourceTable) {
-  return function many(referencedTable, config) {
-    return new Many(sourceTable, referencedTable, config);
-  };
-}
-function normalizeRelation(schema, tableNamesMap, relation) {
-  if (is(relation, One) && relation.config) {
-    return {
-      fields: relation.config.fields,
-      references: relation.config.references
-    };
-  }
-  const referencedTableTsName = tableNamesMap[getTableUniqueName(relation.referencedTable)];
-  if (!referencedTableTsName) {
-    throw new Error(`Table "${relation.referencedTable[Table.Symbol.Name]}" not found in schema`);
-  }
-  const referencedTableConfig = schema[referencedTableTsName];
-  if (!referencedTableConfig) {
-    throw new Error(`Table "${referencedTableTsName}" not found in schema`);
-  }
-  const sourceTable = relation.sourceTable;
-  const sourceTableTsName = tableNamesMap[getTableUniqueName(sourceTable)];
-  if (!sourceTableTsName) {
-    throw new Error(`Table "${sourceTable[Table.Symbol.Name]}" not found in schema`);
-  }
-  const reverseRelations = [];
-  for (const referencedTableRelation of Object.values(referencedTableConfig.relations)) {
-    if (relation.relationName && relation !== referencedTableRelation && referencedTableRelation.relationName === relation.relationName || !relation.relationName && referencedTableRelation.referencedTable === relation.sourceTable) {
-      reverseRelations.push(referencedTableRelation);
-    }
-  }
-  if (reverseRelations.length > 1) {
-    throw relation.relationName ? new Error(`There are multiple relations with name "${relation.relationName}" in table "${referencedTableTsName}"`) : new Error(`There are multiple relations between "${referencedTableTsName}" and "${relation.sourceTable[Table.Symbol.Name]}". Please specify relation name`);
-  }
-  if (reverseRelations[0] && is(reverseRelations[0], One) && reverseRelations[0].config) {
-    return {
-      fields: reverseRelations[0].config.references,
-      references: reverseRelations[0].config.fields
-    };
-  }
-  throw new Error(`There is not enough information to infer relation "${sourceTableTsName}.${relation.fieldName}"`);
-}
-function createTableRelationsHelpers(sourceTable) {
-  return {
-    one: createOne(sourceTable),
-    many: createMany(sourceTable)
-  };
-}
-function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelection, mapColumnValue = (value) => value) {
-  const result = {};
-  for (const [
-    selectionItemIndex,
-    selectionItem
-  ] of buildQueryResultSelection.entries()) {
-    if (selectionItem.isJson) {
-      const relation = tableConfig.relations[selectionItem.tsKey];
-      const rawSubRows = row[selectionItemIndex];
-      const subRows = typeof rawSubRows === "string" ? JSON.parse(rawSubRows) : rawSubRows;
-      result[selectionItem.tsKey] = is(relation, One) ? subRows && mapRelationalRow(tablesConfig, tablesConfig[selectionItem.relationTableTsKey], subRows, selectionItem.selection, mapColumnValue) : subRows.map((subRow) => mapRelationalRow(tablesConfig, tablesConfig[selectionItem.relationTableTsKey], subRow, selectionItem.selection, mapColumnValue));
-    } else {
-      const value = mapColumnValue(row[selectionItemIndex]);
-      const field = selectionItem.field;
-      let decoder;
-      if (is(field, Column)) {
-        decoder = field;
-      } else if (is(field, SQL)) {
-        decoder = field.decoder;
-      } else {
-        decoder = field.sql.decoder;
-      }
-      result[selectionItem.tsKey] = value === null ? null : decoder.mapFromDriverValue(value);
-    }
-  }
-  return result;
-}
-var Relation, Relations, One, Many;
-var init_relations = __esm(() => {
-  init_table();
-  init_column();
-  init_entity();
-  init_primary_keys();
-  init_expressions();
-  init_sql();
-  Relation = class Relation {
-    constructor(sourceTable, referencedTable, relationName) {
-      this.sourceTable = sourceTable;
-      this.referencedTable = referencedTable;
-      this.relationName = relationName;
-      this.referencedTableName = referencedTable[Table.Symbol.Name];
-    }
-    static [entityKind] = "Relation";
-    referencedTableName;
-    fieldName;
-  };
-  Relations = class Relations {
-    constructor(table, config) {
-      this.table = table;
-      this.config = config;
-    }
-    static [entityKind] = "Relations";
-  };
-  One = class One extends Relation {
-    constructor(sourceTable, referencedTable, config, isNullable) {
-      super(sourceTable, referencedTable, config?.relationName);
-      this.config = config;
-      this.isNullable = isNullable;
-    }
-    static [entityKind] = "One";
-    withFieldName(fieldName) {
-      const relation = new One(this.sourceTable, this.referencedTable, this.config, this.isNullable);
-      relation.fieldName = fieldName;
-      return relation;
-    }
-  };
-  Many = class Many extends Relation {
-    constructor(sourceTable, referencedTable, config) {
-      super(sourceTable, referencedTable, config?.relationName);
-      this.config = config;
-    }
-    static [entityKind] = "Many";
-    withFieldName(fieldName) {
-      const relation = new Many(this.sourceTable, this.referencedTable, this.config);
-      relation.fieldName = fieldName;
-      return relation;
-    }
-  };
-});
-
-// node_modules/drizzle-orm/sql/functions/aggregate.js
-function sum(expression) {
-  return sql`sum(${expression})`.mapWith(String);
-}
-var init_aggregate = __esm(() => {
-  init_sql();
-});
-
-// node_modules/drizzle-orm/sql/functions/vector.js
-var init_vector2 = () => {};
-
-// node_modules/drizzle-orm/sql/functions/index.js
-var init_functions = __esm(() => {
-  init_aggregate();
-  init_vector2();
-});
-
-// node_modules/drizzle-orm/sql/index.js
-var init_sql2 = __esm(() => {
-  init_expressions();
-  init_functions();
-  init_sql();
 });
 
 // node_modules/drizzle-orm/pg-core/view-base.js
@@ -5507,7 +5527,7 @@ var init_dialect = __esm(() => {
   init_casing();
   init_column();
   init_entity();
-  init_errors2();
+  init_errors();
   init_columns();
   init_table2();
   init_relations();
@@ -5571,14 +5591,14 @@ var init_dialect = __esm(() => {
       withSqlChunks.push(sql` `);
       return sql.join(withSqlChunks);
     }
-    buildDeleteQuery({ table, where, returning, withList }) {
+    buildDeleteQuery({ table: table2, where, returning, withList }) {
       const withSql = this.buildWithCTE(withList);
       const returningSql = returning ? sql` returning ${this.buildSelection(returning, { isSingleTable: true })}` : undefined;
       const whereSql = where ? sql` where ${where}` : undefined;
-      return sql`${withSql}delete from ${table}${whereSql}${returningSql}`;
+      return sql`${withSql}delete from ${table2}${whereSql}${returningSql}`;
     }
-    buildUpdateSet(table, set) {
-      const tableColumns = table[Table.Symbol.Columns];
+    buildUpdateSet(table2, set) {
+      const tableColumns = table2[Table.Symbol.Columns];
       const columnNames = Object.keys(tableColumns).filter((colName) => set[colName] !== undefined || tableColumns[colName]?.onUpdateFn !== undefined);
       const setSize = columnNames.length;
       return sql.join(columnNames.flatMap((colName, i) => {
@@ -5592,14 +5612,14 @@ var init_dialect = __esm(() => {
         return [res];
       }));
     }
-    buildUpdateQuery({ table, set, where, returning, withList, from, joins }) {
+    buildUpdateQuery({ table: table2, set, where, returning, withList, from, joins }) {
       const withSql = this.buildWithCTE(withList);
-      const tableName = table[PgTable.Symbol.Name];
-      const tableSchema = table[PgTable.Symbol.Schema];
-      const origTableName = table[PgTable.Symbol.OriginalName];
-      const alias = tableName === origTableName ? undefined : tableName;
-      const tableSql = sql`${tableSchema ? sql`${sql.identifier(tableSchema)}.` : undefined}${sql.identifier(origTableName)}${alias && sql` ${sql.identifier(alias)}`}`;
-      const setSql = this.buildUpdateSet(table, set);
+      const tableName = table2[PgTable.Symbol.Name];
+      const tableSchema = table2[PgTable.Symbol.Schema];
+      const origTableName = table2[PgTable.Symbol.OriginalName];
+      const alias2 = tableName === origTableName ? undefined : tableName;
+      const tableSql = sql`${tableSchema ? sql`${sql.identifier(tableSchema)}.` : undefined}${sql.identifier(origTableName)}${alias2 && sql` ${sql.identifier(alias2)}`}`;
+      const setSql = this.buildUpdateSet(table2, set);
       const fromSql = from && sql.join([sql.raw(" from "), this.buildFromTable(from)]);
       const joinsSql = this.buildJoins(joins);
       const returningSql = returning ? sql` returning ${this.buildSelection(returning, { isSingleTable: !from })}` : undefined;
@@ -5660,23 +5680,23 @@ var init_dialect = __esm(() => {
         if (index === 0) {
           joinsArray.push(sql` `);
         }
-        const table = joinMeta.table;
+        const table2 = joinMeta.table;
         const lateralSql = joinMeta.lateral ? sql` lateral` : undefined;
         const onSql = joinMeta.on ? sql` on ${joinMeta.on}` : undefined;
-        if (is(table, PgTable)) {
-          const tableName = table[PgTable.Symbol.Name];
-          const tableSchema = table[PgTable.Symbol.Schema];
-          const origTableName = table[PgTable.Symbol.OriginalName];
-          const alias = tableName === origTableName ? undefined : joinMeta.alias;
-          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${tableSchema ? sql`${sql.identifier(tableSchema)}.` : undefined}${sql.identifier(origTableName)}${alias && sql` ${sql.identifier(alias)}`}${onSql}`);
-        } else if (is(table, View)) {
-          const viewName = table[ViewBaseConfig].name;
-          const viewSchema = table[ViewBaseConfig].schema;
-          const origViewName = table[ViewBaseConfig].originalName;
-          const alias = viewName === origViewName ? undefined : joinMeta.alias;
-          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${viewSchema ? sql`${sql.identifier(viewSchema)}.` : undefined}${sql.identifier(origViewName)}${alias && sql` ${sql.identifier(alias)}`}${onSql}`);
+        if (is(table2, PgTable)) {
+          const tableName = table2[PgTable.Symbol.Name];
+          const tableSchema = table2[PgTable.Symbol.Schema];
+          const origTableName = table2[PgTable.Symbol.OriginalName];
+          const alias2 = tableName === origTableName ? undefined : joinMeta.alias;
+          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${tableSchema ? sql`${sql.identifier(tableSchema)}.` : undefined}${sql.identifier(origTableName)}${alias2 && sql` ${sql.identifier(alias2)}`}${onSql}`);
+        } else if (is(table2, View)) {
+          const viewName = table2[ViewBaseConfig].name;
+          const viewSchema = table2[ViewBaseConfig].schema;
+          const origViewName = table2[ViewBaseConfig].originalName;
+          const alias2 = viewName === origViewName ? undefined : joinMeta.alias;
+          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${viewSchema ? sql`${sql.identifier(viewSchema)}.` : undefined}${sql.identifier(origViewName)}${alias2 && sql` ${sql.identifier(alias2)}`}${onSql}`);
         } else {
-          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${table}${onSql}`);
+          joinsArray.push(sql`${sql.raw(joinMeta.joinType)} join${lateralSql} ${table2}${onSql}`);
         }
         if (index < joins.length - 1) {
           joinsArray.push(sql` `);
@@ -5684,15 +5704,15 @@ var init_dialect = __esm(() => {
       }
       return sql.join(joinsArray);
     }
-    buildFromTable(table) {
-      if (is(table, Table) && table[Table.Symbol.IsAlias]) {
-        let fullName = sql`${sql.identifier(table[Table.Symbol.OriginalName])}`;
-        if (table[Table.Symbol.Schema]) {
-          fullName = sql`${sql.identifier(table[Table.Symbol.Schema])}.${fullName}`;
+    buildFromTable(table2) {
+      if (is(table2, Table) && table2[Table.Symbol.IsAlias]) {
+        let fullName = sql`${sql.identifier(table2[Table.Symbol.OriginalName])}`;
+        if (table2[Table.Symbol.Schema]) {
+          fullName = sql`${sql.identifier(table2[Table.Symbol.Schema])}.${fullName}`;
         }
-        return sql`${fullName} ${sql.identifier(table[Table.Symbol.Name])}`;
+        return sql`${fullName} ${sql.identifier(table2[Table.Symbol.Name])}`;
       }
-      return table;
+      return table2;
     }
     buildSelectQuery({
       withList,
@@ -5700,7 +5720,7 @@ var init_dialect = __esm(() => {
       fieldsFlat,
       where,
       having,
-      table,
+      table: table2,
       joins,
       orderBy,
       groupBy,
@@ -5712,7 +5732,7 @@ var init_dialect = __esm(() => {
     }) {
       const fieldsList = fieldsFlat ?? orderSelectedFields(fields);
       for (const f of fieldsList) {
-        if (is(f.field, Column) && getTableName(f.field.table) !== (is(table, Subquery) ? table._.alias : is(table, PgViewBase) ? table[ViewBaseConfig].name : is(table, SQL) ? undefined : getTableName(table)) && !((table2) => joins?.some(({ alias }) => alias === (table2[Table.Symbol.IsAlias] ? getTableName(table2) : table2[Table.Symbol.BaseName])))(f.field.table)) {
+        if (is(f.field, Column) && getTableName(f.field.table) !== (is(table2, Subquery) ? table2._.alias : is(table2, PgViewBase) ? table2[ViewBaseConfig].name : is(table2, SQL) ? undefined : getTableName(table2)) && !((table22) => joins?.some(({ alias: alias2 }) => alias2 === (table22[Table.Symbol.IsAlias] ? getTableName(table22) : table22[Table.Symbol.BaseName])))(f.field.table)) {
           const tableName = getTableName(f.field.table);
           throw new Error(`Your "${f.path.join("->")}" field references a column "${tableName}"."${f.field.name}", but the table "${tableName}" is not part of the query! Did you forget to join it?`);
         }
@@ -5724,7 +5744,7 @@ var init_dialect = __esm(() => {
         distinctSql = distinct === true ? sql` distinct` : sql` distinct on (${sql.join(distinct.on, sql`, `)})`;
       }
       const selection = this.buildSelection(fieldsList, { isSingleTable });
-      const tableSql = this.buildFromTable(table);
+      const tableSql = this.buildFromTable(table2);
       const joinsSql = this.buildJoins(joins);
       const whereSql = where ? sql` where ${where}` : undefined;
       const havingSql = having ? sql` having ${having}` : undefined;
@@ -5798,11 +5818,11 @@ var init_dialect = __esm(() => {
       const offsetSql = offset ? sql` offset ${offset}` : undefined;
       return sql`${leftChunk}${operatorChunk}${rightChunk}${orderBySql}${limitSql}${offsetSql}`;
     }
-    buildInsertQuery({ table, values: valuesOrSelect, onConflict, returning, withList, select: select3, overridingSystemValue_ }) {
+    buildInsertQuery({ table: table2, values: valuesOrSelect, onConflict, returning, withList, select: select3, overridingSystemValue_ }) {
       const valuesSqlList = [];
-      const columns = table[Table.Symbol.Columns];
+      const columns = table2[Table.Symbol.Columns];
       const colEntries = Object.entries(columns).filter(([_, col]) => !col.shouldDisableInsert());
-      const insertOrder = colEntries.map(([, column]) => sql.identifier(this.casing.getColumnCasing(column)));
+      const insertOrder = colEntries.map(([, column2]) => sql.identifier(this.casing.getColumnCasing(column2)));
       if (select3) {
         const select22 = valuesOrSelect;
         if (is(select22, SQL)) {
@@ -5844,7 +5864,7 @@ var init_dialect = __esm(() => {
       const returningSql = returning ? sql` returning ${this.buildSelection(returning, { isSingleTable: true })}` : undefined;
       const onConflictSql = onConflict ? sql` on conflict ${onConflict}` : undefined;
       const overridingSql = overridingSystemValue_ === true ? sql`overriding system value ` : undefined;
-      return sql`${withSql}insert into ${table} ${insertOrder} ${overridingSql}${valuesSql}${onConflictSql}${returningSql}`;
+      return sql`${withSql}insert into ${table2} ${insertOrder} ${overridingSql}${valuesSql}${onConflictSql}${returningSql}`;
     }
     buildRefreshMaterializedViewQuery({ view, concurrently, withNoData }) {
       const concurrentlySql = concurrently ? sql` concurrently` : undefined;
@@ -5882,7 +5902,7 @@ var init_dialect = __esm(() => {
       fullSchema,
       schema,
       tableNamesMap,
-      table,
+      table: table2,
       tableConfig,
       queryConfig: config,
       tableAlias,
@@ -5930,8 +5950,8 @@ var init_dialect = __esm(() => {
           selectedColumns = Object.keys(tableConfig.columns);
         }
         for (const field of selectedColumns) {
-          const column = tableConfig.columns[field];
-          fieldsSelection.push({ tsKey: field, value: column });
+          const column2 = tableConfig.columns[field];
+          fieldsSelection.push({ tsKey: field, value: column2 });
         }
         let selectedRelations = [];
         if (config.with) {
@@ -6029,7 +6049,7 @@ var init_dialect = __esm(() => {
         const needsSubquery = limit !== undefined || offset !== undefined || orderBy.length > 0;
         if (needsSubquery) {
           result = this.buildSelectQuery({
-            table: aliasedTable(table, tableAlias),
+            table: aliasedTable(table2, tableAlias),
             fields: {},
             fieldsFlat: [{
               path: [],
@@ -6046,7 +6066,7 @@ var init_dialect = __esm(() => {
           offset = undefined;
           orderBy = [];
         } else {
-          result = aliasedTable(table, tableAlias);
+          result = aliasedTable(table2, tableAlias);
         }
         result = this.buildSelectQuery({
           table: is(result, PgTable) ? result : new Subquery(result, {}, tableAlias),
@@ -6064,7 +6084,7 @@ var init_dialect = __esm(() => {
         });
       } else {
         result = this.buildSelectQuery({
-          table: aliasedTable(table, tableAlias),
+          table: aliasedTable(table2, tableAlias),
           fields: {},
           fieldsFlat: selection.map(({ field }) => ({
             path: [],
@@ -6195,11 +6215,11 @@ var init_select2 = __esm(() => {
     dialect;
     cacheConfig = undefined;
     usedTables = /* @__PURE__ */ new Set;
-    constructor({ table, fields, isPartialSelect, session, dialect, withList, distinct }) {
+    constructor({ table: table2, fields, isPartialSelect, session, dialect, withList, distinct }) {
       super();
       this.config = {
         withList,
-        table,
+        table: table2,
         fields: { ...fields },
         distinct,
         setOperators: []
@@ -6211,19 +6231,19 @@ var init_select2 = __esm(() => {
         selectedFields: fields,
         config: this.config
       };
-      this.tableName = getTableLikeName(table);
+      this.tableName = getTableLikeName(table2);
       this.joinsNotNullableMap = typeof this.tableName === "string" ? { [this.tableName]: true } : {};
-      for (const item of extractUsedTable(table))
+      for (const item of extractUsedTable(table2))
         this.usedTables.add(item);
     }
     getUsedTables() {
       return [...this.usedTables];
     }
     createJoin(joinType, lateral) {
-      return (table, on) => {
+      return (table2, on) => {
         const baseTableName = this.tableName;
-        const tableName = getTableLikeName(table);
-        for (const item of extractUsedTable(table))
+        const tableName = getTableLikeName(table2);
+        for (const item of extractUsedTable(table2))
           this.usedTables.add(item);
         if (typeof tableName === "string" && this.config.joins?.some((join) => join.alias === tableName)) {
           throw new Error(`Alias "${tableName}" is already used in this query`);
@@ -6234,8 +6254,8 @@ var init_select2 = __esm(() => {
               [baseTableName]: this.config.fields
             };
           }
-          if (typeof tableName === "string" && !is(table, SQL)) {
-            const selection = is(table, Subquery) ? table._.selectedFields : is(table, View) ? table[ViewBaseConfig].selectedFields : table[Table.Symbol.Columns];
+          if (typeof tableName === "string" && !is(table2, SQL)) {
+            const selection = is(table2, Subquery) ? table2._.selectedFields : is(table2, View) ? table2[ViewBaseConfig].selectedFields : table2[Table.Symbol.Columns];
             this.config.fields[tableName] = selection;
           }
         }
@@ -6245,7 +6265,7 @@ var init_select2 = __esm(() => {
         if (!this.config.joins) {
           this.config.joins = [];
         }
-        this.config.joins.push({ on, table, joinType, alias: tableName, lateral });
+        this.config.joins.push({ on, table: table2, joinType, alias: tableName, lateral });
         if (typeof tableName === "string") {
           switch (joinType) {
             case "left": {
@@ -6369,14 +6389,14 @@ var init_select2 = __esm(() => {
       const { typings: _typings, ...rest } = this.dialect.sqlToQuery(this.getSQL());
       return rest;
     }
-    as(alias) {
+    as(alias2) {
       const usedTables = [];
       usedTables.push(...extractUsedTable(this.config.table));
       if (this.config.joins) {
         for (const it of this.config.joins)
           usedTables.push(...extractUsedTable(it.table));
       }
-      return new Proxy(new Subquery(this.getSQL(), this.config.fields, alias, false, [...new Set(usedTables)]), new SelectionProxyHandler({ alias, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
+      return new Proxy(new Subquery(this.getSQL(), this.config.fields, alias2, false, [...new Set(usedTables)]), new SelectionProxyHandler({ alias: alias2, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
     }
     getSelectedFields() {
       return new Proxy(this.config.fields, new SelectionProxyHandler({ alias: this.tableName, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
@@ -6446,13 +6466,13 @@ var init_query_builder2 = __esm(() => {
       this.dialect = is(dialect, PgDialect) ? dialect : undefined;
       this.dialectConfig = is(dialect, PgDialect) ? undefined : dialect;
     }
-    $with = (alias, selection) => {
+    $with = (alias2, selection) => {
       const queryBuilder = this;
       const as = (qb) => {
         if (typeof qb === "function") {
           qb = qb(queryBuilder);
         }
-        return new Proxy(new WithSubquery(qb.getSQL(), selection ?? ("getSelectedFields" in qb ? qb.getSelectedFields() ?? {} : {}), alias, true), new SelectionProxyHandler({ alias, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
+        return new Proxy(new WithSubquery(qb.getSQL(), selection ?? ("getSelectedFields" in qb ? qb.getSelectedFields() ?? {} : {}), alias2, true), new SelectionProxyHandler({ alias: alias2, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
       };
       return { as };
     };
@@ -6523,15 +6543,15 @@ var init_view = __esm(() => {
 });
 
 // node_modules/drizzle-orm/pg-core/utils.js
-function extractUsedTable(table) {
-  if (is(table, PgTable)) {
-    return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
+function extractUsedTable(table2) {
+  if (is(table2, PgTable)) {
+    return [table2[Schema] ? `${table2[Schema]}.${table2[Table.Symbol.BaseName]}` : table2[Table.Symbol.BaseName]];
   }
-  if (is(table, Subquery)) {
-    return table._.usedTables ?? [];
+  if (is(table2, Subquery)) {
+    return table2._.usedTables ?? [];
   }
-  if (is(table, SQL)) {
-    return table.usedTables ?? [];
+  if (is(table2, SQL)) {
+    return table2.usedTables ?? [];
   }
   return [];
 }
@@ -6554,11 +6574,11 @@ var init_delete = __esm(() => {
   init_utils();
   init_utils3();
   PgDeleteBase = class PgDeleteBase extends QueryPromise {
-    constructor(table, session, dialect, withList) {
+    constructor(table2, session, dialect, withList) {
       super();
       this.session = session;
       this.dialect = dialect;
-      this.config = { table, withList };
+      this.config = { table: table2, withList };
     }
     static [entityKind] = "PgDelete";
     config;
@@ -6626,8 +6646,8 @@ var init_insert = __esm(() => {
   init_utils3();
   init_query_builder2();
   PgInsertBuilder = class PgInsertBuilder {
-    constructor(table, session, dialect, withList, overridingSystemValue_) {
-      this.table = table;
+    constructor(table2, session, dialect, withList, overridingSystemValue_) {
+      this.table = table2;
       this.session = session;
       this.dialect = dialect;
       this.withList = withList;
@@ -6668,11 +6688,11 @@ var init_insert = __esm(() => {
     }
   };
   PgInsertBase = class PgInsertBase extends QueryPromise {
-    constructor(table, values2, session, dialect, withList, select3, overridingSystemValue_) {
+    constructor(table2, values2, session, dialect, withList, select3, overridingSystemValue_) {
       super();
       this.session = session;
       this.dialect = dialect;
-      this.config = { table, values: values2, withList, select: select3, overridingSystemValue_ };
+      this.config = { table: table2, values: values2, withList, select: select3, overridingSystemValue_ };
     }
     static [entityKind] = "PgInsert";
     config;
@@ -6818,8 +6838,8 @@ var init_update = __esm(() => {
   init_view_common();
   init_utils3();
   PgUpdateBuilder = class PgUpdateBuilder {
-    constructor(table, session, dialect, withList) {
-      this.table = table;
+    constructor(table2, session, dialect, withList) {
+      this.table = table2;
       this.session = session;
       this.dialect = dialect;
       this.withList = withList;
@@ -6835,12 +6855,12 @@ var init_update = __esm(() => {
     }
   };
   PgUpdateBase = class PgUpdateBase extends QueryPromise {
-    constructor(table, set, session, dialect, withList) {
+    constructor(table2, set, session, dialect, withList) {
       super();
       this.session = session;
       this.dialect = dialect;
-      this.config = { set, table, withList, joins: [] };
-      this.tableName = getTableLikeName(table);
+      this.config = { set, table: table2, withList, joins: [] };
+      this.tableName = getTableLikeName(table2);
       this.joinsNotNullableMap = typeof this.tableName === "string" ? { [this.tableName]: true } : {};
     }
     static [entityKind] = "PgUpdate";
@@ -6857,17 +6877,17 @@ var init_update = __esm(() => {
       this.config.from = src;
       return this;
     }
-    getTableLikeFields(table) {
-      if (is(table, PgTable)) {
-        return table[Table.Symbol.Columns];
-      } else if (is(table, Subquery)) {
-        return table._.selectedFields;
+    getTableLikeFields(table2) {
+      if (is(table2, PgTable)) {
+        return table2[Table.Symbol.Columns];
+      } else if (is(table2, Subquery)) {
+        return table2._.selectedFields;
       }
-      return table[ViewBaseConfig].selectedFields;
+      return table2[ViewBaseConfig].selectedFields;
     }
     createJoin(joinType) {
-      return (table, on) => {
-        const tableName = getTableLikeName(table);
+      return (table2, on) => {
+        const tableName = getTableLikeName(table2);
         if (typeof tableName === "string" && this.config.joins.some((join) => join.alias === tableName)) {
           throw new Error(`Alias "${tableName}" is already used in this query`);
         }
@@ -6875,7 +6895,7 @@ var init_update = __esm(() => {
           const from = this.config.from && !is(this.config.from, SQL) ? this.getTableLikeFields(this.config.from) : undefined;
           on = on(new Proxy(this.config.table[Table.Symbol.Columns], new SelectionProxyHandler({ sqlAliasedBehavior: "sql", sqlBehavior: "sql" })), from && new Proxy(from, new SelectionProxyHandler({ sqlAliasedBehavior: "sql", sqlBehavior: "sql" })));
         }
-        this.config.joins.push({ on, table, joinType, alias: tableName });
+        this.config.joins.push({ on, table: table2, joinType, alias: tableName });
         if (typeof tableName === "string") {
           switch (joinType) {
             case "left": {
@@ -7034,11 +7054,11 @@ var init_query2 = __esm(() => {
   init_relations();
   init_tracing();
   RelationalQueryBuilder = class RelationalQueryBuilder {
-    constructor(fullSchema, schema, tableNamesMap, table, tableConfig, dialect, session) {
+    constructor(fullSchema, schema, tableNamesMap, table2, tableConfig, dialect, session) {
       this.fullSchema = fullSchema;
       this.schema = schema;
       this.tableNamesMap = tableNamesMap;
-      this.table = table;
+      this.table = table2;
       this.tableConfig = tableConfig;
       this.dialect = dialect;
       this.session = session;
@@ -7052,12 +7072,12 @@ var init_query2 = __esm(() => {
     }
   };
   PgRelationalQuery = class PgRelationalQuery extends QueryPromise {
-    constructor(fullSchema, schema, tableNamesMap, table, tableConfig, dialect, session, config, mode) {
+    constructor(fullSchema, schema, tableNamesMap, table2, tableConfig, dialect, session, config, mode) {
       super();
       this.fullSchema = fullSchema;
       this.schema = schema;
       this.tableNamesMap = tableNamesMap;
-      this.table = table;
+      this.table = table2;
       this.tableConfig = tableConfig;
       this.dialect = dialect;
       this.session = session;
@@ -7121,10 +7141,10 @@ var init_raw = __esm(() => {
   init_entity();
   init_query_promise();
   PgRaw = class PgRaw extends QueryPromise {
-    constructor(execute, sql3, query, mapBatchResult) {
+    constructor(execute, sql4, query, mapBatchResult) {
       super();
       this.execute = execute;
-      this.sql = sql3;
+      this.sql = sql4;
       this.query = query;
       this.mapBatchResult = mapBatchResult;
     }
@@ -7184,13 +7204,13 @@ var init_db = __esm(() => {
     }
     static [entityKind] = "PgDatabase";
     query;
-    $with = (alias, selection) => {
+    $with = (alias2, selection) => {
       const self2 = this;
       const as = (qb) => {
         if (typeof qb === "function") {
           qb = qb(new QueryBuilder(self2.dialect));
         }
-        return new Proxy(new WithSubquery(qb.getSQL(), selection ?? ("getSelectedFields" in qb ? qb.getSelectedFields() ?? {} : {}), alias, true), new SelectionProxyHandler({ alias, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
+        return new Proxy(new WithSubquery(qb.getSQL(), selection ?? ("getSelectedFields" in qb ? qb.getSelectedFields() ?? {} : {}), alias2, true), new SelectionProxyHandler({ alias: alias2, sqlAliasedBehavior: "alias", sqlBehavior: "error" }));
       };
       return { as };
     };
@@ -7226,14 +7246,14 @@ var init_db = __esm(() => {
           distinct: { on }
         });
       }
-      function update2(table) {
-        return new PgUpdateBuilder(table, self2.session, self2.dialect, queries);
+      function update2(table2) {
+        return new PgUpdateBuilder(table2, self2.session, self2.dialect, queries);
       }
-      function insert2(table) {
-        return new PgInsertBuilder(table, self2.session, self2.dialect, queries);
+      function insert2(table2) {
+        return new PgInsertBuilder(table2, self2.session, self2.dialect, queries);
       }
-      function delete_(table) {
-        return new PgDeleteBase(table, self2.session, self2.dialect, queries);
+      function delete_(table2) {
+        return new PgDeleteBase(table2, self2.session, self2.dialect, queries);
       }
       return { select: select4, selectDistinct, selectDistinctOn, update: update2, insert: insert2, delete: delete_ };
     }
@@ -7260,14 +7280,14 @@ var init_db = __esm(() => {
         distinct: { on }
       });
     }
-    update(table) {
-      return new PgUpdateBuilder(table, this.session, this.dialect);
+    update(table2) {
+      return new PgUpdateBuilder(table2, this.session, this.dialect);
     }
-    insert(table) {
-      return new PgInsertBuilder(table, this.session, this.dialect);
+    insert(table2) {
+      return new PgInsertBuilder(table2, this.session, this.dialect);
     }
-    delete(table) {
-      return new PgDeleteBase(table, this.session, this.dialect);
+    delete(table2) {
+      return new PgDeleteBase(table2, this.session, this.dialect);
     }
     refreshMaterializedView(view) {
       return new PgRefreshMaterializedView(view, this.session, this.dialect);
@@ -7286,8 +7306,8 @@ var init_db = __esm(() => {
 });
 
 // node_modules/drizzle-orm/cache/core/cache.js
-async function hashQuery(sql3, params) {
-  const dataToHash = `${sql3}-${JSON.stringify(params)}`;
+async function hashQuery(sql4, params) {
+  const dataToHash = `${sql4}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder;
   const data = encoder.encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -7336,7 +7356,7 @@ var PgPreparedQuery, PgSession, PgTransaction;
 var init_session = __esm(() => {
   init_cache();
   init_entity();
-  init_errors2();
+  init_errors();
   init_sql2();
   init_tracing();
   init_db();
@@ -7511,12 +7531,12 @@ var init_session2 = __esm(() => {
   init_tracing();
   init_utils();
   PostgresJsPreparedQuery = class PostgresJsPreparedQuery extends PgPreparedQuery {
-    constructor(client, queryString, params, logger, cache2, queryMetadata, cacheConfig, fields, _isResponseInArrayMode, customResultMapper) {
+    constructor(client, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, _isResponseInArrayMode, customResultMapper) {
       super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
       this.client = client;
       this.queryString = queryString;
       this.params = params;
-      this.logger = logger;
+      this.logger = logger2;
       this.fields = fields;
       this._isResponseInArrayMode = _isResponseInArrayMode;
       this.customResultMapper = customResultMapper;
@@ -7634,11 +7654,11 @@ function construct(client, config = {}) {
   client.options.serializers["114"] = transparentParser;
   client.options.serializers["3802"] = transparentParser;
   const dialect2 = new PgDialect({ casing: config.casing });
-  let logger;
+  let logger2;
   if (config.logger === true) {
-    logger = new DefaultLogger;
+    logger2 = new DefaultLogger;
   } else if (config.logger !== false) {
-    logger = config.logger;
+    logger2 = config.logger;
   }
   let schema2;
   if (config.schema) {
@@ -7649,7 +7669,7 @@ function construct(client, config = {}) {
       tableNamesMap: tablesConfig.tableNamesMap
     };
   }
-  const session2 = new PostgresJsSession(client, dialect2, schema2, { logger, cache: config.cache });
+  const session2 = new PostgresJsSession(client, dialect2, schema2, { logger: logger2, cache: config.cache });
   const db2 = new PostgresJsDatabase(dialect2, session2, schema2);
   db2.$client = client;
   db2.$cache = config.cache;
@@ -7784,7 +7804,7 @@ var init_schema2 = __esm(() => {
 });
 
 // src/db/index.ts
-var url, sql3, db2;
+var url, sql4, db2;
 var init_db2 = __esm(() => {
   init_postgres_js();
   init_src();
@@ -7792,25 +7812,8 @@ var init_db2 = __esm(() => {
   url = process.env.DATABASE_URL;
   if (!url)
     throw new Error("DATABASE_URL is not set (e.g. postgres://localhost/wpm2)");
-  sql3 = src_default(url);
-  db2 = drizzle(sql3, { schema: exports_schema });
-});
-
-// node_modules/drizzle-orm/index.js
-var init_drizzle_orm = __esm(() => {
-  init_alias();
-  init_column_builder();
-  init_column();
-  init_entity();
-  init_errors2();
-  init_logger();
-  init_query_promise();
-  init_relations();
-  init_sql2();
-  init_subquery();
-  init_table();
-  init_utils();
-  init_view_common();
+  sql4 = src_default(url);
+  db2 = drizzle(sql4, { schema: exports_schema });
 });
 
 // src/utils/house.ts
@@ -30567,7 +30570,28 @@ var require_dist2 = __commonJS((exports) => {
   __exportStar(require_models(), exports);
 });
 
+// src/kalshi/series.ts
+function seriesTitle(seriesTicker) {
+  const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.title;
+  if (known)
+    return known;
+  const stripped = seriesTicker.replace(/^KX/, "");
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+}
+function seriesRank(seriesTicker) {
+  const index = TRACKED_SERIES.findIndex((s) => s.ticker === seriesTicker);
+  return index === -1 ? TRACKED_SERIES.length : index;
+}
+var TRACKED_SERIES;
+var init_series = __esm(() => {
+  TRACKED_SERIES = [
+    { ticker: "KXWCGAME", title: "⚽️ World Cup 2026 Games" },
+    { ticker: "KXNBAGAME", title: "\uD83C\uDFC0 NBA Finals 2026" }
+  ];
+});
+
 // src/utils/sync.ts
+init_drizzle_orm();
 init_db2();
 init_schema2();
 init_house();
@@ -30593,10 +30617,13 @@ async function ingestEvents(seriesTicker, { status, withNestedMarkets = true } =
 }
 
 // src/utils/sync.ts
+init_series();
 var cents = (dollars) => dollars == null || dollars === "" ? null : Math.round(parseFloat(dollars) * 100);
 var date3 = (iso) => iso ? new Date(iso) : null;
 async function sync(seriesTicker) {
-  const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker);
+  const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
+    status: "open"
+  });
   const milestoneByEvent = indexMilestones(milestones);
   let marketCount = 0;
   let settledBets = 0;
@@ -30614,7 +30641,46 @@ async function sync(seriesTicker) {
       }
     }
   }
-  return { events: kalshiEvents.length, markets: marketCount, settledBets, voidedBets };
+  return {
+    series: seriesTicker,
+    events: kalshiEvents.length,
+    markets: marketCount,
+    settledBets,
+    voidedBets
+  };
+}
+async function settleOpenBetMarkets() {
+  const openMarkets = await db2.selectDistinct({ ticker: bets.marketTicker }).from(bets).where(eq(bets.status, "open"));
+  let settledBets = 0;
+  let voidedBets = 0;
+  const BATCH = 50;
+  for (let i = 0;i < openMarkets.length; i += BATCH) {
+    const tickers = openMarkets.slice(i, i + BATCH).map((r) => r.ticker);
+    const { data } = await marketApi.getMarkets(BATCH, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, tickers.join(","));
+    for (const market of data.markets ?? []) {
+      await updateMarketRow(market);
+      const result = market.result ?? "";
+      if (result === "yes" || result === "no") {
+        settledBets += await settleMarketBets(market.ticker, result);
+      } else if (result === "void") {
+        voidedBets += await voidMarketBets(market.ticker);
+      }
+    }
+  }
+  return { checkedMarkets: openMarkets.length, settledBets, voidedBets };
+}
+async function syncAll() {
+  const series = [];
+  for (const tracked of TRACKED_SERIES) {
+    series.push(await sync(tracked.ticker));
+  }
+  const settlement = await settleOpenBetMarkets();
+  return {
+    series,
+    checkedMarkets: settlement.checkedMarkets,
+    settledBets: series.reduce((n, s) => n + s.settledBets, settlement.settledBets),
+    voidedBets: series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets)
+  };
 }
 function indexMilestones(milestones) {
   const byEvent = new Map;
@@ -30649,14 +30715,25 @@ async function upsertEvent(event, milestone) {
     }
   });
 }
-async function upsertMarket(event, market) {
-  const prices = {
+function marketPrices(market) {
+  return {
     yesBid: cents(market.yes_bid_dollars),
     yesAsk: cents(market.yes_ask_dollars),
     noBid: cents(market.no_bid_dollars),
     noAsk: cents(market.no_ask_dollars),
     lastPrice: cents(market.last_price_dollars)
   };
+}
+async function updateMarketRow(market) {
+  await db2.update(markets).set({
+    status: market.status,
+    result: market.result ?? "",
+    ...marketPrices(market),
+    syncedAt: new Date
+  }).where(eq(markets.ticker, market.ticker));
+}
+async function upsertMarket(event, market) {
+  const prices = marketPrices(market);
   await db2.insert(markets).values({
     ticker: market.ticker,
     eventTicker: event.event_ticker,
@@ -30682,14 +30759,12 @@ async function upsertMarket(event, market) {
 }
 
 // src/api/sync.ts
-var SERIES_TICKER = process.env.KALSHI_SERIES ?? "KXWCGAME";
 async function GET(request) {
   const auth = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const stats = await sync(SERIES_TICKER);
-  return Response.json({ series: SERIES_TICKER, ...stats });
+  return Response.json(await syncAll());
 }
 export {
   GET
