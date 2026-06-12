@@ -5,7 +5,20 @@ import type { BotCommand } from "./types";
 
 // Posted as its own message so Telegram's link preview renders it animated —
 // the Chat SDK has no native sendAnimation, but a bare GIF URL previews big.
-const WELCOME_GIF = "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif";
+// One is picked at random per welcome.
+const WELCOME_GIFS = [
+  "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif", // Gatsby Leo raising a glass
+  "https://media.giphy.com/media/OkJat1YNdoD3W/giphy.gif", // hand-lettered "Welcome"
+  "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif", // Forrest Gump waving
+  "https://media.giphy.com/media/ASd0Ukj0y3qMM/giphy.gif", // Ralph Wiggum waving hello
+  "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif", // The Office celebration dance
+  "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif", // 90s kid thumbs-up at computer
+  "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif", // cat wiggle, ready to pounce
+];
+
+function randomWelcomeGif(): string {
+  return WELCOME_GIFS[Math.floor(Math.random() * WELCOME_GIFS.length)]!;
+}
 
 // Telegram sends /start automatically when a user first opens the bot, so
 // this doubles as registration: first contact creates the account and seeds
@@ -29,7 +42,7 @@ export const start: BotCommand = {
       return;
     }
 
-    await thread.post(WELCOME_GIF);
+    await thread.post(randomWelcomeGif());
     await thread.post(
       [
         `🎉 Welcome aboard, ${message.author.fullName}!`,

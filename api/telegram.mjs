@@ -14079,9 +14079,21 @@ var init_bet = __esm(() => {
 });
 
 // src/bot/commands/start.ts
-var WELCOME_GIF = "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif", start;
+function randomWelcomeGif() {
+  return WELCOME_GIFS[Math.floor(Math.random() * WELCOME_GIFS.length)];
+}
+var WELCOME_GIFS, start;
 var init_start = __esm(() => {
   init_house();
+  WELCOME_GIFS = [
+    "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif",
+    "https://media.giphy.com/media/OkJat1YNdoD3W/giphy.gif",
+    "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif",
+    "https://media.giphy.com/media/ASd0Ukj0y3qMM/giphy.gif",
+    "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+    "https://media.giphy.com/media/111ebonMs90YLu/giphy.gif",
+    "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif"
+  ];
   start = {
     name: "start",
     description: "Collect your bankroll and start betting",
@@ -14098,7 +14110,7 @@ var init_start = __esm(() => {
 `));
         return;
       }
-      await thread.post(WELCOME_GIF);
+      await thread.post(randomWelcomeGif());
       await thread.post([
         `\uD83C\uDF89 Welcome aboard, ${message.author.fullName}!`,
         "",
