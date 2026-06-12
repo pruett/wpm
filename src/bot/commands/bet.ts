@@ -105,9 +105,17 @@ export function seriesTitle(seriesTicker: string): string {
   return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
 }
 
+// Kickoffs are stored as UTC instants; render them in US Eastern so a
+// 9pm ET game doesn't show as the next day on UTC servers like Vercel.
 function kickoffLabel(startsAt: Date | null): string {
   return startsAt
-    ? startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? startsAt.toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
     : "TBD";
 }
 
