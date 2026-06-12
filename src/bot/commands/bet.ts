@@ -115,7 +115,7 @@ export function kickoffLabel(startsAt: Date | null): string {
   return startsAt ? formatEastern(startsAt) : "TBD";
 }
 
-export interface UpcomingEvent {
+interface UpcomingEvent {
   eventTicker: string;
   seriesTicker: string;
   title: string;
@@ -123,12 +123,13 @@ export interface UpcomingEvent {
 }
 
 /**
- * Viable, bettable events for menus (/bet, /bets): game not started,
- * kicking off within the next 2 days (betting locks at kickoff, so past
- * starts are out too). Sorted most urgent first — soonest kickoff at the
- * top. Only events that actually have markets in the mirror.
+ * Viable, bettable events for /bet's menu: game not started, kicking off
+ * within the next 2 days (betting locks at kickoff, so past starts are out
+ * too). Sorted most urgent first — soonest kickoff at the top. Only events
+ * that actually have markets in the mirror. (/bets has its own, broader
+ * query — it also lists in-play events with open bets.)
  */
-export async function upcomingEvents(): Promise<UpcomingEvent[]> {
+async function upcomingEvents(): Promise<UpcomingEvent[]> {
   const now = new Date();
   const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
 
@@ -153,18 +154,18 @@ export async function upcomingEvents(): Promise<UpcomingEvent[]> {
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
-export interface SeriesGroup {
+export interface SeriesGroup<T> {
   seriesTicker: string;
-  events: UpcomingEvent[];
+  events: T[];
 }
 
 /**
- * Group upcoming events into one menu section per series, ordered the way
- * the registry lists them. Events keep their soonest-first order within
- * each section.
+ * Group events into one menu section per series, ordered the way the
+ * registry lists them. Events keep their incoming order within each
+ * section. Shared by the /bet and /bets event lists.
  */
-export function groupBySeries(rows: UpcomingEvent[]): SeriesGroup[] {
-  const bySeries = new Map<string, UpcomingEvent[]>();
+export function groupBySeries<T extends { seriesTicker: string }>(rows: T[]): SeriesGroup<T>[] {
+  const bySeries = new Map<string, T[]>();
   for (const row of rows) {
     const group = bySeries.get(row.seriesTicker);
     if (group) group.push(row);
