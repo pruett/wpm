@@ -29,18 +29,14 @@ async function openBetCounts(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
 }
 
-// No game runs this long — a backstop so an in-play event whose result the
-// sweep never recorded (it left Kalshi's open list with no bets to chase)
-// can't sit in the list as in progress forever.
-const IN_PLAY_BACKSTOP_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Events the /bets list shows — broader than /bet's menu. Everything still
- * bettable (same pre-game window /bet offers), plus games in play: betting
- * locks at kickoff, but a running game's bets are exactly what /bets exists
- * to show. Open-bet events are always included as a safety net (e.g. a
- * postponed game drifting out of both windows must not hide its bets).
- * Settled events drop out: their markets carry results and their bets close.
+ * bettable (same pre-game window /bet offers), plus any event with open
+ * bets riding on it: betting locks at kickoff, but a running game's bets
+ * are exactly what /bets exists to show. In-play events with no open bets
+ * aren't listed — keying in-play visibility to open bets keeps the list
+ * self-cleaning, since the settlement sweep chases every market with open
+ * bets until a result lands, closing the bets and dropping the event.
  */
 async function listedEvents(openBetEventTickers: string[]) {
   const now = new Date();
@@ -52,14 +48,6 @@ async function listedEvents(openBetEventTickers: string[]) {
     gt(events.startsAt, now),
     lte(events.startsAt, horizon),
   );
-  // Kicked off but no result on the books yet — the game is still going.
-  const inPlay = and(
-    lte(events.startsAt, now),
-    gt(events.startsAt, new Date(now.getTime() - IN_PLAY_BACKSTOP_MS)),
-    eq(markets.result, ""),
-  );
-  const withOpenBets =
-    openBetEventTickers.length > 0 ? [inArray(events.eventTicker, openBetEventTickers)] : [];
 
   return db
     .selectDistinct({
@@ -70,7 +58,11 @@ async function listedEvents(openBetEventTickers: string[]) {
     })
     .from(markets)
     .innerJoin(events, eq(events.eventTicker, markets.eventTicker))
-    .where(or(bettable, inPlay, ...withOpenBets))
+    .where(
+      openBetEventTickers.length === 0
+        ? bettable
+        : or(bettable, inArray(events.eventTicker, openBetEventTickers)),
+    )
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
