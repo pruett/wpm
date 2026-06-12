@@ -30570,6 +30570,32 @@ var require_dist2 = __commonJS((exports) => {
   __exportStar(require_models(), exports);
 });
 
+// src/kalshi/client.ts
+var import_kalshi_typescript, eventsApi, marketApi;
+var init_client = __esm(() => {
+  import_kalshi_typescript = __toESM(require_dist2(), 1);
+  eventsApi = new import_kalshi_typescript.EventsApi;
+  marketApi = new import_kalshi_typescript.MarketApi;
+});
+
+// src/kalshi/ingest.ts
+async function ingestEvents(seriesTicker, { status, withNestedMarkets = true } = {}) {
+  const events2 = [];
+  const milestones = [];
+  let cursor;
+  do {
+    const { data } = await eventsApi.getEvents(PAGE_LIMIT, cursor, withNestedMarkets, true, status, seriesTicker);
+    events2.push(...data.events);
+    milestones.push(...data.milestones ?? []);
+    cursor = data.cursor || undefined;
+  } while (cursor);
+  return { events: events2, milestones };
+}
+var PAGE_LIMIT = 200;
+var init_ingest = __esm(() => {
+  init_client();
+});
+
 // src/kalshi/series.ts
 function seriesTitle(seriesTicker) {
   const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.title;
@@ -30591,45 +30617,36 @@ var init_series = __esm(() => {
 });
 
 // src/utils/sync.ts
-init_drizzle_orm();
-init_db2();
-init_schema2();
-init_house();
-
-// src/kalshi/client.ts
-var import_kalshi_typescript = __toESM(require_dist2(), 1);
-var eventsApi = new import_kalshi_typescript.EventsApi;
-var marketApi = new import_kalshi_typescript.MarketApi;
-
-// src/kalshi/ingest.ts
-var PAGE_LIMIT = 200;
-async function ingestEvents(seriesTicker, { status, withNestedMarkets = true } = {}) {
-  const events2 = [];
-  const milestones = [];
-  let cursor;
-  do {
-    const { data } = await eventsApi.getEvents(PAGE_LIMIT, cursor, withNestedMarkets, true, status, seriesTicker);
-    events2.push(...data.events);
-    milestones.push(...data.milestones ?? []);
-    cursor = data.cursor || undefined;
-  } while (cursor);
-  return { events: events2, milestones };
-}
-
-// src/utils/sync.ts
-init_series();
-var cents = (dollars) => dollars == null || dollars === "" ? null : Math.round(parseFloat(dollars) * 100);
-var date3 = (iso) => iso ? new Date(iso) : null;
 async function sync(seriesTicker) {
   const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
     status: "open"
   });
   const milestoneByEvent = indexMilestones(milestones);
+  const mirrored = new Map((await db2.select({ eventTicker: events.eventTicker, startsAt: events.startsAt }).from(events).where(eq(events.seriesTicker, seriesTicker))).map((r) => [r.eventTicker, r.startsAt]));
+  const horizon = new Date(Date.now() + BETTABLE_HORIZON_MS + SYNC_LEAD_MS);
+  const menuVisible = (eventTicker) => {
+    if (!mirrored.has(eventTicker))
+      return false;
+    const storedStart = mirrored.get(eventTicker);
+    return storedStart == null || storedStart <= horizon;
+  };
+  let eventCount = 0;
   let marketCount = 0;
+  let skippedEvents = 0;
   let settledBets = 0;
   let voidedBets = 0;
   for (const event of kalshiEvents) {
-    await upsertEvent(event, milestoneByEvent.get(event.event_ticker));
+    const milestone = milestoneByEvent.get(event.event_ticker);
+    const startsAt = date3(milestone?.start_date);
+    const beyondHorizon = startsAt != null && startsAt > horizon;
+    if (beyondHorizon && !menuVisible(event.event_ticker)) {
+      skippedEvents++;
+      continue;
+    }
+    await upsertEvent(event, milestone);
+    eventCount++;
+    if (beyondHorizon)
+      continue;
     for (const market of event.markets ?? []) {
       await upsertMarket(event, market);
       marketCount++;
@@ -30643,8 +30660,9 @@ async function sync(seriesTicker) {
   }
   return {
     series: seriesTicker,
-    events: kalshiEvents.length,
+    events: eventCount,
     markets: marketCount,
+    skippedEvents,
     settledBets,
     voidedBets
   };
@@ -30757,8 +30775,21 @@ async function upsertMarket(event, market) {
     }
   });
 }
+var cents = (dollars) => dollars == null || dollars === "" ? null : Math.round(parseFloat(dollars) * 100), date3 = (iso) => iso ? new Date(iso) : null, BETTABLE_HORIZON_MS, SYNC_LEAD_MS;
+var init_sync = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_house();
+  init_ingest();
+  init_client();
+  init_series();
+  BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
+  SYNC_LEAD_MS = 6 * 60 * 60 * 1000;
+});
 
 // src/api/sync.ts
+init_sync();
 async function GET(request) {
   const auth = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {

@@ -13,10 +13,17 @@ const cents = (dollars?: string | null): number | null =>
 
 const date = (iso?: string | null): Date | null => (iso ? new Date(iso) : null);
 
+/** Menus only offer events kicking off within this window (see upcomingEvents). */
+export const BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
+// Mirror slightly past the bettable window so an event's row and prices are
+// already in Postgres by the time it first becomes visible in menus.
+const SYNC_LEAD_MS = 6 * 60 * 60 * 1000;
+
 export interface SeriesSyncStats {
   series: string;
   events: number;
   markets: number;
+  skippedEvents: number;
   settledBets: number;
   voidedBets: number;
 }
@@ -30,6 +37,14 @@ export interface SeriesSyncStats {
  * season (1,400+ events), almost all settled history that menus never show.
  * Markets that leave the sweep with bets still riding are caught by
  * settleOpenBetMarkets.
+ *
+ * Kalshi's events endpoint has no kickoff filter (start times live on
+ * milestones), so the full open list always comes over the wire — but only
+ * events starting within the bettable horizon are written to Postgres.
+ * Later events are picked up once they drift into the window. The one
+ * exception: an already-mirrored event whose row is menu-visible (kickoff
+ * within the horizon) stays updated even when Kalshi now says it starts
+ * later — a postponed game must not keep its stale kickoff in the menu.
  */
 export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
   const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
@@ -37,12 +52,46 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
   });
   const milestoneByEvent = indexMilestones(milestones);
 
+  const mirrored = new Map(
+    (
+      await db
+        .select({ eventTicker: events.eventTicker, startsAt: events.startsAt })
+        .from(events)
+        .where(eq(events.seriesTicker, seriesTicker))
+    ).map((r) => [r.eventTicker, r.startsAt]),
+  );
+  const horizon = new Date(Date.now() + BETTABLE_HORIZON_MS + SYNC_LEAD_MS);
+
+  // A mirrored row whose stored kickoff is unknown or inside the horizon
+  // could be showing in menus — keep it updated even if Kalshi now puts its
+  // start beyond the horizon. Rows already stored as far-future are
+  // invisible to menus, so they can wait with the rest.
+  const menuVisible = (eventTicker: string): boolean => {
+    if (!mirrored.has(eventTicker)) return false;
+    const storedStart = mirrored.get(eventTicker);
+    return storedStart == null || storedStart <= horizon;
+  };
+
+  let eventCount = 0;
   let marketCount = 0;
+  let skippedEvents = 0;
   let settledBets = 0;
   let voidedBets = 0;
 
   for (const event of kalshiEvents) {
-    await upsertEvent(event, milestoneByEvent.get(event.event_ticker));
+    const milestone = milestoneByEvent.get(event.event_ticker);
+    const startsAt = date(milestone?.start_date);
+    // Unknown start counts as in-horizon — only skip what we know is far out.
+    const beyondHorizon = startsAt != null && startsAt > horizon;
+    if (beyondHorizon && !menuVisible(event.event_ticker)) {
+      skippedEvents++;
+      continue;
+    }
+
+    await upsertEvent(event, milestone);
+    eventCount++;
+    if (beyondHorizon) continue; // row kept honest; markets can wait
+
     for (const market of event.markets ?? []) {
       await upsertMarket(event, market);
       marketCount++;
@@ -59,8 +108,9 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
 
   return {
     series: seriesTicker,
-    events: kalshiEvents.length,
+    events: eventCount,
     markets: marketCount,
+    skippedEvents,
     settledBets,
     voidedBets,
   };

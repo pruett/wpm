@@ -34,7 +34,10 @@ switch (cmd) {
         })()
       : await syncAll();
     for (const s of series) {
-      console.log(`synced ${s.events} events / ${s.markets} markets from ${s.series}`);
+      console.log(
+        `synced ${s.events} events / ${s.markets} markets from ${s.series}` +
+          (s.skippedEvents ? ` (${s.skippedEvents} beyond horizon)` : ""),
+      );
     }
     if (settledBets) console.log(`settled ${settledBets} bets`);
     if (voidedBets) console.log(`voided ${voidedBets} bets`);

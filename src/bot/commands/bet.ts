@@ -6,6 +6,7 @@ import { REGISTER_PROMPT, balanceCents, findUser, placeBet } from "../../utils/h
 import { telegramProfile, telegramProfileFromAction } from "../identity";
 import { formatDollars, formatEastern } from "../../utils/format";
 import { seriesRank, seriesTitle } from "../../kalshi/series";
+import { BETTABLE_HORIZON_MS } from "../../utils/sync";
 import type { BotCommand } from "./types";
 
 // Action ids; the tapped event/market ticker travels in the button's value.
@@ -129,7 +130,7 @@ export interface UpcomingEvent {
  */
 export async function upcomingEvents(): Promise<UpcomingEvent[]> {
   const now = new Date();
-  const horizon = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
 
   return db
     .selectDistinct({
