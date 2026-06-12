@@ -11,5 +11,5 @@
     "jsxImportSource": "chat",
     "types": ["bun"]
   },
-  "include": ["src", "api"]
+  "include": ["src"]
 }

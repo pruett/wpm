@@ -1,4 +1,6 @@
 {
+  "buildCommand": "bun run build:api",
+  "outputDirectory": "public",
   "crons": [
     {
       "path": "/api/sync",

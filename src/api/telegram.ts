@@ -1,4 +1,4 @@
-import { bot } from "../src/bot";
+import { bot } from "../bot";
 
 /**
  * Telegram webhook target. Register it once with setWebhook, passing the

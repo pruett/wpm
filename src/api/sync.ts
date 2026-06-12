@@ -1,4 +1,4 @@
-import { sync } from "../src/utils/sync";
+import { sync } from "../utils/sync";
 
 const SERIES_TICKER = process.env.KALSHI_SERIES ?? "KXWCGAME";
 

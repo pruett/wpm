@@ -3,7 +3,7 @@ import { balance } from "./balance";
 import { bets } from "./bets";
 import { help } from "./help";
 import { leaderboard } from "./leaderboard";
-import { bet } from "./markets";
+import { bet } from "./bet";
 import { start } from "./start";
 import type { BotCommand } from "./types";
 

@@ -6,6 +6,9 @@
     "dev": "bun --watch src/bot/server.ts",
     "start": "bun src/bot/server.ts",
     "cli": "bun src/utils/cli.ts",
+    "webhook": "bun src/utils/webhook.ts",
+    "build:api": "rm -f api/*.mjs && bun build src/api/sync.ts src/api/telegram.ts src/api/health.ts --outdir api --target node --format esm --external pg-native --entry-naming '[name].mjs'",
+    "deploy": "vercel deploy --prod",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"

@@ -12,7 +12,7 @@ import {
   handlePickAmount,
   handlePickEvent,
   handlePickOutcome,
-} from "./commands/markets";
+} from "./commands/bet";
 
 // The adapter reads TELEGRAM_BOT_TOKEN (and, for webhook verification,
 // TELEGRAM_WEBHOOK_SECRET_TOKEN) from the environment. Auto mode picks
