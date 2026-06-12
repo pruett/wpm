@@ -1,7 +1,7 @@
 import { sql } from "../db";
 
 // The Vercel cron (vercel.json) syncs every 5 minutes; within 3 intervals
-// the mirror is healthy — the same tolerance utils/house.ts uses to gate bets.
+// the mirror is healthy.
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_SYNC_AGE_MS = 3 * SYNC_INTERVAL_MS;
 

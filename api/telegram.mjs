@@ -5610,96 +5610,6 @@ var require_lib2 = __commonJS((exports, module) => {
   });
 });
 
-// src/bot/commands/mocks.ts
-function formatCents(cents) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-var MOCK_BETS, MOCK_BALANCE_CENTS;
-var init_mocks = __esm(() => {
-  MOCK_BETS = [
-    {
-      id: 1,
-      marketTicker: "KXWCGAME-26JUN27PANENG-ENG",
-      outcome: "England",
-      side: "yes",
-      contracts: 10,
-      priceCents: 77,
-      costCents: 770,
-      status: "open"
-    },
-    {
-      id: 2,
-      marketTicker: "KXWCGAME-26JUN16USAPAR-TIE",
-      outcome: "Tie",
-      side: "no",
-      contracts: 5,
-      priceCents: 73,
-      costCents: 365,
-      status: "open"
-    }
-  ];
-  MOCK_BALANCE_CENTS = 1e7 - 770 - 365;
-});
-
-// src/bot/commands/balance.ts
-var balance;
-var init_balance = __esm(() => {
-  init_mocks();
-  balance = {
-    name: "balance",
-    description: "Show your available balance",
-    usage: "/balance",
-    handler: async ({ thread }) => {
-      const atRiskCents = MOCK_BETS.filter((b2) => b2.status === "open").reduce((sum, b2) => sum + b2.costCents, 0);
-      await thread.post([
-        `Balance: ${formatCents(MOCK_BALANCE_CENTS)}`,
-        `At risk in open bets: ${formatCents(atRiskCents)}`
-      ].join(`
-`));
-    }
-  };
-});
-
-// src/bot/commands/bets.ts
-var bets;
-var init_bets = __esm(() => {
-  init_mocks();
-  bets = {
-    name: "bets",
-    description: "Show your open bets",
-    usage: "/bets",
-    handler: async ({ thread, message }) => {
-      const open = MOCK_BETS.filter((b2) => b2.status === "open");
-      if (open.length === 0) {
-        await thread.post("You have no open bets. Type /bet to place one.");
-        return;
-      }
-      const lines = [`Open bets for ${message.author.fullName}:`];
-      for (const bet of open) {
-        lines.push("", `#${bet.id} ${bet.outcome} ${bet.side.toUpperCase()} — ${bet.contracts} @ ${bet.priceCents}¢`, `  Cost ${formatCents(bet.costCents)}, pays ${formatCents(bet.contracts * 100)} (${bet.marketTicker})`);
-      }
-      await thread.post(lines.join(`
-`));
-    }
-  };
-});
-
-// src/bot/commands/help.ts
-var help;
-var init_help = __esm(() => {
-  help = {
-    name: "help",
-    description: "List available commands",
-    usage: "/help",
-    handler: async ({ thread }) => {
-      const { commands } = await Promise.resolve().then(() => (init_commands(), exports_commands));
-      const lines = commands.map((c2) => `${c2.usage} — ${c2.description}`);
-      await thread.post(["Commands:", "", ...lines].join(`
-`));
-    }
-  };
-});
-
 // node_modules/drizzle-orm/entity.js
 function is2(value, type) {
   if (!value || typeof value !== "object") {
@@ -13388,11 +13298,11 @@ __export(exports_schema, {
   ledgerKind: () => ledgerKind,
   ledger: () => ledger,
   events: () => events,
-  bets: () => bets2,
+  bets: () => bets,
   betStatus: () => betStatus,
   betSide: () => betSide
 });
-var betSide, betStatus, ledgerKind, events, markets, users, bets2, ledger;
+var betSide, betStatus, ledgerKind, events, markets, users, bets, ledger;
 var init_schema2 = __esm(() => {
   init_pg_core();
   betSide = pgEnum("bet_side", ["yes", "no"]);
@@ -13432,7 +13342,7 @@ var init_schema2 = __esm(() => {
     languageCode: text6("language_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   });
-  bets2 = pgTable("bets", {
+  bets = pgTable("bets", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     userId: integer("user_id").notNull().references(() => users.id),
     marketTicker: text6("market_ticker").notNull().references(() => markets.ticker),
@@ -13449,7 +13359,7 @@ var init_schema2 = __esm(() => {
     userId: integer("user_id").notNull().references(() => users.id),
     amountCents: integer("amount_cents").notNull(),
     kind: ledgerKind("kind").notNull(),
-    betId: integer("bet_id").references(() => bets2.id),
+    betId: integer("bet_id").references(() => bets.id),
     ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow()
   });
 });
@@ -13467,47 +13377,14 @@ var init_db2 = __esm(() => {
   db2 = drizzle(sql4, { schema: exports_schema });
 });
 
-// src/bot/commands/leaderboard.ts
-function displayName(u2) {
-  const full = [u2.firstName, u2.lastName].filter(Boolean).join(" ");
-  if (full)
-    return full;
-  if (u2.username)
-    return `@${u2.username}`;
-  return "Anonymous";
+// src/utils/format.ts
+function formatDollars(cents) {
+  const figure = (cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  });
+  return `$${figure}`;
 }
-var MEDALS, leaderboard;
-var init_leaderboard = __esm(() => {
-  init_drizzle_orm();
-  init_db2();
-  init_schema2();
-  init_mocks();
-  MEDALS = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"];
-  leaderboard = {
-    name: "leaderboard",
-    description: "Rank all players by current balance",
-    usage: "/leaderboard",
-    handler: async ({ thread }) => {
-      const balance2 = sum(ledger.amountCents);
-      const rows = await db2.select({
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        balanceCents: balance2
-      }).from(ledger).innerJoin(users, eq(users.id, ledger.userId)).groupBy(users.id).orderBy(desc(balance2));
-      if (rows.length === 0) {
-        await thread.post("No players yet — type /start to open an account.");
-        return;
-      }
-      const lines = rows.map((row, i) => {
-        const rank = MEDALS[i] ?? `${i + 1}.`;
-        return `${rank} ${displayName(row)} — ${formatCents(Number(row.balanceCents ?? 0))}`;
-      });
-      await thread.post(["\uD83C\uDFC6 Leaderboard", "", ...lines].join(`
-`));
-    }
-  };
-});
 
 // src/utils/house.ts
 async function findUser(profile) {
@@ -13566,31 +13443,28 @@ async function placeBet(profile, marketTicker, side, stakeCents) {
     throw new Error("betting locked: game has started");
   if (market.closeTime <= new Date)
     throw new Error("market is past its close time");
-  if (Date.now() - market.syncedAt.getTime() > MAX_PRICE_AGE_MS) {
-    throw new Error("prices are stale — try again after the next sync");
-  }
   const price = side === "yes" ? market.yesAsk : market.noAsk;
   if (!price || price <= 0 || price >= 100) {
     throw new Error(`no usable ${side} price for ${marketTicker}`);
   }
   const contracts = Math.floor(stakeCents / price);
   if (contracts < 1)
-    throw new Error(`stake too small: ${side} costs ${price}¢ per contract`);
+    throw new Error(`stake too small: ${side} shares cost ${price}¢ each`);
   const cost = contracts * price;
   if (await balanceCents(userId) < cost)
     throw new Error("insufficient balance");
   return db2.transaction(async (tx) => {
-    const [bet] = await tx.insert(bets2).values({ userId, marketTicker, side, contracts, priceCents: price, costCents: cost }).returning({ id: bets2.id });
+    const [bet] = await tx.insert(bets).values({ userId, marketTicker, side, contracts, priceCents: price, costCents: cost }).returning({ id: bets.id });
     await tx.insert(ledger).values({ userId, amountCents: -cost, kind: "bet_place", betId: bet.id });
     return { betId: bet.id, contracts, price, cost };
   });
 }
 async function settleMarketBets(marketTicker, result) {
   return db2.transaction(async (tx) => {
-    const open = await tx.select({ id: bets2.id, userId: bets2.userId, side: bets2.side, contracts: bets2.contracts }).from(bets2).where(and(eq(bets2.marketTicker, marketTicker), eq(bets2.status, "open"))).for("update");
+    const open = await tx.select({ id: bets.id, userId: bets.userId, side: bets.side, contracts: bets.contracts }).from(bets).where(and(eq(bets.marketTicker, marketTicker), eq(bets.status, "open"))).for("update");
     for (const bet of open) {
       const won = bet.side === result;
-      await tx.update(bets2).set({ status: won ? "won" : "lost", settledAt: sql`now()` }).where(eq(bets2.id, bet.id));
+      await tx.update(bets).set({ status: won ? "won" : "lost", settledAt: sql`now()` }).where(eq(bets.id, bet.id));
       if (won) {
         await tx.insert(ledger).values({
           userId: bet.userId,
@@ -13605,9 +13479,9 @@ async function settleMarketBets(marketTicker, result) {
 }
 async function voidMarketBets(marketTicker) {
   return db2.transaction(async (tx) => {
-    const open = await tx.select({ id: bets2.id, userId: bets2.userId, costCents: bets2.costCents }).from(bets2).where(and(eq(bets2.marketTicker, marketTicker), eq(bets2.status, "open"))).for("update");
+    const open = await tx.select({ id: bets.id, userId: bets.userId, costCents: bets.costCents }).from(bets).where(and(eq(bets.marketTicker, marketTicker), eq(bets.status, "open"))).for("update");
     for (const bet of open) {
-      await tx.update(bets2).set({ status: "voided", settledAt: sql`now()` }).where(eq(bets2.id, bet.id));
+      await tx.update(bets).set({ status: "voided", settledAt: sql`now()` }).where(eq(bets.id, bet.id));
       await tx.insert(ledger).values({
         userId: bet.userId,
         amountCents: bet.costCents,
@@ -13618,13 +13492,11 @@ async function voidMarketBets(marketTicker) {
     return open.length;
   });
 }
-var SEED_CENTS = 1e7, SYNC_INTERVAL_MS, MAX_PRICE_AGE_MS, REGISTER_PROMPT = "You must first register to place a bet. Type /start to get started.";
+var SEED_CENTS = 1e7, REGISTER_PROMPT = "You must first register to place a bet. Type /start to get started.";
 var init_house = __esm(() => {
   init_drizzle_orm();
   init_db2();
   init_schema2();
-  SYNC_INTERVAL_MS = 5 * 60 * 1000;
-  MAX_PRICE_AGE_MS = 3 * SYNC_INTERVAL_MS;
 });
 
 // src/bot/identity.ts
@@ -13649,10 +13521,166 @@ function telegramProfileFromAction(event) {
   };
 }
 
+// src/bot/commands/balance.ts
+var balance;
+var init_balance = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_house();
+  balance = {
+    name: "balance",
+    description: "Show your available balance",
+    usage: "/balance",
+    handler: async ({ thread, message }) => {
+      const userId = await findUser(telegramProfile(message));
+      if (userId == null) {
+        await thread.post(REGISTER_PROMPT);
+        return;
+      }
+      const [row] = await db2.select({ total: sum(bets.costCents) }).from(bets).where(and(eq(bets.userId, userId), eq(bets.status, "open")));
+      const atRiskCents = Number(row?.total ?? 0);
+      await thread.post([
+        `Balance: ${formatDollars(await balanceCents(userId))}`,
+        `At risk in open bets: ${formatDollars(atRiskCents)}`
+      ].join(`
+`));
+    }
+  };
+});
+
+// src/bot/commands/bets.ts
+var bets2;
+var init_bets = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  init_house();
+  bets2 = {
+    name: "bets",
+    description: "Show your open bets",
+    usage: "/bets",
+    handler: async ({ thread, message }) => {
+      const userId = await findUser(telegramProfile(message));
+      if (userId == null) {
+        await thread.post(REGISTER_PROMPT);
+        return;
+      }
+      const open = await db2.select({
+        id: bets.id,
+        marketTicker: bets.marketTicker,
+        outcome: markets.outcome,
+        side: bets.side,
+        contracts: bets.contracts,
+        priceCents: bets.priceCents,
+        costCents: bets.costCents
+      }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).where(and(eq(bets.userId, userId), eq(bets.status, "open"))).orderBy(asc(bets.id));
+      if (open.length === 0) {
+        await thread.post("You have no open bets. Type /bet to place one.");
+        return;
+      }
+      const lines = [`Open bets for ${message.author.fullName}:`];
+      for (const bet of open) {
+        lines.push("", `#${bet.id} ${bet.outcome} ${bet.side.toUpperCase()} — ${bet.contracts} shares @ ${bet.priceCents}¢`, `  Cost ${formatDollars(bet.costCents)}, pays ${formatDollars(bet.contracts * 100)} (${bet.marketTicker})`);
+      }
+      await thread.post(lines.join(`
+`));
+    }
+  };
+});
+
+// src/bot/commands/help.ts
+var help;
+var init_help = __esm(() => {
+  help = {
+    name: "help",
+    description: "List available commands",
+    usage: "/help",
+    handler: async ({ thread }) => {
+      const { commands } = await Promise.resolve().then(() => (init_commands(), exports_commands));
+      const lines = commands.map((c2) => `${c2.usage} — ${c2.description}`);
+      await thread.post(["Commands:", "", ...lines].join(`
+`));
+    }
+  };
+});
+
+// src/bot/commands/leaderboard.ts
+function displayName(u2) {
+  const full = [u2.firstName, u2.lastName].filter(Boolean).join(" ");
+  if (full)
+    return full;
+  if (u2.username)
+    return `@${u2.username}`;
+  return "Anonymous";
+}
+var MEDALS, leaderboard;
+var init_leaderboard = __esm(() => {
+  init_drizzle_orm();
+  init_db2();
+  init_schema2();
+  MEDALS = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"];
+  leaderboard = {
+    name: "leaderboard",
+    description: "Rank all players by current balance",
+    usage: "/leaderboard",
+    handler: async ({ thread }) => {
+      const balance2 = sum(ledger.amountCents);
+      const rows = await db2.select({
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        balanceCents: balance2
+      }).from(ledger).innerJoin(users, eq(users.id, ledger.userId)).groupBy(users.id).orderBy(desc(balance2));
+      if (rows.length === 0) {
+        await thread.post("No players yet — type /start to open an account.");
+        return;
+      }
+      const lines = rows.map((row, i) => {
+        const rank = MEDALS[i] ?? `${i + 1}.`;
+        return `${rank} ${displayName(row)} — ${formatDollars(Number(row.balanceCents ?? 0))}`;
+      });
+      await thread.post(["\uD83C\uDFC6 Leaderboard", "", ...lines].join(`
+`));
+    }
+  };
+});
+
 // src/bot/commands/bet.ts
-function trackMenu(threadId, sent) {
-  menuByMessage.set(sent.id, sent);
-  menuByThread.set(threadId, sent);
+async function getBetState(thread) {
+  return await thread.state;
+}
+async function getPendingPick(thread, userId) {
+  return (await getBetState(thread))?.pendingPicks?.[userId] ?? null;
+}
+async function setPendingPick(thread, userId, pick) {
+  const state = await getBetState(thread);
+  await thread.setState({
+    pendingPicks: { ...state?.pendingPicks, [userId]: pick }
+  });
+}
+async function clearPendingPick(thread, userId) {
+  const state = await getBetState(thread);
+  if (!state?.pendingPicks?.[userId])
+    return;
+  const { [userId]: _, ...rest } = state.pendingPicks;
+  await thread.setState({ pendingPicks: rest });
+}
+async function setMenu(thread, userId, messageId) {
+  const state = await getBetState(thread);
+  await thread.setState({
+    menus: { ...state?.menus, [userId]: messageId }
+  });
+}
+function menuOwner(state, messageId) {
+  for (const [userId, id] of Object.entries(state?.menus ?? {})) {
+    if (id === messageId)
+      return userId;
+  }
+  return null;
+}
+function menuHandle(thread, messageId) {
+  return thread.createSentMessageFromMessage({ id: messageId });
 }
 function seriesTitle(seriesTicker) {
   const known = SERIES_TITLES[seriesTicker];
@@ -13664,7 +13692,7 @@ function seriesTitle(seriesTicker) {
 function kickoffLabel(startsAt) {
   return startsAt ? startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "TBD";
 }
-async function eventsCard() {
+async function eventsCard(ownerName) {
   const now = new Date;
   const horizon = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
   const rows = await db2.selectDistinct({
@@ -13680,7 +13708,7 @@ async function eventsCard() {
     children: [
       {
         type: "text",
-        content: `${seriesTitle(rows[0].seriesTicker)} — choose an event`,
+        content: `${seriesTitle(rows[0].seriesTicker)} — ${ownerName}, choose an event`,
         style: "bold"
       },
       ...rows.map((e) => ({
@@ -13697,7 +13725,7 @@ async function eventsCard() {
     ]
   };
 }
-async function outcomesCard(eventTicker) {
+async function outcomesCard(eventTicker, ownerName) {
   const outcomes = await db2.select({
     ticker: markets.ticker,
     outcome: markets.outcome,
@@ -13711,16 +13739,18 @@ async function outcomesCard(eventTicker) {
   return {
     type: "card",
     children: [
-      { type: "text", content: `${title} — ${kickoffLabel(startsAt)}`, style: "bold" },
-      {
+      { type: "text", content: `${ownerName}: ${title} — ${kickoffLabel(startsAt)}`, style: "bold" },
+      ...outcomes.map((m2) => ({
         type: "actions",
-        children: outcomes.map((m2) => ({
-          type: "button",
-          id: PICK_OUTCOME_ACTION,
-          label: `${m2.outcome} ${m2.yesAsk ?? "—"}¢`,
-          value: m2.ticker
-        }))
-      },
+        children: [
+          {
+            type: "button",
+            id: PICK_OUTCOME_ACTION,
+            label: `${m2.outcome} @ ${m2.yesAsk ?? "—"}¢`,
+            value: m2.ticker
+          }
+        ]
+      })),
       {
         type: "actions",
         children: [
@@ -13730,15 +13760,34 @@ async function outcomesCard(eventTicker) {
     ]
   };
 }
+function presetLabel(shares, priceCents) {
+  const count = `${shares.toLocaleString("en-US")} shares`;
+  return priceCents == null ? count : `${count} — ${formatDollars(shares * priceCents)}`;
+}
 function amountTitle(pick, userName, balance2) {
   return {
     type: "text",
-    content: `${userName} (${formatCents(balance2)}): how much on ${pick.outcome}?`,
+    content: `${userName} (balance: ${formatDollars(balance2)}): how much on ${pick.outcome}?`,
     style: "bold"
   };
 }
 function noteLine(note) {
   return note ? [{ type: "text", content: note }] : [];
+}
+function priceExplainer(pick) {
+  if (pick.priceCents == null)
+    return [];
+  const price = pick.priceCents;
+  return [
+    {
+      type: "text",
+      content: `${pick.outcome} @ ${price}¢ — your stake buys ${pick.outcome} shares at ` + `${formatDollars(price)} each; every share pays ${formatDollars(100)} if ${pick.outcome} wins.`
+    },
+    {
+      type: "text",
+      content: `Example: 100 shares costs ${formatDollars(price * 100)} and pays ${formatDollars(1e4)} ` + `on a win (≈${price}% chance).`
+    }
+  ];
 }
 function amountPickerCard(pick, userName, balance2, note) {
   const amountButton = (label, spec) => ({
@@ -13752,10 +13801,11 @@ function amountPickerCard(pick, userName, balance2, note) {
     children: [
       ...noteLine(note),
       amountTitle(pick, userName, balance2),
-      {
+      ...priceExplainer(pick),
+      ...PRESET_SHARES.map((shares) => ({
         type: "actions",
-        children: PRESET_DOLLARS.map((dollars) => amountButton(`$${dollars.toLocaleString("en-US")}`, String(dollars * 100)))
-      },
+        children: [amountButton(presetLabel(shares, pick.priceCents), `${shares}s`)]
+      })),
       {
         type: "actions",
         children: [amountButton("MAX", "max"), amountButton("Custom amount…", "custom")]
@@ -13780,6 +13830,7 @@ function customAmountCard(pick, userName, balance2, note) {
     children: [
       ...noteLine(note),
       amountTitle(pick, userName, balance2),
+      ...priceExplainer(pick),
       { type: "text", content: `Reply with a dollar amount, e.g. 50 — or "cancel".` },
       {
         type: "actions",
@@ -13795,49 +13846,84 @@ function customAmountCard(pick, userName, balance2, note) {
     ]
   };
 }
+function isNotModified(err) {
+  return String(err).includes("not modified");
+}
 async function showView(event, card) {
-  const existing = menuByMessage.get(event.messageId);
-  if (existing) {
-    await existing.edit({ card, fallbackText: MENU_FALLBACK });
+  if (!event.thread)
     return;
-  }
-  if (event.thread) {
-    trackMenu(event.threadId, await event.thread.post({ card, fallbackText: MENU_FALLBACK }));
+  try {
+    await menuHandle(event.thread, event.messageId).edit({ card, fallbackText: MENU_FALLBACK });
+  } catch (err) {
+    if (isNotModified(err))
+      return;
+    const sent = await event.thread.post({ card, fallbackText: MENU_FALLBACK });
+    await setMenu(event.thread, event.user.userId, sent.id);
   }
 }
-async function editMenu(menuMessageId, card) {
-  const menu = menuByMessage.get(menuMessageId);
-  if (!menu)
+async function editMenu(thread, menuMessageId, card) {
+  try {
+    await menuHandle(thread, menuMessageId).edit({ card, fallbackText: MENU_FALLBACK });
+    return true;
+  } catch (err) {
+    return isNotModified(err);
+  }
+}
+async function claimMenu(event) {
+  if (!event.thread)
     return false;
-  await menu.edit({ card, fallbackText: MENU_FALLBACK });
-  return true;
+  const owner = menuOwner(await getBetState(event.thread), event.messageId);
+  if (owner === event.user.userId)
+    return true;
+  if (owner == null) {
+    await setMenu(event.thread, event.user.userId, event.messageId);
+    return true;
+  }
+  await event.thread.post(`${event.user.fullName}: that menu belongs to someone else — type /bet to get your own.`);
+  return false;
 }
 async function handlePickEvent(event) {
   if (!event.value)
     return;
-  const card = await outcomesCard(event.value);
+  if (!await claimMenu(event))
+    return;
+  const card = await outcomesCard(event.value, event.user.fullName);
   if (!card) {
-    await showView(event, await eventsCard() ?? emptyCard());
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
     return;
   }
   await showView(event, card);
 }
 async function handleBackToEvents(event) {
-  await showView(event, await eventsCard() ?? emptyCard());
+  if (!await claimMenu(event))
+    return;
+  await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
 }
 async function loadPick(ticker, menuMessageId) {
-  const [market] = await db2.select({ outcome: markets.outcome, eventTicker: markets.eventTicker }).from(markets).where(eq(markets.ticker, ticker)).limit(1);
+  const [market] = await db2.select({
+    outcome: markets.outcome,
+    eventTicker: markets.eventTicker,
+    yesAsk: markets.yesAsk
+  }).from(markets).where(eq(markets.ticker, ticker)).limit(1);
   if (!market)
     return null;
-  return { ticker, outcome: market.outcome, eventTicker: market.eventTicker, menuMessageId };
+  return {
+    ticker,
+    outcome: market.outcome,
+    eventTicker: market.eventTicker,
+    priceCents: market.yesAsk,
+    menuMessageId
+  };
 }
 async function handlePickOutcome(event) {
   const ticker = event.value;
   if (!ticker)
     return;
+  if (!await claimMenu(event))
+    return;
   const pick = await loadPick(ticker, event.messageId);
   if (!pick) {
-    await showView(event, await eventsCard() ?? emptyCard());
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
     return;
   }
   const userId = await findUser(telegramProfileFromAction(event));
@@ -13845,7 +13931,8 @@ async function handlePickOutcome(event) {
     await event.thread?.post(`${event.user.fullName}: ${REGISTER_PROMPT}`);
     return;
   }
-  pendingPicks.set(`${event.threadId}:${event.user.userId}`, pick);
+  if (event.thread)
+    await setPendingPick(event.thread, event.user.userId, pick);
   const balance2 = await balanceCents(userId);
   await showView(event, amountPickerCard(pick, event.user.fullName, balance2));
 }
@@ -13853,12 +13940,13 @@ async function handlePickAmount(event) {
   const [ticker, spec] = (event.value ?? "").split("|");
   if (!ticker || !spec)
     return;
+  if (!await claimMenu(event))
+    return;
   const pick = await loadPick(ticker, event.messageId);
   if (!pick) {
-    await showView(event, await eventsCard() ?? emptyCard());
+    await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
     return;
   }
-  const key = `${event.threadId}:${event.user.userId}`;
   const userName = event.user.fullName;
   const profile = telegramProfileFromAction(event);
   const userId = await findUser(profile);
@@ -13868,57 +13956,67 @@ async function handlePickAmount(event) {
   }
   const balance2 = await balanceCents(userId);
   if (spec === "custom") {
-    pendingPicks.set(key, pick);
+    if (event.thread)
+      await setPendingPick(event.thread, event.user.userId, pick);
     await showView(event, customAmountCard(pick, userName, balance2));
     return;
   }
-  const stakeCents = spec === "max" ? balance2 : Number(spec);
+  let stakeCents;
+  if (spec === "max") {
+    stakeCents = balance2;
+  } else if (spec.endsWith("s")) {
+    const shares = Number(spec.slice(0, -1));
+    stakeCents = Number.isInteger(shares) && pick.priceCents != null ? shares * pick.priceCents : Number.NaN;
+  } else {
+    stakeCents = Number(spec);
+  }
   if (!Number.isInteger(stakeCents) || stakeCents <= 0) {
-    const note = spec === "max" ? `MAX needs a positive balance.` : `That amount didn't parse.`;
+    const note = spec === "max" ? `MAX needs a positive balance.` : spec.endsWith("s") ? `No live price for ${pick.outcome} right now — try again after the next sync.` : `That amount didn't parse.`;
     await showView(event, amountPickerCard(pick, userName, balance2, note));
     return;
   }
   if (stakeCents > balance2) {
-    await showView(event, amountPickerCard(pick, userName, balance2, `Not enough funds — your balance is ${formatCents(balance2)}.`));
+    await showView(event, amountPickerCard(pick, userName, balance2, `Not enough funds — your balance is ${formatDollars(balance2)}.`));
     return;
   }
   try {
     const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
-    pendingPicks.delete(key);
-    await showView(event, await eventsCard() ?? emptyCard());
-    await event.thread?.post(`✅ ${userName}: ${pick.outcome} — ${contracts} @ ${price}¢ = ${formatCents(cost)}, pays ${formatCents(contracts * 100)}`);
+    if (event.thread)
+      await clearPendingPick(event.thread, event.user.userId);
+    await showView(event, await eventsCard(userName) ?? emptyCard());
+    await event.thread?.post(`✅ ${userName} bought ${contracts.toLocaleString("en-US")} ${pick.outcome} shares @ ${price}¢ for ${formatDollars(cost)} — pays ${formatDollars(contracts * 100)} if ${pick.outcome} wins`);
   } catch (err) {
     await showView(event, amountPickerCard(pick, userName, balance2, `Couldn't place that bet: ${err instanceof Error ? err.message : err}`));
   }
 }
 async function handleBetReply(thread, message) {
-  const key = `${message.threadId}:${message.author.userId}`;
-  const pick = pendingPicks.get(key);
+  const pick = await getPendingPick(thread, message.author.userId);
   if (!pick)
     return false;
   const userName = message.author.fullName;
   const text8 = message.text?.trim() ?? "";
   const backToEvents = async () => {
-    const card = await eventsCard() ?? emptyCard();
-    if (!await editMenu(pick.menuMessageId, card)) {
-      await thread.post({ card, fallbackText: MENU_FALLBACK });
+    const card = await eventsCard(userName) ?? emptyCard();
+    if (!await editMenu(thread, pick.menuMessageId, card)) {
+      const sent = await thread.post({ card, fallbackText: MENU_FALLBACK });
+      await setMenu(thread, message.author.userId, sent.id);
     }
   };
   if (/^cancel$/i.test(text8)) {
-    pendingPicks.delete(key);
+    await clearPendingPick(thread, message.author.userId);
     await backToEvents();
     return true;
   }
   const profile = telegramProfile(message);
   const userId = await findUser(profile);
   if (userId == null) {
-    pendingPicks.delete(key);
+    await clearPendingPick(thread, message.author.userId);
     await thread.post(`${userName}: ${REGISTER_PROMPT}`);
     return true;
   }
   const balance2 = await balanceCents(userId);
   const reprompt = async (note) => {
-    if (!await editMenu(pick.menuMessageId, customAmountCard(pick, userName, balance2, note))) {
+    if (!await editMenu(thread, pick.menuMessageId, customAmountCard(pick, userName, balance2, note))) {
       await thread.post(note);
     }
   };
@@ -13929,16 +14027,15 @@ async function handleBetReply(thread, message) {
   }
   const stakeCents = Math.round(dollars * 100);
   if (stakeCents > balance2) {
-    await reprompt(`Not enough funds — your balance is ${formatCents(balance2)}.`);
+    await reprompt(`Not enough funds — your balance is ${formatDollars(balance2)}.`);
     return true;
   }
-  pendingPicks.delete(key);
   try {
     const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
+    await clearPendingPick(thread, message.author.userId);
     await backToEvents();
-    await thread.post(`✅ ${userName}: ${pick.outcome} — ${contracts} @ ${price}¢ = ${formatCents(cost)}, pays ${formatCents(contracts * 100)}`);
+    await thread.post(`✅ ${userName} bought ${contracts.toLocaleString("en-US")} ${pick.outcome} shares @ ${price}¢ for ${formatDollars(cost)} — pays ${formatDollars(contracts * 100)} if ${pick.outcome} wins`);
   } catch (err) {
-    pendingPicks.set(key, pick);
     await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);
   }
   return true;
@@ -13949,37 +14046,34 @@ function emptyCard() {
     children: [{ type: "text", content: "No markets available — run a sync first." }]
   };
 }
-var PICK_EVENT_ACTION = "pick_event", PICK_OUTCOME_ACTION = "pick_outcome", PICK_AMOUNT_ACTION = "pick_amount", BACK_TO_EVENTS_ACTION = "back_events", menuByMessage, menuByThread, pendingPicks, SERIES_TITLES, PRESET_DOLLARS, MENU_FALLBACK = "Betting menu (buttons not supported here).", bet;
+var PICK_EVENT_ACTION = "pick_event", PICK_OUTCOME_ACTION = "pick_outcome", PICK_AMOUNT_ACTION = "pick_amount", BACK_TO_EVENTS_ACTION = "back_events", SERIES_TITLES, PRESET_SHARES, MENU_FALLBACK = "Betting menu (buttons not supported here).", bet;
 var init_bet = __esm(() => {
   init_drizzle_orm();
   init_db2();
   init_schema2();
   init_house();
-  init_mocks();
-  menuByMessage = new Map;
-  menuByThread = new Map;
-  pendingPicks = new Map;
   SERIES_TITLES = {
     KXWCGAME: "World Cup 2026 Games"
   };
-  PRESET_DOLLARS = [100, 500, 1000, 5000];
+  PRESET_SHARES = [100, 500, 1000, 5000];
   bet = {
     name: "bet",
     description: "Browse events and place a bet",
     usage: "/bet",
     handler: async ({ thread, message }) => {
-      const card = await eventsCard();
+      const card = await eventsCard(message.author.fullName);
       if (!card) {
         await thread.post("No markets in the database yet — run a sync first.");
         return;
       }
-      const previous3 = menuByThread.get(message.threadId);
-      if (previous3) {
-        menuByMessage.delete(previous3.id);
-        menuByThread.delete(message.threadId);
-        await previous3.delete().catch(() => {});
+      const userId = message.author.userId;
+      const previousId = (await getBetState(thread))?.menus?.[userId];
+      if (previousId) {
+        await menuHandle(thread, previousId).delete().catch(() => {});
       }
-      trackMenu(message.threadId, await thread.post({ card, fallbackText: MENU_FALLBACK }));
+      await clearPendingPick(thread, userId);
+      const sent = await thread.post({ card, fallbackText: MENU_FALLBACK });
+      await setMenu(thread, userId, sent.id);
     }
   };
 });
@@ -13988,14 +14082,13 @@ var init_bet = __esm(() => {
 var WELCOME_GIF = "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif", start;
 var init_start = __esm(() => {
   init_house();
-  init_mocks();
   start = {
     name: "start",
-    description: "Collect your WPM and start betting",
+    description: "Collect your bankroll and start betting",
     usage: "/start",
     handler: async ({ thread, message }) => {
       const { userId, created } = await registerUser(telegramProfile(message));
-      const balance2 = formatCents(await balanceCents(userId));
+      const balance2 = formatDollars(await balanceCents(userId));
       if (!created) {
         await thread.post([
           `Welcome back, ${message.author.fullName}! Your balance is ${balance2}.`,
@@ -14045,7 +14138,7 @@ var init_commands = __esm(() => {
   init_leaderboard();
   init_bet();
   init_start();
-  commands = [start, help, bet, bets, balance, leaderboard];
+  commands = [start, help, bet, bets2, balance, leaderboard];
   byName = new Map(commands.map((c2) => [c2.name, c2]));
   COMMAND_RE = /^\/([a-z0-9_]+)(?:@\S+)?(?:\s+([\s\S]*))?$/i;
 });

@@ -11,6 +11,7 @@
     "deploy": "vercel deploy --prod",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:studio:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && drizzle-kit studio",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

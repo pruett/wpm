@@ -53,8 +53,9 @@ bot.onDirectMessage(async (thread, message) => {
   await thread.post("Hello! I respond to slash commands — try /help.");
 });
 
-// The /bet menu is one message that edits itself as users navigate:
-// event list → outcomes → amount picker → back to event list.
+// Each user gets their own /bet menu — one message per user that edits
+// itself as its owner navigates: event list → outcomes → amount picker →
+// back to event list. Only the owner's taps move their menu.
 bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
 bot.onAction(PICK_OUTCOME_ACTION, handlePickOutcome);
 bot.onAction(PICK_AMOUNT_ACTION, handlePickAmount);

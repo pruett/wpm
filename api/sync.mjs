@@ -7870,16 +7870,13 @@ async function placeBet(profile, marketTicker, side, stakeCents) {
     throw new Error("betting locked: game has started");
   if (market.closeTime <= new Date)
     throw new Error("market is past its close time");
-  if (Date.now() - market.syncedAt.getTime() > MAX_PRICE_AGE_MS) {
-    throw new Error("prices are stale — try again after the next sync");
-  }
   const price = side === "yes" ? market.yesAsk : market.noAsk;
   if (!price || price <= 0 || price >= 100) {
     throw new Error(`no usable ${side} price for ${marketTicker}`);
   }
   const contracts = Math.floor(stakeCents / price);
   if (contracts < 1)
-    throw new Error(`stake too small: ${side} costs ${price}¢ per contract`);
+    throw new Error(`stake too small: ${side} shares cost ${price}¢ each`);
   const cost = contracts * price;
   if (await balanceCents(userId) < cost)
     throw new Error("insufficient balance");
@@ -7922,13 +7919,11 @@ async function voidMarketBets(marketTicker) {
     return open.length;
   });
 }
-var SEED_CENTS = 1e7, SYNC_INTERVAL_MS, MAX_PRICE_AGE_MS, REGISTER_PROMPT = "You must first register to place a bet. Type /start to get started.";
+var SEED_CENTS = 1e7, REGISTER_PROMPT = "You must first register to place a bet. Type /start to get started.";
 var init_house = __esm(() => {
   init_drizzle_orm();
   init_db2();
   init_schema2();
-  SYNC_INTERVAL_MS = 5 * 60 * 1000;
-  MAX_PRICE_AGE_MS = 3 * SYNC_INTERVAL_MS;
 });
 
 // node_modules/delayed-stream/lib/delayed_stream.js

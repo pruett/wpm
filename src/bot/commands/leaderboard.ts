@@ -1,7 +1,7 @@
 import { desc, eq, sum } from "drizzle-orm";
 import { db } from "../../db";
 import { ledger, users } from "../../db/schema";
-import { formatCents } from "./mocks";
+import { formatDollars } from "../../utils/format";
 import type { BotCommand } from "./types";
 
 // Display only — usernames are mutable, so this is never used as identity.
@@ -43,7 +43,7 @@ export const leaderboard: BotCommand = {
 
     const lines = rows.map((row, i) => {
       const rank = MEDALS[i] ?? `${i + 1}.`;
-      return `${rank} ${displayName(row)} — ${formatCents(Number(row.balanceCents ?? 0))}`;
+      return `${rank} ${displayName(row)} — ${formatDollars(Number(row.balanceCents ?? 0))}`;
     });
     await thread.post(["🏆 Leaderboard", "", ...lines].join("\n"));
   },

@@ -4,12 +4,6 @@ import { bets, events, ledger, markets, users } from "../db/schema";
 
 const SEED_CENTS = 10_000_000; // every new user starts with $100,000 of fake money
 
-// Refuse to execute against a stale price mirror (e.g. the sync cron died).
-// The Vercel cron (vercel.json) syncs every 5 minutes; 3× the interval lets
-// one run fail or arrive late without blocking bets.
-const SYNC_INTERVAL_MS = 5 * 60 * 1000;
-const MAX_PRICE_AGE_MS = 3 * SYNC_INTERVAL_MS;
-
 export type BetSide = "yes" | "no";
 
 /**
@@ -120,9 +114,6 @@ export async function placeBet(
   // Kalshi trades sports in-play, so an active market is not enough — lock at kickoff.
   if (startsAt && startsAt <= new Date()) throw new Error("betting locked: game has started");
   if (market.closeTime <= new Date()) throw new Error("market is past its close time");
-  if (Date.now() - market.syncedAt.getTime() > MAX_PRICE_AGE_MS) {
-    throw new Error("prices are stale — try again after the next sync");
-  }
 
   const price = side === "yes" ? market.yesAsk : market.noAsk;
   if (!price || price <= 0 || price >= 100) {
@@ -130,7 +121,7 @@ export async function placeBet(
   }
 
   const contracts = Math.floor(stakeCents / price);
-  if (contracts < 1) throw new Error(`stake too small: ${side} costs ${price}¢ per contract`);
+  if (contracts < 1) throw new Error(`stake too small: ${side} shares cost ${price}¢ each`);
   const cost = contracts * price;
 
   if ((await balanceCents(userId)) < cost) throw new Error("insufficient balance");

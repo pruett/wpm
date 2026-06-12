@@ -1,6 +1,6 @@
+import { formatDollars } from "../../utils/format";
 import { balanceCents, registerUser } from "../../utils/house";
 import { telegramProfile } from "../identity";
-import { formatCents } from "./mocks";
 import type { BotCommand } from "./types";
 
 // Posted as its own message so Telegram's link preview renders it animated —
@@ -12,11 +12,11 @@ const WELCOME_GIF = "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif";
 // the bankroll; a later /start is a plain re-orientation.
 export const start: BotCommand = {
   name: "start",
-  description: "Collect your WPM and start betting",
+  description: "Collect your bankroll and start betting",
   usage: "/start",
   handler: async ({ thread, message }) => {
     const { userId, created } = await registerUser(telegramProfile(message));
-    const balance = formatCents(await balanceCents(userId));
+    const balance = formatDollars(await balanceCents(userId));
 
     if (!created) {
       await thread.post(
