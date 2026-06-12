@@ -13,6 +13,12 @@ import {
   handlePickEvent,
   handlePickOutcome,
 } from "./commands/bet";
+import {
+  BETS_BACK_ACTION,
+  BETS_PICK_EVENT_ACTION,
+  handleBetsBack,
+  handleBetsPickEvent,
+} from "./commands/bets";
 
 // The adapter reads TELEGRAM_BOT_TOKEN (and, for webhook verification,
 // TELEGRAM_WEBHOOK_SECRET_TOKEN) from the environment. Auto mode picks
@@ -60,6 +66,11 @@ bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
 bot.onAction(PICK_OUTCOME_ACTION, handlePickOutcome);
 bot.onAction(PICK_AMOUNT_ACTION, handlePickAmount);
 bot.onAction(BACK_TO_EVENTS_ACTION, handleBackToEvents);
+
+// /bets is a shared read-only card: event list with open-bet counts that
+// drills into per-event bet lists. Anyone may navigate it.
+bot.onAction(BETS_PICK_EVENT_ACTION, handleBetsPickEvent);
+bot.onAction(BETS_BACK_ACTION, handleBetsBack);
 
 // Slash command in a group thread we aren't subscribed to. Subscription
 // state is in-memory and wiped on every dev restart — without this, group

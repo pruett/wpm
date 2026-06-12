@@ -4,11 +4,11 @@ import { db } from "../../db";
 import { events, markets as marketsTable } from "../../db/schema";
 import { REGISTER_PROMPT, balanceCents, findUser, placeBet } from "../../utils/house";
 import { telegramProfile, telegramProfileFromAction } from "../identity";
-import { formatDollars } from "../../utils/format";
+import { formatDollars, formatEastern } from "../../utils/format";
 import type { BotCommand } from "./types";
 
 // Action ids; the tapped event/market ticker travels in the button's value.
-// Amount buttons carry `${ticker}|${shares}s` (or `|max` / `|custom`) — Telegram
+// Amount buttons carry `${ticker}|${shares}s` (or `|custom`) — Telegram
 // caps callback data at 64 bytes, and ticker + delimiter + amount still fits.
 // All registered via bot.onAction in src/bot/index.ts.
 export const PICK_EVENT_ACTION = "pick_event";
@@ -87,13 +87,13 @@ function menuOwner(state: BetState | null, messageId: string): string | null {
  * invocation. The SDK only needs the message id for edit/delete, so a
  * stub Message is enough.
  */
-function menuHandle(thread: Thread<unknown>, messageId: string): SentMessage {
+export function menuHandle(thread: Thread<unknown>, messageId: string): SentMessage {
   return thread.createSentMessageFromMessage({ id: messageId } as unknown as Message);
 }
 
 // Kalshi series tickers → friendly titles for the menu header.
 const SERIES_TITLES: Record<string, string> = {
-  KXWCGAME: "World Cup 2026 Games",
+  KXWCGAME: "⚽️ World Cup 2026 Games",
 };
 
 // Unknown series fall back to the raw ticker minus Kalshi's "KX" prefix,
@@ -105,32 +105,28 @@ export function seriesTitle(seriesTicker: string): string {
   return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
 }
 
-// Kickoffs are stored as UTC instants; render them in US Eastern so a
-// 9pm ET game doesn't show as the next day on UTC servers like Vercel.
-function kickoffLabel(startsAt: Date | null): string {
-  return startsAt
-    ? startsAt.toLocaleString("en-US", {
-        timeZone: "America/New_York",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : "TBD";
+export function kickoffLabel(startsAt: Date | null): string {
+  return startsAt ? formatEastern(startsAt) : "TBD";
 }
 
-// --- Card builders (views of the menu) ---
+export interface UpcomingEvent {
+  eventTicker: string;
+  seriesTicker: string;
+  title: string;
+  startsAt: Date | null;
+}
 
-// Event list: one full-width button per row so titles don't get ellipsized.
-// Only viable, bettable events: game not started, kicking off within the
-// next 2 days (betting locks at kickoff, so past starts are out too).
-// Sorted most urgent first — soonest kickoff at the top. The owner's name
-// in the header marks whose menu this is — menus are per-user.
-async function eventsCard(ownerName: string): Promise<CardElement | null> {
+/**
+ * Viable, bettable events for menus (/bet, /bets): game not started,
+ * kicking off within the next 2 days (betting locks at kickoff, so past
+ * starts are out too). Sorted most urgent first — soonest kickoff at the
+ * top. Only events that actually have markets in the mirror.
+ */
+export async function upcomingEvents(): Promise<UpcomingEvent[]> {
   const now = new Date();
   const horizon = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
-  const rows = await db
+  return db
     .selectDistinct({
       eventTicker: events.eventTicker,
       seriesTicker: events.seriesTicker,
@@ -147,7 +143,15 @@ async function eventsCard(ownerName: string): Promise<CardElement | null> {
       ),
     )
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
+}
 
+// --- Card builders (views of the menu) ---
+
+// Event list: one full-width button per row so titles don't get ellipsized.
+// The owner's name in the header marks whose menu this is — menus are
+// per-user.
+async function eventsCard(ownerName: string): Promise<CardElement | null> {
+  const rows = await upcomingEvents();
   if (rows.length === 0) return null;
 
   return {
@@ -155,7 +159,7 @@ async function eventsCard(ownerName: string): Promise<CardElement | null> {
     children: [
       {
         type: "text",
-        content: `${seriesTitle(rows[0]!.seriesTicker)} — ${ownerName}, choose an event`,
+        content: `${seriesTitle(rows[0]!.seriesTicker)} — ${ownerName}, select an event and place your bet`,
         style: "bold",
       },
       ...rows.map((e) => ({
@@ -217,7 +221,7 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
 
 // Preset share counts so most bets are a single tap. Each button shows what
 // that many shares costs at the current price (100 shares at 50¢ = $50).
-const PRESET_SHARES = [100, 500, 1000, 5000];
+const PRESET_SHARES = [1000, 5000, 7500, 10000];
 
 function presetLabel(shares: number, priceCents: number | null): string {
   const count = `${shares.toLocaleString("en-US")} shares`;
@@ -258,9 +262,9 @@ function priceExplainer(pick: PendingPick) {
   ];
 }
 
-// Amount picker: tap a preset to bet it, MAX to bet your whole balance, or
-// "Custom amount…" to type one. Each tap bets for the tapper — the ticker
-// rides in the button value, so taps keep working after a restart.
+// Amount picker: tap a preset to bet it, or "Custom amount…" to type one.
+// Each tap bets for the tapper — the ticker rides in the button value, so
+// taps keep working after a restart.
 function amountPickerCard(
   pick: PendingPick,
   userName: string,
@@ -285,7 +289,7 @@ function amountPickerCard(
       })),
       {
         type: "actions",
-        children: [amountButton("MAX", "max"), amountButton("Custom amount…", "custom")],
+        children: [amountButton("Custom amount…", "custom")],
       },
       {
         type: "actions",
@@ -331,13 +335,29 @@ function customAmountCard(
   };
 }
 
+// Successful bets get a loud confirmation post — mini fireworks framing the
+// fill details and the payout. Shared by the tap and typed-amount paths.
+function betCelebration(
+  userName: string,
+  outcome: string,
+  contracts: number,
+  price: number,
+  cost: number,
+): string {
+  return [
+    `🎆🎇✨ BET PLACED ✨🎇🎆`,
+    `🎉 ${userName} bought ${contracts.toLocaleString("en-US")} ${outcome} shares @ ${price}¢ for ${formatDollars(cost)}`,
+    `💰 Pays ${formatDollars(contracts * 100)} if ${outcome} wins 🏆`,
+  ].join("\n");
+}
+
 // --- Menu rendering helpers ---
 
 const MENU_FALLBACK = "Betting menu (buttons not supported here).";
 
 // Telegram rejects edits that don't change anything (e.g. a double-tapped
 // back button re-rendering the same view) — that's a no-op, not a failure.
-function isNotModified(err: unknown): boolean {
+export function isNotModified(err: unknown): boolean {
   return String(err).includes("not modified");
 }
 
@@ -513,9 +533,7 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
   // `${shares}s` buys exactly that many shares at the live price (placeBet
   // floors stake/price, so shares × price converts back to the same count).
   let stakeCents: number;
-  if (spec === "max") {
-    stakeCents = balance;
-  } else if (spec.endsWith("s")) {
+  if (spec.endsWith("s")) {
     const shares = Number(spec.slice(0, -1));
     stakeCents =
       Number.isInteger(shares) && pick.priceCents != null ? shares * pick.priceCents : Number.NaN;
@@ -523,12 +541,9 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
     stakeCents = Number(spec);
   }
   if (!Number.isInteger(stakeCents) || stakeCents <= 0) {
-    const note =
-      spec === "max"
-        ? `MAX needs a positive balance.`
-        : spec.endsWith("s")
-          ? `No live price for ${pick.outcome} right now — try again after the next sync.`
-          : `That amount didn't parse.`;
+    const note = spec.endsWith("s")
+      ? `No live price for ${pick.outcome} right now — try again after the next sync.`
+      : `That amount didn't parse.`;
     await showView(event, amountPickerCard(pick, userName, balance, note));
     return;
   }
@@ -544,9 +559,7 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
     const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
     if (event.thread) await clearPendingPick(event.thread, event.user.userId);
     await showView(event, (await eventsCard(userName)) ?? emptyCard());
-    await event.thread?.post(
-      `✅ ${userName} bought ${contracts.toLocaleString("en-US")} ${pick.outcome} shares @ ${price}¢ for ${formatDollars(cost)} — pays ${formatDollars(contracts * 100)} if ${pick.outcome} wins`,
-    );
+    await event.thread?.post(betCelebration(userName, pick.outcome, contracts, price, cost));
   } catch (err) {
     await showView(
       event,
@@ -564,7 +577,7 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
  * Handle a possible reply to an amount prompt. Returns true when the message
  * was consumed (a pending pick existed for this user in this thread).
  * Prompt updates happen by editing the menu card; only the final bet
- * confirmation is posted as a (terse) message.
+ * confirmation is posted as a message.
  */
 export async function handleBetReply(thread: Thread, message: Message): Promise<boolean> {
   const pick = await getPendingPick(thread, message.author.userId);
@@ -617,9 +630,7 @@ export async function handleBetReply(thread: Thread, message: Message): Promise<
     const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
     await clearPendingPick(thread, message.author.userId);
     await backToEvents();
-    await thread.post(
-      `✅ ${userName} bought ${contracts.toLocaleString("en-US")} ${pick.outcome} shares @ ${price}¢ for ${formatDollars(cost)} — pays ${formatDollars(contracts * 100)} if ${pick.outcome} wins`,
-    );
+    await thread.post(betCelebration(userName, pick.outcome, contracts, price, cost));
   } catch (err) {
     // Pick stays in thread state so the user can just type another amount.
     await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);

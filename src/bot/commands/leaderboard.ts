@@ -1,20 +1,8 @@
 import { desc, eq, sum } from "drizzle-orm";
 import { db } from "../../db";
 import { ledger, users } from "../../db/schema";
-import { formatDollars } from "../../utils/format";
+import { displayName, formatDollars } from "../../utils/format";
 import type { BotCommand } from "./types";
-
-// Display only — usernames are mutable, so this is never used as identity.
-function displayName(u: {
-  username: string | null;
-  firstName: string | null;
-  lastName: string | null;
-}): string {
-  const full = [u.firstName, u.lastName].filter(Boolean).join(" ");
-  if (full) return full;
-  if (u.username) return `@${u.username}`;
-  return "Anonymous";
-}
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 

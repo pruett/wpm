@@ -1,15 +1,15 @@
 import type { Message, Thread } from "chat";
-import { balance } from "./balance";
-import { bets } from "./bets";
 import { help } from "./help";
 import { leaderboard } from "./leaderboard";
 import { bet } from "./bet";
+import { bets } from "./bets";
+import { me } from "./me";
 import { start } from "./start";
 import type { BotCommand } from "./types";
 
 export type { BotCommand, CommandContext } from "./types";
 
-export const commands: BotCommand[] = [start, help, bet, bets, balance, leaderboard];
+export const commands: BotCommand[] = [start, help, bet, bets, me, leaderboard];
 
 const byName = new Map(commands.map((c) => [c.name, c]));
 
