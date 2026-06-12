@@ -5,7 +5,6 @@
     "": {
       "name": "wpm-2",
       "dependencies": {
-        "@chat-adapter/state-memory": "latest",
         "@chat-adapter/state-pg": "^4.30.0",
         "@chat-adapter/telegram": "latest",
         "chat": "latest",
@@ -22,8 +21,6 @@
   },
   "packages": {
     "@chat-adapter/shared": ["@chat-adapter/shared@4.30.0", "", { "dependencies": { "chat": "4.30.0" } }, "sha512-IuYtbn/p1FBXvp7JYGEMLCt07GHOMlyjx7OlZXPJwLTravcyJuP7Q6N31r6c1yubMhM8PLb8eT8l/YnjwYjs9Q=="],
-
-    "@chat-adapter/state-memory": ["@chat-adapter/state-memory@4.30.0", "", { "dependencies": { "chat": "4.30.0" } }, "sha512-huYnGBKBiY6s/GaYgtAmr0zM6ihvGl8/NOEV9oqY89jr6Zdnm/ZXdpXvDKdXoaxmDXCiZr2U54DbSDzpvGQ6fA=="],
 
     "@chat-adapter/state-pg": ["@chat-adapter/state-pg@4.30.0", "", { "dependencies": { "chat": "4.30.0", "pg": "^8.20.0" } }, "sha512-8qymxX34Fg7B0PJCoYi60Bck68Gnd4cW4U8hgvJBc5ZHm8K4XT4srV8G3AeDT7rVSmrW5diidcmROo8Z1ke6iw=="],
 

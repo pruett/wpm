@@ -1,6 +1,6 @@
 import { Chat } from "chat";
 import { createTelegramAdapter } from "@chat-adapter/telegram";
-import { createMemoryState } from "@chat-adapter/state-memory";
+import { createPostgresState } from "@chat-adapter/state-pg";
 import { dispatchCommand } from "./commands";
 import {
   BACK_TO_EVENTS_ACTION,
@@ -14,18 +14,21 @@ import {
   handlePickOutcome,
 } from "./commands/markets";
 
-// The adapter reads TELEGRAM_BOT_TOKEN from the environment.
-// Polling mode pulls updates from Telegram via getUpdates —
-// no public URL, tunnel, or webhook registration needed.
+// The adapter reads TELEGRAM_BOT_TOKEN (and, for webhook verification,
+// TELEGRAM_WEBHOOK_SECRET_TOKEN) from the environment. Auto mode picks
+// webhook on serverless runtimes (Vercel) and getUpdates polling locally,
+// so `bun run dev` needs no public URL or webhook registration.
 export const telegram = createTelegramAdapter({
-  mode: "polling",
+  mode: "auto",
 });
 
 export const bot = new Chat({
   userName: process.env.TELEGRAM_BOT_USERNAME ?? "bot",
   adapters: { telegram },
-  // Memory state resets on restart — swap for Redis/Postgres later.
-  state: createMemoryState(),
+  // Postgres-backed state (reads DATABASE_URL, creates its own tables):
+  // subscriptions, /bet menu flow state, and webhook locks/dedupe must
+  // survive across serverless invocations.
+  state: createPostgresState(),
 });
 
 // Bot @-mentioned in a group chat we aren't following yet.
