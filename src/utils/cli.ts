@@ -14,6 +14,7 @@ import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
 import { settleOpenBetMarkets, sync, syncAll } from "./sync";
+import { announceSettlements } from "./announce";
 import { state } from "../bot";
 
 const dollars = (c: number | null) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
@@ -21,9 +22,10 @@ const [cmd, ...args] = Bun.argv.slice(2);
 
 switch (cmd) {
   case "sync": {
-    // No arg syncs every tracked series (what the cron does); an explicit
-    // series ticker syncs just that one. Both end with the settlement pass.
-    const { series, settledBets, voidedBets } = args[0]
+    // No arg syncs every tracked series and recaps settlements in the
+    // subscribed groups (what the cron does); an explicit series ticker
+    // syncs just that one, quietly. Both end with the settlement pass.
+    const { series, settledBets, voidedBets, settlements } = args[0]
       ? await (async () => {
           const stats = await sync(args[0]!);
           const settlement = await settleOpenBetMarkets();
@@ -31,6 +33,7 @@ switch (cmd) {
             series: [stats],
             settledBets: stats.settledBets + settlement.settledBets,
             voidedBets: stats.voidedBets + settlement.voidedBets,
+            settlements: [],
           };
         })()
       : await syncAll();
@@ -42,6 +45,10 @@ switch (cmd) {
     }
     if (settledBets) console.log(`settled ${settledBets} bets`);
     if (voidedBets) console.log(`voided ${voidedBets} bets`);
+    if (!args[0]) {
+      const announced = await announceSettlements(settlements, voidedBets);
+      if (announced) console.log(`announced settlements in ${announced} groups`);
+    }
     break;
   }
 

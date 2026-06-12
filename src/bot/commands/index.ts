@@ -1,5 +1,4 @@
 import type { Message, Thread } from "chat";
-import { help } from "./help";
 import { leaderboard } from "./leaderboard";
 import { bet } from "./bet";
 import { bets } from "./bets";
@@ -8,6 +7,19 @@ import { start } from "./start";
 import type { BotCommand } from "./types";
 
 export type { BotCommand, CommandContext } from "./types";
+
+// /help enumerates the registry it belongs to, so it lives here beside the
+// array — in its own module it could only see the list through a circular
+// import back into this file.
+const help: BotCommand = {
+  name: "help",
+  description: "List available commands",
+  usage: "/help",
+  handler: async ({ thread }) => {
+    const lines = commands.map((c) => `${c.usage} — ${c.description}`);
+    await thread.post(["Commands:", "", ...lines].join("\n"));
+  },
+};
 
 export const commands: BotCommand[] = [start, help, bet, bets, me, leaderboard];
 

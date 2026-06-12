@@ -3,14 +3,7 @@ import { bot, state } from "../bot";
 import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
 import { displayName, formatDollars } from "./format";
-import type { BetSide, SettledBet } from "./house";
-
-/** Everything the sweep learned when one market's bets settled. */
-export interface MarketSettlement {
-  marketTicker: string;
-  result: BetSide;
-  bets: SettledBet[];
-}
+import type { MarketSettlement } from "./sync";
 
 // GIFs are posted as their own message so Telegram's link preview renders
 // them animated (same trick as the welcome GIFs in commands/start.ts).

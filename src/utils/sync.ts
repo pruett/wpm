@@ -2,8 +2,7 @@ import type { EventData, Market, Milestone } from "kalshi-typescript";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets } from "../db/schema";
-import { settleMarketBets, voidMarketBets } from "./house";
-import { announceSettlements, type MarketSettlement } from "./announce";
+import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
 import { ingestEvents } from "../kalshi/ingest";
 import { marketApi } from "../kalshi/client";
 import { TRACKED_SERIES } from "../kalshi/series";
@@ -19,6 +18,17 @@ export const BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
 // Mirror slightly past the bettable window so an event's row and prices are
 // already in Postgres by the time it first becomes visible in menus.
 const SYNC_LEAD_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Everything a sweep learned when one market's bets settled. Produced here,
+ * consumed by the group announcement (utils/announce.ts) — which the entry
+ * points invoke themselves, keeping this data layer free of bot imports.
+ */
+export interface MarketSettlement {
+  marketTicker: string;
+  result: BetSide;
+  bets: SettledBet[];
+}
 
 export interface SeriesSyncStats {
   series: string;
@@ -174,9 +184,10 @@ export async function settleOpenBetMarkets() {
 }
 
 /**
- * The full cron unit of work: mirror every tracked series, then sweep
- * markets with open bets for results the per-series sync no longer sees,
- * then recap anything that settled in the subscribed group chats.
+ * The data half of the cron's work: mirror every tracked series, then sweep
+ * markets with open bets for results the per-series sync no longer sees.
+ * Announcing the settlements is the caller's job (api/sync.ts, the CLI) —
+ * this layer stays ignorant of the bot.
  */
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
@@ -190,21 +201,12 @@ export async function syncAll() {
   const voidedBets = series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets);
   const settlements = [...series.flatMap((s) => s.settlements), ...settlement.settlements];
 
-  // Announcing is a side show — a Telegram hiccup must not fail the sweep
-  // (the books are already updated and the next sweep wouldn't re-announce).
-  let announcedThreads = 0;
-  try {
-    announcedThreads = await announceSettlements(settlements, voidedBets);
-  } catch (error) {
-    console.error("settlement announcement failed:", error);
-  }
-
   return {
     series,
     checkedMarkets: settlement.checkedMarkets,
     settledBets,
     voidedBets,
-    announcedThreads,
+    settlements,
   };
 }
 
