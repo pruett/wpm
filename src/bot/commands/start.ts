@@ -12,7 +12,7 @@ const WELCOME_GIF = "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif";
 // the bankroll; a later /start is a plain re-orientation.
 export const start: BotCommand = {
   name: "start",
-  description: "Open your account and get oriented",
+  description: "Collect your WPM and start betting",
   usage: "/start",
   handler: async ({ thread, message }) => {
     const { userId, created } = await registerUser(telegramProfile(message));
