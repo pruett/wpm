@@ -16,15 +16,17 @@ export async function GET() {
   let healthy = true;
 
   try {
+    // postgres.js may hand the aggregate back as a string, not a Date.
     const [row] = await sql<
-      { lastSync: Date | null }[]
+      { lastSync: string | Date | null }[]
     >`SELECT max(synced_at) AS "lastSync" FROM markets`;
-    const ageMs = row?.lastSync ? Date.now() - new Date(row.lastSync).getTime() : null;
+    const lastSync = row?.lastSync ? new Date(row.lastSync) : null;
+    const ageMs = lastSync ? Date.now() - lastSync.getTime() : null;
     const syncFresh = ageMs != null && ageMs <= MAX_SYNC_AGE_MS;
     checks.db = { ok: true };
     checks.sync = {
       ok: syncFresh,
-      lastSyncedAt: row?.lastSync?.toISOString() ?? null,
+      lastSyncedAt: lastSync?.toISOString() ?? null,
       ageSeconds: ageMs == null ? null : Math.round(ageMs / 1000),
     };
     if (!syncFresh) healthy = false;

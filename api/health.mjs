@@ -7804,13 +7804,14 @@ async function GET() {
   const checks2 = {};
   let healthy = true;
   try {
-    const [row] = await sql3`SELECT now() AS now, (SELECT max(synced_at) FROM markets) AS "lastSync"`;
-    const ageMs = row?.lastSync ? row.now.getTime() - row.lastSync.getTime() : null;
+    const [row] = await sql3`SELECT max(synced_at) AS "lastSync" FROM markets`;
+    const lastSync = row?.lastSync ? new Date(row.lastSync) : null;
+    const ageMs = lastSync ? Date.now() - lastSync.getTime() : null;
     const syncFresh = ageMs != null && ageMs <= MAX_SYNC_AGE_MS;
     checks2.db = { ok: true };
     checks2.sync = {
       ok: syncFresh,
-      lastSyncedAt: row?.lastSync?.toISOString() ?? null,
+      lastSyncedAt: lastSync?.toISOString() ?? null,
       ageSeconds: ageMs == null ? null : Math.round(ageMs / 1000)
     };
     if (!syncFresh)
