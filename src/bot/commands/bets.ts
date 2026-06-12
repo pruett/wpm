@@ -29,12 +29,18 @@ async function openBetCounts(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
 }
 
+// No game runs this long — a backstop so an in-play event whose result the
+// sweep never recorded (it left Kalshi's open list with no bets to chase)
+// can't sit in the list as in progress forever.
+const IN_PLAY_BACKSTOP_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Events the /bets list shows — broader than /bet's menu. Everything still
- * bettable (same pre-game window /bet offers), plus any event with open
- * bets riding on it: a game in play has betting locked, but its bets are
- * exactly what /bets exists to show. Once a game settles its bets stop
- * being open, so finished events drop out on their own.
+ * bettable (same pre-game window /bet offers), plus games in play: betting
+ * locks at kickoff, but a running game's bets are exactly what /bets exists
+ * to show. Open-bet events are always included as a safety net (e.g. a
+ * postponed game drifting out of both windows must not hide its bets).
+ * Settled events drop out: their markets carry results and their bets close.
  */
 async function listedEvents(openBetEventTickers: string[]) {
   const now = new Date();
@@ -46,6 +52,14 @@ async function listedEvents(openBetEventTickers: string[]) {
     gt(events.startsAt, now),
     lte(events.startsAt, horizon),
   );
+  // Kicked off but no result on the books yet — the game is still going.
+  const inPlay = and(
+    lte(events.startsAt, now),
+    gt(events.startsAt, new Date(now.getTime() - IN_PLAY_BACKSTOP_MS)),
+    eq(markets.result, ""),
+  );
+  const withOpenBets =
+    openBetEventTickers.length > 0 ? [inArray(events.eventTicker, openBetEventTickers)] : [];
 
   return db
     .selectDistinct({
@@ -56,17 +70,15 @@ async function listedEvents(openBetEventTickers: string[]) {
     })
     .from(markets)
     .innerJoin(events, eq(events.eventTicker, markets.eventTicker))
-    .where(
-      openBetEventTickers.length === 0
-        ? bettable
-        : or(bettable, inArray(events.eventTicker, openBetEventTickers)),
-    )
+    .where(or(bettable, inPlay, ...withOpenBets))
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
-/** Past kickoff but still listed means the game is in play — betting closed. */
-function liveMarker(startsAt: Date | null): string {
-  return startsAt != null && startsAt <= new Date() ? "🔴 " : "";
+const IN_PROGRESS_LABEL = "🟢 In progress";
+
+/** Past kickoff but still listed — the game is on and betting is closed. */
+function inProgress(startsAt: Date | null): boolean {
+  return startsAt != null && startsAt <= new Date();
 }
 
 // Event list grouped by series like /bet's menu, but each button shows how
@@ -88,7 +100,11 @@ async function betsEventsCard(): Promise<CardElement | null> {
             {
               type: "button" as const,
               id: BETS_PICK_EVENT_ACTION,
-              label: `${liveMarker(e.startsAt)}${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
+              label: [
+                e.title,
+                ...(inProgress(e.startsAt) ? [IN_PROGRESS_LABEL] : []),
+                betCountLabel(counts.get(e.eventTicker) ?? 0),
+              ].join(" — "),
               value: e.eventTicker,
             },
           ],
@@ -125,13 +141,21 @@ async function eventBetsCard(eventTicker: string): Promise<CardElement | null> {
     .where(and(eq(markets.eventTicker, eventTicker), eq(betsTable.status, "open")))
     .orderBy(asc(betsTable.id));
 
+  const live = inProgress(event.startsAt);
   const header =
-    `${liveMarker(event.startsAt)}${event.title} — ${kickoffLabel(event.startsAt)} — ` +
+    `${event.title} — ${live ? IN_PROGRESS_LABEL : kickoffLabel(event.startsAt)} — ` +
     `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
 
   const lines =
     rows.length === 0
-      ? [{ type: "text" as const, content: "No open bets yet — type /bet to place the first one." }]
+      ? [
+          {
+            type: "text" as const,
+            content: live
+              ? "No open bets — betting closed at kickoff."
+              : "No open bets yet — type /bet to place the first one.",
+          },
+        ]
       : rows.map((bet, i) => ({
           type: "text" as const,
           content:
