@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bun run build:api && if [ \"$VERCEL_ENV\" = \"production\" ]; then bun src/utils/commands.ts; fi",
+  "buildCommand": "bun run build:api && if [ \"$VERCEL_ENV\" = \"production\" ]; then bun run db:migrate && bun src/utils/commands.ts; fi",
   "outputDirectory": "public",
   "crons": [
     {

@@ -12,6 +12,9 @@
     "build:api": "rm -f api/*.mjs && bun build src/api/sync.ts src/api/telegram.ts src/api/health.ts --outdir api --target node --format esm --external pg-native --entry-naming '[name].mjs'",
     "deploy": "vercel deploy --prod",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:studio:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && drizzle-kit studio",
     "typecheck": "tsc --noEmit"
