@@ -231,7 +231,11 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
   return {
     type: "card",
     children: [
-      { type: "text", content: `${ownerName}: ${title} — ${kickoffLabel(startsAt)}`, style: "bold" },
+      {
+        type: "text",
+        content: `${ownerName}, place your bet on ${title} - ${kickoffLabel(startsAt)}`,
+        style: "bold",
+      },
       ...outcomes.map((m) => ({
         type: "actions" as const,
         children: [
@@ -255,7 +259,7 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
 
 // Preset share counts so most bets are a single tap. Each button shows what
 // that many shares costs at the current price (100 shares at 50¢ = $50).
-const PRESET_SHARES = [1000, 5000, 7500, 10000];
+const PRESET_SHARES = [1000, 5000, 7500, 10000, 15000, 20000];
 
 function presetLabel(shares: number, priceCents: number | null): string {
   const count = `${shares.toLocaleString("en-US")} shares`;
@@ -265,7 +269,7 @@ function presetLabel(shares: number, priceCents: number | null): string {
 function amountTitle(pick: PendingPick, userName: string, balance: number) {
   return {
     type: "text" as const,
-    content: `${userName} (balance: ${formatDollars(balance)}): how much on ${pick.outcome}?`,
+    content: `${userName} (balance: ${formatDollars(balance)}): How much do you want to bet on ${pick.outcome}?`,
     style: "bold" as const,
   };
 }
@@ -275,23 +279,13 @@ function noteLine(note?: string) {
 }
 
 // Plain-language gloss under the amount prompt: a stake buys shares at the
-// quoted price, each paying $1 on a win — so 100 shares always pays
-// $100, and the price doubles as the implied odds.
+// quoted price, each paying $1 on a win.
 function priceExplainer(pick: PendingPick) {
   if (pick.priceCents == null) return [];
-  const price = pick.priceCents;
   return [
     {
       type: "text" as const,
-      content:
-        `${pick.outcome} @ ${price}¢ — your stake buys ${pick.outcome} shares at ` +
-        `${formatDollars(price)} each; every share pays ${formatDollars(100)} if ${pick.outcome} wins.`,
-    },
-    {
-      type: "text" as const,
-      content:
-        `Example: 100 shares costs ${formatDollars(price * 100)} and pays ${formatDollars(10_000)} ` +
-        `on a win (≈${price}% chance).`,
+      content: `\nDetails: Each share costs ${formatDollars(pick.priceCents)} and pays ${formatDollars(100)} if bet wins`,
     },
   ];
 }
@@ -323,7 +317,7 @@ function amountPickerCard(
       })),
       {
         type: "actions",
-        children: [amountButton("Custom amount…", "custom")],
+        children: [amountButton("Enter custom dollar amount…", "custom")],
       },
       {
         type: "actions",
@@ -353,7 +347,11 @@ function customAmountCard(
       ...noteLine(note),
       amountTitle(pick, userName, balance),
       ...priceExplainer(pick),
-      { type: "text", content: `Reply with a dollar amount, e.g. 50 — or "cancel".` },
+      {
+        type: "text",
+        content: `\nReply with a dollar amount, e.g. $1000 — or "cancel".`,
+        style: "bold",
+      },
       {
         type: "actions",
         children: [
@@ -608,6 +606,18 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
 }
 
 /**
+ * Pull a dollar amount out of a free-form reply. The first number in the
+ * text wins, so "$10,000", "10000", and "10000 on USA" all read as 10000.
+ * Returns the positive dollar value, or null if there's no usable number.
+ */
+export function parseDollarAmount(text: string): number | null {
+  const match = text.match(/\$?\s*(\d[\d,]*(?:\.\d+)?)/);
+  if (!match) return null;
+  const dollars = Number(match[1]!.replace(/,/g, ""));
+  return Number.isFinite(dollars) && dollars > 0 ? dollars : null;
+}
+
+/**
  * Handle a possible reply to an amount prompt. Returns true when the message
  * was consumed (a pending pick existed for this user in this thread).
  * Prompt updates happen by editing the menu card; only the final bet
@@ -648,8 +658,8 @@ export async function handleBetReply(thread: Thread, message: Message): Promise<
     }
   };
 
-  const dollars = Number(text.replace(/^\$/, ""));
-  if (!Number.isFinite(dollars) || dollars <= 0) {
+  const dollars = parseDollarAmount(text);
+  if (dollars == null) {
     await reprompt(`That's not a positive dollar amount.`);
     return true;
   }
