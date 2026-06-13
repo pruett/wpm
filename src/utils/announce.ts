@@ -8,18 +8,21 @@ import type { MarketSettlement } from "./sync";
 // GIFs are posted as their own message so Telegram's link preview renders
 // them animated (same trick as the welcome GIFs in commands/start.ts).
 const VICTORY_GIFS = [
-  "https://media.giphy.com/media/LdOyjZ7io5Msw/giphy.gif", // Mr. Krabs showering in cash
-  "https://media.giphy.com/media/LCdPNT81vlv3y/giphy.gif", // money snow-angel in a pile of bills
-  "https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif", // minions crowd going wild
-  "https://media.giphy.com/media/JltOMwYmi0VrO/giphy.gif", // Brad Pitt victory flex
-  "https://media.giphy.com/media/TdfyKrN7HGTIY/giphy.gif", // SpongeBob & Patrick cheering
+  "https://media.giphy.com/media/gdwJdym3VuXQr5OfAc/giphy.gif", // McConaughey chest-thump (Wolf of Wall Street)
+  "https://media.giphy.com/media/DfLwM9kttDFEQ/giphy.gif", // Leo toasting over fireworks (Gatsby)
+  "https://media.giphy.com/media/l41lZccR1oUigYeNa/giphy.gif", // Lil Wayne & Fat Joe making it rain
+  "https://media.giphy.com/media/gQdejV5BBChHi/giphy.gif", // Scrooge McDuck diving into the money vault
+  "https://media.giphy.com/media/4q0WNCNZUlxNC/giphy.gif", // Tony Soprano smug cigar (The Sopranos)
+  "https://media.giphy.com/media/qi8Yhj4pKcIec/giphy.gif", // Kenny Powers tossing cash (Eastbound & Down)
 ];
 
 const SHAME_GIFS = [
-  "https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif", // ugly-crying on the couch
-  "https://media.giphy.com/media/kKdgdeuO2M08M/giphy.gif", // dramatic gopher turn
-  "https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif", // teary-eyed Pikachu
-  "https://media.giphy.com/media/ISOckXUybVfQ4/giphy.gif", // sad SpongeBob alone at the diner
+  "https://media.giphy.com/media/McDuCJ9c5S37rkodHj/giphy.gif", // crying Michael Jordan meme
+  "https://media.giphy.com/media/GNNwrch6eoXuTs2uLo/giphy.gif", // "this is fine" dog in the burning house
+  "https://media.giphy.com/media/mdXSGzehQYZ5zotrz3/giphy.gif", // Dennis Reynolds meltdown (It's Always Sunny)
+  "https://media.giphy.com/media/8fyn3ZRrAtuAo/giphy.gif", // Jason Bateman "I've made a huge mistake"
+  "https://media.giphy.com/media/RVzU9AGit8VxSnsxUt/giphy.gif", // turning out an empty, broke wallet
+  "https://media.giphy.com/media/TbLLgMdmhPbvTGraES/giphy.gif", // Homer reversing into the bushes
 ];
 
 // One is rolled per bet line: "Kevin took home the victory — bet $110 …"
