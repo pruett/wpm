@@ -25,6 +25,9 @@ export const events = pgTable("events", {
   startsAt: timestamp("starts_at", { withTimezone: true }),
   // Live game state from the milestone's details.status (e.g. "not_started").
   gameStatus: text("game_status").notNull().default(""),
+  // True once the group's "betting locks soon" last-call alert has gone out
+  // for this event, so the cron sweep announces each kickoff exactly once.
+  bettableAnnounced: boolean("bettable_announced").notNull().default(false),
   syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

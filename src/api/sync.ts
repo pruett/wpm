@@ -1,5 +1,5 @@
 import { syncAll } from "../utils/sync";
-import { announceSettlements } from "../utils/announce";
+import { announceBettableAlerts, announceSettlements } from "../utils/announce";
 
 /**
  * Vercel cron target (see vercel.json — runs every 5 minutes). Mirrors every
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { settlements, ...stats } = await syncAll();
+  const { settlements, bettableAlerts, ...stats } = await syncAll();
 
   // Announcing is a side show — a Telegram hiccup must not fail the sweep
   // (the books are already updated and the next sweep wouldn't re-announce).
@@ -25,5 +25,13 @@ export async function GET(request: Request) {
     console.error("settlement announcement failed:", error);
   }
 
-  return Response.json({ ...stats, announcedThreads });
+  // Same deal — last-call alerts are best-effort and already claimed in the DB.
+  let alertedThreads = 0;
+  try {
+    alertedThreads = await announceBettableAlerts(bettableAlerts);
+  } catch (error) {
+    console.error("bettable alert announcement failed:", error);
+  }
+
+  return Response.json({ ...stats, announcedThreads, alertedThreads });
 }

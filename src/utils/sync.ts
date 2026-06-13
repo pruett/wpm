@@ -1,5 +1,5 @@
 import type { EventData, Market, Milestone } from "kalshi-typescript";
-import { eq } from "drizzle-orm";
+import { and, eq, exists, gt, lte } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
@@ -15,6 +15,9 @@ const date = (iso?: string | null): Date | null => (iso ? new Date(iso) : null);
 
 /** Menus only offer events kicking off within this window (see upcomingEvents). */
 export const BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
+// How close to kickoff the group's last-call alert fires. Betting locks at
+// kickoff, so this is the final window to get a bet in (see claimBettableAlerts).
+export const BETTABLE_ALERT_LEAD_MS = 30 * 60 * 1000;
 // Mirror slightly past the bettable window so an event's row and prices are
 // already in Postgres by the time it first becomes visible in menus.
 const SYNC_LEAD_MS = 6 * 60 * 60 * 1000;
@@ -28,6 +31,17 @@ export interface MarketSettlement {
   marketTicker: string;
   result: BetSide;
   bets: SettledBet[];
+}
+
+/**
+ * An event whose last-call alert was just claimed by this sweep. Produced by
+ * claimBettableAlerts, consumed by the group announcement (utils/announce.ts).
+ */
+export interface BettableAlert {
+  eventTicker: string;
+  seriesTicker: string;
+  title: string;
+  startsAt: Date | null;
 }
 
 export interface SeriesSyncStats {
@@ -184,10 +198,50 @@ export async function settleOpenBetMarkets() {
 }
 
 /**
- * The data half of the cron's work: mirror every tracked series, then sweep
- * markets with open bets for results the per-series sync no longer sees.
- * Announcing the settlements is the caller's job (api/sync.ts, the CLI) —
- * this layer stays ignorant of the bot.
+ * Claim the events whose betting locks within BETTABLE_ALERT_LEAD_MS: still
+ * pre-kickoff (startsAt in the future), inside the lead window, with markets
+ * already mirrored (so they're genuinely bettable), and not yet alerted.
+ *
+ * The matching rows are flipped to bettableAnnounced in the same statement
+ * and returned, so two overlapping sweeps can't double-announce the same
+ * kickoff. Announcing the returned events is the caller's job (api/sync.ts) —
+ * like settlements, a Telegram hiccup just drops that alert; the event stays
+ * marked and the next sweep won't re-announce it.
+ */
+export async function claimBettableAlerts(): Promise<BettableAlert[]> {
+  const now = new Date();
+  const threshold = new Date(now.getTime() + BETTABLE_ALERT_LEAD_MS);
+
+  return db
+    .update(events)
+    .set({ bettableAnnounced: true })
+    .where(
+      and(
+        eq(events.bettableAnnounced, false),
+        gt(events.startsAt, now),
+        lte(events.startsAt, threshold),
+        exists(
+          db
+            .select({ ticker: markets.ticker })
+            .from(markets)
+            .where(eq(markets.eventTicker, events.eventTicker)),
+        ),
+      ),
+    )
+    .returning({
+      eventTicker: events.eventTicker,
+      seriesTicker: events.seriesTicker,
+      title: events.title,
+      startsAt: events.startsAt,
+    });
+}
+
+/**
+ * The data half of the cron's work: mirror every tracked series, sweep
+ * markets with open bets for results the per-series sync no longer sees, then
+ * claim any events whose betting is about to lock. Announcing the settlements
+ * and alerts is the caller's job (api/sync.ts, the CLI) — this layer stays
+ * ignorant of the bot.
  */
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
@@ -195,6 +249,8 @@ export async function syncAll() {
     series.push(await sync(tracked.ticker));
   }
   const settlement = await settleOpenBetMarkets();
+  // Claim last, after this sweep's fresh kickoffs are mirrored.
+  const bettableAlerts = await claimBettableAlerts();
 
   // Totals across the per-series sweeps and the settlement pass.
   const settledBets = series.reduce((n, s) => n + s.settledBets, settlement.settledBets);
@@ -207,6 +263,7 @@ export async function syncAll() {
     settledBets,
     voidedBets,
     settlements,
+    bettableAlerts,
   };
 }
 

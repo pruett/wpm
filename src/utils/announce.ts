@@ -2,8 +2,9 @@ import { eq, inArray } from "drizzle-orm";
 import { bot, state } from "../bot";
 import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
-import { displayName, formatDollars } from "./format";
-import type { MarketSettlement } from "./sync";
+import { seriesEmoji, seriesRank } from "../kalshi/series";
+import { displayName, formatDollars, formatEastern } from "./format";
+import type { BettableAlert, MarketSettlement } from "./sync";
 
 // GIFs are posted as their own message so Telegram's link preview renders
 // them animated (same trick as the welcome GIFs in commands/start.ts).
@@ -108,6 +109,48 @@ export async function announceSettlements(
       posted++;
     } catch (error) {
       console.error(`settlement announcement failed for ${threadId}:`, error);
+    }
+  }
+  return posted;
+}
+
+/**
+ * Ping every subscribed group that one or more events are about to close to
+ * betting: a short headline, then one line per event (its series emoji, title,
+ * and close time in Eastern) in registry order, soonest first. Returns how
+ * many group threads were posted to. Each event is announced exactly once —
+ * claimBettableAlerts flips the flag before these rows ever reach us.
+ */
+export async function announceBettableAlerts(alerts: BettableAlert[]): Promise<number> {
+  if (alerts.length === 0) return 0;
+
+  const threadIds = await groupThreadIds();
+  if (threadIds.length === 0) return 0;
+
+  // Connect just the state adapter so thread.post() has somewhere to append,
+  // without starting a polling loop (same as announceSettlements). Idempotent.
+  await state.connect();
+
+  const sorted = [...alerts].sort(
+    (a, b) =>
+      seriesRank(a.seriesTicker) - seriesRank(b.seriesTicker) ||
+      (a.startsAt?.getTime() ?? 0) - (b.startsAt?.getTime() ?? 0),
+  );
+
+  const eventLines = sorted.map(
+    (e) =>
+      `${seriesEmoji(e.seriesTicker)} ${e.title} — ${e.startsAt ? formatEastern(e.startsAt) : "starting soon"}`,
+  );
+  const message = ["⏰ Last call — betting closes soon", "", ...eventLines].join("\n");
+
+  let posted = 0;
+  for (const threadId of threadIds) {
+    // One dead group (bot kicked, chat deleted) must not block the rest.
+    try {
+      await bot.thread(threadId).post(message);
+      posted++;
+    } catch (error) {
+      console.error(`bettable alert announcement failed for ${threadId}:`, error);
     }
   }
   return posted;

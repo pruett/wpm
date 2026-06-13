@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "bettable_announced" boolean DEFAULT false NOT NULL;
