@@ -41,13 +41,11 @@ async function openBetCounts(): Promise<Map<string, number>> {
 async function listedEvents(openBetEventTickers: string[]) {
   const now = new Date();
   const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
-  // Pre-game milestone statuses differ by sport: soccer reports
-  // "not_started", basketball "scheduled".
-  const bettable = and(
-    inArray(events.gameStatus, ["not_started", "scheduled"]),
-    gt(events.startsAt, now),
-    lte(events.startsAt, horizon),
-  );
+  // Same pre-game window /bet offers: kickoff in the future (betting locks
+  // there) but within the horizon. Keyed off kickoff time, not gameStatus —
+  // whose pre-game vocabulary varies by sport (soccer "not_started", NBA
+  // "created", …) and silently hid events on any value we hadn't listed.
+  const bettable = and(gt(events.startsAt, now), lte(events.startsAt, horizon));
 
   return db
     .selectDistinct({

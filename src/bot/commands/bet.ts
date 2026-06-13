@@ -1,5 +1,5 @@
 import type { ActionEvent, CardElement, Message, SentMessage, Thread } from "chat";
-import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gt, lte } from "drizzle-orm";
 import { db } from "../../db";
 import { events, markets as marketsTable } from "../../db/schema";
 import { REGISTER_PROMPT, balanceCents, findUser, placeBet } from "../../utils/house";
@@ -123,11 +123,14 @@ interface UpcomingEvent {
 }
 
 /**
- * Viable, bettable events for /bet's menu: game not started, kicking off
- * within the next 2 days (betting locks at kickoff, so past starts are out
- * too). Sorted most urgent first — soonest kickoff at the top. Only events
- * that actually have markets in the mirror. (/bets has its own, broader
- * query — it also lists in-play events with open bets.)
+ * Viable, bettable events for /bet's menu: kicking off in the future but
+ * within the next 2 days. Betting locks at kickoff, so a future start is
+ * exactly "game not started yet" — no need to also match on gameStatus,
+ * whose pre-game vocabulary varies by sport (soccer "not_started", NBA
+ * "created", …) and silently hid events whenever Kalshi used a value we
+ * hadn't enumerated. Sorted most urgent first — soonest kickoff at the
+ * top. Only events that actually have markets in the mirror. (/bets has
+ * its own, broader query — it also lists in-play events with open bets.)
  */
 async function upcomingEvents(): Promise<UpcomingEvent[]> {
   const now = new Date();
@@ -142,15 +145,7 @@ async function upcomingEvents(): Promise<UpcomingEvent[]> {
     })
     .from(marketsTable)
     .innerJoin(events, eq(events.eventTicker, marketsTable.eventTicker))
-    .where(
-      and(
-        // Pre-game milestone statuses differ by sport: soccer reports
-        // "not_started", basketball "scheduled".
-        inArray(events.gameStatus, ["not_started", "scheduled"]),
-        gt(events.startsAt, now),
-        lte(events.startsAt, horizon),
-      ),
-    )
+    .where(and(gt(events.startsAt, now), lte(events.startsAt, horizon)))
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
