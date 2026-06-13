@@ -32,7 +32,7 @@ export const start: BotCommand = {
       await thread.post(
         [
           `Welcome back, ${message.author.fullName}! Your balance is ${balance}.`,
-          "Place a bet with /bet and check your account with /me.",
+          "Place a bet with /placebet and check your account with /mybets.",
           "Type /help to see everything I can do.",
         ].join("\n"),
       );
@@ -46,7 +46,7 @@ export const start: BotCommand = {
         "",
         `Your account is live with a ${balance} bankroll — now go make some money 💰, playa!`,
         "",
-        "Type /bet to place your first bet, and check /me any time.",
+        "Type /placebet to place your first bet, and check /mybets any time.",
       ].join("\n"),
     );
   },

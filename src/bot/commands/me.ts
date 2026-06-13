@@ -1,57 +1,17 @@
-import { and, asc, eq } from "drizzle-orm";
-import { db } from "../../db";
-import { bets, events, markets } from "../../db/schema";
-import { formatDollars, formatEastern } from "../../utils/format";
-import { REGISTER_PROMPT, balanceCents, findUser } from "../../utils/house";
-import { telegramProfile } from "../identity";
+import { mybets } from "./mybets";
 import type { BotCommand } from "./types";
 
+// Deprecated alias for /mybets, kept alive because Telegram caches the
+// slash-command menu per device (a hard refresh is needed to see a rename)
+// and muscle memory outlives the cache. Forwards to the renamed command after
+// a one-line nudge so users learn the new name. Drop this once telemetry shows
+// /me has gone quiet.
 export const me: BotCommand = {
   name: "me",
-  description: "Show your balance and open bets",
+  description: `Renamed → ${mybets.usage}`,
   usage: "/me",
-  handler: async ({ thread, message }) => {
-    const userId = await findUser(telegramProfile(message));
-    if (userId == null) {
-      await thread.post(REGISTER_PROMPT);
-      return;
-    }
-
-    const open = await db
-      .select({
-        id: bets.id,
-        outcome: markets.outcome,
-        side: bets.side,
-        contracts: bets.contracts,
-        priceCents: bets.priceCents,
-        costCents: bets.costCents,
-        startsAt: events.startsAt,
-      })
-      .from(bets)
-      .innerJoin(markets, eq(markets.ticker, bets.marketTicker))
-      .innerJoin(events, eq(events.eventTicker, markets.eventTicker))
-      .where(and(eq(bets.userId, userId), eq(bets.status, "open")))
-      .orderBy(asc(events.startsAt), asc(bets.id));
-
-    const atRiskCents = open.reduce((total, bet) => total + bet.costCents, 0);
-
-    const lines = [
-      `${message.author.fullName}`,
-      `Balance: ${formatDollars(await balanceCents(userId))}`,
-      `At risk in open bets: ${formatDollars(atRiskCents)}`,
-    ];
-
-    if (open.length === 0) {
-      lines.push("", "No open bets. Type /bet to place one.");
-    } else {
-      lines.push("", "Open bets, kicking off soonest first:");
-      for (const bet of open) {
-        lines.push(
-          `#${bet.id} ${bet.outcome} ${bet.side.toUpperCase()} — ${bet.contracts} @ ${bet.priceCents}¢ → ${formatDollars(bet.contracts * 100)} · ${bet.startsAt ? formatEastern(bet.startsAt) : "kickoff TBD"}`,
-        );
-      }
-    }
-
-    await thread.post(lines.join("\n"));
+  handler: async (ctx) => {
+    await ctx.thread.post(`Heads up: /me is now ${mybets.usage} — running it for you.`);
+    await mybets.handler(ctx);
   },
 };

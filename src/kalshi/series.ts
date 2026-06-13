@@ -1,7 +1,7 @@
 /**
  * Every Kalshi series the app tracks — the single list to edit when adding
- * a new one. The cron sync mirrors each series listed here, and the /bet
- * and /bets menus group events under each series' title, in this order.
+ * a new one. The cron sync mirrors each series listed here, and the /placebet
+ * and /showbets menus group events under each series' title, in this order.
  *
  * Find new tickers with listSeries() in ./ingest.ts (e.g.
  * `listSeries({ category: "Sports" })`).

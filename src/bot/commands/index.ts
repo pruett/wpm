@@ -1,5 +1,8 @@
 import type { Message, Thread } from "chat";
 import { leaderboard } from "./leaderboard";
+import { placebet } from "./placebet";
+import { showbets } from "./showbets";
+import { mybets } from "./mybets";
 import { bet } from "./bet";
 import { bets } from "./bets";
 import { me } from "./me";
@@ -21,13 +24,21 @@ const help: BotCommand = {
   },
 };
 
-export const commands: BotCommand[] = [start, help, bet, bets, me, leaderboard];
+// Canonical commands drive /help. Deprecated aliases (old names of renamed
+// commands — each forwards to its replacement with a nudge) are appended for
+// dispatch and the Telegram menu only, kept out of /help so it always teaches
+// the current names. Retire an alias by deleting its file and its entry here.
+export const commands: BotCommand[] = [start, help, placebet, showbets, mybets, leaderboard];
 
-const byName = new Map(commands.map((c) => [c.name, c]));
+const deprecatedCommands: BotCommand[] = [bet, bets, me];
+
+export const allCommands: BotCommand[] = [...commands, ...deprecatedCommands];
+
+const byName = new Map(allCommands.map((c) => [c.name, c]));
 
 // Telegram has no native slash-command event in the Chat SDK (Slack/Discord
 // only), so commands arrive as plain message text. In groups they carry the
-// bot username ("/bet@OurBot yes 5") — strip it before matching.
+// bot username ("/placebet@OurBot yes 5") — strip it before matching.
 const COMMAND_RE = /^\/([a-z0-9_]+)(?:@\S+)?(?:\s+([\s\S]*))?$/i;
 
 /**

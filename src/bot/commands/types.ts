@@ -12,7 +12,7 @@ export interface BotCommand {
   name: string;
   /** One-line summary shown in /help. */
   description: string;
-  /** Invocation shape, e.g. "/bet <ticker> <yes|no> <contracts>". */
+  /** Invocation shape, e.g. "/placebet <ticker> <yes|no> <contracts>". */
   usage: string;
   handler: (ctx: CommandContext) => Promise<void>;
 }

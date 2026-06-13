@@ -13,13 +13,13 @@ import {
   handlePickAmount,
   handlePickEvent,
   handlePickOutcome,
-} from "./commands/bet";
+} from "./commands/placebet";
 import {
   BETS_BACK_ACTION,
   BETS_PICK_EVENT_ACTION,
   handleBetsBack,
   handleBetsPickEvent,
-} from "./commands/bets";
+} from "./commands/showbets";
 
 // The adapter reads TELEGRAM_BOT_TOKEN (and, for webhook verification,
 // TELEGRAM_WEBHOOK_SECRET_TOKEN) from the environment. Auto mode picks
@@ -30,7 +30,7 @@ export const telegram = createTelegramAdapter({
 });
 
 // Postgres-backed state (reads DATABASE_URL, creates its own tables):
-// subscriptions, /bet menu flow state, and webhook locks/dedupe must
+// subscriptions, /placebet menu flow state, and webhook locks/dedupe must
 // survive across serverless invocations. Exported so non-webhook callers
 // (the settlement announcer) can connect it without bot.initialize(),
 // which would start a polling loop in local runs.
@@ -64,7 +64,7 @@ bot.onDirectMessage(async (thread, message) => {
   await thread.post("Hello! I respond to slash commands — try /help.");
 });
 
-// Each user gets their own /bet menu — one message per user that edits
+// Each user gets their own /placebet menu — one message per user that edits
 // itself as its owner navigates: event list → outcomes → amount picker →
 // back to event list. Only the owner's taps move their menu.
 bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
@@ -74,7 +74,7 @@ bot.onAction(BACK_TO_EVENTS_ACTION, handleBackToEvents);
 // Series-header rows are labels, not controls — acknowledge and do nothing.
 bot.onAction(NOOP_ACTION, async () => {});
 
-// /bets is a shared read-only card: event list with open-bet counts that
+// /showbets is a shared read-only card: event list with open-bet counts that
 // drills into per-event bet lists. Anyone may navigate it.
 bot.onAction(BETS_PICK_EVENT_ACTION, handleBetsPickEvent);
 bot.onAction(BETS_BACK_ACTION, handleBetsBack);
