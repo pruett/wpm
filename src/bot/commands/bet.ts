@@ -10,12 +10,16 @@ import { BETTABLE_HORIZON_MS } from "../../utils/sync";
 import type { BotCommand } from "./types";
 
 // Action ids; the tapped event/market ticker travels in the button's value.
-// Amount buttons carry `${ticker}|${shares}s` (or `|custom`) — Telegram
-// caps callback data at 64 bytes, and ticker + delimiter + amount still fits.
-// All registered via bot.onAction in src/bot/index.ts.
-export const PICK_EVENT_ACTION = "pick_event";
-export const PICK_OUTCOME_ACTION = "pick_outcome";
-export const PICK_AMOUNT_ACTION = "pick_amount";
+// Telegram caps callback data at 64 bytes, and the adapter wraps each id as
+// `chat:{"a":"<id>","v":"<value>"}` (~22 bytes fixed with these short ids), so
+// both the id and value eat into the budget. The outcome/event buttons carry a
+// full Kalshi ticker (up to ~27 chars) as their value, so short ids keep them
+// clear of the cap; the amount buttons carry only the spec (the ticker lives in
+// pending state — see amountPickerCard). All registered via bot.onAction in
+// src/bot/index.ts.
+export const PICK_EVENT_ACTION = "pe";
+export const PICK_OUTCOME_ACTION = "po";
+export const PICK_AMOUNT_ACTION = "pa";
 export const BACK_TO_EVENTS_ACTION = "back_events";
 // Series-header rows in the keyboard — a tap does nothing. Telegram renders
 // all card text above the keyboard, so headers must be button rows to sit
@@ -286,8 +290,12 @@ function priceExplainer(pick: PendingPick) {
 }
 
 // Amount picker: tap a preset to bet it, or "Custom amount…" to type one.
-// Each tap bets for the tapper — the ticker rides in the button value, so
-// taps keep working after a restart.
+// Each tap bets for the tapper. The button value carries only the amount spec
+// (e.g. "20000s" / "custom") — not the ticker, which `setPendingPick` has
+// already written to durable thread state. handlePickAmount recovers the
+// market from that pending pick, keyed by (thread, user). Keeping the long
+// Kalshi ticker out of the payload is what holds callback_data under
+// Telegram's 64-byte cap regardless of ticker length (see PICK_*_ACTION note).
 function amountPickerCard(
   pick: PendingPick,
   userName: string,
@@ -298,7 +306,7 @@ function amountPickerCard(
     type: "button" as const,
     id: PICK_AMOUNT_ACTION,
     label,
-    value: `${pick.ticker}|${spec}`,
+    value: spec,
   });
   return {
     type: "card",
@@ -532,15 +540,22 @@ export async function handlePickOutcome(event: ActionEvent): Promise<void> {
 // Amount button tapped → place the bet for the menu's owner, or open the
 // typed "custom amount" prompt.
 export async function handlePickAmount(event: ActionEvent): Promise<void> {
-  const [ticker, spec] = (event.value ?? "").split("|");
-  if (!ticker || !spec) return;
+  const spec = event.value;
+  if (!spec) return;
   if (!(await claimMenu(event))) return;
 
-  const pick = await loadPick(ticker, event.messageId);
+  // The ticker isn't in the payload — recover it from the pending pick that
+  // handlePickOutcome wrote when it rendered this picker, then reload it for a
+  // live price. A missing pick (state lapsed) falls back to the event list.
+  const pending = event.thread
+    ? await getPendingPick(event.thread, event.user.userId)
+    : null;
+  const pick = pending ? await loadPick(pending.ticker, event.messageId) : null;
   if (!pick) {
     await showView(event, (await eventsCard(event.user.fullName)) ?? emptyCard());
     return;
   }
+  const ticker = pick.ticker;
 
   const userName = event.user.fullName;
   const profile = telegramProfileFromAction(event);
