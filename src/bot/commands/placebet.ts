@@ -370,9 +370,9 @@ function customAmountCard(
   };
 }
 
-// Successful bets get a loud confirmation post — mini fireworks framing the
-// fill details and the payout. Shared by the tap and typed-amount paths.
-function betCelebration(
+// A quiet confirmation post: who bet, the fill, and what's at stake — the
+// amount in and the payout out. Shared by the tap and typed-amount paths.
+function betConfirmation(
   userName: string,
   outcome: string,
   contracts: number,
@@ -380,9 +380,8 @@ function betCelebration(
   cost: number,
 ): string {
   return [
-    `🎆🎇✨ BET PLACED ✨🎇🎆`,
-    `🎉 ${userName} bought ${contracts.toLocaleString("en-US")} ${outcome} shares @ ${price}¢ for ${formatDollars(cost)}`,
-    `💰 Pays ${formatDollars(contracts * 100)} if ${outcome} wins 🏆`,
+    `✅ Bet placed — ${userName}`,
+    `${contracts.toLocaleString("en-US")} ${outcome} @ ${price}¢ · ${formatDollars(cost)} → ${formatDollars(contracts * 100)} if it wins`,
   ].join("\n");
 }
 
@@ -601,7 +600,7 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
     const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
     if (event.thread) await clearPendingPick(event.thread, event.user.userId);
     await showView(event, (await eventsCard(userName)) ?? emptyCard());
-    await event.thread?.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+    await event.thread?.post(betConfirmation(userName, pick.outcome, contracts, price, cost));
   } catch (err) {
     await showView(
       event,
@@ -684,7 +683,7 @@ export async function handleBetReply(thread: Thread, message: Message): Promise<
     const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
     await clearPendingPick(thread, message.author.userId);
     await backToEvents();
-    await thread.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+    await thread.post(betConfirmation(userName, pick.outcome, contracts, price, cost));
   } catch (err) {
     // Pick stays in thread state so the user can just type another amount.
     await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);
