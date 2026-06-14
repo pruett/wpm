@@ -376,13 +376,10 @@ function betConfirmation(
   userName: string,
   outcome: string,
   contracts: number,
-  price: number,
   cost: number,
 ): string {
-  return [
-    `✅ Bet placed — ${userName}`,
-    `${contracts.toLocaleString("en-US")} ${outcome} @ ${price}¢ · ${formatDollars(cost)} → ${formatDollars(contracts * 100)} if it wins`,
-  ].join("\n");
+  const payout = contracts * 100;
+  return `🎟  **${userName}** bets **${formatDollars(cost)}** on **${outcome}**. Pays **${formatDollars(payout)} (+${formatDollars(payout - cost)})** if it hits`;
 }
 
 // --- Menu rendering helpers ---
@@ -597,10 +594,10 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
   }
 
   try {
-    const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
+    const { contracts, cost } = await placeBet(profile, ticker, "yes", stakeCents);
     if (event.thread) await clearPendingPick(event.thread, event.user.userId);
     await showView(event, (await eventsCard(userName)) ?? emptyCard());
-    await event.thread?.post(betConfirmation(userName, pick.outcome, contracts, price, cost));
+    await event.thread?.post({ markdown: betConfirmation(userName, pick.outcome, contracts, cost) });
   } catch (err) {
     await showView(
       event,
@@ -680,10 +677,10 @@ export async function handleBetReply(thread: Thread, message: Message): Promise<
   }
 
   try {
-    const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
+    const { contracts, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
     await clearPendingPick(thread, message.author.userId);
     await backToEvents();
-    await thread.post(betConfirmation(userName, pick.outcome, contracts, price, cost));
+    await thread.post({ markdown: betConfirmation(userName, pick.outcome, contracts, cost) });
   } catch (err) {
     // Pick stays in thread state so the user can just type another amount.
     await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);
