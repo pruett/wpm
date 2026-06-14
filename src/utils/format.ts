@@ -29,6 +29,20 @@ export function formatEastern(date: Date): string {
   });
 }
 
+/** Compact Eastern timestamp, e.g. "06/13/26:8:30 PM". */
+export function formatEasternShort(date: Date): string {
+  const formatted = date.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  // en-US renders "06/13/26, 8:30 PM" — join date and time with a colon.
+  return formatted.replace(", ", " ");
+}
+
 /**
  * A registered user's name for display. Usernames are mutable, so this is
  * never used as identity.

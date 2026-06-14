@@ -1,7 +1,8 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { bets, events, markets } from "../../db/schema";
-import { formatDollars, formatEastern } from "../../utils/format";
+import { seriesEmoji } from "../../kalshi/series";
+import { formatDollars, formatEasternShort } from "../../utils/format";
 import { REGISTER_PROMPT, balanceCents, findUser } from "../../utils/house";
 import { telegramProfile } from "../identity";
 import type { BotCommand } from "./types";
@@ -25,6 +26,8 @@ export const mybets: BotCommand = {
         contracts: bets.contracts,
         priceCents: bets.priceCents,
         costCents: bets.costCents,
+        title: events.title,
+        seriesTicker: events.seriesTicker,
         startsAt: events.startsAt,
       })
       .from(bets)
@@ -37,21 +40,22 @@ export const mybets: BotCommand = {
 
     const lines = [
       `${message.author.fullName}`,
-      `Balance: ${formatDollars(await balanceCents(userId))}`,
-      `At risk in open bets: ${formatDollars(atRiskCents)}`,
+      `💵 Balance: **${formatDollars(await balanceCents(userId))}**`,
+      `⏳ Pending / At Risk: **${formatDollars(atRiskCents)}**`,
     ];
 
     if (open.length === 0) {
       lines.push("", "No open bets. Type /placebet to place one.");
     } else {
-      lines.push("", "Open bets, kicking off soonest first:");
+      lines.push("", "All bets:");
       for (const bet of open) {
+        const kickoff = bet.startsAt ? formatEasternShort(bet.startsAt) : "kickoff TBD";
         lines.push(
-          `#${bet.id} ${bet.outcome} ${bet.side.toUpperCase()} — ${bet.contracts} @ ${bet.priceCents}¢ → ${formatDollars(bet.contracts * 100)} · ${bet.startsAt ? formatEastern(bet.startsAt) : "kickoff TBD"}`,
+          `${seriesEmoji(bet.seriesTicker)} **${bet.outcome}** in *${bet.title}* - betting **${formatDollars(bet.costCents)}** to win **${formatDollars(bet.contracts * 100)}** · ${kickoff}`,
         );
       }
     }
 
-    await thread.post(lines.join("\n"));
+    await thread.post({ markdown: lines.join("\n") });
   },
 };
