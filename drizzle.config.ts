@@ -11,7 +11,7 @@ export default defineConfig({
   // orphans their sequences, which `push` then tries to DROP. So NEVER run
   // push/pull against prod. Apply prod schema changes with hand-written SQL
   // (a plain ALTER), which touches nothing it isn't told to.
-  tablesFilter: ["events", "markets", "users", "bets", "ledger"],
+  tablesFilter: ["events", "markets", "users", "bets", "ledger", "recaps"],
   dbCredentials: {
     url: process.env.DATABASE_URL ?? "postgres://localhost/wpm2",
   },

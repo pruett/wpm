@@ -72,6 +72,39 @@ export function mention(u: {
   return `[${displayName(u)}](tg://user?id=${u.telegramId})`;
 }
 
+type Mentionable = {
+  telegramId: string;
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+/**
+ * Turn bare display names in free text (e.g. an LLM-written recap) into
+ * `tg://user?id=` mentions so the named people get pinged. Names are matched in
+ * one pass via a single alternation, longest first so "Kevin Pruett" wins over
+ * "Kevin"; String.replace never re-scans the links it inserts, so a name inside
+ * a freshly inserted mention can't be matched again. The boundaries are
+ * `\w` lookarounds rather than `\b` so `@username` display names (which start
+ * with a non-word char) still anchor correctly.
+ */
+export function linkMentions(text: string, people: Mentionable[]): string {
+  const named = people.filter((p) => displayName(p) !== "Anonymous");
+  if (named.length === 0) return text;
+
+  const ordered = [...named].sort((a, b) => displayName(b).length - displayName(a).length);
+  const byName = new Map(ordered.map((p) => [displayName(p), p] as const));
+  const alternation = ordered
+    .map((p) => displayName(p).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const pattern = new RegExp(`(?<!\\w)(?:${alternation})(?!\\w)`, "g");
+
+  return text.replace(pattern, (match) => {
+    const person = byName.get(match);
+    return person ? mention(person) : match;
+  });
+}
+
 /** Format a cent amount as dollars: `$1,000`, `$99,988.65` (whole amounts drop the cents). */
 export function formatDollars(cents: number): string {
   const figure = (cents / 100).toLocaleString("en-US", {

@@ -8,13 +8,16 @@
  *   bun run cli balance <telegram_id>
  *   bun run cli bets <telegram_id>
  *   bun run cli settle <market> <yes|no>               # manual settle (testing only)
+ *   bun run cli summary [post]                          # rehearse the weekly recap; "post" sends it to local groups
  */
 import { asc, eq } from "drizzle-orm";
 import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
 import { settleOpenBetMarkets, sync, syncAll } from "./sync";
-import { announceBettableAlerts, announceSettlements } from "./announce";
+import { announceBettableAlerts, announceSettlements, announceWeeklyRecap } from "./announce";
+import { collectWeeklyStats, generateWeeklyRecap, hadActivity } from "./summary";
+import { displayName, formatDollars, formatEastern, linkMentions } from "./format";
 import { state } from "../bot";
 
 const dollars = (c: number | null) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
@@ -134,8 +137,54 @@ switch (cmd) {
     break;
   }
 
+  case "summary": {
+    // Rehearse the weekly "Sunday Rundown" recap against the local DB.
+    //   bun run cli summary        # tally + generate, print it (posts nothing)
+    //   bun run cli summary post   # also post to the LOCAL bot's subscribed groups
+    // Pair with `bun run db:pull:prod` to rehearse on a copy of prod's bets
+    // while posting only to your local test group (chat_* subscriptions stay local).
+    const post = args[0] === "post";
+    const stats = await collectWeeklyStats();
+    console.log(`\nWeek of ${formatEastern(stats.since)} → ${formatEastern(stats.until)} (ET)\n`);
+
+    if (!hadActivity(stats)) {
+      console.log("No bets placed or settled this week — the cron would skip posting.");
+      break;
+    }
+
+    console.log(
+      `${stats.betsPlaced} bets placed (${formatDollars(stats.totalStakedCents)} wagered) · ` +
+        `${stats.betsSettled} settled (${stats.wins}W ${stats.losses}L` +
+        `${stats.voids ? ` ${stats.voids}V` : ""}) · ${stats.uniqueBettors} bettors\n`,
+    );
+
+    for (const p of stats.players) {
+      const net = p.realizedCents;
+      const netStr = `${net > 0 ? "+" : net < 0 ? "-" : " "}${formatDollars(Math.abs(net))}`;
+      console.log(
+        `  ${netStr.padStart(12)}  ${displayName(p.user).padEnd(20)} ` +
+          `${p.wins}W-${p.losses}L${p.voids ? `-${p.voids}V` : ""}, ` +
+          `placed ${p.betsPlaced} (${formatDollars(p.stakedCents)})`,
+      );
+    }
+
+    console.log("\n─── recap ───\n");
+    const recap = await generateWeeklyRecap(stats);
+    console.log(recap.body);
+    console.log(`\n─── (${recap.model}) ───\n`);
+
+    if (post) {
+      const mentioned = linkMentions(recap.body, stats.players.map((p) => p.user));
+      const threads = await announceWeeklyRecap(mentioned);
+      console.log(`Posted to ${threads} group${threads === 1 ? "" : "s"}.`);
+    } else {
+      console.log("(dry run — re-run with `summary post` to send it to your local groups.)");
+    }
+    break;
+  }
+
   default:
-    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle> …");
+    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle|summary> …");
     process.exit(1);
 }
 

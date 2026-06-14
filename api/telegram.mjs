@@ -52887,6 +52887,7 @@ function drizzle(...params) {
 var exports_schema = {};
 __export(exports_schema, {
   users: () => users,
+  recaps: () => recaps,
   markets: () => markets,
   ledgerKind: () => ledgerKind,
   ledger: () => ledger,
@@ -52905,6 +52906,7 @@ var events = pgTable("events", {
   mutuallyExclusive: boolean("mutually_exclusive").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }),
   gameStatus: text6("game_status").notNull().default(""),
+  bettableAnnounced: boolean("bettable_announced").notNull().default(false),
   syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow()
 });
 var markets = pgTable("markets", {
@@ -52944,6 +52946,15 @@ var bets = pgTable("bets", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true })
 });
+var recaps = pgTable("recaps", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+  body: text6("body").notNull(),
+  stats: jsonb("stats").notNull(),
+  model: text6("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+});
 var ledger = pgTable("ledger", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -52961,6 +52972,12 @@ var sql2 = src_default(url);
 var db = drizzle(sql2, { schema: exports_schema });
 
 // src/utils/format.ts
+function gifMessage(url2) {
+  return {
+    markdown: "",
+    attachments: [{ url: url2, type: "file", name: "giphy.gif", mimeType: "image/gif" }]
+  };
+}
 function formatEastern(date2) {
   return date2.toLocaleString("en-US", {
     timeZone: "America/New_York",
@@ -52970,6 +52987,17 @@ function formatEastern(date2) {
     minute: "2-digit"
   });
 }
+function formatEasternShort(date2) {
+  const formatted = date2.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+  return formatted.replace(", ", " ");
+}
 function displayName(u2) {
   const full = [u2.firstName, u2.lastName].filter(Boolean).join(" ");
   if (full)
@@ -52977,6 +53005,22 @@ function displayName(u2) {
   if (u2.username)
     return `@${u2.username}`;
   return "Anonymous";
+}
+function mention(u2) {
+  return `[${displayName(u2)}](tg://user?id=${u2.telegramId})`;
+}
+function linkMentions(text7, people) {
+  const named = people.filter((p2) => displayName(p2) !== "Anonymous");
+  if (named.length === 0)
+    return text7;
+  const ordered = [...named].sort((a, b3) => displayName(b3).length - displayName(a).length);
+  const byName = new Map(ordered.map((p2) => [displayName(p2), p2]));
+  const alternation = ordered.map((p2) => displayName(p2).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const pattern = new RegExp(`(?<!\\w)(?:${alternation})(?!\\w)`, "g");
+  return text7.replace(pattern, (match) => {
+    const person = byName.get(match);
+    return person ? mention(person) : match;
+  });
 }
 function formatDollars(cents) {
   const figure = (cents / 100).toLocaleString("en-US", {
@@ -53161,15 +53205,20 @@ function telegramProfileFromAction(event) {
 
 // src/kalshi/series.ts
 var TRACKED_SERIES = [
-  { ticker: "KXWCGAME", title: "⚽️ World Cup 2026 Games" },
-  { ticker: "KXNBAGAME", title: "\uD83C\uDFC0 NBA Finals 2026" }
+  { ticker: "KXWCGAME", emoji: "⚽️", title: "World Cup 2026 Games" },
+  { ticker: "KXNBAGAME", emoji: "\uD83C\uDFC0", title: "NBA Finals 2026" }
 ];
+var DEFAULT_SERIES_EMOJI = "\uD83C\uDFAF";
+function seriesEmoji(seriesTicker) {
+  return TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.emoji ?? DEFAULT_SERIES_EMOJI;
+}
 function seriesTitle(seriesTicker) {
-  const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker)?.title;
+  const known = TRACKED_SERIES.find((s) => s.ticker === seriesTicker);
   if (known)
-    return known;
+    return `${known.emoji} ${known.title}`;
   const stripped = seriesTicker.replace(/^KX/, "");
-  return stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+  const name = stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
+  return `${DEFAULT_SERIES_EMOJI} ${name}`;
 }
 function seriesRank(seriesTicker) {
   const index2 = TRACKED_SERIES.findIndex((s) => s.ticker === seriesTicker);
@@ -53200,6 +53249,7 @@ async function ingestEvents(seriesTicker, { status, withNestedMarkets = true } =
 var cents = (dollars) => dollars == null || dollars === "" ? null : Math.round(parseFloat(dollars) * 100);
 var date2 = (iso) => iso ? new Date(iso) : null;
 var BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
+var BETTABLE_ALERT_LEAD_MS = 30 * 60 * 1000;
 var SYNC_LEAD_MS = 6 * 60 * 60 * 1000;
 async function sync(seriesTicker) {
   const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
@@ -53280,12 +53330,23 @@ async function settleOpenBetMarkets() {
   }
   return { checkedMarkets: openMarkets.length, settledBets, voidedBets, settlements };
 }
+async function claimBettableAlerts() {
+  const now = new Date;
+  const threshold = new Date(now.getTime() + BETTABLE_ALERT_LEAD_MS);
+  return db.update(events).set({ bettableAnnounced: true }).where(and(eq(events.bettableAnnounced, false), gt(events.startsAt, now), lte(events.startsAt, threshold), exists(db.select({ ticker: markets.ticker }).from(markets).where(eq(markets.eventTicker, events.eventTicker))))).returning({
+    eventTicker: events.eventTicker,
+    seriesTicker: events.seriesTicker,
+    title: events.title,
+    startsAt: events.startsAt
+  });
+}
 async function syncAll() {
   const series = [];
   for (const tracked of TRACKED_SERIES) {
     series.push(await sync(tracked.ticker));
   }
   const settlement = await settleOpenBetMarkets();
+  const bettableAlerts = await claimBettableAlerts();
   const settledBets = series.reduce((n, s) => n + s.settledBets, settlement.settledBets);
   const voidedBets = series.reduce((n, s) => n + s.voidedBets, settlement.voidedBets);
   const settlements = [...series.flatMap((s) => s.settlements), ...settlement.settlements];
@@ -53294,7 +53355,8 @@ async function syncAll() {
     checkedMarkets: settlement.checkedMarkets,
     settledBets,
     voidedBets,
-    settlements
+    settlements,
+    bettableAlerts
   };
 }
 function indexMilestones(milestones) {
@@ -53373,10 +53435,10 @@ async function upsertMarket(event, market) {
   });
 }
 
-// src/bot/commands/bet.ts
-var PICK_EVENT_ACTION = "pick_event";
-var PICK_OUTCOME_ACTION = "pick_outcome";
-var PICK_AMOUNT_ACTION = "pick_amount";
+// src/bot/commands/placebet.ts
+var PICK_EVENT_ACTION = "pe";
+var PICK_OUTCOME_ACTION = "po";
+var PICK_AMOUNT_ACTION = "pa";
 var BACK_TO_EVENTS_ACTION = "back_events";
 var NOOP_ACTION = "noop";
 function seriesHeaderRow(seriesTicker) {
@@ -53437,7 +53499,7 @@ async function upcomingEvents() {
     seriesTicker: events.seriesTicker,
     title: events.title,
     startsAt: events.startsAt
-  }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(and(inArray(events.gameStatus, ["not_started", "scheduled"]), gt(events.startsAt, now), lte(events.startsAt, horizon))).orderBy(asc(events.startsAt), asc(events.eventTicker));
+  }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(and(gt(events.startsAt, now), lte(events.startsAt, horizon))).orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 function groupBySeries(rows) {
   const bySeries = new Map;
@@ -53493,7 +53555,11 @@ async function outcomesCard(eventTicker, ownerName) {
   return {
     type: "card",
     children: [
-      { type: "text", content: `${ownerName}: ${title} — ${kickoffLabel(startsAt)}`, style: "bold" },
+      {
+        type: "text",
+        content: `${ownerName}, place your bet on ${title} - ${kickoffLabel(startsAt)}`,
+        style: "bold"
+      },
       ...outcomes.map((m2) => ({
         type: "actions",
         children: [
@@ -53514,7 +53580,7 @@ async function outcomesCard(eventTicker, ownerName) {
     ]
   };
 }
-var PRESET_SHARES = [1000, 5000, 7500, 1e4];
+var PRESET_SHARES = [1000, 5000, 7500, 1e4, 15000, 20000];
 function presetLabel(shares, priceCents) {
   const count2 = `${shares.toLocaleString("en-US")} shares`;
   return priceCents == null ? count2 : `${count2} — ${formatDollars(shares * priceCents)}`;
@@ -53522,7 +53588,7 @@ function presetLabel(shares, priceCents) {
 function amountTitle(pick, userName, balance) {
   return {
     type: "text",
-    content: `${userName} (balance: ${formatDollars(balance)}): how much on ${pick.outcome}?`,
+    content: `${userName} (balance: ${formatDollars(balance)}): How much do you want to bet on ${pick.outcome}?`,
     style: "bold"
   };
 }
@@ -53532,15 +53598,11 @@ function noteLine(note) {
 function priceExplainer(pick) {
   if (pick.priceCents == null)
     return [];
-  const price = pick.priceCents;
   return [
     {
       type: "text",
-      content: `${pick.outcome} @ ${price}¢ — your stake buys ${pick.outcome} shares at ` + `${formatDollars(price)} each; every share pays ${formatDollars(100)} if ${pick.outcome} wins.`
-    },
-    {
-      type: "text",
-      content: `Example: 100 shares costs ${formatDollars(price * 100)} and pays ${formatDollars(1e4)} ` + `on a win (≈${price}% chance).`
+      content: `
+Details: Each share costs ${formatDollars(pick.priceCents)} and pays ${formatDollars(100)} if bet wins`
     }
   ];
 }
@@ -53549,7 +53611,7 @@ function amountPickerCard(pick, userName, balance, note) {
     type: "button",
     id: PICK_AMOUNT_ACTION,
     label,
-    value: `${pick.ticker}|${spec}`
+    value: spec
   });
   return {
     type: "card",
@@ -53563,7 +53625,7 @@ function amountPickerCard(pick, userName, balance, note) {
       })),
       {
         type: "actions",
-        children: [amountButton("Custom amount…", "custom")]
+        children: [amountButton("Enter custom dollar amount…", "custom")]
       },
       {
         type: "actions",
@@ -53586,7 +53648,12 @@ function customAmountCard(pick, userName, balance, note) {
       ...noteLine(note),
       amountTitle(pick, userName, balance),
       ...priceExplainer(pick),
-      { type: "text", content: `Reply with a dollar amount, e.g. 50 — or "cancel".` },
+      {
+        type: "text",
+        content: `
+Reply with a dollar amount, e.g. $1000 — or "cancel".`,
+        style: "bold"
+      },
       {
         type: "actions",
         children: [
@@ -53601,13 +53668,9 @@ function customAmountCard(pick, userName, balance, note) {
     ]
   };
 }
-function betCelebration(userName, outcome, contracts, price, cost) {
-  return [
-    `\uD83C\uDF86\uD83C\uDF87✨ BET PLACED ✨\uD83C\uDF87\uD83C\uDF86`,
-    `\uD83C\uDF89 ${userName} bought ${contracts.toLocaleString("en-US")} ${outcome} shares @ ${price}¢ for ${formatDollars(cost)}`,
-    `\uD83D\uDCB0 Pays ${formatDollars(contracts * 100)} if ${outcome} wins \uD83C\uDFC6`
-  ].join(`
-`);
+function betConfirmation(userName, outcome, contracts, cost) {
+  const payout = contracts * 100;
+  return `\uD83C\uDF9F  **${userName}** bets **${formatDollars(cost)}** on **${outcome}**. Pays **${formatDollars(payout)} (+${formatDollars(payout - cost)})** if it hits`;
 }
 var MENU_FALLBACK = "Betting menu (buttons not supported here).";
 function isNotModified(err) {
@@ -53643,13 +53706,13 @@ async function claimMenu(event) {
     await setMenu(event.thread, event.user.userId, event.messageId);
     return true;
   }
-  await event.thread.post(`${event.user.fullName}: that menu belongs to someone else — type /bet to get your own.`);
+  await event.thread.post(`${event.user.fullName}: that menu belongs to someone else — type /placebet to get your own.`);
   return false;
 }
-var bet = {
-  name: "bet",
+var placebet = {
+  name: "placebet",
   description: "Browse events and place a bet",
-  usage: "/bet",
+  usage: "/placebet",
   handler: async ({ thread, message }) => {
     const card = await eventsCard(message.author.fullName);
     if (!card) {
@@ -53721,16 +53784,18 @@ async function handlePickOutcome(event) {
   await showView(event, amountPickerCard(pick, event.user.fullName, balance));
 }
 async function handlePickAmount(event) {
-  const [ticker, spec] = (event.value ?? "").split("|");
-  if (!ticker || !spec)
+  const spec = event.value;
+  if (!spec)
     return;
   if (!await claimMenu(event))
     return;
-  const pick = await loadPick(ticker, event.messageId);
+  const pending = event.thread ? await getPendingPick(event.thread, event.user.userId) : null;
+  const pick = pending ? await loadPick(pending.ticker, event.messageId) : null;
   if (!pick) {
     await showView(event, await eventsCard(event.user.fullName) ?? emptyCard());
     return;
   }
+  const ticker = pick.ticker;
   const userName = event.user.fullName;
   const profile = telegramProfileFromAction(event);
   const userId = await findUser(profile);
@@ -53762,14 +53827,21 @@ async function handlePickAmount(event) {
     return;
   }
   try {
-    const { contracts, price, cost } = await placeBet(profile, ticker, "yes", stakeCents);
+    const { contracts, cost } = await placeBet(profile, ticker, "yes", stakeCents);
     if (event.thread)
       await clearPendingPick(event.thread, event.user.userId);
     await showView(event, await eventsCard(userName) ?? emptyCard());
-    await event.thread?.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+    await event.thread?.post({ markdown: betConfirmation(userName, pick.outcome, contracts, cost) });
   } catch (err) {
     await showView(event, amountPickerCard(pick, userName, balance, `Couldn't place that bet: ${err instanceof Error ? err.message : err}`));
   }
+}
+function parseDollarAmount(text7) {
+  const match = text7.match(/\$?\s*(\d[\d,]*(?:\.\d+)?)/);
+  if (!match)
+    return null;
+  const dollars = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(dollars) && dollars > 0 ? dollars : null;
 }
 async function handleBetReply(thread, message) {
   const pick = await getPendingPick(thread, message.author.userId);
@@ -53802,8 +53874,8 @@ async function handleBetReply(thread, message) {
       await thread.post(note);
     }
   };
-  const dollars = Number(text7.replace(/^\$/, ""));
-  if (!Number.isFinite(dollars) || dollars <= 0) {
+  const dollars = parseDollarAmount(text7);
+  if (dollars == null) {
     await reprompt(`That's not a positive dollar amount.`);
     return true;
   }
@@ -53813,10 +53885,10 @@ async function handleBetReply(thread, message) {
     return true;
   }
   try {
-    const { contracts, price, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
+    const { contracts, cost } = await placeBet(profile, pick.ticker, "yes", stakeCents);
     await clearPendingPick(thread, message.author.userId);
     await backToEvents();
-    await thread.post(betCelebration(userName, pick.outcome, contracts, price, cost));
+    await thread.post({ markdown: betConfirmation(userName, pick.outcome, contracts, cost) });
   } catch (err) {
     await reprompt(`Couldn't place that bet: ${err instanceof Error ? err.message : err}`);
   }
@@ -53829,7 +53901,7 @@ function emptyCard() {
   };
 }
 
-// src/bot/commands/bets.ts
+// src/bot/commands/showbets.ts
 var BETS_PICK_EVENT_ACTION = "bets_event";
 var BETS_BACK_ACTION = "bets_back";
 var BETS_FALLBACK = "Open bets (buttons not supported here).";
@@ -53840,11 +53912,26 @@ async function openBetCounts() {
   const rows = await db.select({ eventTicker: markets.eventTicker, betCount: count(bets.id) }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).where(eq(bets.status, "open")).groupBy(markets.eventTicker);
   return new Map(rows.map((r) => [r.eventTicker, Number(r.betCount)]));
 }
+async function listedEvents(openBetEventTickers) {
+  const now = new Date;
+  const horizon = new Date(now.getTime() + BETTABLE_HORIZON_MS);
+  const bettable = and(gt(events.startsAt, now), lte(events.startsAt, horizon));
+  return db.selectDistinct({
+    eventTicker: events.eventTicker,
+    seriesTicker: events.seriesTicker,
+    title: events.title,
+    startsAt: events.startsAt
+  }).from(markets).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(openBetEventTickers.length === 0 ? bettable : or(bettable, inArray(events.eventTicker, openBetEventTickers))).orderBy(asc(events.startsAt), asc(events.eventTicker));
+}
+var IN_PROGRESS_LABEL = "\uD83D\uDFE2 In progress";
+function inProgress(startsAt) {
+  return startsAt != null && startsAt <= new Date;
+}
 async function betsEventsCard() {
-  const rows = await upcomingEvents();
+  const counts = await openBetCounts();
+  const rows = await listedEvents([...counts.keys()]);
   if (rows.length === 0)
     return null;
-  const counts = await openBetCounts();
   return {
     type: "card",
     children: [
@@ -53857,7 +53944,11 @@ async function betsEventsCard() {
             {
               type: "button",
               id: BETS_PICK_EVENT_ACTION,
-              label: `${e.title} — ${betCountLabel(counts.get(e.eventTicker) ?? 0)}`,
+              label: [
+                e.title,
+                ...inProgress(e.startsAt) ? [IN_PROGRESS_LABEL] : [],
+                betCountLabel(counts.get(e.eventTicker) ?? 0)
+              ].join(" — "),
               value: e.eventTicker
             }
           ]
@@ -53880,10 +53971,16 @@ async function eventBetsCard(eventTicker) {
     firstName: users.firstName,
     lastName: users.lastName
   }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).innerJoin(users, eq(users.id, bets.userId)).where(and(eq(markets.eventTicker, eventTicker), eq(bets.status, "open"))).orderBy(asc(bets.id));
-  const header = `${event.title} — ${kickoffLabel(event.startsAt)} — ` + `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
-  const lines = rows.length === 0 ? [{ type: "text", content: "No open bets yet — type /bet to place the first one." }] : rows.map((bet2, i) => ({
+  const live = inProgress(event.startsAt);
+  const header = `${event.title} — ${live ? IN_PROGRESS_LABEL : kickoffLabel(event.startsAt)} — ` + `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
+  const lines = rows.length === 0 ? [
+    {
+      type: "text",
+      content: live ? "No open bets — betting closed at kickoff." : "No open bets yet — type /placebet to place the first one."
+    }
+  ] : rows.map((bet, i) => ({
     type: "text",
-    content: `${i + 1}. ${displayName(bet2)} — ${bet2.outcome} ${bet2.side.toUpperCase()}, ` + `${bet2.contracts.toLocaleString("en-US")} shares @ ${bet2.priceCents}¢ ` + `(cost ${formatDollars(bet2.costCents)}, pays ${formatDollars(bet2.contracts * 100)})`
+    content: `${i + 1}. ${displayName(bet)} — ${bet.outcome} ${bet.side.toUpperCase()}, ` + `${bet.contracts.toLocaleString("en-US")} shares @ ${bet.priceCents}¢ ` + `(cost ${formatDollars(bet.costCents)}, pays ${formatDollars(bet.contracts * 100)})`
   }));
   return {
     type: "card",
@@ -53920,10 +54017,10 @@ async function handleBetsBack(event) {
   if (card)
     await showBetsView(event, card);
 }
-var bets2 = {
-  name: "bets",
+var showbets = {
+  name: "showbets",
   description: "See everyone's open bets by event",
-  usage: "/bets",
+  usage: "/showbets",
   handler: async ({ thread }) => {
     const card = await betsEventsCard();
     if (!card) {
@@ -53934,11 +54031,11 @@ var bets2 = {
   }
 };
 
-// src/bot/commands/me.ts
-var me = {
-  name: "me",
+// src/bot/commands/mybets.ts
+var mybets = {
+  name: "mybets",
   description: "Show your balance and open bets",
-  usage: "/me",
+  usage: "/mybets",
   handler: async ({ thread, message }) => {
     const userId = await findUser(telegramProfile(message));
     if (userId == null) {
@@ -53952,24 +54049,60 @@ var me = {
       contracts: bets.contracts,
       priceCents: bets.priceCents,
       costCents: bets.costCents,
+      title: events.title,
+      seriesTicker: events.seriesTicker,
       startsAt: events.startsAt
     }).from(bets).innerJoin(markets, eq(markets.ticker, bets.marketTicker)).innerJoin(events, eq(events.eventTicker, markets.eventTicker)).where(and(eq(bets.userId, userId), eq(bets.status, "open"))).orderBy(asc(events.startsAt), asc(bets.id));
-    const atRiskCents = open.reduce((total, bet2) => total + bet2.costCents, 0);
+    const atRiskCents = open.reduce((total, bet) => total + bet.costCents, 0);
     const lines = [
       `${message.author.fullName}`,
-      `Balance: ${formatDollars(await balanceCents(userId))}`,
-      `At risk in open bets: ${formatDollars(atRiskCents)}`
+      `\uD83D\uDCB5 Balance: **${formatDollars(await balanceCents(userId))}**`,
+      `⏳ Pending / At Risk: **${formatDollars(atRiskCents)}**`
     ];
     if (open.length === 0) {
-      lines.push("", "No open bets. Type /bet to place one.");
+      lines.push("", "No open bets. Type /placebet to place one.");
     } else {
-      lines.push("", "Open bets, kicking off soonest first:");
-      for (const bet2 of open) {
-        lines.push(`#${bet2.id} ${bet2.outcome} ${bet2.side.toUpperCase()} — ${bet2.contracts} @ ${bet2.priceCents}¢ → ${formatDollars(bet2.contracts * 100)} · ${bet2.startsAt ? formatEastern(bet2.startsAt) : "kickoff TBD"}`);
+      lines.push("", "All bets:");
+      for (const bet of open) {
+        const kickoff = bet.startsAt ? formatEasternShort(bet.startsAt) : "kickoff TBD";
+        lines.push(`${seriesEmoji(bet.seriesTicker)} **${bet.outcome}** in *${bet.title}* - betting **${formatDollars(bet.costCents)}** to win **${formatDollars(bet.contracts * 100)}** · ${kickoff}`);
       }
     }
-    await thread.post(lines.join(`
-`));
+    await thread.post({ markdown: lines.join(`
+`) });
+  }
+};
+
+// src/bot/commands/bet.ts
+var bet = {
+  name: "bet",
+  description: `Renamed → ${placebet.usage}`,
+  usage: "/bet",
+  handler: async (ctx) => {
+    await ctx.thread.post(`Heads up: /bet is now ${placebet.usage} — running it for you.`);
+    await placebet.handler(ctx);
+  }
+};
+
+// src/bot/commands/bets.ts
+var bets2 = {
+  name: "bets",
+  description: `Renamed → ${showbets.usage}`,
+  usage: "/bets",
+  handler: async (ctx) => {
+    await ctx.thread.post(`Heads up: /bets is now ${showbets.usage} — running it for you.`);
+    await showbets.handler(ctx);
+  }
+};
+
+// src/bot/commands/me.ts
+var me = {
+  name: "me",
+  description: `Renamed → ${mybets.usage}`,
+  usage: "/me",
+  handler: async (ctx) => {
+    await ctx.thread.post(`Heads up: /me is now ${mybets.usage} — running it for you.`);
+    await mybets.handler(ctx);
   }
 };
 
@@ -53993,19 +54126,19 @@ var start = {
     if (!created) {
       await thread.post([
         `Welcome back, ${message.author.fullName}! Your balance is ${balance}.`,
-        "Place a bet with /bet and check your account with /me.",
+        "Place a bet with /placebet and check your account with /mybets.",
         "Type /help to see everything I can do."
       ].join(`
 `));
       return;
     }
-    await thread.post(randomWelcomeGif());
+    await thread.post(gifMessage(randomWelcomeGif()));
     await thread.post([
       `\uD83C\uDF89 Welcome aboard, ${message.author.fullName}!`,
       "",
       `Your account is live with a ${balance} bankroll — now go make some money \uD83D\uDCB0, playa!`,
       "",
-      "Type /bet to place your first bet, and check /me any time."
+      "Type /placebet to place your first bet, and check /mybets any time."
     ].join(`
 `));
   }
@@ -54022,8 +54155,10 @@ var help = {
 `));
   }
 };
-var commands = [start, help, bet, bets2, me, leaderboard];
-var byName = new Map(commands.map((c2) => [c2.name, c2]));
+var commands = [start, help, placebet, showbets, mybets, leaderboard];
+var deprecatedCommands = [bet, bets2, me];
+var allCommands = [...commands, ...deprecatedCommands];
+var byName = new Map(allCommands.map((c2) => [c2.name, c2]));
 var COMMAND_RE = /^\/([a-z0-9_]+)(?:@\S+)?(?:\s+([\s\S]*))?$/i;
 async function dispatchCommand(thread, message) {
   const match = COMMAND_RE.exec(message.text?.trim() ?? "");

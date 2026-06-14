@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -82,6 +83,30 @@ export const bets = pgTable("bets", {
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true }),
+});
+
+// One row per generated "Sunday Rundown" recap, saved before it's posted so a
+// generation is never lost and the web surface can render it later.
+export const recaps = pgTable("recaps", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  // The rolling 7-day window this recap covers.
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+  // The recap as the model wrote it: Telegram-flavored markdown with BARE
+  // display names — no tg:// mentions baked in. Mentions are platform-specific,
+  // so names stay plain here and get re-linked per surface (linkMentions() for
+  // Telegram, profile links for the web) using the roster in `stats`.
+  body: text("body").notNull(),
+  // Full WeeklyStats snapshot — the numbers plus the user roster — so any
+  // surface can render structured tables and re-link mentions without
+  // re-querying. Left untyped here (so schema.ts stays a dependency-free leaf);
+  // writers go through summary.saveRecap (typed WeeklyStats) and readers cast.
+  // Dates serialize to ISO strings inside the JSON.
+  stats: jsonb("stats").notNull(),
+  // Gateway model id that wrote `body`, or "fallback" when the deterministic
+  // safety-net recap was used.
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const ledger = pgTable("ledger", {

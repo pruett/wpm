@@ -9,8 +9,9 @@
     "webhook": "bun src/utils/webhook.ts",
     "updateTelegramCommands": "bun src/utils/commands.ts",
     "updateTelegramCommands:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && bun src/utils/commands.ts",
-    "build:api": "rm -f api/*.mjs && bun build src/api/sync.ts src/api/telegram.ts src/api/health.ts --outdir api --target node --format esm --external pg-native --entry-naming '[name].mjs'",
+    "build:api": "rm -f api/*.mjs && bun build src/api/sync.ts src/api/summary.ts src/api/telegram.ts src/api/health.ts --outdir api --target node --format esm --external pg-native --entry-naming '[name].mjs'",
     "deploy": "vercel deploy --prod",
+    "db:pull:prod": "bash scripts/db-pull-prod.sh",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -22,6 +23,7 @@
   "dependencies": {
     "@chat-adapter/state-pg": "^4.30.0",
     "@chat-adapter/telegram": "latest",
+    "ai": "^6.0.204",
     "chat": "latest",
     "drizzle-orm": "^0.45.2",
     "kalshi-typescript": "^3.20.0",

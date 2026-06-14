@@ -7105,6 +7105,7 @@ function drizzle(...params) {
 var exports_schema = {};
 __export(exports_schema, {
   users: () => users,
+  recaps: () => recaps,
   markets: () => markets,
   ledgerKind: () => ledgerKind,
   ledger: () => ledger,
@@ -7123,6 +7124,7 @@ var events = pgTable("events", {
   mutuallyExclusive: boolean("mutually_exclusive").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }),
   gameStatus: text("game_status").notNull().default(""),
+  bettableAnnounced: boolean("bettable_announced").notNull().default(false),
   syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow()
 });
 var markets = pgTable("markets", {
@@ -7161,6 +7163,15 @@ var bets = pgTable("bets", {
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true })
+});
+var recaps = pgTable("recaps", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+  body: text("body").notNull(),
+  stats: jsonb("stats").notNull(),
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 var ledger = pgTable("ledger", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

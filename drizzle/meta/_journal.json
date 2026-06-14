@@ -15,6 +15,13 @@
       "when": 1781388329220,
       "tag": "0001_shocking_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781443921974,
+      "tag": "0002_lazy_annihilus",
+      "breakpoints": true
     }
   ]
 }

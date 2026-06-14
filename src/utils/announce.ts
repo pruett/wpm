@@ -158,6 +158,37 @@ export async function announceBettableAlerts(alerts: BettableAlert[]): Promise<n
   return posted;
 }
 
+/**
+ * Post the weekly recap to every subscribed group: a headline, a celebratory
+ * GIF, then the (already mention-linked) recap markdown. The recap text is
+ * built upstream — here we just frame it and fan it out, skipping any one dead
+ * group without blocking the rest. Returns how many threads were posted to.
+ */
+export async function announceWeeklyRecap(recapMarkdown: string): Promise<number> {
+  const threadIds = await groupThreadIds();
+  if (threadIds.length === 0) return 0;
+
+  await state.connect();
+
+  const posts: Array<string | PostableMarkdown> = [
+    "🧾 THE SUNDAY RUNDOWN 🧾",
+    gifMessage(pickRandom(VICTORY_GIFS)),
+    { markdown: recapMarkdown },
+  ];
+
+  let posted = 0;
+  for (const threadId of threadIds) {
+    try {
+      const thread = bot.thread(threadId);
+      for (const post of posts) await thread.post(post);
+      posted++;
+    } catch (error) {
+      console.error(`weekly recap announcement failed for ${threadId}:`, error);
+    }
+  }
+  return posted;
+}
+
 /** One line per settled bet, pre-split into the two circles. */
 async function buildLines(
   settlements: MarketSettlement[],
