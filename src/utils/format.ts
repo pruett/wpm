@@ -105,6 +105,37 @@ export function linkMentions(text: string, people: Mentionable[]): string {
   });
 }
 
+/**
+ * Render a Kalshi ask price (cents, 1–100) as decimal odds — the total return
+ * per $1 staked, the way most sportsbooks quote it (`94¢ → 1.06x`). A share
+ * costs the price and pays $1 on a win, so the multiple is 100 / price.
+ * Returns `—` when there's no live price.
+ */
+export function formatDecimalOdds(priceCents: number | null): string {
+  if (priceCents == null || priceCents <= 0) return "—";
+  return `${(100 / priceCents).toFixed(2)}x`;
+}
+
+/**
+ * Show what a bet returns at a given ask price — stake included — either as
+ * `$100 → $106` (style `"arrow"`, the default) or `$100 (pays $106)` (style
+ * `"pays"`). A share costs the price and pays $1, so a stake buys stake/price
+ * shares and returns stake × (100 / price), rounded to whole dollars for a
+ * clean label. Defaults to a $100 stake. Returns `null` when there's no live
+ * price.
+ */
+export function formatStakeReturn(
+  priceCents: number | null,
+  stakeDollars = 100,
+  style: "arrow" | "pays" = "arrow",
+): string | null {
+  if (priceCents == null || priceCents <= 0) return null;
+  const back = Math.round((stakeDollars * 100) / priceCents);
+  const stake = formatDollars(stakeDollars * 100);
+  const payout = formatDollars(back * 100);
+  return style === "pays" ? `${stake} (pays ${payout})` : `${stake} → ${payout}`;
+}
+
 /** Format a cent amount as dollars: `$1,000`, `$99,988.65` (whole amounts drop the cents). */
 export function formatDollars(cents: number): string {
   const figure = (cents / 100).toLocaleString("en-US", {

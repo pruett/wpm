@@ -4,7 +4,12 @@ import { db } from "../../db";
 import { events, markets as marketsTable } from "../../db/schema";
 import { REGISTER_PROMPT, balanceCents, findUser, placeBet } from "../../utils/house";
 import { telegramProfile, telegramProfileFromAction } from "../identity";
-import { formatDollars, formatEastern } from "../../utils/format";
+import {
+  formatDecimalOdds,
+  formatDollars,
+  formatEastern,
+  formatStakeReturn,
+} from "../../utils/format";
 import { seriesRank, seriesTitle } from "../../kalshi/series";
 import { BETTABLE_HORIZON_MS } from "../../utils/sync";
 import type { BotCommand } from "./types";
@@ -232,20 +237,23 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
     children: [
       {
         type: "text",
-        content: `${ownerName}, place your bet on ${title} - ${kickoffLabel(startsAt)}`,
-        style: "bold",
+        content: `**${ownerName}**, place your bet on **${title}** - *${kickoffLabel(startsAt)}*`,
       },
-      ...outcomes.map((m) => ({
-        type: "actions" as const,
-        children: [
-          {
-            type: "button" as const,
-            id: PICK_OUTCOME_ACTION,
-            label: `${m.outcome} @ ${m.yesAsk ?? "—"}¢`,
-            value: m.ticker,
-          },
-        ],
-      })),
+      ...outcomes.map((m) => {
+        const back = formatStakeReturn(m.yesAsk);
+        const odds = `@ ${formatDecimalOdds(m.yesAsk)}`;
+        return {
+          type: "actions" as const,
+          children: [
+            {
+              type: "button" as const,
+              id: PICK_OUTCOME_ACTION,
+              label: back ? `${m.outcome} ${odds}  (${back})` : `${m.outcome} ${odds}`,
+              value: m.ticker,
+            },
+          ],
+        };
+      }),
       {
         type: "actions",
         children: [
@@ -256,37 +264,23 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
   };
 }
 
-// Preset share counts so most bets are a single tap. Each button shows what
-// that many shares costs at the current price (100 shares at 50¢ = $50).
-const PRESET_SHARES = [1000, 5000, 7500, 10000, 15000, 20000];
+// Preset dollar stakes so most bets are a single tap. Each button shows the
+// stake and what it returns at the live price ($100 (pays $106) at 94¢).
+const PRESET_AMOUNTS = [100, 250, 500, 1000, 2500];
 
-function presetLabel(shares: number, priceCents: number | null): string {
-  const count = `${shares.toLocaleString("en-US")} shares`;
-  return priceCents == null ? count : `${count} — ${formatDollars(shares * priceCents)}`;
+function presetLabel(dollars: number, priceCents: number | null): string {
+  return formatStakeReturn(priceCents, dollars, "pays") ?? formatDollars(dollars * 100);
 }
 
 function amountTitle(pick: PendingPick, userName: string, balance: number) {
   return {
     type: "text" as const,
-    content: `${userName} (balance: ${formatDollars(balance)}): How much do you want to bet on ${pick.outcome}?`,
-    style: "bold" as const,
+    content: `**${userName}** (*balance: ${formatDollars(balance)}*): How much do you want to bet on **${pick.outcome}**?`,
   };
 }
 
 function noteLine(note?: string) {
   return note ? [{ type: "text" as const, content: note }] : [];
-}
-
-// Plain-language gloss under the amount prompt: a stake buys shares at the
-// quoted price, each paying $1 on a win.
-function priceExplainer(pick: PendingPick) {
-  if (pick.priceCents == null) return [];
-  return [
-    {
-      type: "text" as const,
-      content: `\nDetails: Each share costs ${formatDollars(pick.priceCents)} and pays ${formatDollars(100)} if bet wins`,
-    },
-  ];
 }
 
 // Amount picker: tap a preset to bet it, or "Custom amount…" to type one.
@@ -313,10 +307,9 @@ function amountPickerCard(
     children: [
       ...noteLine(note),
       amountTitle(pick, userName, balance),
-      ...priceExplainer(pick),
-      ...PRESET_SHARES.map((shares) => ({
+      ...PRESET_AMOUNTS.map((dollars) => ({
         type: "actions" as const,
-        children: [amountButton(presetLabel(shares, pick.priceCents), `${shares}s`)],
+        children: [amountButton(presetLabel(dollars, pick.priceCents), `${dollars * 100}`)],
       })),
       {
         type: "actions",
@@ -349,7 +342,6 @@ function customAmountCard(
     children: [
       ...noteLine(note),
       amountTitle(pick, userName, balance),
-      ...priceExplainer(pick),
       {
         type: "text",
         content: `\nReply with a dollar amount, e.g. $1000 — or "cancel".`,
@@ -568,21 +560,11 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
     return;
   }
 
-  // `${shares}s` buys exactly that many shares at the live price (placeBet
-  // floors stake/price, so shares × price converts back to the same count).
-  let stakeCents: number;
-  if (spec.endsWith("s")) {
-    const shares = Number(spec.slice(0, -1));
-    stakeCents =
-      Number.isInteger(shares) && pick.priceCents != null ? shares * pick.priceCents : Number.NaN;
-  } else {
-    stakeCents = Number(spec);
-  }
+  // Preset buttons carry the stake in cents (e.g. "10000" = $100); placeBet
+  // floors stake/price into whole contracts at the live price.
+  const stakeCents = Number(spec);
   if (!Number.isInteger(stakeCents) || stakeCents <= 0) {
-    const note = spec.endsWith("s")
-      ? `No live price for ${pick.outcome} right now — try again after the next sync.`
-      : `That amount didn't parse.`;
-    await showView(event, amountPickerCard(pick, userName, balance, note));
+    await showView(event, amountPickerCard(pick, userName, balance, `That amount didn't parse.`));
     return;
   }
   if (stakeCents > balance) {

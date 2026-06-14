@@ -64,8 +64,6 @@ async function listedEvents(openBetEventTickers: string[]) {
     .orderBy(asc(events.startsAt), asc(events.eventTicker));
 }
 
-const IN_PROGRESS_LABEL = "🟢 In progress";
-
 /** Past kickoff but still listed — the game is on and betting is closed. */
 function inProgress(startsAt: Date | null): boolean {
   return startsAt != null && startsAt <= new Date();
@@ -90,11 +88,11 @@ async function betsEventsCard(): Promise<CardElement | null> {
             {
               type: "button" as const,
               id: BETS_PICK_EVENT_ACTION,
-              label: [
-                e.title,
-                ...(inProgress(e.startsAt) ? [IN_PROGRESS_LABEL] : []),
-                betCountLabel(counts.get(e.eventTicker) ?? 0),
-              ].join(" — "),
+              // Same wording as /placebet's list (title — kickoff), prefixed
+              // with the open-bet count and a red dot on the time once live.
+              label:
+                `(${counts.get(e.eventTicker) ?? 0}) ${e.title} — ` +
+                `${inProgress(e.startsAt) ? "🔴 " : ""}${kickoffLabel(e.startsAt)}`,
               value: e.eventTicker,
             },
           ],
@@ -119,7 +117,6 @@ async function eventBetsCard(eventTicker: string): Promise<CardElement | null> {
       outcome: markets.outcome,
       side: betsTable.side,
       contracts: betsTable.contracts,
-      priceCents: betsTable.priceCents,
       costCents: betsTable.costCents,
       username: users.username,
       firstName: users.firstName,
@@ -133,8 +130,8 @@ async function eventBetsCard(eventTicker: string): Promise<CardElement | null> {
 
   const live = inProgress(event.startsAt);
   const header =
-    `${event.title} — ${live ? IN_PROGRESS_LABEL : kickoffLabel(event.startsAt)} — ` +
-    `Ticker: ${eventTicker} — ${betCountLabel(rows.length)}`;
+    `**${event.title}** — ${live ? "🔴 " : ""}*${kickoffLabel(event.startsAt)}* — ` +
+    `Ticker: *${eventTicker}* — **${betCountLabel(rows.length)}**`;
 
   const lines =
     rows.length === 0
@@ -149,15 +146,14 @@ async function eventBetsCard(eventTicker: string): Promise<CardElement | null> {
       : rows.map((bet, i) => ({
           type: "text" as const,
           content:
-            `${i + 1}. ${displayName(bet)} — ${bet.outcome} ${bet.side.toUpperCase()}, ` +
-            `${bet.contracts.toLocaleString("en-US")} shares @ ${bet.priceCents}¢ ` +
-            `(cost ${formatDollars(bet.costCents)}, pays ${formatDollars(bet.contracts * 100)})`,
+            `${i + 1}. **${displayName(bet)}** — **${bet.outcome}** *${bet.side.toUpperCase()}* - ` +
+            `bet: ${formatDollars(bet.costCents)}, pays: ${formatDollars(bet.contracts * 100)}`,
         }));
 
   return {
     type: "card",
     children: [
-      { type: "text", content: header, style: "bold" },
+      { type: "text", content: header },
       ...lines,
       {
         type: "actions",
