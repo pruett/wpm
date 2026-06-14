@@ -1,10 +1,9 @@
-import { formatDollars } from "../../utils/format";
+import { formatDollars, gifMessage } from "../../utils/format";
 import { balanceCents, registerUser } from "../../utils/house";
 import { telegramProfile } from "../identity";
 import type { BotCommand } from "./types";
 
-// Posted as its own message so Telegram's link preview renders it animated —
-// the Chat SDK has no native sendAnimation, but a bare GIF URL previews big.
+// Posted as its own message (see gifMessage) so Telegram renders it animated.
 // One is picked at random per welcome.
 const WELCOME_GIFS = [
   "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif", // Gatsby Leo raising a glass
@@ -39,7 +38,7 @@ export const start: BotCommand = {
       return;
     }
 
-    await thread.post(randomWelcomeGif());
+    await thread.post(gifMessage(randomWelcomeGif()));
     await thread.post(
       [
         `🎉 Welcome aboard, ${message.author.fullName}!`,

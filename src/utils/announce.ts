@@ -3,11 +3,12 @@ import { bot, state } from "../bot";
 import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
 import { seriesEmoji, seriesRank } from "../kalshi/series";
-import { displayName, formatDollars, formatEastern } from "./format";
+import { formatDollars, formatEastern, gifMessage, mention } from "./format";
 import type { BettableAlert, MarketSettlement } from "./sync";
+import type { PostableMarkdown } from "chat";
 
-// GIFs are posted as their own message so Telegram's link preview renders
-// them animated (same trick as the welcome GIFs in commands/start.ts).
+// GIFs are posted as their own message (see gifMessage) so Telegram renders
+// them animated (same as the welcome GIFs in commands/start.ts).
 const VICTORY_GIFS = [
   "https://media.giphy.com/media/gdwJdym3VuXQr5OfAc/giphy.gif", // McConaughey chest-thump (Wolf of Wall Street)
   "https://media.giphy.com/media/DfLwM9kttDFEQ/giphy.gif", // Leo toasting over fireworks (Gatsby)
@@ -88,13 +89,14 @@ export async function announceSettlements(
   const { winnerLines, loserLines } = await buildLines(settlements);
 
   // Each circle is three messages — headline, GIF, bet lines — so the GIF
-  // animates between its headline and its results.
-  const posts: string[] = [];
+  // animates between its headline and its results. The bet lines go out as
+  // markdown so the bettor @mentions render (and ping) in Telegram.
+  const posts: Array<string | PostableMarkdown> = [];
   if (winnerLines.length) {
-    posts.push("🏆🥇 WINNER'S CIRCLE 🥇🏆", pickRandom(VICTORY_GIFS), winnerLines.join("\n"));
+    posts.push("🏆 WINNER'S CIRCLE 🏆", gifMessage(pickRandom(VICTORY_GIFS)), { markdown: winnerLines.join("\n") });
   }
   if (loserLines.length) {
-    posts.push("💀🤡 LOSER'S CIRCLE 🤡💀", pickRandom(SHAME_GIFS), loserLines.join("\n"));
+    posts.push("💀 LOSER'S CIRCLE 💀", gifMessage(pickRandom(SHAME_GIFS)), { markdown: loserLines.join("\n") });
   }
   if (voidedBets > 0) {
     posts.push(`♻️ ${voidedBets} bet${voidedBets === 1 ? "" : "s"} voided and refunded.`);
@@ -177,27 +179,33 @@ async function buildLines(
     : [];
   const userById = new Map(userRows.map((u) => [u.id, u]));
 
-  const winnerLines: string[] = [];
-  const loserLines: string[] = [];
+  // Collect each line with the amount that orders its circle — profit won for
+  // winners, dollars lost for losers — so the biggest swing tops each section.
+  const winners: { swing: number; line: string }[] = [];
+  const losers: { swing: number; line: string }[] = [];
   for (const settlement of settlements) {
     for (const bet of settlement.bets) {
       const user = userById.get(bet.userId);
-      const name = user ? displayName(user) : "A mystery bettor";
+      const name = user ? mention(user) : "A mystery bettor";
       const info = marketInfo.get(settlement.marketTicker);
       const pick = info
         ? `${bet.side === "yes" ? "on" : "against"} ${info.outcome} (${info.title})`
         : `on ${settlement.marketTicker}`;
       if (bet.won) {
         const payout = bet.contracts * 100;
-        winnerLines.push(
-          `• ${name} ${pickRandom(VICTORY_PHRASES)} — bet ${formatDollars(bet.costCents)} ${pick} → paid ${formatDollars(payout)} (+${formatDollars(payout - bet.costCents)})`,
-        );
+        winners.push({
+          swing: payout - bet.costCents,
+          line: `• ${name} ${pickRandom(VICTORY_PHRASES)} betting ${formatDollars(bet.costCents)} ${pick} and made **+${formatDollars(payout - bet.costCents)}**`,
+        });
       } else {
-        loserLines.push(
-          `• ${name} ${pickRandom(SHAME_PHRASES)} — bet ${formatDollars(bet.costCents)} ${pick} → up in smoke 💨`,
-        );
+        losers.push({
+          swing: bet.costCents,
+          line: `• ${name} ${pickRandom(SHAME_PHRASES)} betting ${formatDollars(bet.costCents)} ${pick}`,
+        });
       }
     }
   }
-  return { winnerLines, loserLines };
+  winners.sort((a, b) => b.swing - a.swing);
+  losers.sort((a, b) => b.swing - a.swing);
+  return { winnerLines: winners.map((w) => w.line), loserLines: losers.map((l) => l.line) };
 }
