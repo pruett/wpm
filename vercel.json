@@ -8,7 +8,7 @@
     },
     {
       "path": "/api/summary",
-      "schedule": "0 16 * * SUN"
+      "schedule": "0 16 * * 0"
     }
   ]
 }
