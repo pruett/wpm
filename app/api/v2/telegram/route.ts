@@ -12,8 +12,8 @@
 import { after } from "next/server";
 import { POST as telegramWebhook } from "@/src/api/telegram";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Route handlers are dynamic by default under cacheComponents, so the former
+// `runtime`/`dynamic` exports are dropped; the webhook duration ceiling stays.
 export const maxDuration = 60;
 
 export function POST(request: Request) {

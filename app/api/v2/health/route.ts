@@ -6,8 +6,9 @@
 // as v2 in the response's `apiVersion.servedBy`.
 import { heartbeat } from "@/src/api/health";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Route handlers are dynamic by default under cacheComponents, so the former
+// `runtime = "nodejs"` (now the default) and `dynamic = "force-dynamic"` exports
+// are dropped — they're incompatible with that flag. Only the duration stays.
 export const maxDuration = 30;
 
 export const GET = () => heartbeat("v2");

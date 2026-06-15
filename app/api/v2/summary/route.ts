@@ -3,8 +3,8 @@
 // (src/api/summary.ts). Production cron still targets /api/summary; this lets
 // us validate the Next-native path before switching over. The weekly recap
 // makes an LLM call, so allow the long execution window.
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Route handlers are dynamic by default under cacheComponents, so the former
+// `runtime`/`dynamic` exports are dropped; the recap's long window stays.
 export const maxDuration = 300;
 
 export { GET } from "@/src/api/summary";
