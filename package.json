@@ -18,7 +18,10 @@
     "db:migrate:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:studio:prod": "vercel env pull .env.production.local --environment=production --yes && set -a && . ./.env.production.local && set +a && drizzle-kit studio",
-    "typecheck": "tsc --noEmit"
+    "web:dev": "next dev",
+    "web:build": "next build",
+    "web:start": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.bot.json && tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@chat-adapter/state-pg": "^4.30.0",
@@ -27,10 +30,16 @@
     "chat": "latest",
     "drizzle-orm": "^0.45.2",
     "kalshi-typescript": "^3.20.0",
-    "postgres": "^3.4.9"
+    "next": "^16.0.0",
+    "postgres": "^3.4.9",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5"
   }

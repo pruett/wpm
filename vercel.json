@@ -1,6 +1,6 @@
 {
-  "buildCommand": "bun run build:api && if [ \"$VERCEL_ENV\" = \"production\" ]; then bun run db:migrate && bun src/utils/commands.ts; fi",
-  "outputDirectory": "public",
+  "framework": "nextjs",
+  "buildCommand": "bun run build:api && if [ \"$VERCEL_ENV\" = \"production\" ]; then bun run db:migrate && bun src/utils/commands.ts; fi && next build",
   "crons": [
     {
       "path": "/api/sync",
