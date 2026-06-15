@@ -20,6 +20,12 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Dry run (?dryRun): exercise the whole pipeline — real stats + the OIDC AI
+  // Gateway recap — against the live deployment, but skip the DB save and the
+  // Telegram post. Lets us validate the v2 Next-served path end to end (logs
+  // the recap to Vercel) without pinging the groups or persisting a stray row.
+  const dryRun = new URL(request.url).searchParams.has("dryRun");
+
   const stats = await collectWeeklyStats();
 
   // A dead week — don't ping the group with an empty report.
@@ -28,6 +34,19 @@ export async function GET(request: Request) {
   }
 
   const recap = await generateWeeklyRecap(stats);
+
+  if (dryRun) {
+    console.log(`[summary dry-run] recap for ${stats.since}–${stats.until}:\n${recap.body}`);
+    return Response.json({
+      dryRun: true,
+      since: stats.since,
+      until: stats.until,
+      betsPlaced: stats.betsPlaced,
+      betsSettled: stats.betsSettled,
+      uniqueBettors: stats.uniqueBettors,
+      recap,
+    });
+  }
 
   // Save the generation before posting, so a recap is never lost (and the web
   // surface can render it later). Stored with bare names + the full stats

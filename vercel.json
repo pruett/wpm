@@ -3,11 +3,11 @@
   "buildCommand": "bun run build:api && if [ \"$VERCEL_ENV\" = \"production\" ]; then bun run db:migrate && bun src/utils/commands.ts; fi && next build",
   "crons": [
     {
-      "path": "/api/sync",
+      "path": "/api/v2/sync",
       "schedule": "*/5 * * * *"
     },
     {
-      "path": "/api/summary",
+      "path": "/api/v2/summary",
       "schedule": "0 16 * * 0"
     }
   ]
