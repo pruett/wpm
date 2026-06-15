@@ -7192,9 +7192,19 @@ var db = drizzle(sql2, { schema: exports_schema });
 // src/api/health.ts
 var SYNC_INTERVAL_MS = 5 * 60 * 1000;
 var MAX_SYNC_AGE_MS = 3 * SYNC_INTERVAL_MS;
-async function GET() {
+function apiVersionFromPath(pathname) {
+  if (!pathname)
+    return "unknown";
+  if (/\/api\/v2(\/|$)/.test(pathname))
+    return "v2";
+  if (/\/api(\/|$)/.test(pathname))
+    return "v1";
+  return "unknown";
+}
+async function heartbeat(servedBy = "v1") {
   const checks = {};
   let healthy = true;
+  let telegramWebhookVersion = "unknown";
   try {
     const [row] = await sql2`SELECT max(synced_at) AS "lastSync" FROM markets`;
     const lastSync = row?.lastSync ? new Date(row.lastSync) : null;
@@ -7217,12 +7227,26 @@ async function GET() {
     const res = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
     const json2 = await res.json();
     const info = json2.result;
-    const webhookOk = json2.ok && !!info?.url && !info.last_error_message;
+    let webhookPath = null;
+    if (info?.url) {
+      try {
+        webhookPath = new URL(info.url).pathname;
+      } catch {
+        webhookPath = null;
+      }
+    }
+    telegramWebhookVersion = apiVersionFromPath(webhookPath);
+    const lastErrorAgeMs = info?.last_error_date ? Date.now() - info.last_error_date * 1000 : Infinity;
+    const webhookOk = json2.ok && !!info?.url && (info.pending_update_count ?? 0) < 10 && lastErrorAgeMs > 5 * 60 * 1000;
     checks.telegramWebhook = {
       ok: webhookOk,
       registered: !!info?.url,
+      version: telegramWebhookVersion,
+      url: info?.url ?? null,
+      path: webhookPath,
       pendingUpdates: info?.pending_update_count ?? null,
-      lastError: info?.last_error_message ?? null
+      lastError: info?.last_error_message ?? null,
+      lastErrorAgeSeconds: Number.isFinite(lastErrorAgeMs) ? Math.round(lastErrorAgeMs / 1000) : null
     };
     if (!webhookOk)
       healthy = false;
@@ -7233,8 +7257,19 @@ async function GET() {
     };
     healthy = false;
   }
-  return Response.json({ status: healthy ? "ok" : "degraded", timestamp: new Date().toISOString(), checks }, { status: healthy ? 200 : 503 });
+  return Response.json({
+    status: healthy ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    apiVersion: {
+      servedBy,
+      telegramWebhook: telegramWebhookVersion
+    },
+    checks
+  }, { status: healthy ? 200 : 503 });
 }
+var GET = () => heartbeat("v1");
 export {
+  heartbeat,
+  apiVersionFromPath,
   GET
 };
