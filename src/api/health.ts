@@ -42,15 +42,34 @@ export async function GET() {
     );
     const json = (await res.json()) as {
       ok: boolean;
-      result?: { url: string; pending_update_count: number; last_error_message?: string };
+      result?: {
+        url: string;
+        pending_update_count: number;
+        last_error_message?: string;
+        last_error_date?: number;
+      };
     };
     const info = json.result;
-    const webhookOk = json.ok && !!info?.url && !info.last_error_message;
+    // A non-empty last_error_message lingers until the next successful delivery,
+    // so it can stay set long after a one-off transient blip (e.g. a serverless
+    // instance teardown resetting Telegram's POST). Only treat the webhook as
+    // unhealthy when there's a recent error or a real backlog of updates.
+    const lastErrorAgeMs = info?.last_error_date
+      ? Date.now() - info.last_error_date * 1000
+      : Infinity;
+    const webhookOk =
+      json.ok &&
+      !!info?.url &&
+      (info.pending_update_count ?? 0) < 10 &&
+      lastErrorAgeMs > 5 * 60 * 1000;
     checks.telegramWebhook = {
       ok: webhookOk,
       registered: !!info?.url,
       pendingUpdates: info?.pending_update_count ?? null,
       lastError: info?.last_error_message ?? null,
+      lastErrorAgeSeconds: Number.isFinite(lastErrorAgeMs)
+        ? Math.round(lastErrorAgeMs / 1000)
+        : null,
     };
     if (!webhookOk) healthy = false;
   } catch (err) {
