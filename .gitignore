@@ -12,3 +12,8 @@ dist/
 .DS_Store
 .vercel
 .env*
+
+# Bundled Vercel Functions — rebuilt fresh by `bun run build:api` in the
+# Vercel buildCommand on every deploy, so the committed copies were never
+# used in prod and only drifted from source. Run build:api before `vercel dev`.
+api/*.mjs
