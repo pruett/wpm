@@ -29,6 +29,13 @@
       "when": 1781572263453,
       "tag": "0003_faithful_mimic",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781619152712,
+      "tag": "0004_lying_husk",
+      "breakpoints": true
     }
   ]
 }
