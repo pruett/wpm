@@ -83,6 +83,12 @@ export const bets = pgTable("bets", {
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true }),
+  // Set once this bet's settlement (or void) has been recapped in the groups.
+  // Kept distinct from settledAt on purpose: settling and announcing are now
+  // separate steps, so a Telegram failure leaves this null and the next sweep
+  // re-announces instead of losing the recap (settlement is no longer
+  // fire-once — see claimUnannouncedSettlements / releaseAnnouncements).
+  announcedAt: timestamp("announced_at", { withTimezone: true }),
 });
 
 // One row per generated "Sunday Rundown" recap, saved before it's posted so a

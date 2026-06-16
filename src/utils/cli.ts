@@ -14,7 +14,14 @@ import { asc, eq } from "drizzle-orm";
 import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
-import { settleOpenBetMarkets, sync, syncAll } from "./sync";
+import {
+  claimUnannouncedSettlements,
+  releaseAnnouncements,
+  releaseBettableAlerts,
+  settleOpenBetMarkets,
+  sync,
+  syncAll,
+} from "./sync";
 import { announceBettableAlerts, announceSettlements, announceWeeklyRecap } from "./announce";
 import { collectWeeklyStats, generateWeeklyRecap, hadActivity } from "./summary";
 import { displayName, formatDollars, formatEastern, linkMentions } from "./format";
@@ -28,7 +35,7 @@ switch (cmd) {
     // No arg syncs every tracked series and recaps settlements in the
     // subscribed groups (what the cron does); an explicit series ticker
     // syncs just that one, quietly. Both end with the settlement pass.
-    const { series, settledBets, voidedBets, settlements, bettableAlerts } = args[0]
+    const { series, settledBets, voidedBets, bettableAlerts } = args[0]
       ? await (async () => {
           const stats = await sync(args[0]!);
           const settlement = await settleOpenBetMarkets();
@@ -36,7 +43,6 @@ switch (cmd) {
             series: [stats],
             settledBets: stats.settledBets + settlement.settledBets,
             voidedBets: stats.voidedBets + settlement.voidedBets,
-            settlements: [],
             bettableAlerts: [],
           };
         })()
@@ -50,10 +56,18 @@ switch (cmd) {
     if (settledBets) console.log(`settled ${settledBets} bets`);
     if (voidedBets) console.log(`voided ${voidedBets} bets`);
     if (!args[0]) {
-      const announced = await announceSettlements(settlements, voidedBets);
-      if (announced) console.log(`announced settlements in ${announced} groups`);
+      // Announce from persisted state (same path as the cron) so a failed post
+      // is retried next run instead of double-posted or lost.
+      const claimed = await claimUnannouncedSettlements();
+      if (claimed.claimedBetIds.length > 0) {
+        const announced = await announceSettlements(claimed.settlements, claimed.voidedBets);
+        if (announced) console.log(`announced settlements in ${announced} groups`);
+        else await releaseAnnouncements(claimed.claimedBetIds);
+      }
       const alerted = await announceBettableAlerts(bettableAlerts);
       if (alerted) console.log(`announced last-call alerts in ${alerted} groups`);
+      else if (bettableAlerts.length)
+        await releaseBettableAlerts(bettableAlerts.map((a) => a.eventTicker));
     }
     break;
   }

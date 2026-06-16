@@ -7162,7 +7162,8 @@ var bets = pgTable("bets", {
   costCents: integer("cost_cents").notNull(),
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  settledAt: timestamp("settled_at", { withTimezone: true })
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  announcedAt: timestamp("announced_at", { withTimezone: true })
 });
 var recaps = pgTable("recaps", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
