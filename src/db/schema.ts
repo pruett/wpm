@@ -54,6 +54,23 @@ export const markets = pgTable("markets", {
 
 // --- Ours (the house) ---
 
+// Hand-curated, light-hearted personalization used to flavor the LLM-generated
+// group announcements (see utils/announce.ts). Author-written only — never
+// user-editable — so the contents are trusted prompt context. Every field is
+// optional; a bettor with no persona just gets the deterministic phrasing.
+export interface UserPersona {
+  /** Free-form personal asides: "drives a Miata he won't shut up about". */
+  bullets?: string[];
+  /** What the group actually calls them, for the model to use. */
+  nicknames?: string[];
+  /** Other bettors worth needling them about. */
+  rivalries?: string[];
+  /** Team allegiance to tease: "insufferable Cowboys fan". */
+  team?: string;
+  /** Steering for the roast intensity: "roast hard, he can take it". */
+  tone?: string;
+}
+
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   // Telegram user id — the immutable identity key. Text because Telegram ids
@@ -65,6 +82,9 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   languageCode: text("language_code"),
+  // Hand-curated personalization for the LLM announcers. Nullable on purpose:
+  // most bettors have none and fall back to the deterministic phrasing.
+  persona: jsonb("persona").$type<UserPersona>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
