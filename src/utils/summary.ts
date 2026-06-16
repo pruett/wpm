@@ -3,6 +3,7 @@ import { and, gte, inArray, lt, eq } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets, recaps, users } from "../db/schema";
 import { displayName, formatDollars } from "./format";
+import { personaPromptBlock } from "./persona";
 import type { BetSide } from "./house";
 
 type User = typeof users.$inferSelect;
@@ -206,6 +207,10 @@ const RECAP_SYSTEM = [
   "- 120 words max. Open with a punchy line, then call out the standouts.",
   "- A little Telegram markdown (**bold**) and a few emoji, used sparingly.",
   "- No title or header, no sign-off — just the recap.",
+  "- Some players come with persona notes (nicknames, team allegiances, rivalries, running jokes).",
+  "  When a player you call out has notes, weave ONE in naturally to sharpen the line — drop a",
+  "  nickname, poke their team, reference a rivalry. Never force it, never use notes for a player who",
+  "  has none, and never invent details beyond what the notes say.",
 ].join("\n");
 
 /** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
@@ -261,11 +266,16 @@ export interface WeeklyRecap {
  */
 export async function generateWeeklyRecap(stats: WeeklyStats): Promise<WeeklyRecap> {
   const facts = recapFacts(stats);
+  // Optional, name-keyed persona flavor; empty when no player this week has notes.
+  const personas = personaPromptBlock(stats.players.map((p) => p.user));
+  const prompt = personas
+    ? `Here are this week's facts:\n\n${facts}\n\n${personas}\n\nWrite the recap.`
+    : `Here are this week's facts:\n\n${facts}\n\nWrite the recap.`;
   try {
     const { text } = await generateText({
       model: SUMMARY_MODEL,
       system: RECAP_SYSTEM,
-      prompt: `Here are this week's facts:\n\n${facts}\n\nWrite the recap.`,
+      prompt,
       temperature: 0.8,
       maxOutputTokens: 500,
     });

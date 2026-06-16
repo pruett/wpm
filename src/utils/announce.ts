@@ -5,6 +5,7 @@ import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
 import { seriesEmoji, seriesRank } from "../kalshi/series";
 import { displayName, formatDollars, formatEastern, gifMessage, linkMentions } from "./format";
+import { personaPromptBlock } from "./persona";
 import type { BettableAlert, MarketSettlement } from "./sync";
 import type { PostableMarkdown } from "chat";
 
@@ -241,7 +242,12 @@ export async function buildSettlementRecap(
 ): Promise<SettlementRecap> {
   const { marketInfo, userById } = await loadSettlementContext(settlements);
   const { winners, losers } = describeSettledBets(settlements, marketInfo, userById);
-  const { body, model, facts } = await generateSettlementRecap(winners, losers, voidedBets);
+  const { body, model, facts } = await generateSettlementRecap(
+    winners,
+    losers,
+    voidedBets,
+    [...userById.values()],
+  );
   const net =
     winners.reduce((n, w) => n + w.swing, 0) - losers.reduce((n, l) => n + l.swing, 0);
   return { body, model, facts, users: [...userById.values()], net };
@@ -321,6 +327,10 @@ const SETTLEMENT_SYSTEM = [
   "- 150 words max. Open with a punchy line, then go bet by bet.",
   "- A little Telegram markdown (**bold** the names and dollar swings) and a few emoji, used sparingly.",
   "- No title or header, no sign-off — just the trash talk.",
+  "- Some players come with persona notes (nicknames, team allegiances, rivalries, running jokes).",
+  "  When a player you're calling out has notes, weave ONE in naturally to sharpen the jab — drop a",
+  "  nickname, poke their team, reference a rivalry. Never force it, never use notes for a player who",
+  "  has none, and never invent details beyond what the notes say.",
 ].join("\n");
 
 /** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
@@ -366,13 +376,19 @@ async function generateSettlementRecap(
   winners: SettledLine[],
   losers: SettledLine[],
   voidedBets: number,
+  users: User[],
 ): Promise<{ body: string; model: string; facts: string }> {
   const facts = settlementFacts(winners, losers, voidedBets);
+  // Optional, name-keyed persona flavor; empty when no involved bettor has notes.
+  const personas = personaPromptBlock(users);
+  const prompt = personas
+    ? `Here's what just settled:\n\n${facts}\n\n${personas}\n\nBreak the news.`
+    : `Here's what just settled:\n\n${facts}\n\nBreak the news.`;
   try {
     const { text } = await generateText({
       model: SETTLEMENT_MODEL,
       system: SETTLEMENT_SYSTEM,
-      prompt: `Here's what just settled:\n\n${facts}\n\nBreak the news.`,
+      prompt,
       temperature: 0.9,
       maxOutputTokens: 400,
     });
