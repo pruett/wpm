@@ -34750,7 +34750,8 @@ var bets = pgTable("bets", {
   costCents: integer("cost_cents").notNull(),
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  settledAt: timestamp("settled_at", { withTimezone: true })
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  announcedAt: timestamp("announced_at", { withTimezone: true })
 });
 var recaps = pgTable("recaps", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -35037,6 +35038,58 @@ async function claimBettableAlerts() {
     title: events.title,
     startsAt: events.startsAt
   });
+}
+async function claimUnannouncedSettlements() {
+  return db.transaction(async (tx) => {
+    const claimed = await tx.update(bets).set({ announcedAt: sql`now()` }).where(and(inArray(bets.status, ["won", "lost", "voided"]), isNull(bets.announcedAt))).returning({
+      id: bets.id,
+      userId: bets.userId,
+      marketTicker: bets.marketTicker,
+      side: bets.side,
+      contracts: bets.contracts,
+      costCents: bets.costCents,
+      status: bets.status
+    });
+    if (claimed.length === 0)
+      return { settlements: [], voidedBets: 0, claimedBetIds: [] };
+    const tickers = [...new Set(claimed.map((b2) => b2.marketTicker))];
+    const resultRows = await tx.select({ ticker: markets.ticker, result: markets.result }).from(markets).where(inArray(markets.ticker, tickers));
+    const resultByMarket = new Map(resultRows.map((r) => [r.ticker, r.result]));
+    const byMarket = new Map;
+    let voidedBets = 0;
+    for (const bet of claimed) {
+      if (bet.status === "voided") {
+        voidedBets++;
+        continue;
+      }
+      const list = byMarket.get(bet.marketTicker) ?? [];
+      list.push({
+        betId: bet.id,
+        userId: bet.userId,
+        side: bet.side,
+        contracts: bet.contracts,
+        costCents: bet.costCents,
+        won: bet.status === "won"
+      });
+      byMarket.set(bet.marketTicker, list);
+    }
+    const settlements = [...byMarket].map(([marketTicker, marketBets]) => ({
+      marketTicker,
+      result: resultByMarket.get(marketTicker) ?? "yes",
+      bets: marketBets
+    }));
+    return { settlements, voidedBets, claimedBetIds: claimed.map((b2) => b2.id) };
+  });
+}
+async function releaseAnnouncements(betIds) {
+  if (betIds.length === 0)
+    return;
+  await db.update(bets).set({ announcedAt: null }).where(inArray(bets.id, betIds));
+}
+async function releaseBettableAlerts(eventTickers) {
+  if (eventTickers.length === 0)
+    return;
+  await db.update(events).set({ bettableAnnounced: false }).where(inArray(events.eventTicker, eventTickers));
 }
 async function syncAll() {
   const series = [];
@@ -54375,18 +54428,28 @@ async function GET(request) {
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const { settlements, bettableAlerts, ...stats } = await syncAll();
+  const { bettableAlerts, ...stats } = await syncAll();
   let announcedThreads = 0;
-  try {
-    announcedThreads = await announceSettlements(settlements, stats.voidedBets);
-  } catch (error) {
-    console.error("settlement announcement failed:", error);
+  const claimed = await claimUnannouncedSettlements();
+  if (claimed.claimedBetIds.length > 0) {
+    try {
+      announcedThreads = await announceSettlements(claimed.settlements, claimed.voidedBets);
+    } catch (error) {
+      console.error("settlement announcement failed:", error);
+    }
+    if (announcedThreads === 0)
+      await releaseAnnouncements(claimed.claimedBetIds);
   }
   let alertedThreads = 0;
-  try {
-    alertedThreads = await announceBettableAlerts(bettableAlerts);
-  } catch (error) {
-    console.error("bettable alert announcement failed:", error);
+  if (bettableAlerts.length > 0) {
+    try {
+      alertedThreads = await announceBettableAlerts(bettableAlerts);
+    } catch (error) {
+      console.error("bettable alert announcement failed:", error);
+    }
+    if (alertedThreads === 0) {
+      await releaseBettableAlerts(bettableAlerts.map((a) => a.eventTicker));
+    }
   }
   return Response.json({ ...stats, announcedThreads, alertedThreads });
 }

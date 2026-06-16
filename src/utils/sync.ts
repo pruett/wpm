@@ -1,5 +1,5 @@
 import type { EventData, Market, Milestone } from "kalshi-typescript";
-import { and, eq, exists, gt, lte } from "drizzle-orm";
+import { and, eq, exists, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
@@ -234,6 +234,103 @@ export async function claimBettableAlerts(): Promise<BettableAlert[]> {
       title: events.title,
       startsAt: events.startsAt,
     });
+}
+
+/** A batch of settled-but-unannounced bets, claimed for one announcement. */
+export interface ClaimedSettlements {
+  /** Won/lost bets grouped by market, ready for announceSettlements. */
+  settlements: MarketSettlement[];
+  /** Count of voided bets in this batch (announced as a bare refund line). */
+  voidedBets: number;
+  /** Every bet id stamped by this claim — pass to releaseAnnouncements on failure. */
+  claimedBetIds: number[];
+}
+
+/**
+ * Atomically claim every settled bet not yet recapped in the groups. The same
+ * UPDATE that stamps announcedAt returns the rows the announcement is built
+ * from, so two overlapping sweeps can't recap the same bet twice (the second
+ * sees announcedAt already set and claims nothing). If the post then fails,
+ * releaseAnnouncements clears the stamp and the next sweep re-claims — this is
+ * what makes settlement announcements no longer fire-once. Settling
+ * (settleMarketBets) leaves announcedAt null; announcing is now its own step.
+ */
+export async function claimUnannouncedSettlements(): Promise<ClaimedSettlements> {
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(bets)
+      .set({ announcedAt: sql`now()` })
+      .where(and(inArray(bets.status, ["won", "lost", "voided"]), isNull(bets.announcedAt)))
+      .returning({
+        id: bets.id,
+        userId: bets.userId,
+        marketTicker: bets.marketTicker,
+        side: bets.side,
+        contracts: bets.contracts,
+        costCents: bets.costCents,
+        status: bets.status,
+      });
+
+    if (claimed.length === 0) return { settlements: [], voidedBets: 0, claimedBetIds: [] };
+
+    // Per-market result (yes/no) for the recap context. Voided bets carry no
+    // result and never reach the markets lookup.
+    const tickers = [...new Set(claimed.map((b) => b.marketTicker))];
+    const resultRows = await tx
+      .select({ ticker: markets.ticker, result: markets.result })
+      .from(markets)
+      .where(inArray(markets.ticker, tickers));
+    const resultByMarket = new Map(resultRows.map((r) => [r.ticker, r.result]));
+
+    const byMarket = new Map<string, SettledBet[]>();
+    let voidedBets = 0;
+    for (const bet of claimed) {
+      if (bet.status === "voided") {
+        voidedBets++;
+        continue;
+      }
+      const list = byMarket.get(bet.marketTicker) ?? [];
+      list.push({
+        betId: bet.id,
+        userId: bet.userId,
+        side: bet.side,
+        contracts: bet.contracts,
+        costCents: bet.costCents,
+        won: bet.status === "won",
+      });
+      byMarket.set(bet.marketTicker, list);
+    }
+
+    const settlements: MarketSettlement[] = [...byMarket].map(([marketTicker, marketBets]) => ({
+      marketTicker,
+      result: (resultByMarket.get(marketTicker) ?? "yes") as BetSide,
+      bets: marketBets,
+    }));
+
+    return { settlements, voidedBets, claimedBetIds: claimed.map((b) => b.id) };
+  });
+}
+
+/**
+ * Undo a claim (the announcement post failed for every group), clearing the
+ * announcedAt stamp so the next sweep re-claims and re-posts these bets.
+ */
+export async function releaseAnnouncements(betIds: number[]): Promise<void> {
+  if (betIds.length === 0) return;
+  await db.update(bets).set({ announcedAt: null }).where(inArray(bets.id, betIds));
+}
+
+/**
+ * Undo a bettable-alert claim (claimBettableAlerts already flipped the flag)
+ * when the alert post failed for every group, so the next sweep re-announces —
+ * as long as the event is still pre-kickoff and inside the lead window.
+ */
+export async function releaseBettableAlerts(eventTickers: string[]): Promise<void> {
+  if (eventTickers.length === 0) return;
+  await db
+    .update(events)
+    .set({ bettableAnnounced: false })
+    .where(inArray(events.eventTicker, eventTickers));
 }
 
 /**

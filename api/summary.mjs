@@ -55086,7 +55086,8 @@ var bets = pgTable("bets", {
   costCents: integer("cost_cents").notNull(),
   status: betStatus("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  settledAt: timestamp("settled_at", { withTimezone: true })
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  announcedAt: timestamp("announced_at", { withTimezone: true })
 });
 var recaps = pgTable("recaps", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -55503,6 +55504,58 @@ async function claimBettableAlerts() {
     title: events.title,
     startsAt: events.startsAt
   });
+}
+async function claimUnannouncedSettlements() {
+  return db.transaction(async (tx) => {
+    const claimed = await tx.update(bets).set({ announcedAt: sql`now()` }).where(and(inArray(bets.status, ["won", "lost", "voided"]), isNull(bets.announcedAt))).returning({
+      id: bets.id,
+      userId: bets.userId,
+      marketTicker: bets.marketTicker,
+      side: bets.side,
+      contracts: bets.contracts,
+      costCents: bets.costCents,
+      status: bets.status
+    });
+    if (claimed.length === 0)
+      return { settlements: [], voidedBets: 0, claimedBetIds: [] };
+    const tickers = [...new Set(claimed.map((b3) => b3.marketTicker))];
+    const resultRows = await tx.select({ ticker: markets.ticker, result: markets.result }).from(markets).where(inArray(markets.ticker, tickers));
+    const resultByMarket = new Map(resultRows.map((r) => [r.ticker, r.result]));
+    const byMarket = new Map;
+    let voidedBets = 0;
+    for (const bet of claimed) {
+      if (bet.status === "voided") {
+        voidedBets++;
+        continue;
+      }
+      const list4 = byMarket.get(bet.marketTicker) ?? [];
+      list4.push({
+        betId: bet.id,
+        userId: bet.userId,
+        side: bet.side,
+        contracts: bet.contracts,
+        costCents: bet.costCents,
+        won: bet.status === "won"
+      });
+      byMarket.set(bet.marketTicker, list4);
+    }
+    const settlements = [...byMarket].map(([marketTicker, marketBets]) => ({
+      marketTicker,
+      result: resultByMarket.get(marketTicker) ?? "yes",
+      bets: marketBets
+    }));
+    return { settlements, voidedBets, claimedBetIds: claimed.map((b3) => b3.id) };
+  });
+}
+async function releaseAnnouncements(betIds) {
+  if (betIds.length === 0)
+    return;
+  await db.update(bets).set({ announcedAt: null }).where(inArray(bets.id, betIds));
+}
+async function releaseBettableAlerts(eventTickers) {
+  if (eventTickers.length === 0)
+    return;
+  await db.update(events).set({ bettableAnnounced: false }).where(inArray(events.eventTicker, eventTickers));
 }
 async function syncAll() {
   const series = [];
@@ -83465,11 +83518,25 @@ async function GET(request) {
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const dryRun = new URL(request.url).searchParams.has("dryRun");
   const stats = await collectWeeklyStats();
   if (!hadActivity(stats)) {
     return Response.json({ skipped: "no activity", since: stats.since, until: stats.until });
   }
   const recap = await generateWeeklyRecap(stats);
+  if (dryRun) {
+    console.log(`[summary dry-run] recap for ${stats.since}–${stats.until}:
+${recap.body}`);
+    return Response.json({
+      dryRun: true,
+      since: stats.since,
+      until: stats.until,
+      betsPlaced: stats.betsPlaced,
+      betsSettled: stats.betsSettled,
+      uniqueBettors: stats.uniqueBettors,
+      recap
+    });
+  }
   const recapId = await saveRecap(stats, recap);
   const mentioned = linkMentions(recap.body, stats.players.map((p2) => p2.user));
   let announcedThreads = 0;
