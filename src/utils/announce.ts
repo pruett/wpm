@@ -1,11 +1,19 @@
+import { generateText } from "ai";
 import { eq, inArray } from "drizzle-orm";
 import { bot, state } from "../bot";
 import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
 import { seriesEmoji, seriesRank } from "../kalshi/series";
-import { formatDollars, formatEastern, gifMessage, mention } from "./format";
+import { displayName, formatDollars, formatEastern, gifMessage, linkMentions } from "./format";
 import type { BettableAlert, MarketSettlement } from "./sync";
 import type { PostableMarkdown } from "chat";
+
+type User = typeof users.$inferSelect;
+
+// Cheap model is plenty for a chatty settlement roast — same Gateway routing
+// as the weekly recap (OIDC in prod, AI_GATEWAY_API_KEY locally), so a model
+// swap is a single env var with no provider SDK. See utils/summary.ts.
+const SETTLEMENT_MODEL = process.env.SETTLEMENT_MODEL ?? "anthropic/claude-haiku-4.5";
 
 // GIFs are posted as their own message (see gifMessage) so Telegram renders
 // them animated (same as the welcome GIFs in commands/start.ts).
@@ -65,11 +73,13 @@ async function groupThreadIds(): Promise<string[]> {
 }
 
 /**
- * Recap a sweep's settlements in every subscribed group as two sections:
- * a WINNER'S CIRCLE (headline → victory GIF → one line per winning bet) and
- * a LOSER'S CIRCLE (headline → shame GIF → one roast line per losing bet).
- * Returns how many group threads were posted to. Settlement is idempotent,
- * so each bet shows up in exactly one sweep's announcement.
+ * Recap a sweep's settlements in every subscribed group: a headline, one GIF
+ * (victory if the batch netted out ahead, shame if it bled), then a single
+ * LLM-written block of trash talk hyping the winners and roasting the losers.
+ * The model only ever copies the pre-computed names and dollar figures; if the
+ * call fails, a deterministic winner/loser recap goes out instead, so a group
+ * always gets the news. Returns how many group threads were posted to.
+ * Settlement is idempotent, so each bet shows up in exactly one announcement.
  */
 export async function announceSettlements(
   settlements: MarketSettlement[],
@@ -86,21 +96,23 @@ export async function announceSettlements(
   // here we connect just the state so no polling loop starts. Idempotent.
   await state.connect();
 
-  const { winnerLines, loserLines } = await buildLines(settlements);
+  const { body: rawBody, users, net } = await buildSettlementRecap(settlements, voidedBets);
 
-  // Each circle is three messages — headline, GIF, bet lines — so the GIF
-  // animates between its headline and its results. The bet lines go out as
-  // markdown so the bettor @mentions render (and ping) in Telegram.
-  const posts: Array<string | PostableMarkdown> = [];
-  if (winnerLines.length) {
-    posts.push("🏆 WINNER'S CIRCLE 🏆", gifMessage(pickRandom(VICTORY_GIFS)), { markdown: winnerLines.join("\n") });
-  }
-  if (loserLines.length) {
-    posts.push("💀 LOSER'S CIRCLE 💀", gifMessage(pickRandom(SHAME_GIFS)), { markdown: loserLines.join("\n") });
-  }
-  if (voidedBets > 0) {
-    posts.push(`♻️ ${voidedBets} bet${voidedBets === 1 ? "" : "s"} voided and refunded.`);
-  }
+  // The model writes prose with bare display names; linkMentions turns those
+  // into tg:// mentions so the bettors it calls out actually get pinged.
+  const body = linkMentions(rawBody, users);
+
+  // One GIF for the whole batch, chosen by the net swing: the room's up or down.
+  const gif = net >= 0 ? pickRandom(VICTORY_GIFS) : pickRandom(SHAME_GIFS);
+
+  // Three messages — headline, GIF, recap — so the GIF animates between the
+  // headline and the trash talk. The recap goes out as markdown so the @mentions
+  // render (and ping) in Telegram.
+  const posts: Array<string | PostableMarkdown> = [
+    "💸 THE TAB IS IN 💸",
+    gifMessage(gif),
+    { markdown: body },
+  ];
 
   let posted = 0;
   for (const threadId of threadIds) {
@@ -189,11 +201,57 @@ export async function announceWeeklyRecap(recapMarkdown: string): Promise<number
   return posted;
 }
 
-/** One line per settled bet, pre-split into the two circles. */
-async function buildLines(
+/** One settled bet, reduced to the bare facts both the prompt and the fallback need. */
+interface SettledLine {
+  /** Bare display name (no mention link yet) — linkMentions handles that later. */
+  name: string;
+  /** "on Lakers (Lakers @ Celtics)" / "against Over 220.5 (…)". */
+  pick: string;
+  /** Stake in cents. */
+  stake: number;
+  /** Profit in cents for a winner; 0 for a loser. */
+  payoutNet: number;
+  /** The amount that orders each section — profit won, or dollars lost. */
+  swing: number;
+}
+
+/** A generated settlement recap plus everything the caller needs to frame and post it. */
+export interface SettlementRecap {
+  /** Trash talk with bare display names (no mentions linked yet). */
+  body: string;
+  /** The Gateway model id that wrote it, or "fallback" for the safety net. */
+  model: string;
+  /** The pre-formatted facts block fed to the model (handy for dry-run inspection). */
+  facts: string;
+  /** The bettors named in this batch — pass to linkMentions to ping them. */
+  users: User[];
+  /** Net swing across the batch (profit won − dollars lost), in cents; picks the GIF. */
+  net: number;
+}
+
+/**
+ * Hydrate, fact-build, and narrate a settlement batch in one call — the whole
+ * generation half of announceSettlements, minus the posting. Exposed so the CLI
+ * can rehearse the recap (against peeked, unclaimed data) without touching
+ * Telegram, and so the announcer has a single source of truth.
+ */
+export async function buildSettlementRecap(
   settlements: MarketSettlement[],
-): Promise<{ winnerLines: string[]; loserLines: string[] }> {
-  // Market → outcome/event context for the bet lines.
+  voidedBets: number,
+): Promise<SettlementRecap> {
+  const { marketInfo, userById } = await loadSettlementContext(settlements);
+  const { winners, losers } = describeSettledBets(settlements, marketInfo, userById);
+  const { body, model, facts } = await generateSettlementRecap(winners, losers, voidedBets);
+  const net =
+    winners.reduce((n, w) => n + w.swing, 0) - losers.reduce((n, l) => n + l.swing, 0);
+  return { body, model, facts, users: [...userById.values()], net };
+}
+
+/** Market outcome/event context plus the bettors, hydrated once per announcement. */
+async function loadSettlementContext(settlements: MarketSettlement[]): Promise<{
+  marketInfo: Map<string, { ticker: string; outcome: string; title: string }>;
+  userById: Map<number, User>;
+}> {
   const tickers = settlements.map((s) => s.marketTicker);
   const context = tickers.length
     ? await db
@@ -210,33 +268,149 @@ async function buildLines(
     : [];
   const userById = new Map(userRows.map((u) => [u.id, u]));
 
-  // Collect each line with the amount that orders its circle — profit won for
-  // winners, dollars lost for losers — so the biggest swing tops each section.
-  const winners: { swing: number; line: string }[] = [];
-  const losers: { swing: number; line: string }[] = [];
+  return { marketInfo, userById };
+}
+
+/**
+ * Flatten the settlements into bare-fact winner/loser lists, each ordered by
+ * the biggest swing first so the standout bet leads its group. The same shape
+ * feeds both the LLM facts block and the deterministic fallback.
+ */
+function describeSettledBets(
+  settlements: MarketSettlement[],
+  marketInfo: Map<string, { ticker: string; outcome: string; title: string }>,
+  userById: Map<number, User>,
+): { winners: SettledLine[]; losers: SettledLine[] } {
+  const winners: SettledLine[] = [];
+  const losers: SettledLine[] = [];
   for (const settlement of settlements) {
     for (const bet of settlement.bets) {
       const user = userById.get(bet.userId);
-      const name = user ? mention(user) : "A mystery bettor";
+      const name = user ? displayName(user) : "A mystery bettor";
       const info = marketInfo.get(settlement.marketTicker);
       const pick = info
         ? `${bet.side === "yes" ? "on" : "against"} ${info.outcome} (${info.title})`
         : `on ${settlement.marketTicker}`;
       if (bet.won) {
-        const payout = bet.contracts * 100;
-        winners.push({
-          swing: payout - bet.costCents,
-          line: `• ${name} ${pickRandom(VICTORY_PHRASES)} betting ${formatDollars(bet.costCents)} ${pick} and made **+${formatDollars(payout - bet.costCents)}**`,
-        });
+        const payoutNet = bet.contracts * 100 - bet.costCents;
+        winners.push({ name, pick, stake: bet.costCents, payoutNet, swing: payoutNet });
       } else {
-        losers.push({
-          swing: bet.costCents,
-          line: `• ${name} ${pickRandom(SHAME_PHRASES)} betting ${formatDollars(bet.costCents)} ${pick}`,
-        });
+        losers.push({ name, pick, stake: bet.costCents, payoutNet: 0, swing: bet.costCents });
       }
     }
   }
   winners.sort((a, b) => b.swing - a.swing);
   losers.sort((a, b) => b.swing - a.swing);
-  return { winnerLines: winners.map((w) => w.line), loserLines: losers.map((l) => l.line) };
+  return { winners, losers };
+}
+
+const SETTLEMENT_SYSTEM = [
+  "You are the resident trash-talk commissioner for a group of friends who bet fake",
+  "money against a prediction market through a Telegram bot. Bets just settled and it's",
+  "your job to break the news to the group chat.",
+  "",
+  "Tone: playful, sarcastic, a little offensive — like busting balls with good friends",
+  "two beers in. Hype the winners like conquering heroes, mercilessly (but lovingly) roast",
+  "the losers. Sports-degenerate swagger, light-hearted, never genuinely mean.",
+  "",
+  "Rules:",
+  "- Use ONLY the names, picks, and dollar figures provided. Never invent players, bets, or numbers.",
+  '- Copy dollar amounts EXACTLY as written (e.g. "+$90", "$50"). Do not recompute or round them.',
+  "- Refer to players by the exact display names given, spelled exactly.",
+  "- Write ONE flowing block of trash talk — not a list. Roughly a sentence per notable bet.",
+  "- 150 words max. Open with a punchy line, then go bet by bet.",
+  "- A little Telegram markdown (**bold** the names and dollar swings) and a few emoji, used sparingly.",
+  "- No title or header, no sign-off — just the trash talk.",
+].join("\n");
+
+/** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
+function settlementFacts(
+  winners: SettledLine[],
+  losers: SettledLine[],
+  voidedBets: number,
+): string {
+  const lines: string[] = ["Bets just settled. Here's the damage:"];
+  if (winners.length) {
+    lines.push("", "Winners:");
+    for (const w of winners) {
+      lines.push(
+        `- ${w.name} bet ${formatDollars(w.stake)} ${w.pick} and WON, netting +${formatDollars(w.payoutNet)}.`,
+      );
+    }
+  }
+  if (losers.length) {
+    lines.push("", "Losers:");
+    for (const l of losers) {
+      lines.push(
+        `- ${l.name} bet ${formatDollars(l.stake)} ${l.pick} and LOST the whole ${formatDollars(l.stake)}.`,
+      );
+    }
+  }
+  if (voidedBets > 0) {
+    lines.push(
+      "",
+      `${voidedBets} bet${voidedBets === 1 ? "" : "s"} got voided and refunded — no winner, no loser.`,
+    );
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Ask the model to narrate the settlement in the group's voice. Numbers come
+ * pre-computed and pre-formatted in the prompt, so the model only writes prose
+ * around them. Falls back to the deterministic winner/loser recap if the call
+ * fails (e.g. no gateway credentials), so a settlement always has something to
+ * post. Returns the body with bare display names — linkMentions runs after.
+ */
+async function generateSettlementRecap(
+  winners: SettledLine[],
+  losers: SettledLine[],
+  voidedBets: number,
+): Promise<{ body: string; model: string; facts: string }> {
+  const facts = settlementFacts(winners, losers, voidedBets);
+  try {
+    const { text } = await generateText({
+      model: SETTLEMENT_MODEL,
+      system: SETTLEMENT_SYSTEM,
+      prompt: `Here's what just settled:\n\n${facts}\n\nBreak the news.`,
+      temperature: 0.9,
+      maxOutputTokens: 400,
+    });
+    const trimmed = text.trim();
+    if (trimmed) return { body: trimmed, model: SETTLEMENT_MODEL, facts };
+    throw new Error("model returned an empty completion");
+  } catch (error) {
+    console.error("settlement recap generation failed, using fallback:", error);
+    return { body: fallbackSettlementRecap(winners, losers, voidedBets), model: "fallback", facts };
+  }
+}
+
+/**
+ * Plain, no-LLM settlement recap — the safety net when the model call can't be
+ * made. Keeps the original winner/loser flavor (the random phrase pools) as a
+ * single markdown block with bare names, so linkMentions still links them.
+ */
+function fallbackSettlementRecap(
+  winners: SettledLine[],
+  losers: SettledLine[],
+  voidedBets: number,
+): string {
+  const blocks: string[] = [];
+  if (winners.length) {
+    const lines = winners.map(
+      (w) =>
+        `• ${w.name} ${pickRandom(VICTORY_PHRASES)} betting ${formatDollars(w.stake)} ${w.pick} and made **+${formatDollars(w.payoutNet)}**`,
+    );
+    blocks.push(["🏆 **Winner's circle:**", ...lines].join("\n"));
+  }
+  if (losers.length) {
+    const lines = losers.map(
+      (l) => `• ${l.name} ${pickRandom(SHAME_PHRASES)} betting ${formatDollars(l.stake)} ${l.pick}`,
+    );
+    blocks.push(["💀 **Loser's circle:**", ...lines].join("\n"));
+  }
+  if (voidedBets > 0) {
+    blocks.push(`♻️ ${voidedBets} bet${voidedBets === 1 ? "" : "s"} voided and refunded.`);
+  }
+  return blocks.join("\n\n");
 }
