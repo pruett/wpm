@@ -9,6 +9,7 @@
  *   bun run cli bets <telegram_id>
  *   bun run cli settle <market> <yes|no>               # manual settle (testing only)
  *   bun run cli summary [post]                          # rehearse the weekly recap; "post" sends it to local groups
+ *   bun run cli settlements [post]                      # rehearse the settlement roast; "post" claims + sends it
  */
 import { asc, eq } from "drizzle-orm";
 import { db, sql } from "../db";
@@ -16,13 +17,19 @@ import { bets, events, markets, users } from "../db/schema";
 import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
 import {
   claimUnannouncedSettlements,
+  peekUnannouncedSettlements,
   releaseAnnouncements,
   releaseBettableAlerts,
   settleOpenBetMarkets,
   sync,
   syncAll,
 } from "./sync";
-import { announceBettableAlerts, announceSettlements, announceWeeklyRecap } from "./announce";
+import {
+  announceBettableAlerts,
+  announceSettlements,
+  announceWeeklyRecap,
+  buildSettlementRecap,
+} from "./announce";
 import { collectWeeklyStats, generateWeeklyRecap, hadActivity } from "./summary";
 import { displayName, formatDollars, formatEastern, linkMentions } from "./format";
 import { state } from "../bot";
@@ -197,8 +204,50 @@ switch (cmd) {
     break;
   }
 
+  case "settlements": {
+    // Rehearse the settlement trash-talk against the local DB.
+    //   bun run cli settlements        # peek (no claim) + generate, print it — posts nothing
+    //   bun run cli settlements post   # claim + post to the LOCAL bot's groups (the real cron path)
+    // Pair with `bun run db:pull:prod` to rehearse on a copy of prod's settled
+    // bets while posting only to your local test group (subscriptions stay local).
+    const post = args[0] === "post";
+
+    if (post) {
+      const claimed = await claimUnannouncedSettlements();
+      if (claimed.claimedBetIds.length === 0) {
+        console.log("Nothing settled and unannounced — nothing to post.");
+        break;
+      }
+      const threads = await announceSettlements(claimed.settlements, claimed.voidedBets);
+      if (threads) {
+        console.log(`Posted to ${threads} group${threads === 1 ? "" : "s"}.`);
+      } else {
+        // No group got it — release the claim so the next run retries (cron parity).
+        await releaseAnnouncements(claimed.claimedBetIds);
+        console.log("No groups posted — released the claim so it retries.");
+      }
+      break;
+    }
+
+    // Dry run: peek without claiming, so the real cron still has these to post.
+    const peek = await peekUnannouncedSettlements();
+    if (peek.settlements.length === 0 && peek.voidedBets === 0) {
+      console.log("Nothing settled and unannounced — settle some bets first (cli sync / cli settle).");
+      break;
+    }
+
+    const recap = await buildSettlementRecap(peek.settlements, peek.voidedBets);
+    console.log("\n─── facts (fed to the model) ───\n");
+    console.log(recap.facts);
+    console.log("\n─── recap ───\n");
+    console.log(recap.body);
+    console.log(`\n─── (${recap.model}) ───\n`);
+    console.log("(dry run — nothing claimed or posted. Re-run with `settlements post` to send it to your local groups.)");
+    break;
+  }
+
   default:
-    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle|summary> …");
+    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle|summary|settlements> …");
     process.exit(1);
 }
 

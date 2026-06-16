@@ -261,54 +261,102 @@ export async function claimUnannouncedSettlements(): Promise<ClaimedSettlements>
       .update(bets)
       .set({ announcedAt: sql`now()` })
       .where(and(inArray(bets.status, ["won", "lost", "voided"]), isNull(bets.announcedAt)))
-      .returning({
-        id: bets.id,
-        userId: bets.userId,
-        marketTicker: bets.marketTicker,
-        side: bets.side,
-        contracts: bets.contracts,
-        costCents: bets.costCents,
-        status: bets.status,
-      });
+      .returning(SETTLED_BET_COLUMNS);
 
     if (claimed.length === 0) return { settlements: [], voidedBets: 0, claimedBetIds: [] };
 
     // Per-market result (yes/no) for the recap context. Voided bets carry no
     // result and never reach the markets lookup.
-    const tickers = [...new Set(claimed.map((b) => b.marketTicker))];
-    const resultRows = await tx
-      .select({ ticker: markets.ticker, result: markets.result })
-      .from(markets)
-      .where(inArray(markets.ticker, tickers));
-    const resultByMarket = new Map(resultRows.map((r) => [r.ticker, r.result]));
-
-    const byMarket = new Map<string, SettledBet[]>();
-    let voidedBets = 0;
-    for (const bet of claimed) {
-      if (bet.status === "voided") {
-        voidedBets++;
-        continue;
-      }
-      const list = byMarket.get(bet.marketTicker) ?? [];
-      list.push({
-        betId: bet.id,
-        userId: bet.userId,
-        side: bet.side,
-        contracts: bet.contracts,
-        costCents: bet.costCents,
-        won: bet.status === "won",
-      });
-      byMarket.set(bet.marketTicker, list);
-    }
-
-    const settlements: MarketSettlement[] = [...byMarket].map(([marketTicker, marketBets]) => ({
-      marketTicker,
-      result: (resultByMarket.get(marketTicker) ?? "yes") as BetSide,
-      bets: marketBets,
-    }));
-
-    return { settlements, voidedBets, claimedBetIds: claimed.map((b) => b.id) };
+    const resultByMarket = await marketResults(
+      tx,
+      claimed.map((b) => b.marketTicker),
+    );
+    return shapeSettlements(claimed, resultByMarket);
   });
+}
+
+/**
+ * The read-only twin of claimUnannouncedSettlements: the exact same settled-
+ * but-unannounced batch, grouped the same way, but WITHOUT stamping
+ * announcedAt. For rehearsing the settlement recap (CLI dry run) — peeking
+ * must not consume the claim, or the real cron would have nothing left to post.
+ */
+export async function peekUnannouncedSettlements(): Promise<ClaimedSettlements> {
+  const claimed = await db
+    .select(SETTLED_BET_COLUMNS)
+    .from(bets)
+    .where(and(inArray(bets.status, ["won", "lost", "voided"]), isNull(bets.announcedAt)));
+
+  if (claimed.length === 0) return { settlements: [], voidedBets: 0, claimedBetIds: [] };
+
+  const resultByMarket = await marketResults(
+    db,
+    claimed.map((b) => b.marketTicker),
+  );
+  return shapeSettlements(claimed, resultByMarket);
+}
+
+/** The bet columns the recap is built from — shared by the claim and the peek. */
+const SETTLED_BET_COLUMNS = {
+  id: bets.id,
+  userId: bets.userId,
+  marketTicker: bets.marketTicker,
+  side: bets.side,
+  contracts: bets.contracts,
+  costCents: bets.costCents,
+  status: bets.status,
+} as const;
+
+type SettledBetRow = Pick<
+  typeof bets.$inferSelect,
+  "id" | "userId" | "marketTicker" | "side" | "contracts" | "costCents" | "status"
+>;
+
+/** Map each market ticker to its terminal result (yes/no), for the recap context. */
+async function marketResults(
+  conn: Pick<typeof db, "select">,
+  tickers: string[],
+): Promise<Map<string, string | null>> {
+  const unique = [...new Set(tickers)];
+  if (unique.length === 0) return new Map();
+  const rows = await conn
+    .select({ ticker: markets.ticker, result: markets.result })
+    .from(markets)
+    .where(inArray(markets.ticker, unique));
+  return new Map(rows.map((r) => [r.ticker, r.result]));
+}
+
+/** Group claimed bet rows into the per-market settlement shape the announcer consumes. */
+function shapeSettlements(
+  claimed: SettledBetRow[],
+  resultByMarket: Map<string, string | null>,
+): ClaimedSettlements {
+  const byMarket = new Map<string, SettledBet[]>();
+  let voidedBets = 0;
+  for (const bet of claimed) {
+    if (bet.status === "voided") {
+      voidedBets++;
+      continue;
+    }
+    const list = byMarket.get(bet.marketTicker) ?? [];
+    list.push({
+      betId: bet.id,
+      userId: bet.userId,
+      side: bet.side,
+      contracts: bet.contracts,
+      costCents: bet.costCents,
+      won: bet.status === "won",
+    });
+    byMarket.set(bet.marketTicker, list);
+  }
+
+  const settlements: MarketSettlement[] = [...byMarket].map(([marketTicker, marketBets]) => ({
+    marketTicker,
+    result: (resultByMarket.get(marketTicker) ?? "yes") as BetSide,
+    bets: marketBets,
+  }));
+
+  return { settlements, voidedBets, claimedBetIds: claimed.map((b) => b.id) };
 }
 
 /**
