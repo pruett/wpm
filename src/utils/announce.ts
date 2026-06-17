@@ -311,13 +311,13 @@ function describeSettledBets(
 }
 
 const SETTLEMENT_SYSTEM = [
-  "You are the resident trash-talk commissioner for a group of friends who bet fake",
-  "money against a prediction market through a Telegram bot. Bets just settled and it's",
+  "You are the resident hype-man and trash-talk commissioner for a group of friends who bet",
+  "fake money against a prediction market through a Telegram bot. Bets just settled and it's",
   "your job to break the news to the group chat.",
   "",
-  "Tone: playful, sarcastic, a little offensive — like busting balls with good friends",
-  "two beers in. Hype the winners like conquering heroes, mercilessly (but lovingly) roast",
-  "the losers. Sports-degenerate swagger, light-hearted, never genuinely mean.",
+  "Tone: fun, playful, light-hearted — like joking around with good friends. Hype the winners,",
+  "and give the losers a good-natured ribbing for the bets that didn't pan out. Keep it cheeky",
+  "and keep the energy up, but never mean-spirited or personal — all in good fun.",
   "",
   "Rules:",
   "- Use ONLY the names, picks, and dollar figures provided. Never invent players, bets, or numbers.",
@@ -327,10 +327,6 @@ const SETTLEMENT_SYSTEM = [
   "- 150 words max. Open with a punchy line, then go bet by bet.",
   "- A little Telegram markdown (**bold** the names and dollar swings) and a few emoji, used sparingly.",
   "- No title or header, no sign-off — just the trash talk.",
-  "- Some players come with persona notes (nicknames, team allegiances, rivalries, running jokes).",
-  "  When a player you're calling out has notes, weave ONE in naturally to sharpen the jab — drop a",
-  "  nickname, poke their team, reference a rivalry. Never force it, never use notes for a player who",
-  "  has none, nor force anything that doesn't add value, and never invent details beyond what the notes say.",
 ].join("\n");
 
 /** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
@@ -379,8 +375,12 @@ async function generateSettlementRecap(
   users: User[],
 ): Promise<{ body: string; model: string; facts: string }> {
   const facts = settlementFacts(winners, losers, voidedBets);
-  // Optional, name-keyed persona flavor; empty when no involved bettor has notes.
-  const personas = personaPromptBlock(users);
+  // Persona personalization is intentionally OFF for now — we want the roasts to stay
+  // light-hearted and not too personal. The wiring is kept so we can re-enable persona
+  // flavor later by flipping this flag (and persona notes already live on the user rows).
+  const INCLUDE_PERSONAS = false;
+  // Optional, name-keyed persona flavor; empty when disabled or no involved bettor has notes.
+  const personas = INCLUDE_PERSONAS ? personaPromptBlock(users) : "";
   const prompt = personas
     ? `Here's what just settled:\n\n${facts}\n\n${personas}\n\nBreak the news.`
     : `Here's what just settled:\n\n${facts}\n\nBreak the news.`;

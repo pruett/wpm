@@ -197,8 +197,9 @@ const RECAP_SYSTEM = [
   "who bet fake money against a prediction market through a Telegram bot.",
   "Write \"The Sunday Rundown\" — a short recap of the week for their group chat.",
   "",
-  "Tone: playful, irreverent, a little roasty — a friend two beers in who loves giving",
-  "everyone shit. Hype the winners, lovingly roast the losers, keep the energy up.",
+  "Tone: fun, playful, light-hearted — like joking around with good friends. Hype the winners,",
+  "and give the losers a good-natured ribbing for the bets that didn't pan out. Keep it cheeky",
+  "and keep the energy up, but never mean-spirited or personal — all in good fun.",
   "",
   "Rules:",
   "- Use ONLY the names, records, and dollar figures provided. Never invent players, bets, or numbers.",
@@ -207,10 +208,6 @@ const RECAP_SYSTEM = [
   "- 120 words max. Open with a punchy line, then call out the standouts.",
   "- A little Telegram markdown (**bold**) and a few emoji, used sparingly.",
   "- No title or header, no sign-off — just the recap.",
-  "- Some players come with persona notes (nicknames, team allegiances, rivalries, running jokes).",
-  "  When a player you call out has notes, weave ONE in naturally to sharpen the line — drop a",
-  "  nickname, poke their team, reference a rivalry. Never force it, never use notes for a player who",
-  "  has none, and never invent details beyond what the notes say.",
 ].join("\n");
 
 /** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
@@ -266,8 +263,12 @@ export interface WeeklyRecap {
  */
 export async function generateWeeklyRecap(stats: WeeklyStats): Promise<WeeklyRecap> {
   const facts = recapFacts(stats);
-  // Optional, name-keyed persona flavor; empty when no player this week has notes.
-  const personas = personaPromptBlock(stats.players.map((p) => p.user));
+  // Persona personalization is intentionally OFF for now — we want the recap to stay
+  // light-hearted and not too personal. The wiring is kept so we can re-enable persona
+  // flavor later by flipping this flag (and persona notes already live on the user rows).
+  const INCLUDE_PERSONAS = false;
+  // Optional, name-keyed persona flavor; empty when disabled or no player this week has notes.
+  const personas = INCLUDE_PERSONAS ? personaPromptBlock(stats.players.map((p) => p.user)) : "";
   const prompt = personas
     ? `Here are this week's facts:\n\n${facts}\n\n${personas}\n\nWrite the recap.`
     : `Here are this week's facts:\n\n${facts}\n\nWrite the recap.`;
