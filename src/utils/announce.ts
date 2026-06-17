@@ -330,7 +330,7 @@ const SETTLEMENT_SYSTEM = [
   "- Some players come with persona notes (nicknames, team allegiances, rivalries, running jokes).",
   "  When a player you're calling out has notes, weave ONE in naturally to sharpen the jab — drop a",
   "  nickname, poke their team, reference a rivalry. Never force it, never use notes for a player who",
-  "  has none, and never invent details beyond what the notes say.",
+  "  has none, nor force anything that doesn't add value, and never invent details beyond what the notes say.",
 ].join("\n");
 
 /** The hard facts handed to the model, pre-formatted so it only ever copies strings. */
