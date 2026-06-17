@@ -60,17 +60,35 @@ function pickRandom(pool: string[]): string {
 }
 
 /**
- * Telegram group threads the bot has been invited into. The chat SDK's
- * Postgres state keeps one chat_state_subscriptions row per subscribed
- * thread; Telegram group chat ids are negative and DM ids positive, so the
- * "telegram:-" prefix selects exactly the groups.
+ * Telegram group threads to broadcast to — one per group chat. The chat SDK's
+ * Postgres state keeps one chat_state_subscriptions row per subscribed thread;
+ * Telegram group chat ids are negative and DM ids positive, so the "telegram:-"
+ * prefix selects exactly the groups.
+ *
+ * A forum supergroup can end up subscribed under BOTH its bare chat thread
+ * ("telegram:<chatId>") and one or more topic threads ("telegram:<chatId>:<topicId>")
+ * — e.g. the bot was @-mentioned in General and again inside a topic. Those rows
+ * are the SAME chat, so posting an announcement to each delivers it to the group
+ * more than once (the double-post bug). We collapse every subscription to its
+ * bare chat thread and dedupe, so a broadcast lands exactly once per group, in
+ * its General topic. Topic subscriptions still drive command replies (which post
+ * back to the incoming thread) — only the fan-out broadcast is normalized here.
  */
 async function groupThreadIds(): Promise<string[]> {
   const rows = await sql<{ thread_id: string }[]>`
     SELECT DISTINCT thread_id FROM chat_state_subscriptions
     WHERE thread_id LIKE 'telegram:-%'
   `;
-  return rows.map((r) => r.thread_id);
+  // thread_id is "telegram:<chatId>" or "telegram:<chatId>:<topicId>"; the
+  // chatId itself never contains a colon, so the first two segments are the
+  // bare chat thread. A Set dedupes groups subscribed under multiple topics.
+  const chatThreads = new Set(
+    rows.map((r) => {
+      const [prefix, chatId] = r.thread_id.split(":");
+      return `${prefix}:${chatId}`;
+    }),
+  );
+  return [...chatThreads];
 }
 
 /**
