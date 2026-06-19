@@ -266,7 +266,7 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
 
 // Preset dollar stakes so most bets are a single tap. Each button shows the
 // stake and what it returns at the live price ($100 (pays $106) at 94¢).
-const PRESET_AMOUNTS = [100, 250, 500, 1000, 2500];
+const PRESET_AMOUNTS = [1000, 2500, 5000, 10000, 25000];
 
 function presetLabel(dollars: number, priceCents: number | null): string {
   return formatStakeReturn(priceCents, dollars, "pays") ?? formatDollars(dollars * 100);
