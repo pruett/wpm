@@ -1,3 +1,4 @@
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import { eq, inArray } from "drizzle-orm";
 import { bot, state } from "../bot";
@@ -11,10 +12,10 @@ import type { PostableMarkdown } from "chat";
 
 type User = typeof users.$inferSelect;
 
-// Cheap model is plenty for a chatty settlement roast — same Gateway routing
-// as the weekly recap (OIDC in prod, AI_GATEWAY_API_KEY locally), so a model
-// swap is a single env var with no provider SDK. See utils/summary.ts.
-const SETTLEMENT_MODEL = process.env.SETTLEMENT_MODEL ?? "anthropic/claude-haiku-4.5";
+// Cheap model is plenty for a chatty settlement roast. Calls Anthropic directly
+// via the @ai-sdk/anthropic provider (ANTHROPIC_API_KEY), same as the weekly
+// recap — no Vercel AI Gateway in the path. See utils/summary.ts.
+const SETTLEMENT_MODEL = process.env.SETTLEMENT_MODEL ?? "claude-haiku-4-5";
 
 // GIFs are posted as their own message (see gifMessage) so Telegram renders
 // them animated (same as the welcome GIFs in commands/start.ts).
@@ -404,7 +405,7 @@ async function generateSettlementRecap(
     : `Here's what just settled:\n\n${facts}\n\nBreak the news.`;
   try {
     const { text } = await generateText({
-      model: SETTLEMENT_MODEL,
+      model: anthropic(SETTLEMENT_MODEL),
       system: SETTLEMENT_SYSTEM,
       prompt,
       temperature: 0.9,

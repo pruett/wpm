@@ -1,3 +1,4 @@
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import { and, gte, inArray, lt, eq } from "drizzle-orm";
 import { db } from "../db";
@@ -10,10 +11,10 @@ type User = typeof users.$inferSelect;
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Cheap model is plenty for a chatty recap. Routed through the Vercel AI
-// Gateway (OIDC in prod, AI_GATEWAY_API_KEY locally), so no provider SDK or
-// per-provider key is needed — swap models by changing this env var alone.
-const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? "anthropic/claude-haiku-4.5";
+// Cheap model is plenty for a chatty recap. Calls Anthropic directly via the
+// @ai-sdk/anthropic provider, which reads ANTHROPIC_API_KEY from the env — swap
+// models by changing this env var (bare Anthropic model id, no provider prefix).
+const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? "claude-haiku-4-5";
 
 /** One bettor's week, folded from the bets they placed and the ones that settled. */
 export interface WeeklyPlayer {
@@ -274,7 +275,7 @@ export async function generateWeeklyRecap(stats: WeeklyStats): Promise<WeeklyRec
     : `Here are this week's facts:\n\n${facts}\n\nWrite the recap.`;
   try {
     const { text } = await generateText({
-      model: SUMMARY_MODEL,
+      model: anthropic(SUMMARY_MODEL),
       system: RECAP_SYSTEM,
       prompt,
       temperature: 0.8,

@@ -24,6 +24,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.bot.json && tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.84",
     "@chat-adapter/state-pg": "^4.30.0",
     "@chat-adapter/telegram": "latest",
     "ai": "^6.0.204",
