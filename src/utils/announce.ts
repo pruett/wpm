@@ -6,6 +6,7 @@ import { db, sql } from "../db";
 import { events, markets, users } from "../db/schema";
 import { seriesEmoji, seriesRank } from "../kalshi/series";
 import { displayName, formatDollars, formatEastern, gifMessage, linkMentions } from "./format";
+import { reportLlmFailure } from "./observability";
 import { personaPromptBlock } from "./persona";
 import type { BettableAlert, MarketSettlement } from "./sync";
 import type { PostableMarkdown } from "chat";
@@ -415,7 +416,7 @@ async function generateSettlementRecap(
     if (trimmed) return { body: trimmed, model: SETTLEMENT_MODEL, facts };
     throw new Error("model returned an empty completion");
   } catch (error) {
-    console.error("settlement recap generation failed, using fallback:", error);
+    reportLlmFailure("settlement-recap", SETTLEMENT_MODEL, error);
     return { body: fallbackSettlementRecap(winners, losers, voidedBets), model: "fallback", facts };
   }
 }

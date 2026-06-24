@@ -4,6 +4,7 @@ import { and, gte, inArray, lt, eq } from "drizzle-orm";
 import { db } from "../db";
 import { bets, events, markets, recaps, users } from "../db/schema";
 import { displayName, formatDollars } from "./format";
+import { reportLlmFailure } from "./observability";
 import { personaPromptBlock } from "./persona";
 import type { BetSide } from "./house";
 
@@ -285,7 +286,7 @@ export async function generateWeeklyRecap(stats: WeeklyStats): Promise<WeeklyRec
     if (trimmed) return { body: trimmed, model: SUMMARY_MODEL };
     throw new Error("model returned an empty completion");
   } catch (error) {
-    console.error("weekly recap generation failed, using fallback:", error);
+    reportLlmFailure("weekly-recap", SUMMARY_MODEL, error);
     return { body: fallbackRecap(stats), model: "fallback" };
   }
 }
