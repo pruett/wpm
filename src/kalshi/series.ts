@@ -18,10 +18,19 @@ export interface TrackedSeries {
    * matches this — the sync drops the rest. Omit to track the whole series.
    */
   tournamentName?: string;
+  /**
+   * Opt this series into the group "last call" alert — the Telegram reminder
+   * fired ~30 min before an event's betting locks (see claimBettableAlerts /
+   * announceBettableAlerts in utils). Off by default: a series is still synced,
+   * bettable, and settled without it; this flag ONLY governs the pre-close
+   * reminder. Flip it on per series as we decide each one is worth pinging the
+   * group about.
+   */
+  lastCallAlerts?: boolean;
 }
 
 export const TRACKED_SERIES: TrackedSeries[] = [
-  { ticker: "KXWCGAME", emoji: "⚽️", title: "World Cup 2026 Games" },
+  { ticker: "KXWCGAME", emoji: "⚽️", title: "World Cup 2026 Games", lastCallAlerts: true },
   { ticker: "KXNBAGAME", emoji: "🏀", title: "NBA Finals 2026" },
   // Wimbledon men's singles trades per match under the shared ATP-match series,
   // not the tournament-winner series (KXWMENSINGLES) — only per-match events
@@ -52,6 +61,15 @@ export function seriesTitle(seriesTicker: string): string {
   const name = stripped.charAt(0).toUpperCase() + stripped.slice(1).toLowerCase();
   return `${DEFAULT_SERIES_EMOJI} ${name}`;
 }
+
+/**
+ * The series tickers opted into the group "last call" pre-close alert
+ * (TrackedSeries.lastCallAlerts). claimBettableAlerts restricts its reminders
+ * to exactly these — an empty list means no series gets a last-call alert.
+ */
+export const LAST_CALL_ALERT_SERIES: string[] = TRACKED_SERIES.filter(
+  (s) => s.lastCallAlerts,
+).map((s) => s.ticker);
 
 /** Registry position, for ordering menu sections. Unknown series sort last. */
 export function seriesRank(seriesTicker: string): number {

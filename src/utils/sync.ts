@@ -5,7 +5,7 @@ import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
 import { ingestEvents } from "../kalshi/ingest";
 import { marketApi } from "../kalshi/client";
-import { TRACKED_SERIES } from "../kalshi/series";
+import { LAST_CALL_ALERT_SERIES, TRACKED_SERIES } from "../kalshi/series";
 
 // The SDK exposes prices only as dollar strings ("0.0900") — convert to integer cents.
 const cents = (dollars?: string | null): number | null =>
@@ -214,6 +214,11 @@ export async function settleOpenBetMarkets() {
  * pre-kickoff (startsAt in the future), inside the lead window, with markets
  * already mirrored (so they're genuinely bettable), and not yet alerted.
  *
+ * Only series opted into the last-call alert (LAST_CALL_ALERT_SERIES, driven by
+ * TrackedSeries.lastCallAlerts in src/kalshi/series.ts) are eligible — every
+ * other series is still synced and bettable, it just doesn't ping the group
+ * before close. With no series opted in, this claims nothing.
+ *
  * The matching rows are flipped to bettableAnnounced in the same statement
  * and returned, so two overlapping sweeps can't double-announce the same
  * kickoff. Announcing the returned events is the caller's job (api/sync.ts) —
@@ -221,6 +226,10 @@ export async function settleOpenBetMarkets() {
  * marked and the next sweep won't re-announce it.
  */
 export async function claimBettableAlerts(): Promise<BettableAlert[]> {
+  // No opted-in series → nothing to alert on (an empty inArray is also a
+  // SQL no-op, but short-circuiting saves the write round-trip entirely).
+  if (LAST_CALL_ALERT_SERIES.length === 0) return [];
+
   const now = new Date();
   const threshold = new Date(now.getTime() + BETTABLE_ALERT_LEAD_MS);
 
@@ -230,6 +239,7 @@ export async function claimBettableAlerts(): Promise<BettableAlert[]> {
     .where(
       and(
         eq(events.bettableAnnounced, false),
+        inArray(events.seriesTicker, LAST_CALL_ALERT_SERIES),
         gt(events.startsAt, now),
         lte(events.startsAt, threshold),
         exists(
