@@ -265,12 +265,8 @@ export interface WeeklyRecap {
  */
 export async function generateWeeklyRecap(stats: WeeklyStats): Promise<WeeklyRecap> {
   const facts = recapFacts(stats);
-  // Persona personalization is intentionally OFF for now — we want the recap to stay
-  // light-hearted and not too personal. The wiring is kept so we can re-enable persona
-  // flavor later by flipping this flag (and persona notes already live on the user rows).
-  const INCLUDE_PERSONAS = false;
-  // Optional, name-keyed persona flavor; empty when disabled or no player this week has notes.
-  const personas = INCLUDE_PERSONAS ? personaPromptBlock(stats.players.map((p) => p.user)) : "";
+  // Optional, name-keyed persona flavor; empty when no player this week has notes.
+  const personas = personaPromptBlock(stats.players.map((p) => p.user));
   const prompt = personas
     ? `Here are this week's facts:\n\n${facts}\n\n${personas}\n\nWrite the recap.`
     : `Here are this week's facts:\n\n${facts}\n\nWrite the recap.`;

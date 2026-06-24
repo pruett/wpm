@@ -395,12 +395,8 @@ async function generateSettlementRecap(
   users: User[],
 ): Promise<{ body: string; model: string; facts: string }> {
   const facts = settlementFacts(winners, losers, voidedBets);
-  // Persona personalization is intentionally OFF for now — we want the roasts to stay
-  // light-hearted and not too personal. The wiring is kept so we can re-enable persona
-  // flavor later by flipping this flag (and persona notes already live on the user rows).
-  const INCLUDE_PERSONAS = false;
-  // Optional, name-keyed persona flavor; empty when disabled or no involved bettor has notes.
-  const personas = INCLUDE_PERSONAS ? personaPromptBlock(users) : "";
+  // Optional, name-keyed persona flavor; empty when no involved bettor has notes.
+  const personas = personaPromptBlock(users);
   const prompt = personas
     ? `Here's what just settled:\n\n${facts}\n\n${personas}\n\nBreak the news.`
     : `Here's what just settled:\n\n${facts}\n\nBreak the news.`;
