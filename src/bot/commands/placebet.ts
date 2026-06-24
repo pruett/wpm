@@ -22,9 +22,11 @@ import type { BotCommand } from "./types";
 // clear of the cap; the amount buttons carry only the spec (the ticker lives in
 // pending state — see amountPickerCard). All registered via bot.onAction in
 // src/bot/index.ts.
+export const PICK_SERIES_ACTION = "ps";
 export const PICK_EVENT_ACTION = "pe";
 export const PICK_OUTCOME_ACTION = "po";
 export const PICK_AMOUNT_ACTION = "pa";
+export const BACK_TO_SERIES_ACTION = "back_series";
 export const BACK_TO_EVENTS_ACTION = "back_events";
 // Series-header rows in the keyboard — a tap does nothing. Telegram renders
 // all card text above the keyboard, so headers must be button rows to sit
@@ -59,6 +61,8 @@ interface PendingPick {
   ticker: string;
   outcome: string;
   eventTicker: string;
+  /** Series the pick belongs to, so "back" and post-bet land on its event list. */
+  seriesTicker: string;
   /** Ask price at pick time, for display only — placeBet re-reads the live price. */
   priceCents: number | null;
   /** Menu message to edit with prompts/results. */
@@ -182,11 +186,42 @@ export function groupBySeries<T extends { seriesTicker: string }>(rows: T[]): Se
 
 // --- Card builders (views of the menu) ---
 
-// Event list: a header per series, then one full-width button per event so
-// titles don't get ellipsized. The owner's name in the top line marks whose
-// menu this is — menus are per-user.
-async function eventsCard(ownerName: string): Promise<CardElement | null> {
-  const rows = await upcomingEvents();
+// Intro screen: one full-width button per series that currently has bettable
+// events, so users pick a series before being shown its event list. Keeps the
+// first view short instead of dumping every event across every series at once.
+// The count hints at how much is inside before they tap in.
+async function seriesCard(ownerName: string): Promise<CardElement | null> {
+  const groups = groupBySeries(await upcomingEvents());
+  if (groups.length === 0) return null;
+
+  return {
+    type: "card",
+    children: [
+      {
+        type: "text",
+        content: `${ownerName}, pick a series to browse`,
+        style: "bold",
+      },
+      ...groups.map((group) => ({
+        type: "actions" as const,
+        children: [
+          {
+            type: "button" as const,
+            id: PICK_SERIES_ACTION,
+            label: `${seriesTitle(group.seriesTicker)} (${group.events.length})`,
+            value: group.seriesTicker,
+          },
+        ],
+      })),
+    ],
+  };
+}
+
+// Event list for one series: a header, then one full-width button per event so
+// titles don't get ellipsized, and a row back to the series picker. The owner's
+// name in the top line marks whose menu this is — menus are per-user.
+async function eventsCard(ownerName: string, seriesTicker: string): Promise<CardElement | null> {
+  const rows = (await upcomingEvents()).filter((e) => e.seriesTicker === seriesTicker);
   if (rows.length === 0) return null;
 
   return {
@@ -197,20 +232,22 @@ async function eventsCard(ownerName: string): Promise<CardElement | null> {
         content: `${ownerName}, select an event and place your bet`,
         style: "bold",
       },
-      ...groupBySeries(rows).flatMap((group) => [
-        seriesHeaderRow(group.seriesTicker),
-        ...group.events.map((e) => ({
-          type: "actions" as const,
-          children: [
-            {
-              type: "button" as const,
-              id: PICK_EVENT_ACTION,
-              label: `${e.title} — ${kickoffLabel(e.startsAt)}`,
-              value: e.eventTicker,
-            },
-          ],
-        })),
-      ]),
+      seriesHeaderRow(seriesTicker),
+      ...rows.map((e) => ({
+        type: "actions" as const,
+        children: [
+          {
+            type: "button" as const,
+            id: PICK_EVENT_ACTION,
+            label: `${e.title} — ${kickoffLabel(e.startsAt)}`,
+            value: e.eventTicker,
+          },
+        ],
+      })),
+      {
+        type: "actions",
+        children: [{ type: "button" as const, id: BACK_TO_SERIES_ACTION, label: "← All series" }],
+      },
     ],
   };
 }
@@ -223,6 +260,7 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
       yesAsk: marketsTable.yesAsk,
       title: events.title,
       startsAt: events.startsAt,
+      seriesTicker: events.seriesTicker,
     })
     .from(marketsTable)
     .innerJoin(events, eq(events.eventTicker, marketsTable.eventTicker))
@@ -231,7 +269,7 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
 
   if (outcomes.length === 0) return null;
 
-  const { title, startsAt } = outcomes[0]!;
+  const { title, startsAt, seriesTicker } = outcomes[0]!;
   return {
     type: "card",
     children: [
@@ -257,7 +295,12 @@ async function outcomesCard(eventTicker: string, ownerName: string): Promise<Car
       {
         type: "actions",
         children: [
-          { type: "button" as const, id: BACK_TO_EVENTS_ACTION, label: "← All events" },
+          {
+            type: "button" as const,
+            id: BACK_TO_EVENTS_ACTION,
+            label: "← All events",
+            value: seriesTicker,
+          },
         ],
       },
     ],
@@ -440,7 +483,7 @@ export const placebet: BotCommand = {
   description: "Browse events and place a bet",
   usage: "/placebet",
   handler: async ({ thread, message }) => {
-    const card = await eventsCard(message.author.fullName);
+    const card = await seriesCard(message.author.fullName);
     if (!card) {
       await thread.post("No markets in the database yet — run a sync first.");
       return;
@@ -459,22 +502,34 @@ export const placebet: BotCommand = {
   },
 };
 
+// Series button tapped → menu becomes that series' event list.
+export async function handlePickSeries(event: ActionEvent): Promise<void> {
+  if (!event.value) return;
+  if (!(await claimMenu(event))) return;
+  const card = await eventsCard(event.user.fullName, event.value);
+  await showView(event, card ?? (await seriesCard(event.user.fullName)) ?? emptyCard());
+}
+
+// "← All series" tapped → menu becomes the series picker again.
+export async function handleBackToSeries(event: ActionEvent): Promise<void> {
+  if (!(await claimMenu(event))) return;
+  await showView(event, (await seriesCard(event.user.fullName)) ?? emptyCard());
+}
+
 // Event button tapped → menu becomes that event's outcomes.
 export async function handlePickEvent(event: ActionEvent): Promise<void> {
   if (!event.value) return;
   if (!(await claimMenu(event))) return;
   const card = await outcomesCard(event.value, event.user.fullName);
-  if (!card) {
-    await showView(event, (await eventsCard(event.user.fullName)) ?? emptyCard());
-    return;
-  }
-  await showView(event, card);
+  await showView(event, card ?? (await seriesCard(event.user.fullName)) ?? emptyCard());
 }
 
-// Back button tapped → menu becomes the event list again.
+// "← All events" tapped → menu becomes that series' event list (the ticker
+// rides on the button value); a vanished series falls back to the picker.
 export async function handleBackToEvents(event: ActionEvent): Promise<void> {
   if (!(await claimMenu(event))) return;
-  await showView(event, (await eventsCard(event.user.fullName)) ?? emptyCard());
+  const card = event.value ? await eventsCard(event.user.fullName, event.value) : null;
+  await showView(event, card ?? (await seriesCard(event.user.fullName)) ?? emptyCard());
 }
 
 /** Resolve a market ticker into a PendingPick, or null if unknown. */
@@ -484,8 +539,10 @@ async function loadPick(ticker: string, menuMessageId: string): Promise<PendingP
       outcome: marketsTable.outcome,
       eventTicker: marketsTable.eventTicker,
       yesAsk: marketsTable.yesAsk,
+      seriesTicker: events.seriesTicker,
     })
     .from(marketsTable)
+    .innerJoin(events, eq(events.eventTicker, marketsTable.eventTicker))
     .where(eq(marketsTable.ticker, ticker))
     .limit(1);
   if (!market) return null;
@@ -493,6 +550,7 @@ async function loadPick(ticker: string, menuMessageId: string): Promise<PendingP
     ticker,
     outcome: market.outcome,
     eventTicker: market.eventTicker,
+    seriesTicker: market.seriesTicker,
     priceCents: market.yesAsk,
     menuMessageId,
   };
@@ -507,7 +565,7 @@ export async function handlePickOutcome(event: ActionEvent): Promise<void> {
 
   const pick = await loadPick(ticker, event.messageId);
   if (!pick) {
-    await showView(event, (await eventsCard(event.user.fullName)) ?? emptyCard());
+    await showView(event, (await seriesCard(event.user.fullName)) ?? emptyCard());
     return;
   }
 
@@ -540,7 +598,7 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
     : null;
   const pick = pending ? await loadPick(pending.ticker, event.messageId) : null;
   if (!pick) {
-    await showView(event, (await eventsCard(event.user.fullName)) ?? emptyCard());
+    await showView(event, (await seriesCard(event.user.fullName)) ?? emptyCard());
     return;
   }
   const ticker = pick.ticker;
@@ -578,7 +636,12 @@ export async function handlePickAmount(event: ActionEvent): Promise<void> {
   try {
     const { contracts, cost } = await placeBet(profile, ticker, "yes", stakeCents);
     if (event.thread) await clearPendingPick(event.thread, event.user.userId);
-    await showView(event, (await eventsCard(userName)) ?? emptyCard());
+    await showView(
+      event,
+      (await eventsCard(userName, pick.seriesTicker)) ??
+        (await seriesCard(userName)) ??
+        emptyCard(),
+    );
     await event.thread?.post({ markdown: betConfirmation(userName, pick.outcome, contracts, cost) });
   } catch (err) {
     await showView(
@@ -619,7 +682,8 @@ export async function handleBetReply(thread: Thread, message: Message): Promise<
   const text = message.text?.trim() ?? "";
 
   const backToEvents = async () => {
-    const card = (await eventsCard(userName)) ?? emptyCard();
+    const card =
+      (await eventsCard(userName, pick.seriesTicker)) ?? (await seriesCard(userName)) ?? emptyCard();
     if (!(await editMenu(thread, pick.menuMessageId, card))) {
       const sent = await thread.post({ card, fallbackText: MENU_FALLBACK });
       await setMenu(thread, message.author.userId, sent.id);

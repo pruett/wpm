@@ -4,15 +4,19 @@ import { createPostgresState } from "@chat-adapter/state-pg";
 import { dispatchCommand } from "./commands";
 import {
   BACK_TO_EVENTS_ACTION,
+  BACK_TO_SERIES_ACTION,
   NOOP_ACTION,
   PICK_AMOUNT_ACTION,
   PICK_EVENT_ACTION,
   PICK_OUTCOME_ACTION,
+  PICK_SERIES_ACTION,
   handleBackToEvents,
+  handleBackToSeries,
   handleBetReply,
   handlePickAmount,
   handlePickEvent,
   handlePickOutcome,
+  handlePickSeries,
 } from "./commands/placebet";
 import {
   BETS_BACK_ACTION,
@@ -65,11 +69,13 @@ bot.onDirectMessage(async (thread, message) => {
 });
 
 // Each user gets their own /placebet menu — one message per user that edits
-// itself as its owner navigates: event list → outcomes → amount picker →
-// back to event list. Only the owner's taps move their menu.
+// itself as its owner navigates: series picker → event list → outcomes →
+// amount picker → back. Only the owner's taps move their menu.
+bot.onAction(PICK_SERIES_ACTION, handlePickSeries);
 bot.onAction(PICK_EVENT_ACTION, handlePickEvent);
 bot.onAction(PICK_OUTCOME_ACTION, handlePickOutcome);
 bot.onAction(PICK_AMOUNT_ACTION, handlePickAmount);
+bot.onAction(BACK_TO_SERIES_ACTION, handleBackToSeries);
 bot.onAction(BACK_TO_EVENTS_ACTION, handleBackToEvents);
 // Series-header rows are labels, not controls — acknowledge and do nothing.
 bot.onAction(NOOP_ACTION, async () => {});
