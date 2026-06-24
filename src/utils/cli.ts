@@ -32,6 +32,7 @@ import {
 } from "./announce";
 import { collectWeeklyStats, generateWeeklyRecap, hadActivity } from "./summary";
 import { displayName, formatDollars, formatEastern, linkMentions } from "./format";
+import { TRACKED_SERIES } from "../kalshi/series";
 import { state } from "../bot";
 
 const dollars = (c: number | null) => (c == null ? "—" : `$${(c / 100).toFixed(2)}`);
@@ -44,7 +45,11 @@ switch (cmd) {
     // syncs just that one, quietly. Both end with the settlement pass.
     const { series, settledBets, voidedBets, bettableAlerts } = args[0]
       ? await (async () => {
-          const stats = await sync(args[0]!);
+          // Carry the tracked series' tournament filter (e.g. KXATPMATCH →
+          // Wimbledon) so a single-series sync mirrors the same subset syncAll
+          // does, not the whole pooled feed.
+          const tracked = TRACKED_SERIES.find((s) => s.ticker === args[0]);
+          const stats = await sync(args[0]!, tracked?.tournamentName);
           const settlement = await settleOpenBetMarkets();
           return {
             series: [stats],

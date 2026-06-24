@@ -73,11 +73,23 @@ export interface SeriesSyncStats {
  * within the horizon) stays updated even when Kalshi now says it starts
  * later — a postponed game must not keep its stale kickoff in the menu.
  */
-export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
+export async function sync(
+  seriesTicker: string,
+  tournamentName?: string,
+): Promise<SeriesSyncStats> {
   const { events: kalshiEvents, milestones } = await ingestEvents(seriesTicker, {
     status: "open",
   });
   const milestoneByEvent = indexMilestones(milestones);
+
+  // Pooled series (e.g. KXATPMATCH) carry many tournaments at once; when the
+  // tracked series names one, keep only its events. The name lives on the
+  // milestone, so an event without a matching milestone isn't ours either.
+  const selectedEvents = tournamentName
+    ? kalshiEvents.filter(
+        (e) => milestoneByEvent.get(e.event_ticker)?.details?.tournament_name === tournamentName,
+      )
+    : kalshiEvents;
 
   const mirrored = new Map(
     (
@@ -106,7 +118,7 @@ export async function sync(seriesTicker: string): Promise<SeriesSyncStats> {
   let voidedBets = 0;
   const settlements: MarketSettlement[] = [];
 
-  for (const event of kalshiEvents) {
+  for (const event of selectedEvents) {
     const milestone = milestoneByEvent.get(event.event_ticker);
     const startsAt = date(milestone?.start_date);
     // Unknown start counts as in-horizon — only skip what we know is far out.
@@ -391,7 +403,7 @@ export async function releaseBettableAlerts(eventTickers: string[]): Promise<voi
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
   for (const tracked of TRACKED_SERIES) {
-    series.push(await sync(tracked.ticker));
+    series.push(await sync(tracked.ticker, tracked.tournamentName));
   }
   const settlement = await settleOpenBetMarkets();
   // Claim last, after this sweep's fresh kickoffs are mirrored.
