@@ -32,16 +32,18 @@ export interface TrackedSeries {
 export const TRACKED_SERIES: TrackedSeries[] = [
   { ticker: "KXWCGAME", emoji: "⚽️", title: "World Cup 2026 Games", lastCallAlerts: true },
   { ticker: "KXNBAGAME", emoji: "🏀", title: "NBA Finals 2026" },
+  // Wimbledon 2026 is over — untracked so the sync stops writing ATP matches.
   // Wimbledon men's singles trades per match under the shared ATP-match series,
   // not the tournament-winner series (KXWMENSINGLES) — only per-match events
   // carry a kickoff (milestone.start_date) and live status, which our betting
-  // cutoff needs. Filter the ATP-wide feed down to just Wimbledon.
-  {
-    ticker: "KXATPMATCH",
-    emoji: "🎾",
-    title: "Wimbledon 2026 Men's Singles",
-    tournamentName: "Wimbledon Men Singles",
-  },
+  // cutoff needs. Filter the ATP-wide feed down to just Wimbledon. Re-enable
+  // (uncomment) next Wimbledon, updating the year in the title.
+  // {
+  //   ticker: "KXATPMATCH",
+  //   emoji: "🎾",
+  //   title: "Wimbledon 2026 Men's Singles",
+  //   tournamentName: "Wimbledon Men Singles",
+  // },
 ];
 
 // Every series gets an emoji — tracked ones their own, anything else this.
