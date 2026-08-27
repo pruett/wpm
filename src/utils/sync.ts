@@ -15,8 +15,12 @@ const date = (iso?: string | null): Date | null => (iso ? new Date(iso) : null);
 
 /** Menus only offer events kicking off within this window (see upcomingEvents). */
 export const BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
-// How close to kickoff the group's last-call alert fires. Betting locks at
-// kickoff, so this is the final window to get a bet in (see claimBettableAlerts).
+// How close to kickoff the group's last-call alert becomes claimable. Betting
+// locks at kickoff, so this is the final window to get a bet in (see
+// claimBettableAlerts). The alert actually posts on the first cron sweep that
+// lands inside this window — with the 15-min cron, 15–30 min before kickoff —
+// so keep this comfortably larger than the cron interval or a kickoff could
+// slip past every sweep unannounced.
 export const BETTABLE_ALERT_LEAD_MS = 30 * 60 * 1000;
 // Mirror slightly past the bettable window so an event's row and prices are
 // already in Postgres by the time it first becomes visible in menus.

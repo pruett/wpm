@@ -28,8 +28,10 @@ export interface TrackedSeries {
   tournamentName?: string;
   /**
    * Opt this series into the group "last call" alert — the Telegram reminder
-   * fired ~30 min before an event's betting locks (see claimBettableAlerts /
-   * announceBettableAlerts in utils). Off by default: a series is still synced,
+   * fired on the first cron sweep inside the pre-kickoff lead window, so
+   * 15–30 min before betting locks at the current 15-min cron cadence (see
+   * claimBettableAlerts / announceBettableAlerts in utils, BETTABLE_ALERT_LEAD_MS
+   * in utils/sync.ts). Off by default: a series is still synced,
    * bettable, and settled without it; this flag ONLY governs the pre-close
    * reminder. Flip it on per series as we decide each one is worth pinging the
    * group about.
@@ -40,7 +42,7 @@ export interface TrackedSeries {
 export const TRACKED_SERIES: TrackedSeries[] = [
   // One event per pro football game (preseason included), two markets each
   // (home/away winner) — verified against the live feed 2026-08-27.
-  { ticker: "KXNFLGAME", active: true, emoji: "🏈", title: "NFL 2026–27 Season" },
+  { ticker: "KXNFLGAME", active: true, emoji: "🏈", title: "NFL 2026–27 Season", lastCallAlerts: true },
   // World Cup 2026 and the NBA Finals are over — inactive so the sync stops
   // sweeping them, kept so their old bets still render with emoji and title.
   { ticker: "KXWCGAME", active: false, emoji: "⚽️", title: "World Cup 2026 Games", lastCallAlerts: true },

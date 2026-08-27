@@ -37144,7 +37144,7 @@ async function ingestEvents(seriesTicker, { status, withNestedMarkets = true } =
 
 // src/kalshi/series.ts
 var TRACKED_SERIES = [
-  { ticker: "KXNFLGAME", active: true, emoji: "\uD83C\uDFC8", title: "NFL 2026–27 Season" },
+  { ticker: "KXNFLGAME", active: true, emoji: "\uD83C\uDFC8", title: "NFL 2026–27 Season", lastCallAlerts: true },
   { ticker: "KXWCGAME", active: false, emoji: "⚽️", title: "World Cup 2026 Games", lastCallAlerts: true },
   { ticker: "KXNBAGAME", active: false, emoji: "\uD83C\uDFC0", title: "NBA Finals 2026" },
   {
