@@ -19,12 +19,14 @@ var __toESM = (mod, isNodeMode, target) => {
   }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
   const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
-  for (let key of __getOwnPropNames(mod))
-    if (!__hasOwnProp.call(to, key))
-      __defProp(to, key, {
-        get: __accessProp.bind(mod, key),
-        enumerable: true
-      });
+  if (mod && typeof mod === "object" || typeof mod === "function") {
+    for (let key of __getOwnPropNames(mod))
+      if (!__hasOwnProp.call(to, key))
+        __defProp(to, key, {
+          get: __accessProp.bind(mod, key),
+          enumerable: true
+        });
+  }
   if (canCache)
     cache.set(mod, to);
   return to;
@@ -2266,6 +2268,50 @@ function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 
+class UniqueConstraintBuilder {
+  constructor(columns, name) {
+    this.name = name;
+    this.columns = columns;
+  }
+  static [entityKind] = "PgUniqueConstraintBuilder";
+  columns;
+  nullsNotDistinctConfig = false;
+  nullsNotDistinct() {
+    this.nullsNotDistinctConfig = true;
+    return this;
+  }
+  build(table) {
+    return new UniqueConstraint(table, this.columns, this.nullsNotDistinctConfig, this.name);
+  }
+}
+
+class UniqueOnConstraintBuilder {
+  static [entityKind] = "PgUniqueOnConstraintBuilder";
+  name;
+  constructor(name) {
+    this.name = name;
+  }
+  on(...columns) {
+    return new UniqueConstraintBuilder(columns, this.name);
+  }
+}
+
+class UniqueConstraint {
+  constructor(table, columns, nullsNotDistinct, name) {
+    this.table = table;
+    this.columns = columns;
+    this.name = name ?? uniqueKeyName(this.table, this.columns.map((column) => column.name));
+    this.nullsNotDistinct = nullsNotDistinct;
+  }
+  static [entityKind] = "PgUniqueConstraint";
+  columns;
+  name;
+  nullsNotDistinct = false;
+  getName() {
+    return this.name;
+  }
+}
+
 // node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i = startFrom;i < arrayString.length; i++) {
@@ -2436,6 +2482,21 @@ class ExtraConfigColumn extends PgColumn {
     return this;
   }
 }
+
+class IndexedColumn {
+  static [entityKind] = "IndexedColumn";
+  constructor(name, keyAsName, type, indexConfig) {
+    this.name = name;
+    this.keyAsName = keyAsName;
+    this.type = type;
+    this.indexConfig = indexConfig;
+  }
+  name;
+  keyAsName;
+  type;
+  indexConfig;
+}
+
 class PgArrayBuilder extends PgColumnBuilder {
   static [entityKind] = "PgArrayBuilder";
   constructor(name, baseBuilder, size2) {
@@ -2646,6 +2707,9 @@ function getTableUniqueName(table) {
 }
 
 // node_modules/drizzle-orm/sql/sql.js
+class FakePrimitiveParam {
+  static [entityKind] = "FakePrimitiveParam";
+}
 function isSQLWrapper(value) {
   return value !== null && value !== undefined && typeof value.getSQL === "function";
 }
@@ -3078,6 +3142,19 @@ class TableAliasProxyHandler {
       return new Proxy(value, new ColumnAliasProxyHandler(new Proxy(target, this)));
     }
     return value;
+  }
+}
+
+class RelationTableAliasProxyHandler {
+  constructor(alias) {
+    this.alias = alias;
+  }
+  static [entityKind] = "RelationTableAliasProxyHandler";
+  get(target, prop) {
+    if (prop === "sourceTable") {
+      return aliasedTable(target.sourceTable, this.alias);
+    }
+    return target[prop];
   }
 }
 function aliasedTable(table, tableAlias) {
@@ -7104,15 +7181,15 @@ function drizzle(...params) {
 // src/db/schema.ts
 var exports_schema = {};
 __export(exports_schema, {
-  users: () => users,
-  recaps: () => recaps,
-  markets: () => markets,
-  ledgerKind: () => ledgerKind,
-  ledger: () => ledger,
-  events: () => events,
-  bets: () => bets,
+  betSide: () => betSide,
   betStatus: () => betStatus,
-  betSide: () => betSide
+  bets: () => bets,
+  events: () => events,
+  ledger: () => ledger,
+  ledgerKind: () => ledgerKind,
+  markets: () => markets,
+  recaps: () => recaps,
+  users: () => users
 });
 var betSide = pgEnum("bet_side", ["yes", "no"]);
 var betStatus = pgEnum("bet_status", ["open", "won", "lost", "voided"]);
@@ -7150,6 +7227,7 @@ var users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   languageCode: text("language_code"),
+  persona: jsonb("persona").$type(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 var bets = pgTable("bets", {
@@ -7270,7 +7348,7 @@ async function heartbeat(servedBy = "v1") {
 }
 var GET = () => heartbeat("v1");
 export {
-  heartbeat,
+  GET,
   apiVersionFromPath,
-  GET
+  heartbeat
 };

@@ -5,7 +5,7 @@ import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
 import { ingestEvents } from "../kalshi/ingest";
 import { marketApi } from "../kalshi/client";
-import { LAST_CALL_ALERT_SERIES, TRACKED_SERIES } from "../kalshi/series";
+import { ACTIVE_SERIES, LAST_CALL_ALERT_SERIES } from "../kalshi/series";
 
 // The SDK exposes prices only as dollar strings ("0.0900") — convert to integer cents.
 const cents = (dollars?: string | null): number | null =>
@@ -15,8 +15,12 @@ const date = (iso?: string | null): Date | null => (iso ? new Date(iso) : null);
 
 /** Menus only offer events kicking off within this window (see upcomingEvents). */
 export const BETTABLE_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
-// How close to kickoff the group's last-call alert fires. Betting locks at
-// kickoff, so this is the final window to get a bet in (see claimBettableAlerts).
+// How close to kickoff the group's last-call alert becomes claimable. Betting
+// locks at kickoff, so this is the final window to get a bet in (see
+// claimBettableAlerts). The alert actually posts on the first cron sweep that
+// lands inside this window — with the 15-min cron, 15–30 min before kickoff —
+// so keep this comfortably larger than the cron interval or a kickoff could
+// slip past every sweep unannounced.
 export const BETTABLE_ALERT_LEAD_MS = 30 * 60 * 1000;
 // Mirror slightly past the bettable window so an event's row and prices are
 // already in Postgres by the time it first becomes visible in menus.
@@ -404,7 +408,7 @@ export async function releaseBettableAlerts(eventTickers: string[]): Promise<voi
 }
 
 /**
- * The data half of the cron's work: mirror every tracked series, sweep
+ * The data half of the cron's work: mirror every active tracked series, sweep
  * markets with open bets for results the per-series sync no longer sees, then
  * claim any events whose betting is about to lock. Announcing the settlements
  * and alerts is the caller's job (api/sync.ts, the CLI) — this layer stays
@@ -412,7 +416,7 @@ export async function releaseBettableAlerts(eventTickers: string[]): Promise<voi
  */
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
-  for (const tracked of TRACKED_SERIES) {
+  for (const tracked of ACTIVE_SERIES) {
     series.push(await sync(tracked.ticker, tracked.tournamentName));
   }
   const settlement = await settleOpenBetMarkets();
