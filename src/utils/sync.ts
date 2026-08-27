@@ -5,7 +5,7 @@ import { bets, events, markets } from "../db/schema";
 import { settleMarketBets, voidMarketBets, type BetSide, type SettledBet } from "./house";
 import { ingestEvents } from "../kalshi/ingest";
 import { marketApi } from "../kalshi/client";
-import { LAST_CALL_ALERT_SERIES, TRACKED_SERIES } from "../kalshi/series";
+import { ACTIVE_SERIES, LAST_CALL_ALERT_SERIES } from "../kalshi/series";
 
 // The SDK exposes prices only as dollar strings ("0.0900") — convert to integer cents.
 const cents = (dollars?: string | null): number | null =>
@@ -404,7 +404,7 @@ export async function releaseBettableAlerts(eventTickers: string[]): Promise<voi
 }
 
 /**
- * The data half of the cron's work: mirror every tracked series, sweep
+ * The data half of the cron's work: mirror every active tracked series, sweep
  * markets with open bets for results the per-series sync no longer sees, then
  * claim any events whose betting is about to lock. Announcing the settlements
  * and alerts is the caller's job (api/sync.ts, the CLI) — this layer stays
@@ -412,7 +412,7 @@ export async function releaseBettableAlerts(eventTickers: string[]): Promise<voi
  */
 export async function syncAll() {
   const series: SeriesSyncStats[] = [];
-  for (const tracked of TRACKED_SERIES) {
+  for (const tracked of ACTIVE_SERIES) {
     series.push(await sync(tracked.ticker, tracked.tournamentName));
   }
   const settlement = await settleOpenBetMarkets();
