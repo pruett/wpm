@@ -5,6 +5,7 @@ import { showbets } from "./showbets";
 import { mybets } from "./mybets";
 import { bet } from "./bet";
 import { bets } from "./bets";
+import { gift } from "./gift";
 import { me } from "./me";
 import { start } from "./start";
 import type { BotCommand } from "./types";
@@ -32,7 +33,15 @@ export const commands: BotCommand[] = [start, help, placebet, showbets, mybets, 
 
 const deprecatedCommands: BotCommand[] = [bet, bets, me];
 
-export const allCommands: BotCommand[] = [...commands, ...deprecatedCommands];
+// Admin-only commands: dispatchable, but hidden from /help AND the Telegram
+// command menu — a public menu entry would just invite everyone to poke at a
+// command that refuses them. Gated inside each handler (TELEGRAM_ADMIN_IDS).
+const adminCommands: BotCommand[] = [gift];
+
+// What setMyCommands publishes as the visible Telegram menu.
+export const menuCommands: BotCommand[] = [...commands, ...deprecatedCommands];
+
+export const allCommands: BotCommand[] = [...menuCommands, ...adminCommands];
 
 const byName = new Map(allCommands.map((c) => [c.name, c]));
 

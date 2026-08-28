@@ -138,6 +138,63 @@ export async function placeBet(
   });
 }
 
+/** A user just credited by a gift, with their balance after the credit. */
+export interface GiftedUser {
+  user: typeof users.$inferSelect;
+  balanceCents: number;
+}
+
+/**
+ * Credit every registered user's ledger with a gift from the house.
+ * Returns the recipients with their post-gift balances, biggest first,
+ * ready for the group announcement.
+ */
+export async function giftAllUsers(amountCents: number): Promise<GiftedUser[]> {
+  assertGiftAmount(amountCents);
+  const recipients = await db.select().from(users);
+  if (recipients.length === 0) return [];
+
+  // One multi-row insert — atomic on its own, no explicit transaction needed.
+  await db
+    .insert(ledger)
+    .values(recipients.map((u) => ({ userId: u.id, amountCents, kind: "gift" as const })));
+
+  const gifted = await Promise.all(
+    recipients.map(async (user) => ({ user, balanceCents: await balanceCents(user.id) })),
+  );
+  return gifted.sort((a, b) => b.balanceCents - a.balanceCents);
+}
+
+/**
+ * Credit a single user's ledger with a gift from the house. Accepts a
+ * Telegram @username (case-insensitive, with or without the @) or a raw
+ * Telegram id. Returns null when no registered user matches.
+ */
+export async function giftUser(
+  handle: string,
+  amountCents: number,
+): Promise<GiftedUser | null> {
+  assertGiftAmount(amountCents);
+  const username = handle.replace(/^@/, "");
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(
+      sql`lower(${users.username}) = lower(${username}) or ${users.telegramId} = ${handle}`,
+    )
+    .limit(1);
+  if (!user) return null;
+
+  await db.insert(ledger).values({ userId: user.id, amountCents, kind: "gift" });
+  return { user, balanceCents: await balanceCents(user.id) };
+}
+
+function assertGiftAmount(amountCents: number): void {
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new Error("gift amount must be a positive whole number of cents");
+  }
+}
+
 /** A bet that just settled, as applied — input for group announcements. */
 export interface SettledBet {
   betId: number;

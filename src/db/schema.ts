@@ -13,7 +13,15 @@ import {
 
 export const betSide = pgEnum("bet_side", ["yes", "no"]);
 export const betStatus = pgEnum("bet_status", ["open", "won", "lost", "voided"]);
-export const ledgerKind = pgEnum("ledger_kind", ["seed", "bet_place", "bet_settle", "bet_void"]);
+export const ledgerKind = pgEnum("ledger_kind", [
+  "seed",
+  "bet_place",
+  "bet_settle",
+  "bet_void",
+  // Admin-initiated bankroll infusion (the /gift command) — like "seed" but
+  // for existing accounts, so seed stays exactly one-per-user.
+  "gift",
+]);
 
 // --- Kalshi mirror (written by sync, read-only for the app) ---
 

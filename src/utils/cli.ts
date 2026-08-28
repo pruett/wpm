@@ -8,13 +8,23 @@
  *   bun run cli balance <telegram_id>
  *   bun run cli bets <telegram_id>
  *   bun run cli settle <market> <yes|no>               # manual settle (testing only)
+ *   bun run cli gift <$> [telegram_id|@username] [post]  # credit everyone (or one user); "post" announces in local groups
  *   bun run cli summary [post]                          # rehearse the weekly recap; "post" sends it to local groups
  *   bun run cli settlements [post]                      # rehearse the settlement roast; "post" claims + sends it
  */
 import { asc, eq } from "drizzle-orm";
 import { db, sql } from "../db";
 import { bets, events, markets, users } from "../db/schema";
-import { balanceCents, findUser, placeBet, registerUser, settleMarketBets, type BetSide } from "./house";
+import {
+  balanceCents,
+  findUser,
+  giftAllUsers,
+  giftUser,
+  placeBet,
+  registerUser,
+  settleMarketBets,
+  type BetSide,
+} from "./house";
 import {
   claimUnannouncedSettlements,
   peekUnannouncedSettlements,
@@ -26,6 +36,7 @@ import {
 } from "./sync";
 import {
   announceBettableAlerts,
+  announceGift,
   announceSettlements,
   announceWeeklyRecap,
   buildSettlementRecap,
@@ -163,6 +174,44 @@ switch (cmd) {
     break;
   }
 
+  case "gift": {
+    // Same house-model path as the /gift Telegram command, minus the admin
+    // gate (shell access is the gate). "post" announces to the local bot's
+    // subscribed groups; without it the credit is silent.
+    //   bun run cli gift 5000              # $5,000 to every registered user
+    //   bun run cli gift 500 @kevin post   # $500 to one user, announced
+    const amountCents = Math.round(parseFloat(args[0] ?? "") * 100);
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      console.error("usage: cli gift <$> [telegram_id|@username] [post]");
+      process.exit(1);
+    }
+    const rest = args.slice(1);
+    const post = rest[rest.length - 1] === "post";
+    const handle = (post ? rest.slice(0, -1) : rest)[0];
+
+    const gifted = handle
+      ? await (async () => {
+          const one = await giftUser(handle, amountCents);
+          if (!one) {
+            console.error(`no registered user matches ${handle}`);
+            process.exit(1);
+          }
+          return [one];
+        })()
+      : await giftAllUsers(amountCents);
+
+    for (const g of gifted) {
+      console.log(`gifted ${dollars(amountCents)} → ${displayName(g.user)} (balance ${dollars(g.balanceCents)})`);
+    }
+    if (post) {
+      const announced = await announceGift(gifted, amountCents);
+      console.log(`announced in ${announced.length} group${announced.length === 1 ? "" : "s"}`);
+    } else {
+      console.log("(silent — re-run with `post` to announce it in your local groups.)");
+    }
+    break;
+  }
+
   case "summary": {
     // Rehearse the weekly "Sunday Rundown" recap against the local DB.
     //   bun run cli summary        # tally + generate, print it (posts nothing)
@@ -252,7 +301,7 @@ switch (cmd) {
   }
 
   default:
-    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle|summary|settlements> …");
+    console.error("usage: cli <sync|markets|register|bet|balance|bets|settle|gift|summary|settlements> …");
     process.exit(1);
 }
 

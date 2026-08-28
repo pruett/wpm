@@ -9,7 +9,7 @@
  * Telegram clients cache the menu aggressively — if the new list doesn't
  * show up, close and reopen the chat (or restart the app).
  */
-import { allCommands } from "../bot/commands";
+import { menuCommands } from "../bot/commands";
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
@@ -26,6 +26,7 @@ async function api(method: string, body?: Record<string, unknown>): Promise<unkn
 }
 
 const me = (await api("getMe")) as { username: string };
-const menu = allCommands.map((c) => ({ command: c.name, description: c.description }));
+// menuCommands, not allCommands: admin-only commands stay out of the menu.
+const menu = menuCommands.map((c) => ({ command: c.name, description: c.description }));
 await api("setMyCommands", { commands: menu });
 console.log(`updated @${me.username} with ${menu.length} commands: ${menu.map((c) => `/${c.command}`).join(" ")}`);
