@@ -147,6 +147,15 @@ a {
   }
 }
 
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @keyframes ticker {
   from {
     transform: translateX(0);
@@ -159,6 +168,11 @@ a {
 .rise {
   opacity: 0;
   animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Standings P&L bar — wipes out from the seed line on load. */
+.bar {
+  animation: bar-grow 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .live-dot {
@@ -190,7 +204,8 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .skeleton::after,
-  .live-dot {
+  .live-dot,
+  .bar {
     animation: none;
   }
   .rise {

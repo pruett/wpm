@@ -21,7 +21,29 @@ function Header() {
   );
 }
 
-function Row({ s, rank }: { s: Standing; rank: number }) {
+/**
+ * A two-sided bar pinned to the seed line: profit grows right, losses left,
+ * every row scaled against the field's largest swing so the pecking order is
+ * legible without reading a single number.
+ */
+function PnlBar({ pnl, maxAbs, delay }: { pnl: number; maxAbs: number; delay: number }) {
+  const width = maxAbs > 0 ? (Math.abs(pnl) / maxAbs) * 50 : 0;
+
+  return (
+    <div aria-hidden className="absolute inset-x-5 bottom-1.5 h-px bg-border/30">
+      <span className="absolute inset-y-[-4px] left-1/2 w-px -translate-x-1/2 bg-gold/50" />
+      <span
+        className={cn(
+          "bar absolute -bottom-px h-[3px] rounded-full",
+          pnl >= 0 ? "left-1/2 origin-left bg-win/70" : "right-1/2 origin-right bg-loss/70",
+        )}
+        style={{ width: `${width}%`, animationDelay: `${delay}ms` }}
+      />
+    </div>
+  );
+}
+
+function Row({ s, rank, maxAbs }: { s: Standing; rank: number; maxAbs: number }) {
   const pnl = s.totalCents - SEED_CENTS;
   const isLeader = rank === 0;
   const medal = MEDALS[rank];
@@ -29,7 +51,7 @@ function Row({ s, rank }: { s: Standing; rank: number }) {
   return (
     <li
       className={cn(
-        "flex items-center gap-3 px-5 py-3 transition-colors hover:bg-white/[0.02]",
+        "relative flex items-center gap-3 px-5 py-3 transition-colors hover:bg-white/[0.02]",
         isLeader && "bg-gold/[0.04]",
       )}
     >
@@ -68,6 +90,8 @@ function Row({ s, rank }: { s: Standing; rank: number }) {
           {formatSignedDollars(pnl)}
         </span>
       </div>
+
+      <PnlBar pnl={pnl} maxAbs={maxAbs} delay={rank * 45} />
     </li>
   );
 }
@@ -75,6 +99,7 @@ function Row({ s, rank }: { s: Standing; rank: number }) {
 /** Full bankroll standings — everyone, ranked, seed line at $100k. */
 export async function Leaderboard() {
   const standings = await getLeaderboard();
+  const maxAbs = Math.max(0, ...standings.map((s) => Math.abs(s.totalCents - SEED_CENTS)));
 
   return (
     <Card>
@@ -98,12 +123,12 @@ export async function Leaderboard() {
         <>
           <ul className="divide-y divide-border">
             {standings.map((s, i) => (
-              <Row key={s.id} s={s} rank={i} />
+              <Row key={s.id} s={s} rank={i} maxAbs={maxAbs} />
             ))}
           </ul>
           <div className="border-t border-border px-5 py-3 text-center text-xs text-faint">
-            Everyone starts at <span className="nums text-muted">$100,000</span>. Distance from
-            that line is profit — or a cry for help.
+            Everyone starts at <span className="nums text-muted">$100,000</span> — the center tick
+            on each bar. Distance from that line is profit — or a cry for help.
           </div>
         </>
       )}
