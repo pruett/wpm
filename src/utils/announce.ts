@@ -8,6 +8,7 @@ import { seriesEmoji, seriesRank } from "../kalshi/series";
 import { displayName, formatDollars, formatEastern, gifMessage, linkMentions } from "./format";
 import { reportLlmFailure } from "./observability";
 import { personaPromptBlock } from "./persona";
+import type { GiftedUser } from "./house";
 import type { BettableAlert, MarketSettlement } from "./sync";
 import type { PostableMarkdown } from "chat";
 
@@ -217,6 +218,67 @@ export async function announceWeeklyRecap(recapMarkdown: string): Promise<number
       posted++;
     } catch (error) {
       console.error(`weekly recap announcement failed for ${threadId}:`, error);
+    }
+  }
+  return posted;
+}
+
+// Money-rain GIFs for gift drops — celebratory, not tied to any bet outcome.
+const GIFT_GIFS = [
+  "https://media.giphy.com/media/l41lZccR1oUigYeNa/giphy.gif", // Lil Wayne & Fat Joe making it rain
+  "https://media.giphy.com/media/gQdejV5BBChHi/giphy.gif", // Scrooge McDuck diving into the money vault
+  "https://media.giphy.com/media/qi8Yhj4pKcIec/giphy.gif", // Kenny Powers tossing cash
+  "https://media.giphy.com/media/DfLwM9kttDFEQ/giphy.gif", // Leo toasting over fireworks (Gatsby)
+];
+
+/**
+ * Announce a house gift in every subscribed group: a headline, a money GIF,
+ * then a mention-linked blast naming the recipients and the amount, so it
+ * reads as the bot itself showering the room with cash. Returns the thread
+ * ids actually posted to, so the /gift command can skip its confirmation
+ * reply in a group that already saw the announcement.
+ */
+export async function announceGift(
+  gifted: GiftedUser[],
+  amountCents: number,
+): Promise<string[]> {
+  if (gifted.length === 0) return [];
+
+  const threadIds = await groupThreadIds();
+  if (threadIds.length === 0) return [];
+
+  // Connect just the state adapter so thread.post() has somewhere to append,
+  // without starting a polling loop (same as announceSettlements). Idempotent.
+  await state.connect();
+
+  const recipients = gifted.map((g) => g.user);
+  const amount = formatDollars(amountCents);
+  const body =
+    gifted.length === 1
+      ? `The house just slipped **${amount}** to ${displayName(recipients[0]!)}. Spend it wisely — or don't. 😏`
+      : [
+          `The house is feeling generous — **${amount}** just landed in every bankroll. 🎉`,
+          "",
+          ...gifted.map((g) => `• ${displayName(g.user)} — now sitting on ${formatDollars(g.balanceCents)}`),
+          "",
+          "Go make some bets before the house changes its mind.",
+        ].join("\n");
+
+  const posts: Array<string | PostableMarkdown> = [
+    "💰 MONEY DROP 💰",
+    gifMessage(pickRandom(GIFT_GIFS)),
+    { markdown: linkMentions(body, recipients) },
+  ];
+
+  const posted: string[] = [];
+  for (const threadId of threadIds) {
+    // One dead group (bot kicked, chat deleted) must not block the rest.
+    try {
+      const thread = bot.thread(threadId);
+      for (const post of posts) await thread.post(post);
+      posted.push(threadId);
+    } catch (error) {
+      console.error(`gift announcement failed for ${threadId}:`, error);
     }
   }
   return posted;
