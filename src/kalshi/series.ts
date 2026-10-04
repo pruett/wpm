@@ -43,6 +43,12 @@ export const TRACKED_SERIES: TrackedSeries[] = [
   // One event per pro football game (preseason included), two markets each
   // (home/away winner) — verified against the live feed 2026-08-27.
   { ticker: "KXNFLGAME", active: true, emoji: "🏈", title: "NFL 2026–27 Season", lastCallAlerts: true },
+  // One event per MLB game, two markets each (home/away winner), with a
+  // milestone kickoff (start_date) — verified against the live feed
+  // 2026-10-04, when its open events were the Wild Card / Division Series
+  // games (e.g. Yankees–Rays, KXMLBGAME-26OCT052000NYYTB). The series also
+  // carries the regular season, so deactivate after the World Series.
+  { ticker: "KXMLBGAME", active: true, emoji: "⚾️", title: "MLB 2026 Postseason", lastCallAlerts: true },
   // World Cup 2026 and the NBA Finals are over — inactive so the sync stops
   // sweeping them, kept so their old bets still render with emoji and title.
   { ticker: "KXWCGAME", active: false, emoji: "⚽️", title: "World Cup 2026 Games", lastCallAlerts: true },
