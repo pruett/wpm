@@ -18,7 +18,7 @@ var __toESM = (mod, isNodeMode, target) => {
       return cached;
   }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
-  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  const to = isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
   if (mod && typeof mod === "object" || typeof mod === "function") {
     for (let key of __getOwnPropNames(mod))
       if (!__hasOwnProp.call(to, key))
@@ -305,44 +305,44 @@ class Builder extends NotTagged {
     this.first = first;
     this.rest = rest;
   }
-  build(before, parameters, types2, options) {
+  build(before, parameters, types, options) {
     const keyword = builders.map(([x, fn]) => ({ fn, i: before.search(x) })).sort((a, b) => a.i - b.i).pop();
-    return keyword.i === -1 ? escapeIdentifiers(this.first, options) : keyword.fn(this.first, this.rest, parameters, types2, options);
+    return keyword.i === -1 ? escapeIdentifiers(this.first, options) : keyword.fn(this.first, this.rest, parameters, types, options);
   }
 }
-function handleValue(x, parameters, types2, options) {
+function handleValue(x, parameters, types, options) {
   let value = x instanceof Parameter ? x.value : x;
   if (value === undefined) {
     x instanceof Parameter ? x.value = options.transform.undefined : value = x = options.transform.undefined;
     if (value === undefined)
       throw Errors.generic("UNDEFINED_VALUE", "Undefined values are not allowed");
   }
-  return "$" + types2.push(x instanceof Parameter ? (parameters.push(x.value), x.array ? x.array[x.type || inferType(x.value)] || x.type || firstIsString(x.value) : x.type) : (parameters.push(x), inferType(x)));
+  return "$" + types.push(x instanceof Parameter ? (parameters.push(x.value), x.array ? x.array[x.type || inferType(x.value)] || x.type || firstIsString(x.value) : x.type) : (parameters.push(x), inferType(x)));
 }
 var defaultHandlers = typeHandlers(types);
-function stringify(q, string, value, parameters, types2, options) {
+function stringify(q, string, value, parameters, types, options) {
   for (let i = 1;i < q.strings.length; i++) {
-    string += stringifyValue(string, value, parameters, types2, options) + q.strings[i];
+    string += stringifyValue(string, value, parameters, types, options) + q.strings[i];
     value = q.args[i];
   }
   return string;
 }
-function stringifyValue(string, value, parameters, types2, o) {
-  return value instanceof Builder ? value.build(string, parameters, types2, o) : value instanceof Query ? fragment(value, parameters, types2, o) : value instanceof Identifier ? value.value : value && value[0] instanceof Query ? value.reduce((acc, x) => acc + " " + fragment(x, parameters, types2, o), "") : handleValue(value, parameters, types2, o);
+function stringifyValue(string, value, parameters, types, o) {
+  return value instanceof Builder ? value.build(string, parameters, types, o) : value instanceof Query ? fragment(value, parameters, types, o) : value instanceof Identifier ? value.value : value && value[0] instanceof Query ? value.reduce((acc, x) => acc + " " + fragment(x, parameters, types, o), "") : handleValue(value, parameters, types, o);
 }
-function fragment(q, parameters, types2, options) {
+function fragment(q, parameters, types, options) {
   q.fragment = true;
-  return stringify(q, q.strings[0], q.args[0], parameters, types2, options);
+  return stringify(q, q.strings[0], q.args[0], parameters, types, options);
 }
-function valuesBuilder(first, parameters, types2, columns, options) {
-  return first.map((row) => "(" + columns.map((column) => stringifyValue("values", row[column], parameters, types2, options)).join(",") + ")").join(",");
+function valuesBuilder(first, parameters, types, columns, options) {
+  return first.map((row) => "(" + columns.map((column) => stringifyValue("values", row[column], parameters, types, options)).join(",") + ")").join(",");
 }
-function values(first, rest, parameters, types2, options) {
+function values(first, rest, parameters, types, options) {
   const multi = Array.isArray(first[0]);
   const columns = rest.length ? rest.flat() : Object.keys(multi ? first[0] : first);
-  return valuesBuilder(multi ? first : [first], parameters, types2, columns, options);
+  return valuesBuilder(multi ? first : [first], parameters, types, columns, options);
 }
-function select(first, rest, parameters, types2, options) {
+function select(first, rest, parameters, types, options) {
   typeof first === "string" && (first = [first].concat(rest));
   if (Array.isArray(first))
     return escapeIdentifiers(first, options);
@@ -350,7 +350,7 @@ function select(first, rest, parameters, types2, options) {
   const columns = rest.length ? rest.flat() : Object.keys(first);
   return columns.map((x) => {
     value = first[x];
-    return (value instanceof Query ? fragment(value, parameters, types2, options) : value instanceof Identifier ? value.value : handleValue(value, parameters, types2, options)) + " as " + escapeIdentifier(options.transform.column.to ? options.transform.column.to(x) : x);
+    return (value instanceof Query ? fragment(value, parameters, types, options) : value instanceof Identifier ? value.value : handleValue(value, parameters, types, options)) + " as " + escapeIdentifier(options.transform.column.to ? options.transform.column.to(x) : x);
   }).join(",");
 }
 var builders = Object.entries({
@@ -363,12 +363,12 @@ var builders = Object.entries({
   as: select,
   returning: select,
   "\\(": select,
-  update(first, rest, parameters, types2, options) {
-    return (rest.length ? rest.flat() : Object.keys(first)).map((x) => escapeIdentifier(options.transform.column.to ? options.transform.column.to(x) : x) + "=" + stringifyValue("values", first[x], parameters, types2, options));
+  update(first, rest, parameters, types, options) {
+    return (rest.length ? rest.flat() : Object.keys(first)).map((x) => escapeIdentifier(options.transform.column.to ? options.transform.column.to(x) : x) + "=" + stringifyValue("values", first[x], parameters, types, options));
   },
-  insert(first, rest, parameters, types2, options) {
+  insert(first, rest, parameters, types, options) {
     const columns = rest.length ? rest.flat() : Object.keys(Array.isArray(first) ? first[0] : first);
-    return "(" + escapeIdentifiers(columns, options) + ")values" + valuesBuilder(Array.isArray(first) ? first : [first], parameters, types2, columns, options);
+    return "(" + escapeIdentifiers(columns, options) + ")values" + valuesBuilder(Array.isArray(first) ? first : [first], parameters, types, columns, options);
   }
 }).map(([x, fn]) => [new RegExp("((?:^|[\\s(])" + x + "(?:$|[\\s(]))(?![\\s\\S]*\\1)", "i"), fn]);
 function notTagged() {
@@ -381,19 +381,19 @@ function firstIsString(x) {
     return firstIsString(x[0]);
   return typeof x === "string" ? 1009 : 0;
 }
-var mergeUserTypes = function(types2) {
-  const user = typeHandlers(types2 || {});
+var mergeUserTypes = function(types) {
+  const user = typeHandlers(types || {});
   return {
     serializers: Object.assign({}, serializers, user.serializers),
     parsers: Object.assign({}, parsers, user.parsers)
   };
 };
-function typeHandlers(types2) {
-  return Object.keys(types2).reduce((acc, k) => {
-    types2[k].from && [].concat(types2[k].from).forEach((x) => acc.parsers[x] = types2[k].parse);
-    if (types2[k].serialize) {
-      acc.serializers[types2[k].to] = types2[k].serialize;
-      types2[k].from && [].concat(types2[k].from).forEach((x) => acc.serializers[x] = types2[k].serialize);
+function typeHandlers(types) {
+  return Object.keys(types).reduce((acc, k) => {
+    types[k].from && [].concat(types[k].from).forEach((x) => acc.parsers[x] = types[k].parse);
+    if (types[k].serialize) {
+      acc.serializers[types[k].to] = types[k].serialize;
+      types[k].from && [].concat(types[k].from).forEach((x) => acc.serializers[x] = types[k].serialize);
     }
     return acc;
   }, { parsers: {}, serializers: {} });
@@ -404,15 +404,15 @@ function escapeIdentifiers(xs, { transform: { column } }) {
 var escapeIdentifier = function escape(str) {
   return '"' + str.replace(/"/g, '""').replace(/\./g, '"."') + '"';
 };
-var inferType = function inferType2(x) {
-  return x instanceof Parameter ? x.type : x instanceof Date ? 1184 : x instanceof Uint8Array ? 17 : x === true || x === false ? 16 : typeof x === "bigint" ? 20 : Array.isArray(x) ? inferType2(x[0]) : 0;
+var inferType = function inferType(x) {
+  return x instanceof Parameter ? x.type : x instanceof Date ? 1184 : x instanceof Uint8Array ? 17 : x === true || x === false ? 16 : typeof x === "bigint" ? 20 : Array.isArray(x) ? inferType(x[0]) : 0;
 };
 var escapeBackslash = /\\/g;
 var escapeQuote = /"/g;
 function arrayEscape(x) {
   return x.replace(escapeBackslash, "\\\\").replace(escapeQuote, "\\\"");
 }
-var arraySerializer = function arraySerializer2(xs, serializer, options, typarray) {
+var arraySerializer = function arraySerializer(xs, serializer, options, typarray) {
   if (Array.isArray(xs) === false)
     return xs;
   if (!xs.length)
@@ -420,7 +420,7 @@ var arraySerializer = function arraySerializer2(xs, serializer, options, typarra
   const first = xs[0];
   const delimiter = typarray === 1020 ? ";" : ",";
   if (Array.isArray(first) && !first.type)
-    return "{" + xs.map((x) => arraySerializer2(x, serializer, options, typarray)).join(delimiter) + "}";
+    return "{" + xs.map((x) => arraySerializer(x, serializer, options, typarray)).join(delimiter) + "}";
   return "{" + xs.map((x) => {
     if (x === undefined) {
       x = options.transform.undefined;
@@ -437,7 +437,7 @@ var arrayParserState = {
   quoted: false,
   last: 0
 };
-var arrayParser = function arrayParser2(x, parser, typarray) {
+var arrayParser = function arrayParser(x, parser, typarray) {
   arrayParserState.i = arrayParserState.last = 0;
   return arrayParserLoop(arrayParserState, x, parser, typarray);
 };
@@ -494,7 +494,7 @@ var fromPascal = (x) => (x.slice(0, 1) + x.slice(1).replace(/([A-Z])/g, "_$1")).
 var fromKebab = (x) => x.replace(/-/g, "_");
 function createJsonTransform(fn) {
   return function jsonTransform(x, column) {
-    return typeof x === "object" && x !== null && (column.type === 114 || column.type === 3802) ? Array.isArray(x) ? x.map((x2) => jsonTransform(x2, column)) : Object.entries(x).reduce((acc, [k, v]) => Object.assign(acc, { [fn(k)]: jsonTransform(v, column) }), {}) : x;
+    return typeof x === "object" && x !== null && (column.type === 114 || column.type === 3802) ? Array.isArray(x) ? x.map((x) => jsonTransform(x, column)) : Object.entries(x).reduce((acc, [k, v]) => Object.assign(acc, { [fn(k)]: jsonTransform(v, column) }), {}) : x;
   };
 }
 toCamel.column = { from: toCamel };
@@ -547,8 +547,8 @@ function Queue(initial = []) {
       return xs.length - index;
     },
     remove: (x) => {
-      const index2 = xs.indexOf(x);
-      return index2 === -1 ? null : (xs.splice(index2, 1), x);
+      const index = xs.indexOf(x);
+      return index === -1 ? null : (xs.splice(index, 1), x);
     },
     push: (x) => (xs.push(x), x),
     shift: () => {
@@ -680,7 +680,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     host,
     port,
     database,
-    parsers: parsers2,
+    parsers,
     transform,
     onnotice,
     onnotify,
@@ -692,11 +692,11 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   } = options;
   const sent = queue_default(), id = uid++, backend = { pid: null, secret: null }, idleTimer = timer(end, options.idle_timeout), lifeTimer = timer(end, options.max_lifetime), connectTimer = timer(connectTimedOut, options.connect_timeout);
   let socket = null, cancelMessage, errorResponse = null, result = new Result, incoming = Buffer.alloc(0), needsTypes = options.fetch_types, backendParameters = {}, statements = {}, statementId = Math.random().toString(36).slice(2), statementCount = 1, closedTime = 0, remaining = 0, hostIndex = 0, retries = 0, length = 0, delay = 0, rows = 0, serverSignature = null, nextWriteTimer = null, terminated = false, incomings = null, results = null, initial = null, ending = null, stream = null, chunk = null, ended = null, nonce = null, query = null, final = null;
-  const connection2 = {
+  const connection = {
     queue: queues.closed,
     idleTimer,
-    connect(query2) {
-      initial = query2;
+    connect(query) {
+      initial = query;
       reconnect();
     },
     terminate,
@@ -706,8 +706,8 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     count: 0,
     id
   };
-  queues.closed && queues.closed.push(connection2);
-  return connection2;
+  queues.closed && queues.closed.push(connection);
+  return connection;
   async function createSocket() {
     let x;
     try {
@@ -727,8 +727,8 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       await connect();
       socket.once("error", reject);
       socket.once("close", resolve);
-    } catch (error2) {
-      reject(error2);
+    } catch (error) {
+      reject(error);
     }
   }
   function execute(q) {
@@ -742,10 +742,10 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       q.state = backend;
       query ? sent.push(q) : (query = q, query.active = true);
       build(q);
-      return write(toBuffer(q)) && !q.describeFirst && !q.cursorFn && sent.length < max_pipeline && (!q.options.onexecute || q.options.onexecute(connection2));
-    } catch (error2) {
+      return write(toBuffer(q)) && !q.describeFirst && !q.cursorFn && sent.length < max_pipeline && (!q.options.onexecute || q.options.onexecute(connection));
+    } catch (error) {
       sent.length === 0 && write(Sync);
-      errored(error2);
+      errored(error);
       return true;
     }
   }
@@ -774,18 +774,18 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     ]);
   }
   function build(q) {
-    const parameters = [], types2 = [];
-    const string = stringify(q, q.strings[0], q.args[0], parameters, types2, options);
-    !q.tagged && q.args.forEach((x) => handleValue(x, parameters, types2, options));
+    const parameters = [], types = [];
+    const string = stringify(q, q.strings[0], q.args[0], parameters, types, options);
+    !q.tagged && q.args.forEach((x) => handleValue(x, parameters, types, options));
     q.prepare = options.prepare && ("prepare" in q.options ? q.options.prepare : true);
     q.string = string;
-    q.signature = q.prepare && types2 + string;
+    q.signature = q.prepare && types + string;
     q.onlyDescribe && delete statements[q.signature];
     q.parameters = q.parameters || parameters;
     q.prepared = q.prepare && q.signature in statements;
     q.describeFirst = q.onlyDescribe || parameters.length && !q.prepared;
-    q.statement = q.prepared ? statements[q.signature] : { string, types: types2, name: q.prepare ? statementId + statementCount++ : "" };
-    typeof options.debug === "function" && options.debug(id, string, parameters, types2);
+    q.statement = q.prepared ? statements[q.signature] : { string, types, name: q.prepare ? statementId + statementCount++ : "" };
+    typeof options.debug === "function" && options.debug(id, string, parameters, types);
   }
   function write(x, fn) {
     chunk = chunk ? Buffer.concat([chunk, x]) : Buffer.from(x);
@@ -811,25 +811,25 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       if (!canSSL && ssl === "prefer")
         return connected();
     }
-    const options2 = {
+    const options = {
       socket,
       servername: net.isIP(socket.host) ? undefined : socket.host
     };
     if (sslnegotiation === "direct")
-      options2.ALPNProtocols = ["postgresql"];
+      options.ALPNProtocols = ["postgresql"];
     if (ssl === "require" || ssl === "allow" || ssl === "prefer")
-      options2.rejectUnauthorized = false;
+      options.rejectUnauthorized = false;
     else if (typeof ssl === "object")
-      Object.assign(options2, ssl);
+      Object.assign(options, ssl);
     socket.removeAllListeners();
-    socket = tls.connect(options2);
+    socket = tls.connect(options);
     socket.on("secureConnect", connected);
     socket.on("error", error);
     socket.on("close", closed);
     socket.on("drain", drain);
   }
   function drain() {
-    !query && onopen(connection2);
+    !query && onopen(connection);
   }
   function data(x) {
     if (incomings) {
@@ -894,7 +894,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     }
   }
   function error(err) {
-    if (connection2.queue === queues.connecting && options.host[retries + 1])
+    if (connection.queue === queues.connecting && options.host[retries + 1])
       return;
     errored(err);
     while (sent.length)
@@ -905,23 +905,23 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     query && queryError(query, err);
     initial && (queryError(initial, err), initial = null);
   }
-  function queryError(query2, err) {
-    if (query2.reserve)
-      return query2.reject(err);
+  function queryError(query, err) {
+    if (query.reserve)
+      return query.reject(err);
     if (!err || typeof err !== "object")
       err = new Error(err);
     "query" in err || "parameters" in err || Object.defineProperties(err, {
-      stack: { value: err.stack + query2.origin.replace(/.*\n/, `
+      stack: { value: err.stack + query.origin.replace(/.*\n/, `
 `), enumerable: options.debug },
-      query: { value: query2.string, enumerable: options.debug },
-      parameters: { value: query2.parameters, enumerable: options.debug },
-      args: { value: query2.args, enumerable: options.debug },
-      types: { value: query2.statement && query2.statement.types, enumerable: options.debug }
+      query: { value: query.string, enumerable: options.debug },
+      parameters: { value: query.parameters, enumerable: options.debug },
+      args: { value: query.args, enumerable: options.debug },
+      types: { value: query.statement && query.statement.types, enumerable: options.debug }
     });
-    query2.reject(err);
+    query.reject(err);
   }
   function end() {
-    return ending || (!connection2.reserved && onend(connection2), !connection2.reserved && !initial && !query && sent.length === 0 ? (terminate(), new Promise((r) => socket && socket.readyState !== "closed" ? socket.once("close", r) : r())) : ending = new Promise((r) => ended = r));
+    return ending || (!connection.reserved && onend(connection), !connection.reserved && !initial && !query && sent.length === 0 ? (terminate(), new Promise((r) => socket && socket.readyState !== "closed" ? socket.once("close", r) : r())) : ending = new Promise((r) => ended = r));
   }
   function terminate() {
     terminated = true;
@@ -953,22 +953,22 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     closedTime = performance.now();
     hadError && options.shared.retries++;
     delay = (typeof backoff === "function" ? backoff(options.shared.retries) : backoff) * 1000;
-    onclose(connection2, Errors.connection("CONNECTION_CLOSED", options, socket));
+    onclose(connection, Errors.connection("CONNECTION_CLOSED", options, socket));
   }
   function handle(xs, x = xs[0]) {
     (x === 68 ? DataRow : x === 100 ? CopyData : x === 65 ? NotificationResponse : x === 83 ? ParameterStatus : x === 90 ? ReadyForQuery : x === 67 ? CommandComplete : x === 50 ? BindComplete : x === 49 ? ParseComplete : x === 116 ? ParameterDescription : x === 84 ? RowDescription : x === 82 ? Authentication : x === 110 ? NoData : x === 75 ? BackendKeyData : x === 69 ? ErrorResponse : x === 115 ? PortalSuspended : x === 51 ? CloseComplete : x === 71 ? CopyInResponse : x === 78 ? NoticeResponse : x === 72 ? CopyOutResponse : x === 99 ? CopyDone : x === 73 ? EmptyQueryResponse : x === 86 ? FunctionCallResponse : x === 118 ? NegotiateProtocolVersion : x === 87 ? CopyBothResponse : UnknownMessage)(xs);
   }
   function DataRow(x) {
     let index = 7;
-    let length2;
+    let length;
     let column;
     let value;
     const row = query.isRaw ? new Array(query.statement.columns.length) : {};
     for (let i = 0;i < query.statement.columns.length; i++) {
       column = query.statement.columns[i];
-      length2 = x.readInt32BE(index);
+      length = x.readInt32BE(index);
       index += 4;
-      value = length2 === -1 ? null : query.isRaw === true ? x.subarray(index, index += length2) : column.parser === undefined ? x.toString("utf8", index, index += length2) : column.parser.array === true ? column.parser(x.toString("utf8", index + 1, index += length2)) : column.parser(x.toString("utf8", index, index += length2));
+      value = length === -1 ? null : query.isRaw === true ? x.subarray(index, index += length) : column.parser === undefined ? x.toString("utf8", index, index += length) : column.parser.array === true ? column.parser(x.toString("utf8", index + 1, index += length)) : column.parser(x.toString("utf8", index, index += length));
       query.isRaw ? row[i] = query.isRaw === true ? value : transform.value.from ? transform.value.from(value, column) : value : row[column.name] = transform.value.from ? transform.value.from(value, column) : value;
     }
     query.forEachFn ? query.forEachFn(transform.row.from ? transform.row.from(row) : row, result) : result[rows++] = transform.row.from ? transform.row.from(row) : row;
@@ -1014,7 +1014,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       Connection(options).cancel(query.state, query.cancelled.resolve, query.cancelled.reject);
     if (query)
       return;
-    connection2.reserved ? !connection2.reserved.release && x[5] === 73 ? ending ? terminate() : (connection2.reserved = null, onopen(connection2)) : connection2.reserved() : ending ? terminate() : onopen(connection2);
+    connection.reserved ? !connection.reserved.release && x[5] === 73 ? ending ? terminate() : (connection.reserved = null, onopen(connection)) : connection.reserved() : ending ? terminate() : onopen(connection);
   }
   function CommandComplete(x) {
     rows = 0;
@@ -1028,7 +1028,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       }
     }
     final && (final(), final = null);
-    if (result.command === "BEGIN" && max !== 1 && !connection2.reserved)
+    if (result.command === "BEGIN" && max !== 1 && !connection.reserved)
       return errored(Errors.generic("UNSAFE_TRANSACTION", "Only use sql.begin, sql.reserved or max: 1"));
     if (query.options.simple)
       return BindComplete();
@@ -1045,8 +1045,8 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     result.columns = query.statement.columns;
   }
   function ParameterDescription(x) {
-    const length2 = x.readUInt16BE(5);
-    for (let i = 0;i < length2; ++i)
+    const length = x.readUInt16BE(5);
+    for (let i = 0;i < length; ++i)
       !query.statement.types[i] && (query.statement.types[i] = x.readUInt32BE(7 + i * 4));
     query.prepare && (statements[query.signature] = query.statement);
     query.describeFirst && !query.onlyDescribe && (write(prepared(query)), query.describeFirst = false);
@@ -1058,11 +1058,11 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       result.count = null;
       query.statement.columns = null;
     }
-    const length2 = x.readUInt16BE(5);
+    const length = x.readUInt16BE(5);
     let index = 7;
     let start;
-    query.statement.columns = Array(length2);
-    for (let i = 0;i < length2; ++i) {
+    query.statement.columns = Array(length);
+    for (let i = 0;i < length; ++i) {
       start = index;
       while (x[index++] !== 0)
         ;
@@ -1071,7 +1071,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       const type = x.readUInt32BE(index + 6);
       query.statement.columns[i] = {
         name: transform.column.from ? transform.column.from(x.toString("utf8", start, index - 1)) : x.toString("utf8", start, index - 1),
-        parser: parsers2[type],
+        parser: parsers[type],
         table,
         number,
         type
@@ -1103,7 +1103,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     write(bytes_default.inc(4).str("n,,n=*,r=" + nonce).i32(bytes_default.i - i - 4, i).end());
   }
   async function SASLContinue(x) {
-    const res = x.toString("utf8", 9).split(",").reduce((acc, x2) => (acc[x2[0]] = x2.slice(2), acc), {});
+    const res = x.toString("utf8", 9).split(",").reduce((acc, x) => (acc[x[0]] = x.slice(2), acc), {});
     const saltedPassword = await crypto2.pbkdf2Sync(await Pass(), Buffer.from(res.s, "base64"), parseInt(res.i), 32, "sha256");
     const clientKey = await hmac(saltedPassword, "Client Key");
     const auth = "n=*,r=" + nonce + "," + "r=" + res.r + ",s=" + res.s + ",i=" + res.i + ",c=biws,r=" + res.r;
@@ -1132,7 +1132,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   }
   async function fetchArrayTypes() {
     needsTypes = false;
-    const types2 = await new Query([`
+    const types = await new Query([`
       select b.oid, b.typarray
       from pg_catalog.pg_type a
       left join pg_catalog.pg_type b on b.oid = a.typelem
@@ -1140,7 +1140,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       group by b.oid, b.typarray
       order by b.oid
     `], [], execute);
-    types2.forEach(({ oid, typarray }) => addArrayType(oid, typarray));
+    types.forEach(({ oid, typarray }) => addArrayType(oid, typarray));
   }
   function addArrayType(oid, typarray) {
     if (!!options.parsers[typarray] && !!options.serializers[typarray])
@@ -1155,15 +1155,15 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     return x === "read-write" && xs.default_transaction_read_only === "on" || x === "read-only" && xs.default_transaction_read_only === "off" || x === "primary" && xs.in_hot_standby === "on" || x === "standby" && xs.in_hot_standby === "off" || x === "prefer-standby" && xs.in_hot_standby === "off" && options.host[retries];
   }
   function fetchState() {
-    const query2 = new Query([`
+    const query = new Query([`
       show transaction_read_only;
       select pg_catalog.pg_is_in_recovery()
     `], [], execute, null, { simple: true });
-    query2.resolve = ([[a], [b2]]) => {
+    query.resolve = ([[a], [b]]) => {
       backendParameters.default_transaction_read_only = a.transaction_read_only;
-      backendParameters.in_hot_standby = b2.pg_is_in_recovery ? "on" : "off";
+      backendParameters.in_hot_standby = b.pg_is_in_recovery ? "on" : "off";
     };
-    query2.execute();
+    query.execute();
   }
   function ErrorResponse(x) {
     if (query) {
@@ -1173,9 +1173,9 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       errored(Errors.postgres(parseError(x)));
     }
   }
-  function retry(q, error2) {
+  function retry(q, error) {
     delete statements[q.signature];
-    q.retried = error2;
+    q.retried = error;
     execute(q);
   }
   function NotificationResponse(x) {
@@ -1203,12 +1203,12 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   function CopyInResponse() {
     stream = new Stream.Writable({
       autoDestroy: true,
-      write(chunk2, encoding, callback) {
-        socket.write(bytes_default().d().raw(chunk2).end(), callback);
+      write(chunk, encoding, callback) {
+        socket.write(bytes_default().d().raw(chunk).end(), callback);
       },
-      destroy(error2, callback) {
-        callback(error2);
-        socket.write(bytes_default().f().str(error2 + bytes_default.N).end());
+      destroy(error, callback) {
+        callback(error);
+        socket.write(bytes_default().f().str(error + bytes_default.N).end());
         stream = null;
       },
       final(callback) {
@@ -1233,12 +1233,12 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
       read() {
         socket.resume();
       },
-      write(chunk2, encoding, callback) {
-        socket.write(bytes_default().d().raw(chunk2).end(), callback);
+      write(chunk, encoding, callback) {
+        socket.write(bytes_default().d().raw(chunk).end(), callback);
       },
-      destroy(error2, callback) {
-        callback(error2);
-        socket.write(bytes_default().f().str(error2 + bytes_default.N).end());
+      destroy(error, callback) {
+        callback(error);
+        socket.write(bytes_default().f().str(error + bytes_default.N).end());
         stream = null;
       },
       final(callback) {
@@ -1271,13 +1271,13 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
   function UnknownAuth(x, type) {
     console.error("Postgres.js : Unknown Auth:", type);
   }
-  function Bind(parameters, types2, statement = "", portal = "") {
+  function Bind(parameters, types, statement = "", portal = "") {
     let prev, type;
     bytes_default().B().str(portal + bytes_default.N).str(statement + bytes_default.N).i16(0).i16(parameters.length);
     parameters.forEach((x, i) => {
       if (x === null)
         return bytes_default.i32(4294967295);
-      type = types2[i];
+      type = types[i];
       parameters[i] = x = type in options.serializers ? options.serializers[type](x) : "" + x;
       prev = bytes_default.i;
       bytes_default.inc(4).str(x).i32(bytes_default.i - prev - 4, prev);
@@ -1285,17 +1285,17 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
     bytes_default.i16(0);
     return bytes_default.end();
   }
-  function Parse(str, parameters, types2, name = "") {
+  function Parse(str, parameters, types, name = "") {
     bytes_default().P().str(name + bytes_default.N).str(str + bytes_default.N).i16(parameters.length);
-    parameters.forEach((x, i) => bytes_default.i32(types2[i] || 0));
+    parameters.forEach((x, i) => bytes_default.i32(types[i] || 0));
     return bytes_default.end();
   }
   function Describe(x, name = "") {
     return bytes_default().D().str(x).str(name + bytes_default.N).end();
   }
-  function Execute(portal = "", rows2 = 0) {
+  function Execute(portal = "", rows = 0) {
     return Buffer.concat([
-      bytes_default().E().str(portal + bytes_default.N).i32(rows2).end(),
+      bytes_default().E().str(portal + bytes_default.N).i32(rows).end(),
       Flush
     ]);
   }
@@ -1333,39 +1333,39 @@ function hmac(key, x) {
 function sha256(x) {
   return crypto2.createHash("sha256").update(x).digest();
 }
-function xor(a, b2) {
-  const length = Math.max(a.length, b2.length);
-  const buffer2 = Buffer.allocUnsafe(length);
+function xor(a, b) {
+  const length = Math.max(a.length, b.length);
+  const buffer = Buffer.allocUnsafe(length);
   for (let i = 0;i < length; i++)
-    buffer2[i] = a[i] ^ b2[i];
-  return buffer2;
+    buffer[i] = a[i] ^ b[i];
+  return buffer;
 }
 function timer(fn, seconds) {
   seconds = typeof seconds === "function" ? seconds() : seconds;
   if (!seconds)
     return { cancel: noop, start: noop };
-  let timer2;
+  let timer;
   return {
     cancel() {
-      timer2 && (clearTimeout(timer2), timer2 = null);
+      timer && (clearTimeout(timer), timer = null);
     },
     start() {
-      timer2 && clearTimeout(timer2);
-      timer2 = setTimeout(done, seconds * 1000, arguments);
+      timer && clearTimeout(timer);
+      timer = setTimeout(done, seconds * 1000, arguments);
     }
   };
   function done(args) {
     fn.apply(null, args);
-    timer2 = null;
+    timer = null;
   }
 }
 
 // node_modules/postgres/src/subscribe.js
 var noop2 = () => {};
-function Subscribe(postgres2, options) {
+function Subscribe(postgres, options) {
   const subscribers = new Map, slot = "postgresjs_" + Math.random().toString(36).slice(2), state = {};
-  let connection2, stream, ended = false;
-  const sql = subscribe.sql = postgres2({
+  let connection, stream, ended = false;
+  const sql = subscribe.sql = postgres({
     ...options,
     transform: { column: {}, value: {}, row: {} },
     max: 1,
@@ -1399,15 +1399,15 @@ function Subscribe(postgres2, options) {
   return subscribe;
   async function subscribe(event, fn, onsubscribe = noop2, onerror = noop2) {
     event = parseEvent(event);
-    if (!connection2)
-      connection2 = init(sql, slot, options.publications);
+    if (!connection)
+      connection = init(sql, slot, options.publications);
     const subscriber = { fn, onsubscribe };
     const fns = subscribers.has(event) ? subscribers.get(event).add(subscriber) : subscribers.set(event, new Set([subscriber])).get(event);
     const unsubscribe = () => {
       fns.delete(subscriber);
       fns.size === 0 && subscribers.delete(event);
     };
-    return connection2.then((x) => {
+    return connection.then((x) => {
       connected(x);
       onsubscribe();
       stream && stream.on("error", onerror);
@@ -1419,74 +1419,74 @@ function Subscribe(postgres2, options) {
     state.pid = x.state.pid;
     state.secret = x.state.secret;
   }
-  async function init(sql2, slot2, publications) {
+  async function init(sql, slot, publications) {
     if (!publications)
       throw new Error("Missing publication names");
-    const xs = await sql2.unsafe(`CREATE_REPLICATION_SLOT ${slot2} TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT`);
+    const xs = await sql.unsafe(`CREATE_REPLICATION_SLOT ${slot} TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT`);
     const [x] = xs;
-    const stream2 = await sql2.unsafe(`START_REPLICATION SLOT ${slot2} LOGICAL ${x.consistent_point} (proto_version '1', publication_names '${publications}')`).writable();
-    const state2 = {
-      lsn: Buffer.concat(x.consistent_point.split("/").map((x2) => Buffer.from(("00000000" + x2).slice(-8), "hex")))
+    const stream = await sql.unsafe(`START_REPLICATION SLOT ${slot} LOGICAL ${x.consistent_point} (proto_version '1', publication_names '${publications}')`).writable();
+    const state = {
+      lsn: Buffer.concat(x.consistent_point.split("/").map((x) => Buffer.from(("00000000" + x).slice(-8), "hex")))
     };
-    stream2.on("data", data);
-    stream2.on("error", error);
-    stream2.on("close", sql2.close);
-    return { stream: stream2, state: xs.state };
+    stream.on("data", data);
+    stream.on("error", error);
+    stream.on("close", sql.close);
+    return { stream, state: xs.state };
     function error(e) {
       console.error("Unexpected error during logical streaming - reconnecting", e);
     }
-    function data(x2) {
-      if (x2[0] === 119) {
-        parse(x2.subarray(25), state2, sql2.options.parsers, handle, options.transform);
-      } else if (x2[0] === 107 && x2[17]) {
-        state2.lsn = x2.subarray(1, 9);
+    function data(x) {
+      if (x[0] === 119) {
+        parse(x.subarray(25), state, sql.options.parsers, handle, options.transform);
+      } else if (x[0] === 107 && x[17]) {
+        state.lsn = x.subarray(1, 9);
         pong();
       }
     }
-    function handle(a, b2) {
-      const path = b2.relation.schema + "." + b2.relation.table;
-      call("*", a, b2);
-      call("*:" + path, a, b2);
-      b2.relation.keys.length && call("*:" + path + "=" + b2.relation.keys.map((x2) => a[x2.name]), a, b2);
-      call(b2.command, a, b2);
-      call(b2.command + ":" + path, a, b2);
-      b2.relation.keys.length && call(b2.command + ":" + path + "=" + b2.relation.keys.map((x2) => a[x2.name]), a, b2);
+    function handle(a, b) {
+      const path = b.relation.schema + "." + b.relation.table;
+      call("*", a, b);
+      call("*:" + path, a, b);
+      b.relation.keys.length && call("*:" + path + "=" + b.relation.keys.map((x) => a[x.name]), a, b);
+      call(b.command, a, b);
+      call(b.command + ":" + path, a, b);
+      b.relation.keys.length && call(b.command + ":" + path + "=" + b.relation.keys.map((x) => a[x.name]), a, b);
     }
     function pong() {
-      const x2 = Buffer.alloc(34);
-      x2[0] = 114;
-      x2.fill(state2.lsn, 1);
-      x2.writeBigInt64BE(BigInt(Date.now() - Date.UTC(2000, 0, 1)) * BigInt(1000), 25);
-      stream2.write(x2);
+      const x = Buffer.alloc(34);
+      x[0] = 114;
+      x.fill(state.lsn, 1);
+      x.writeBigInt64BE(BigInt(Date.now() - Date.UTC(2000, 0, 1)) * BigInt(1000), 25);
+      stream.write(x);
     }
   }
-  function call(x, a, b2) {
-    subscribers.has(x) && subscribers.get(x).forEach(({ fn }) => fn(a, b2, x));
+  function call(x, a, b) {
+    subscribers.has(x) && subscribers.get(x).forEach(({ fn }) => fn(a, b, x));
   }
 }
 function Time(x) {
   return new Date(Date.UTC(2000, 0, 1) + Number(x / BigInt(1000)));
 }
-function parse(x, state, parsers2, handle, transform) {
+function parse(x, state, parsers, handle, transform) {
   const char = (acc, [k, v]) => (acc[k.charCodeAt(0)] = v, acc);
   Object.entries({
-    R: (x2) => {
+    R: (x) => {
       let i = 1;
-      const r = state[x2.readUInt32BE(i)] = {
-        schema: x2.toString("utf8", i += 4, i = x2.indexOf(0, i)) || "pg_catalog",
-        table: x2.toString("utf8", i + 1, i = x2.indexOf(0, i + 1)),
-        columns: Array(x2.readUInt16BE(i += 2)),
+      const r = state[x.readUInt32BE(i)] = {
+        schema: x.toString("utf8", i += 4, i = x.indexOf(0, i)) || "pg_catalog",
+        table: x.toString("utf8", i + 1, i = x.indexOf(0, i + 1)),
+        columns: Array(x.readUInt16BE(i += 2)),
         keys: []
       };
       i += 2;
       let columnIndex = 0, column;
-      while (i < x2.length) {
+      while (i < x.length) {
         column = r.columns[columnIndex++] = {
-          key: x2[i++],
-          name: transform.column.from ? transform.column.from(x2.toString("utf8", i, i = x2.indexOf(0, i))) : x2.toString("utf8", i, i = x2.indexOf(0, i)),
-          type: x2.readUInt32BE(i += 1),
-          parser: parsers2[x2.readUInt32BE(i)],
-          atttypmod: x2.readUInt32BE(i += 4)
+          key: x[i++],
+          name: transform.column.from ? transform.column.from(x.toString("utf8", i, i = x.indexOf(0, i))) : x.toString("utf8", i, i = x.indexOf(0, i)),
+          type: x.readUInt32BE(i += 1),
+          parser: parsers[x.readUInt32BE(i)],
+          atttypmod: x.readUInt32BE(i += 4)
         };
         column.key && r.keys.push(column);
         i += 4;
@@ -1494,38 +1494,38 @@ function parse(x, state, parsers2, handle, transform) {
     },
     Y: () => {},
     O: () => {},
-    B: (x2) => {
-      state.date = Time(x2.readBigInt64BE(9));
-      state.lsn = x2.subarray(1, 9);
+    B: (x) => {
+      state.date = Time(x.readBigInt64BE(9));
+      state.lsn = x.subarray(1, 9);
     },
-    I: (x2) => {
+    I: (x) => {
       let i = 1;
-      const relation = state[x2.readUInt32BE(i)];
-      const { row } = tuples(x2, relation.columns, i += 7, transform);
+      const relation = state[x.readUInt32BE(i)];
+      const { row } = tuples(x, relation.columns, i += 7, transform);
       handle(row, {
         command: "insert",
         relation
       });
     },
-    D: (x2) => {
+    D: (x) => {
       let i = 1;
-      const relation = state[x2.readUInt32BE(i)];
+      const relation = state[x.readUInt32BE(i)];
       i += 4;
-      const key = x2[i] === 75;
-      handle(key || x2[i] === 79 ? tuples(x2, relation.columns, i += 3, transform).row : null, {
+      const key = x[i] === 75;
+      handle(key || x[i] === 79 ? tuples(x, relation.columns, i += 3, transform).row : null, {
         command: "delete",
         relation,
         key
       });
     },
-    U: (x2) => {
+    U: (x) => {
       let i = 1;
-      const relation = state[x2.readUInt32BE(i)];
+      const relation = state[x.readUInt32BE(i)];
       i += 4;
-      const key = x2[i] === 75;
-      const xs = key || x2[i] === 79 ? tuples(x2, relation.columns, i += 3, transform) : null;
+      const key = x[i] === 75;
+      const xs = key || x[i] === 79 ? tuples(x, relation.columns, i += 3, transform) : null;
       xs && (i = xs.i);
-      const { row } = tuples(x2, relation.columns, i + 3, transform);
+      const { row } = tuples(x, relation.columns, i + 3, transform);
       handle(row, {
         command: "update",
         relation,
@@ -1560,20 +1560,20 @@ function parseEvent(x) {
 import Stream2 from "stream";
 function largeObject(sql, oid, mode = 131072 | 262144) {
   return new Promise(async (resolve, reject) => {
-    await sql.begin(async (sql2) => {
+    await sql.begin(async (sql) => {
       let finish;
-      !oid && ([{ oid }] = await sql2`select lo_creat(-1) as oid`);
-      const [{ fd }] = await sql2`select lo_open(${oid}, ${mode}) as fd`;
+      !oid && ([{ oid }] = await sql`select lo_creat(-1) as oid`);
+      const [{ fd }] = await sql`select lo_open(${oid}, ${mode}) as fd`;
       const lo = {
         writable,
         readable,
-        close: () => sql2`select lo_close(${fd})`.then(finish),
-        tell: () => sql2`select lo_tell64(${fd})`,
-        read: (x) => sql2`select loread(${fd}, ${x}) as data`,
-        write: (x) => sql2`select lowrite(${fd}, ${x})`,
-        truncate: (x) => sql2`select lo_truncate64(${fd}, ${x})`,
-        seek: (x, whence = 0) => sql2`select lo_lseek64(${fd}, ${x}, ${whence})`,
-        size: () => sql2`
+        close: () => sql`select lo_close(${fd})`.then(finish),
+        tell: () => sql`select lo_tell64(${fd})`,
+        read: (x) => sql`select loread(${fd}, ${x}) as data`,
+        write: (x) => sql`select lowrite(${fd}, ${x})`,
+        truncate: (x) => sql`select lo_truncate64(${fd}, ${x})`,
+        seek: (x, whence = 0) => sql`select lo_lseek64(${fd}, ${x}, ${whence})`,
+        size: () => sql`
           select
             lo_lseek64(${fd}, location, 0) as position,
             seek.size
@@ -1596,12 +1596,12 @@ function largeObject(sql, oid, mode = 131072 | 262144) {
         start && await lo.seek(start);
         return new Stream2.Readable({
           highWaterMark,
-          async read(size2) {
-            const l = size2 > max ? size2 - max : size2;
-            max -= size2;
+          async read(size) {
+            const l = size > max ? size - max : size;
+            max -= size;
             const [{ data }] = await lo.read(l);
             this.push(data);
-            if (data.length < size2)
+            if (data.length < size)
               this.push(null);
           }
         });
@@ -1642,8 +1642,8 @@ Object.assign(Postgres, {
   }
 });
 var src_default = Postgres;
-function Postgres(a, b2) {
-  const options = parseOptions(a, b2), subscribe = options.no_subscribe || Subscribe(Postgres, { ...options });
+function Postgres(a, b) {
+  const options = parseOptions(a, b), subscribe = options.no_subscribe || Subscribe(Postgres, { ...options });
   let ending = false;
   const queries = queue_default(), connecting = queue_default(), reserved = queue_default(), closed = queue_default(), ended = queue_default(), open = queue_default(), busy = queue_default(), full = queue_default(), queues = { connecting, reserved, closed, ended, open, busy, full };
   const connections = [...Array(options.max)].map(() => connection_default(options, queues, { onopen, onend, onclose }));
@@ -1665,13 +1665,13 @@ function Postgres(a, b2) {
     end
   });
   return sql;
-  function Sql(handler2) {
-    handler2.debug = options.debug;
+  function Sql(handler) {
+    handler.debug = options.debug;
     Object.entries(options.types).reduce((acc, [name, type]) => {
       acc[name] = (x) => new Parameter(x, type.to);
       return acc;
     }, typed);
-    Object.assign(sql2, {
+    Object.assign(sql, {
       types: typed,
       typed,
       unsafe,
@@ -1680,51 +1680,51 @@ function Postgres(a, b2) {
       json,
       file
     });
-    return sql2;
+    return sql;
     function typed(value, type) {
       return new Parameter(value, type);
     }
-    function sql2(strings, ...args) {
-      const query = strings && Array.isArray(strings.raw) ? new Query(strings, args, handler2, cancel) : typeof strings === "string" && !args.length ? new Identifier(options.transform.column.to ? options.transform.column.to(strings) : strings) : new Builder(strings, args);
+    function sql(strings, ...args) {
+      const query = strings && Array.isArray(strings.raw) ? new Query(strings, args, handler, cancel) : typeof strings === "string" && !args.length ? new Identifier(options.transform.column.to ? options.transform.column.to(strings) : strings) : new Builder(strings, args);
       return query;
     }
-    function unsafe(string, args = [], options2 = {}) {
-      arguments.length === 2 && !Array.isArray(args) && (options2 = args, args = []);
-      const query = new Query([string], args, handler2, cancel, {
+    function unsafe(string, args = [], options = {}) {
+      arguments.length === 2 && !Array.isArray(args) && (options = args, args = []);
+      const query = new Query([string], args, handler, cancel, {
         prepare: false,
-        ...options2,
-        simple: "simple" in options2 ? options2.simple : args.length === 0
+        ...options,
+        simple: "simple" in options ? options.simple : args.length === 0
       });
       return query;
     }
-    function file(path, args = [], options2 = {}) {
-      arguments.length === 2 && !Array.isArray(args) && (options2 = args, args = []);
-      const query = new Query([], args, (query2) => {
+    function file(path, args = [], options = {}) {
+      arguments.length === 2 && !Array.isArray(args) && (options = args, args = []);
+      const query = new Query([], args, (query) => {
         fs.readFile(path, "utf8", (err, string) => {
           if (err)
-            return query2.reject(err);
-          query2.strings = [string];
-          handler2(query2);
+            return query.reject(err);
+          query.strings = [string];
+          handler(query);
         });
       }, cancel, {
-        ...options2,
-        simple: "simple" in options2 ? options2.simple : args.length === 0
+        ...options,
+        simple: "simple" in options ? options.simple : args.length === 0
       });
       return query;
     }
   }
   async function listen(name, fn, onlisten) {
     const listener = { fn, onlisten };
-    const sql2 = listen.sql || (listen.sql = Postgres({
+    const sql = listen.sql || (listen.sql = Postgres({
       ...options,
       max: 1,
       idle_timeout: null,
       max_lifetime: null,
       fetch_types: false,
       onclose() {
-        Object.entries(listen.channels).forEach(([name2, { listeners }]) => {
-          delete listen.channels[name2];
-          Promise.all(listeners.map((l) => listen(name2, l.fn, l.onlisten).catch(() => {})));
+        Object.entries(listen.channels).forEach(([name, { listeners }]) => {
+          delete listen.channels[name];
+          Promise.all(listeners.map((l) => listen(name, l.fn, l.onlisten).catch(() => {})));
         });
       },
       onnotify(c, x) {
@@ -1734,11 +1734,11 @@ function Postgres(a, b2) {
     const channels = listen.channels || (listen.channels = {}), exists = name in channels;
     if (exists) {
       channels[name].listeners.push(listener);
-      const result2 = await channels[name].result;
+      const result = await channels[name].result;
       listener.onlisten && listener.onlisten();
-      return { state: result2.state, unlisten };
+      return { state: result.state, unlisten };
     }
-    channels[name] = { result: sql2`listen ${sql2.unsafe('"' + name.replace(/"/g, '""') + '"')}`, listeners: [listener] };
+    channels[name] = { result: sql`listen ${sql.unsafe('"' + name.replace(/"/g, '""') + '"')}`, listeners: [listener] };
     const result = await channels[name].result;
     listener.onlisten && listener.onlisten();
     return { state: result.state, unlisten };
@@ -1749,7 +1749,7 @@ function Postgres(a, b2) {
       if (channels[name].listeners.length)
         return;
       delete channels[name];
-      return sql2`unlisten ${sql2.unsafe('"' + name.replace(/"/g, '""') + '"')}`;
+      return sql`unlisten ${sql.unsafe('"' + name.replace(/"/g, '""') + '"')}`;
     }
   }
   async function notify(channel, payload) {
@@ -1765,65 +1765,65 @@ function Postgres(a, b2) {
     move(c, reserved);
     c.reserved = () => queue.length ? c.execute(queue.shift()) : move(c, reserved);
     c.reserved.release = true;
-    const sql2 = Sql(handler2);
-    sql2.release = () => {
+    const sql = Sql(handler);
+    sql.release = () => {
       c.reserved = null;
       onopen(c);
     };
-    return sql2;
-    function handler2(q) {
+    return sql;
+    function handler(q) {
       c.queue === full ? queue.push(q) : c.execute(q) || move(c, full);
     }
   }
-  async function begin(options2, fn) {
-    !fn && (fn = options2, options2 = "");
-    const queries2 = queue_default();
-    let savepoints = 0, connection2, prepare = null;
+  async function begin(options, fn) {
+    !fn && (fn = options, options = "");
+    const queries = queue_default();
+    let savepoints = 0, connection, prepare = null;
     try {
-      await sql.unsafe("begin " + options2.replace(/[^a-z ]/ig, ""), [], { onexecute }).execute();
+      await sql.unsafe("begin " + options.replace(/[^a-z ]/ig, ""), [], { onexecute }).execute();
       return await Promise.race([
-        scope(connection2, fn),
-        new Promise((_, reject) => connection2.onclose = reject)
+        scope(connection, fn),
+        new Promise((_, reject) => connection.onclose = reject)
       ]);
     } catch (error) {
       throw error;
     }
-    async function scope(c, fn2, name) {
-      const sql2 = Sql(handler2);
-      sql2.savepoint = savepoint;
-      sql2.prepare = (x) => prepare = x.replace(/[^a-z0-9$-_. ]/gi);
+    async function scope(c, fn, name) {
+      const sql = Sql(handler);
+      sql.savepoint = savepoint;
+      sql.prepare = (x) => prepare = x.replace(/[^a-z0-9$-_. ]/gi);
       let uncaughtError, result;
-      name && await sql2`savepoint ${sql2(name)}`;
+      name && await sql`savepoint ${sql(name)}`;
       try {
         result = await new Promise((resolve, reject) => {
-          const x = fn2(sql2);
+          const x = fn(sql);
           Promise.resolve(Array.isArray(x) ? Promise.all(x) : x).then(resolve, reject);
         });
         if (uncaughtError)
           throw uncaughtError;
       } catch (e) {
-        await (name ? sql2`rollback to ${sql2(name)}` : sql2`rollback`);
+        await (name ? sql`rollback to ${sql(name)}` : sql`rollback`);
         throw e instanceof PostgresError && e.code === "25P02" && uncaughtError || e;
       }
       if (!name) {
-        prepare ? await sql2`prepare transaction '${sql2.unsafe(prepare)}'` : await sql2`commit`;
+        prepare ? await sql`prepare transaction '${sql.unsafe(prepare)}'` : await sql`commit`;
       }
       return result;
-      function savepoint(name2, fn3) {
-        if (name2 && Array.isArray(name2.raw))
-          return savepoint((sql3) => sql3.apply(sql3, arguments));
-        arguments.length === 1 && (fn3 = name2, name2 = null);
-        return scope(c, fn3, "s" + savepoints++ + (name2 ? "_" + name2 : ""));
+      function savepoint(name, fn) {
+        if (name && Array.isArray(name.raw))
+          return savepoint((sql) => sql.apply(sql, arguments));
+        arguments.length === 1 && (fn = name, name = null);
+        return scope(c, fn, "s" + savepoints++ + (name ? "_" + name : ""));
       }
-      function handler2(q) {
+      function handler(q) {
         q.catch((e) => uncaughtError || (uncaughtError = e));
-        c.queue === full ? queries2.push(q) : c.execute(q) || move(c, full);
+        c.queue === full ? queries.push(q) : c.execute(q) || move(c, full);
       }
     }
     function onexecute(c) {
-      connection2 = c;
+      connection = c;
       move(c, reserved);
-      c.reserved = () => queries2.length ? c.execute(queries2.shift()) : move(c, reserved);
+      c.reserved = () => queries.length ? c.execute(queries.shift()) : move(c, reserved);
     }
   }
   function move(c, queue) {
@@ -1862,11 +1862,11 @@ function Postgres(a, b2) {
     if (ending)
       return ending;
     await 1;
-    let timer2;
+    let timer;
     return ending = Promise.race([
-      new Promise((r) => timeout !== null && (timer2 = setTimeout(destroy, timeout * 1000, r))),
+      new Promise((r) => timeout !== null && (timer = setTimeout(destroy, timeout * 1000, r))),
       Promise.all(connections.map((c) => c.end()).concat(listen.sql ? listen.sql.end({ timeout: 0 }) : [], subscribe.sql ? subscribe.sql.end({ timeout: 0 }) : []))
-    ]).then(() => clearTimeout(timer2));
+    ]).then(() => clearTimeout(timer));
   }
   async function close() {
     await Promise.all(connections.map((c) => c.end()));
@@ -1905,10 +1905,10 @@ function Postgres(a, b2) {
     queries.length && connect(c, queries.shift());
   }
 }
-function parseOptions(a, b2) {
+function parseOptions(a, b) {
   if (a && a.shared)
     return a;
-  const env = process.env, o = (!a || typeof a === "string" ? b2 : a) || {}, { url, multihost } = parseUrl(a), query = [...url.searchParams].reduce((a2, [b3, c]) => (a2[b3] = c, a2), {}), host = o.hostname || o.host || multihost || url.hostname || env.PGHOST || "localhost", port = o.port || url.port || env.PGPORT || 5432, user = o.user || o.username || url.username || env.PGUSERNAME || env.PGUSER || osUsername();
+  const env = process.env, o = (!a || typeof a === "string" ? b : a) || {}, { url, multihost } = parseUrl(a), query = [...url.searchParams].reduce((a, [b, c]) => (a[b] = c, a), {}), host = o.hostname || o.host || multihost || url.hostname || env.PGHOST || "localhost", port = o.port || url.port || env.PGPORT || 5432, user = o.user || o.username || url.username || env.PGUSERNAME || env.PGUSER || osUsername();
   o.no_prepare && (o.prepare = false);
   query.sslmode && (query.ssl = query.sslmode, delete query.sslmode);
   "timeout" in o && (console.log("The timeout option is deprecated, use idle_timeout instead"), o.idle_timeout = o.timeout);
@@ -2268,50 +2268,6 @@ function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 
-class UniqueConstraintBuilder {
-  constructor(columns, name) {
-    this.name = name;
-    this.columns = columns;
-  }
-  static [entityKind] = "PgUniqueConstraintBuilder";
-  columns;
-  nullsNotDistinctConfig = false;
-  nullsNotDistinct() {
-    this.nullsNotDistinctConfig = true;
-    return this;
-  }
-  build(table) {
-    return new UniqueConstraint(table, this.columns, this.nullsNotDistinctConfig, this.name);
-  }
-}
-
-class UniqueOnConstraintBuilder {
-  static [entityKind] = "PgUniqueOnConstraintBuilder";
-  name;
-  constructor(name) {
-    this.name = name;
-  }
-  on(...columns) {
-    return new UniqueConstraintBuilder(columns, this.name);
-  }
-}
-
-class UniqueConstraint {
-  constructor(table, columns, nullsNotDistinct, name) {
-    this.table = table;
-    this.columns = columns;
-    this.name = name ?? uniqueKeyName(this.table, this.columns.map((column) => column.name));
-    this.nullsNotDistinct = nullsNotDistinct;
-  }
-  static [entityKind] = "PgUniqueConstraint";
-  columns;
-  name;
-  nullsNotDistinct = false;
-  getName() {
-    return this.name;
-  }
-}
-
 // node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i = startFrom;i < arrayString.length; i++) {
@@ -2392,8 +2348,8 @@ function makePgArray(array) {
 class PgColumnBuilder extends ColumnBuilder {
   foreignKeyConfigs = [];
   static [entityKind] = "PgColumnBuilder";
-  array(size2) {
-    return new PgArrayBuilder(this.config.name, this, size2);
+  array(size) {
+    return new PgArrayBuilder(this.config.name, this, size);
   }
   references(ref, actions = {}) {
     this.foreignKeyConfigs.push({ ref, actions });
@@ -2482,27 +2438,12 @@ class ExtraConfigColumn extends PgColumn {
     return this;
   }
 }
-
-class IndexedColumn {
-  static [entityKind] = "IndexedColumn";
-  constructor(name, keyAsName, type, indexConfig) {
-    this.name = name;
-    this.keyAsName = keyAsName;
-    this.type = type;
-    this.indexConfig = indexConfig;
-  }
-  name;
-  keyAsName;
-  type;
-  indexConfig;
-}
-
 class PgArrayBuilder extends PgColumnBuilder {
   static [entityKind] = "PgArrayBuilder";
-  constructor(name, baseBuilder, size2) {
+  constructor(name, baseBuilder, size) {
     super(name, "array", "PgArray");
     this.config.baseBuilder = baseBuilder;
-    this.config.size = size2;
+    this.config.size = size;
   }
   build(table) {
     const baseColumn = this.config.baseBuilder.build(table);
@@ -2591,19 +2532,19 @@ class PgEnumColumn extends PgColumn {
 function pgEnum(enumName, input) {
   return Array.isArray(input) ? pgEnumWithSchema(enumName, [...input], undefined) : pgEnumObjectWithSchema(enumName, input, undefined);
 }
-function pgEnumWithSchema(enumName, values2, schema) {
+function pgEnumWithSchema(enumName, values, schema) {
   const enumInstance = Object.assign((name) => new PgEnumColumnBuilder(name ?? "", enumInstance), {
     enumName,
-    enumValues: values2,
+    enumValues: values,
     schema,
     [isPgEnumSym]: true
   });
   return enumInstance;
 }
-function pgEnumObjectWithSchema(enumName, values2, schema) {
+function pgEnumObjectWithSchema(enumName, values, schema) {
   const enumInstance = Object.assign((name) => new PgEnumObjectColumnBuilder(name ?? "", enumInstance), {
     enumName,
-    enumValues: Object.values(values2),
+    enumValues: Object.values(values),
     schema,
     [isPgEnumSym]: true
   });
@@ -2707,9 +2648,6 @@ function getTableUniqueName(table) {
 }
 
 // node_modules/drizzle-orm/sql/sql.js
-class FakePrimitiveParam {
-  static [entityKind] = "FakePrimitiveParam";
-}
 function isSQLWrapper(value) {
   return value !== null && value !== undefined && typeof value.getSQL === "function";
 }
@@ -3041,19 +2979,19 @@ class Placeholder {
     return new SQL([this]);
   }
 }
-function fillPlaceholders(params, values2) {
+function fillPlaceholders(params, values) {
   return params.map((p) => {
     if (is(p, Placeholder)) {
-      if (!(p.name in values2)) {
+      if (!(p.name in values)) {
         throw new Error(`No value for placeholder "${p.name}" was provided`);
       }
-      return values2[p.name];
+      return values[p.name];
     }
     if (is(p, Param) && is(p.value, Placeholder)) {
-      if (!(p.value.name in values2)) {
+      if (!(p.value.name in values)) {
         throw new Error(`No value for placeholder "${p.value.name}" was provided`);
       }
-      return p.encoder.mapToDriverValue(values2[p.value.name]);
+      return p.encoder.mapToDriverValue(values[p.value.name]);
     }
     return p;
   });
@@ -3142,19 +3080,6 @@ class TableAliasProxyHandler {
       return new Proxy(value, new ColumnAliasProxyHandler(new Proxy(target, this)));
     }
     return value;
-  }
-}
-
-class RelationTableAliasProxyHandler {
-  constructor(alias) {
-    this.alias = alias;
-  }
-  static [entityKind] = "RelationTableAliasProxyHandler";
-  get(target, prop) {
-    if (prop === "sourceTable") {
-      return aliasedTable(target.sourceTable, this.alias);
-    }
-    return target[prop];
   }
 }
 function aliasedTable(table, tableAlias) {
@@ -3307,8 +3232,8 @@ function haveSameKeys(left, right) {
   }
   return true;
 }
-function mapUpdateSet(table, values2) {
-  const entries = Object.entries(values2).filter(([, value]) => value !== undefined).map(([key, value]) => {
+function mapUpdateSet(table, values) {
+  const entries = Object.entries(values).filter(([, value]) => value !== undefined).map(([key, value]) => {
     if (is(value, SQL) || is(value, Column)) {
       return [key, value];
     } else {
@@ -3335,10 +3260,10 @@ function getTableColumns(table) {
 function getTableLikeName(table) {
   return is(table, Subquery) ? table._.alias : is(table, View) ? table[ViewBaseConfig].name : is(table, SQL) ? undefined : table[Table.Symbol.IsAlias] ? table[Table.Symbol.Name] : table[Table.Symbol.BaseName];
 }
-function getColumnNameAndConfig(a, b2) {
+function getColumnNameAndConfig(a, b) {
   return {
     name: typeof a === "string" && a.length > 0 ? a : "",
-    config: typeof a === "object" ? a : b2
+    config: typeof a === "object" ? a : b
   };
 }
 function isConfig(data) {
@@ -3469,8 +3394,8 @@ class PgBigInt64 extends PgColumn {
     return BigInt(value);
   }
 }
-function bigint(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function bigint(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (config.mode === "number") {
     return new PgBigInt53Builder(name);
   }
@@ -3523,8 +3448,8 @@ class PgBigSerial64 extends PgColumn {
     return BigInt(value);
   }
 }
-function bigserial(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function bigserial(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (config.mode === "number") {
     return new PgBigSerial53Builder(name);
   }
@@ -3573,8 +3498,8 @@ class PgChar extends PgColumn {
     return this.length === undefined ? `char` : `char(${this.length})`;
   }
 }
-function char(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function char(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgCharBuilder(name, config);
 }
 
@@ -3634,8 +3559,8 @@ class PgCustomColumn extends PgColumn {
   }
 }
 function customType(customTypeParams) {
-  return (a, b2) => {
-    const { name, config } = getColumnNameAndConfig(a, b2);
+  return (a, b) => {
+    const { name, config } = getColumnNameAndConfig(a, b);
     return new PgCustomColumnBuilder(name, config, customTypeParams);
   };
 }
@@ -3695,8 +3620,8 @@ class PgDateString extends PgColumn {
     return value.toISOString().slice(0, -14);
   }
 }
-function date(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function date(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (config?.mode === "date") {
     return new PgDateBuilder(name);
   }
@@ -3800,8 +3725,8 @@ class PgInterval extends PgColumn {
     return `interval${fields}${precision}`;
   }
 }
-function interval(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function interval(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgIntervalBuilder(name, config);
 }
 
@@ -3896,8 +3821,8 @@ class PgLineTuple extends PgColumn {
     return "line";
   }
   mapFromDriverValue(value) {
-    const [a, b2, c] = value.slice(1, -1).split(",");
-    return [Number.parseFloat(a), Number.parseFloat(b2), Number.parseFloat(c)];
+    const [a, b, c] = value.slice(1, -1).split(",");
+    return [Number.parseFloat(a), Number.parseFloat(b), Number.parseFloat(c)];
   }
   mapToDriverValue(value) {
     return `{${value[0]},${value[1]},${value[2]}}`;
@@ -3920,15 +3845,15 @@ class PgLineABC extends PgColumn {
     return "line";
   }
   mapFromDriverValue(value) {
-    const [a, b2, c] = value.slice(1, -1).split(",");
-    return { a: Number.parseFloat(a), b: Number.parseFloat(b2), c: Number.parseFloat(c) };
+    const [a, b, c] = value.slice(1, -1).split(",");
+    return { a: Number.parseFloat(a), b: Number.parseFloat(b), c: Number.parseFloat(c) };
   }
   mapToDriverValue(value) {
     return `{${value.a},${value.b},${value.c}}`;
   }
 }
-function line(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function line(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (!config?.mode || config.mode === "tuple") {
     return new PgLineBuilder(name);
   }
@@ -4086,8 +4011,8 @@ class PgNumericBigInt extends PgColumn {
     }
   }
 }
-function numeric(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function numeric(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   const mode = config?.mode;
   return mode === "number" ? new PgNumericNumberBuilder(name, config?.precision, config?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config?.precision, config?.scale) : new PgNumericBuilder(name, config?.precision, config?.scale);
 }
@@ -4146,8 +4071,8 @@ class PgPointObject extends PgColumn {
     return `(${value.x},${value.y})`;
   }
 }
-function point(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function point(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (!config?.mode || config.mode === "tuple") {
     return new PgPointTupleBuilder(name);
   }
@@ -4163,8 +4088,8 @@ function hexToBytes(hex) {
   return new Uint8Array(bytes);
 }
 function bytesToFloat64(bytes, offset) {
-  const buffer2 = new ArrayBuffer(8);
-  const view = new DataView(buffer2);
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
   for (let i = 0;i < 8; i++) {
     view.setUint8(i, bytes[offset + i]);
   }
@@ -4240,8 +4165,8 @@ class PgGeometryObject extends PgColumn {
     return `point(${value.x} ${value.y})`;
   }
 }
-function geometry(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function geometry(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (!config?.mode || config.mode === "tuple") {
     return new PgGeometryBuilder(name);
   }
@@ -4371,8 +4296,8 @@ class PgText extends PgColumn {
     return "text";
   }
 }
-function text(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function text(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgTextBuilder(name, config);
 }
 
@@ -4405,8 +4330,8 @@ class PgTime extends PgColumn {
     return `time${precision}${this.withTimezone ? " with time zone" : ""}`;
   }
 }
-function time(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function time(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgTimeBuilder(name, config.withTimezone ?? false, config.precision);
 }
 
@@ -4483,8 +4408,8 @@ class PgTimestampString extends PgColumn {
     return shortened;
   }
 }
-function timestamp(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function timestamp(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   if (config?.mode === "string") {
     return new PgTimestampStringBuilder(name, config.withTimezone ?? false, config.precision);
   }
@@ -4536,8 +4461,8 @@ class PgVarchar extends PgColumn {
     return this.length === undefined ? `varchar` : `varchar(${this.length})`;
   }
 }
-function varchar(a, b2 = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function varchar(a, b = {}) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgVarcharBuilder(name, config);
 }
 
@@ -4560,8 +4485,8 @@ class PgBinaryVector extends PgColumn {
     return `bit(${this.dimensions})`;
   }
 }
-function bit(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function bit(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgBinaryVectorBuilder(name, config);
 }
 
@@ -4590,8 +4515,8 @@ class PgHalfVector extends PgColumn {
     return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
   }
 }
-function halfvec(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function halfvec(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgHalfVectorBuilder(name, config);
 }
 
@@ -4614,8 +4539,8 @@ class PgSparseVector extends PgColumn {
     return `sparsevec(${this.dimensions})`;
   }
 }
-function sparsevec(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function sparsevec(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgSparseVectorBuilder(name, config);
 }
 
@@ -4644,8 +4569,8 @@ class PgVector extends PgColumn {
     return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
   }
 }
-function vector(a, b2) {
-  const { name, config } = getColumnNameAndConfig(a, b2);
+function vector(a, b) {
+  const { name, config } = getColumnNameAndConfig(a, b);
   return new PgVectorBuilder(name, config);
 }
 
@@ -4902,23 +4827,23 @@ var lt = (left, right) => {
 var lte = (left, right) => {
   return sql`${left} <= ${bindIfParam(right, left)}`;
 };
-function inArray(column, values2) {
-  if (Array.isArray(values2)) {
-    if (values2.length === 0) {
+function inArray(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
       return sql`false`;
     }
-    return sql`${column} in ${values2.map((v) => bindIfParam(v, column))}`;
+    return sql`${column} in ${values.map((v) => bindIfParam(v, column))}`;
   }
-  return sql`${column} in ${bindIfParam(values2, column)}`;
+  return sql`${column} in ${bindIfParam(values, column)}`;
 }
-function notInArray(column, values2) {
-  if (Array.isArray(values2)) {
-    if (values2.length === 0) {
+function notInArray(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
       return sql`true`;
     }
-    return sql`${column} not in ${values2.map((v) => bindIfParam(v, column))}`;
+    return sql`${column} not in ${values.map((v) => bindIfParam(v, column))}`;
   }
-  return sql`${column} not in ${bindIfParam(values2, column)}`;
+  return sql`${column} not in ${bindIfParam(values, column)}`;
 }
 function isNull(value) {
   return sql`${value} is null`;
@@ -5465,22 +5390,22 @@ class PgDialect {
     const offsetSql = offset ? sql` offset ${offset}` : undefined;
     return sql`${leftChunk}${operatorChunk}${rightChunk}${orderBySql}${limitSql}${offsetSql}`;
   }
-  buildInsertQuery({ table, values: valuesOrSelect, onConflict, returning, withList, select: select2, overridingSystemValue_ }) {
+  buildInsertQuery({ table, values: valuesOrSelect, onConflict, returning, withList, select, overridingSystemValue_ }) {
     const valuesSqlList = [];
     const columns = table[Table.Symbol.Columns];
     const colEntries = Object.entries(columns).filter(([_, col]) => !col.shouldDisableInsert());
     const insertOrder = colEntries.map(([, column]) => sql.identifier(this.casing.getColumnCasing(column)));
-    if (select2) {
-      const select22 = valuesOrSelect;
-      if (is(select22, SQL)) {
-        valuesSqlList.push(select22);
+    if (select) {
+      const select2 = valuesOrSelect;
+      if (is(select2, SQL)) {
+        valuesSqlList.push(select2);
       } else {
-        valuesSqlList.push(select22.getSQL());
+        valuesSqlList.push(select2.getSQL());
       }
     } else {
-      const values2 = valuesOrSelect;
+      const values = valuesOrSelect;
       valuesSqlList.push(sql.raw("values "));
-      for (const [valueIndex, value] of values2.entries()) {
+      for (const [valueIndex, value] of values.entries()) {
         const valueList = [];
         for (const [fieldName, col] of colEntries) {
           const colValue = value[fieldName];
@@ -5501,7 +5426,7 @@ class PgDialect {
           }
         }
         valuesSqlList.push(valueList);
-        if (valueIndex < values2.length - 1) {
+        if (valueIndex < values.length - 1) {
           valuesSqlList.push(sql`, `);
         }
       }
@@ -6051,10 +5976,10 @@ class PgSelectBase extends PgSelectQueryBuilderBase {
 applyMixins(PgSelectBase, [QueryPromise]);
 function createSetOperator(type, isAll) {
   return (leftSelect, rightSelect, ...restSelects) => {
-    const setOperators = [rightSelect, ...restSelects].map((select2) => ({
+    const setOperators = [rightSelect, ...restSelects].map((select) => ({
       type,
       isAll,
-      rightSelect: select2
+      rightSelect: select
     }));
     for (const setOperator of setOperators) {
       if (!haveSameKeys(leftSelect.getSelectedFields(), setOperator.rightSelect.getSelectedFields())) {
@@ -6100,7 +6025,7 @@ class QueryBuilder {
   };
   with(...queries) {
     const self = this;
-    function select2(fields) {
+    function select(fields) {
       return new PgSelectBuilder({
         fields: fields ?? undefined,
         session: undefined,
@@ -6124,7 +6049,7 @@ class QueryBuilder {
         distinct: { on }
       });
     }
-    return { select: select2, selectDistinct, selectDistinctOn };
+    return { select, selectDistinct, selectDistinctOn };
   }
   select(fields) {
     return new PgSelectBuilder({
@@ -6250,12 +6175,12 @@ class PgInsertBuilder {
     this.overridingSystemValue_ = true;
     return this;
   }
-  values(values2) {
-    values2 = Array.isArray(values2) ? values2 : [values2];
-    if (values2.length === 0) {
+  values(values) {
+    values = Array.isArray(values) ? values : [values];
+    if (values.length === 0) {
       throw new Error("values() must be called with at least one value");
     }
-    const mappedValues = values2.map((entry) => {
+    const mappedValues = values.map((entry) => {
       const result = {};
       const cols = this.table[Table.Symbol.Columns];
       for (const colKey of Object.keys(entry)) {
@@ -6267,20 +6192,20 @@ class PgInsertBuilder {
     return new PgInsertBase(this.table, mappedValues, this.session, this.dialect, this.withList, false, this.overridingSystemValue_).setToken(this.authToken);
   }
   select(selectQuery) {
-    const select2 = typeof selectQuery === "function" ? selectQuery(new QueryBuilder) : selectQuery;
-    if (!is(select2, SQL) && !haveSameKeys(this.table[Columns], select2._.selectedFields)) {
+    const select = typeof selectQuery === "function" ? selectQuery(new QueryBuilder) : selectQuery;
+    if (!is(select, SQL) && !haveSameKeys(this.table[Columns], select._.selectedFields)) {
       throw new Error("Insert select error: selected fields are not the same or are in a different order compared to the table definition");
     }
-    return new PgInsertBase(this.table, select2, this.session, this.dialect, this.withList, true);
+    return new PgInsertBase(this.table, select, this.session, this.dialect, this.withList, true);
   }
 }
 
 class PgInsertBase extends QueryPromise {
-  constructor(table, values2, session, dialect, withList, select2, overridingSystemValue_) {
+  constructor(table, values, session, dialect, withList, select, overridingSystemValue_) {
     super();
     this.session = session;
     this.dialect = dialect;
-    this.config = { table, values: values2, withList, select: select2, overridingSystemValue_ };
+    this.config = { table, values, withList, select, overridingSystemValue_ };
   }
   static [entityKind] = "PgInsert";
   config;
@@ -6419,8 +6344,8 @@ class PgUpdateBuilder {
     this.authToken = token;
     return this;
   }
-  set(values2) {
-    return new PgUpdateBase(this.table, mapUpdateSet(this.table, values2), this.session, this.dialect, this.withList).setToken(this.authToken);
+  set(values) {
+    return new PgUpdateBase(this.table, mapUpdateSet(this.table, values), this.session, this.dialect, this.withList).setToken(this.authToken);
   }
 }
 
@@ -6685,10 +6610,10 @@ class PgRelationalQuery extends QueryPromise {
 
 // node_modules/drizzle-orm/pg-core/query-builders/raw.js
 class PgRaw extends QueryPromise {
-  constructor(execute, sql2, query, mapBatchResult) {
+  constructor(execute, sql, query, mapBatchResult) {
     super();
     this.execute = execute;
-    this.sql = sql2;
+    this.sql = sql;
     this.query = query;
     this.mapBatchResult = mapBatchResult;
   }
@@ -6752,7 +6677,7 @@ class PgDatabase {
   $cache;
   with(...queries) {
     const self = this;
-    function select2(fields) {
+    function select(fields) {
       return new PgSelectBuilder({
         fields: fields ?? undefined,
         session: self.session,
@@ -6787,7 +6712,7 @@ class PgDatabase {
     function delete_(table) {
       return new PgDeleteBase(table, self.session, self.dialect, queries);
     }
-    return { select: select2, selectDistinct, selectDistinctOn, update, insert, delete: delete_ };
+    return { select, selectDistinct, selectDistinctOn, update, insert, delete: delete_ };
   }
   select(fields) {
     return new PgSelectBuilder({
@@ -6852,13 +6777,13 @@ class NoopCache extends Cache {
   async put(_hashedQuery, _response, _tables, _config) {}
   async onMutate(_params) {}
 }
-async function hashQuery(sql2, params) {
-  const dataToHash = `${sql2}-${JSON.stringify(params)}`;
+async function hashQuery(sql, params) {
+  const dataToHash = `${sql}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder;
   const data = encoder.encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = [...new Uint8Array(hashBuffer)];
-  const hashHex = hashArray.map((b2) => b2.toString(16).padStart(2, "0")).join("");
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   return hashHex;
 }
 
@@ -7153,15 +7078,15 @@ function drizzle(...params) {
     return construct(instance, params[1]);
   }
   if (isConfig(params[0])) {
-    const { connection: connection2, client, ...drizzleConfig } = params[0];
+    const { connection, client, ...drizzleConfig } = params[0];
     if (client)
       return construct(client, drizzleConfig);
-    if (typeof connection2 === "object" && connection2.url !== undefined) {
-      const { url, ...config } = connection2;
+    if (typeof connection === "object" && connection.url !== undefined) {
+      const { url, ...config } = connection;
       const instance2 = src_default(url, config);
       return construct(instance2, drizzleConfig);
     }
-    const instance = src_default(connection2);
+    const instance = src_default(connection);
     return construct(instance, drizzleConfig);
   }
   return construct(params[0], params[1]);
@@ -7193,7 +7118,13 @@ __export(exports_schema, {
 });
 var betSide = pgEnum("bet_side", ["yes", "no"]);
 var betStatus = pgEnum("bet_status", ["open", "won", "lost", "voided"]);
-var ledgerKind = pgEnum("ledger_kind", ["seed", "bet_place", "bet_settle", "bet_void"]);
+var ledgerKind = pgEnum("ledger_kind", [
+  "seed",
+  "bet_place",
+  "bet_settle",
+  "bet_void",
+  "gift"
+]);
 var events = pgTable("events", {
   eventTicker: text("event_ticker").primaryKey(),
   seriesTicker: text("series_ticker").notNull(),
@@ -7265,7 +7196,10 @@ var ledger = pgTable("ledger", {
 var url = process.env.DATABASE_URL;
 if (!url)
   throw new Error("DATABASE_URL is not set (e.g. postgres://localhost/wpm2)");
-var sql2 = src_default(url);
+var sql2 = src_default(url, {
+  idle_timeout: 20,
+  max_lifetime: 60 * 30
+});
 var db = drizzle(sql2, { schema: exports_schema });
 
 // src/api/health.ts
@@ -7304,8 +7238,8 @@ async function heartbeat(servedBy = "v1") {
   }
   try {
     const res = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
-    const json2 = await res.json();
-    const info = json2.result;
+    const json = await res.json();
+    const info = json.result;
     let webhookPath = null;
     if (info?.url) {
       try {
@@ -7316,7 +7250,7 @@ async function heartbeat(servedBy = "v1") {
     }
     telegramWebhookVersion = apiVersionFromPath(webhookPath);
     const lastErrorAgeMs = info?.last_error_date ? Date.now() - info.last_error_date * 1000 : Infinity;
-    const webhookOk = json2.ok && !!info?.url && (info.pending_update_count ?? 0) < 10 && lastErrorAgeMs > 5 * 60 * 1000;
+    const webhookOk = json.ok && !!info?.url && (info.pending_update_count ?? 0) < 10 && lastErrorAgeMs > 5 * 60 * 1000;
     checks.telegramWebhook = {
       ok: webhookOk,
       registered: !!info?.url,
