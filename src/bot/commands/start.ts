@@ -1,5 +1,6 @@
 import { formatDollars, gifMessage } from "../../utils/format";
-import { balanceCents, registerUser } from "../../utils/house";
+import { balanceCents, findUser, registerUser } from "../../utils/house";
+import { canRegister } from "../access";
 import { telegramProfile } from "../identity";
 import type { BotCommand } from "./types";
 
@@ -24,7 +25,16 @@ export const start: BotCommand = {
   description: "Collect your bankroll and start betting",
   usage: "/start",
   handler: async ({ thread, message }) => {
-    const { userId, created } = await registerUser(telegramProfile(message));
+    const profile = telegramProfile(message);
+    // Existing accounts always get through; only new sign-ups are gated.
+    if (!canRegister(profile.telegramId) && (await findUser(profile)) == null) {
+      await thread.post(
+        "This is a private betting pool — ask the house to add your Telegram id to the guest list.",
+      );
+      return;
+    }
+
+    const { userId, created } = await registerUser(profile);
     const balance = formatDollars(await balanceCents(userId));
 
     if (!created) {

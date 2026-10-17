@@ -1,19 +1,8 @@
 import { formatDollars } from "../../utils/format";
 import { giftAllUsers, giftUser } from "../../utils/house";
 import { announceGift } from "../../utils/announce";
+import { isAdmin } from "../access";
 import type { BotCommand } from "./types";
-
-// Telegram user ids allowed to run /gift, from TELEGRAM_ADMIN_IDS
-// (comma-separated). Ids, not usernames: usernames are mutable and
-// anyone can rename themselves into one.
-function adminIds(): Set<string> {
-  return new Set(
-    (process.env.TELEGRAM_ADMIN_IDS ?? "")
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
-}
 
 /**
  * Parse a dollar amount like "5000", "$5,000", or "49.99" into cents.
@@ -33,7 +22,7 @@ export const gift: BotCommand = {
   description: "Gift house money to every bettor, or one (admin only)",
   usage: "/gift <amount> [@username]",
   handler: async ({ thread, message, args }) => {
-    if (!adminIds().has(message.author.userId)) {
+    if (!isAdmin(message.author.userId)) {
       await thread.post("Nice try — only the house hands out money. 💸");
       return;
     }
